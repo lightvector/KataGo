@@ -750,15 +750,14 @@ class ResBlock(torch.nn.Module):
         mask_sum_hw: N111
         mask_sum: scalar
 
-        Returns: NCHW
+        Returns: NCHW (residual only, caller is responsible for adding to trunk)
         """
         out = x
         out = self.normactconv1(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         out = self.normactconv2(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        result = x + out
         if extra_outputs is not None:
-            extra_outputs.report(self.name+".out", result)
-        return result
+            extra_outputs.report(self.name+".out", out)
+        return out
 
 
 class BottleneckResBlock(torch.nn.Module):
@@ -866,17 +865,16 @@ class BottleneckResBlock(torch.nn.Module):
         mask_sum_hw: N111
         mask_sum: scalar
 
-        Returns: NCHW
+        Returns: NCHW (residual only, caller is responsible for adding to trunk)
         """
         out = x
         out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         for i in range(self.internal_length):
             out = self.normactconvstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        result = x + out
         if extra_outputs is not None:
-            extra_outputs.report(self.name+".out", result)
-        return result
+            extra_outputs.report(self.name+".out", out)
+        return out
 
 
 class NestedBottleneckResBlock(torch.nn.Module):
@@ -972,127 +970,17 @@ class NestedBottleneckResBlock(torch.nn.Module):
         mask_sum_hw: N111
         mask_sum: scalar
 
-        Returns: NCHW
+        Returns: NCHW (residual only, caller is responsible for adding to trunk)
         """
         out = x
         out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         for i in range(self.internal_length):
-            out = self.blockstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
+            out = out + self.blockstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        result = x + out
         if extra_outputs is not None:
-            extra_outputs.report(self.name+".out", result)
-        return result
+            extra_outputs.report(self.name+".out", out)
+        return out
 
-
-
-class NestedNestedBottleneckResBlock(torch.nn.Module):
-    def __init__(
-        self,
-        name: str,
-        internal_length: int,
-        sub_internal_length: int,
-        c_main: int,
-        c_outermid: int,
-        c_mid: int,
-        c_gpool: Optional[int],
-        config: modelconfigs.ModelConfig,
-        activation: str,
-    ):
-        super(NestedNestedBottleneckResBlock, self).__init__()
-        self.name = name
-        self.norm_kind = config["norm_kind"]
-        self.internal_length = internal_length
-        assert internal_length >= 1
-
-        self.normactconvp = NormActConv(
-            name=name+".normactconvp",
-            c_in=c_main,
-            c_out=c_outermid,
-            c_gpool=None,
-            config=config,
-            activation=activation,
-            kernel_size=1,
-            fixup_use_gamma=False,
-        )
-
-        self.blockstack = torch.nn.ModuleList()
-        for i in range(self.internal_length):
-            self.blockstack.append(NestedBottleneckResBlock(
-                name=name+".blockstack."+str(i),
-                internal_length=sub_internal_length,
-                c_main=c_outermid,
-                c_mid=c_mid,
-                c_gpool=(c_gpool if i == 0 else None),
-                config=config,
-                activation=activation,
-            ))
-
-        self.normactconvq = NormActConv(
-            name=name+".normactconvq",
-            c_in=c_outermid,
-            c_out=c_main,
-            c_gpool=None,
-            config=config,
-            activation=activation,
-            kernel_size=1,
-            fixup_use_gamma=True,
-        )
-
-    def initialize(self, fixup_scale):
-        if self.norm_kind == "fixup":
-            self.normactconvp.initialize(scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
-            for i in range(self.internal_length):
-                self.blockstack[i].initialize(fixup_scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
-            self.normactconvq.initialize(scale=0.0)
-        elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
-            self.normactconvp.initialize(scale=1.0, norm_scale=fixup_scale)
-            for i in range(self.internal_length):
-                self.blockstack[i].initialize(fixup_scale=1.0 / math.sqrt(i+1.0))
-            self.normactconvq.initialize(scale=1.0, norm_scale=1.0 / math.sqrt(self.internal_length+1.0))
-        else:
-            self.normactconvp.initialize(scale=1.0)
-            for i in range(self.internal_length):
-                self.blockstack[i].initialize(fixup_scale=1.0)
-            self.normactconvq.initialize(scale=1.0)
-
-    def add_reg_dict(self, reg_dict:Dict[str,List]):
-        self.normactconvp.add_reg_dict(reg_dict)
-        for i in range(self.internal_length):
-            self.blockstack[i].add_reg_dict(reg_dict)
-        self.normactconvq.add_reg_dict(reg_dict)
-
-    def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
-        self.normactconvp.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
-        for i in range(self.internal_length):
-            self.blockstack[i].set_brenorm_params(renorm_avg_momentum, rmax, dmax)
-        self.normactconvq.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
-
-    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
-        self.normactconvp.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
-        for i in range(self.internal_length):
-            self.blockstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
-        self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
-
-    def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
-        """
-        Parameters:
-        x: NCHW
-        mask: N1HW
-        mask_sum_hw: N111
-        mask_sum: scalar
-
-        Returns: NCHW
-        """
-        out = x
-        out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        for i in range(self.internal_length):
-            out = self.blockstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        result = x + out
-        if extra_outputs is not None:
-            extra_outputs.report(self.name+".out", result)
-        return result
 
 class DilationNestedBottleneckResBlock(torch.nn.Module):
     def __init__(
@@ -1186,7 +1074,7 @@ class DilationNestedBottleneckResBlock(torch.nn.Module):
         mask_sum_hw: N111
         mask_sum: scalar
 
-        Returns: NCHW
+        Returns: NCHW (residual only, caller is responsible for adding to trunk)
         """
         out = x
         # mask_sum_hw and mask_sum are None because the dilation rearrangement changes the spatial
@@ -1220,7 +1108,7 @@ class DilationNestedBottleneckResBlock(torch.nn.Module):
 
         # mask_sum_hw and mask_sum are None - see comment above on normactconvp.
         for i in range(self.internal_length):
-            out = self.blockstack[i](out, mask=mask_t, mask_sum_hw=None, mask_sum=None, extra_outputs=extra_outputs)
+            out = out + self.blockstack[i](out, mask=mask_t, mask_sum_hw=None, mask_sum=None, extra_outputs=extra_outputs)
 
         # untranspose!
         out = out.reshape((n,3,3,c,padded_h_div3,padded_w_div3))
@@ -1231,10 +1119,9 @@ class DilationNestedBottleneckResBlock(torch.nn.Module):
 
         # mask_sum_hw and mask_sum are None - see comment above on normactconvp.
         out = self.normactconvq(out, mask=mask, mask_sum_hw=None, mask_sum=None, extra_outputs=extra_outputs)
-        result = x + out
         if extra_outputs is not None:
-            extra_outputs.report(self.name+".out", result)
-        return result
+            extra_outputs.report(self.name+".out", out)
+        return out
 
 
 # =============================================================================
@@ -1975,16 +1862,22 @@ class NestedBottleneckTransformerBlock(torch.nn.Module):
 
         self.blockstack = torch.nn.ModuleList()
         for i in range(self.internal_length):
-            self.blockstack.append(TransformerBlock(
-                name=name+".blockstack."+str(i),
+            self.blockstack.append(TransformerAttentionBlock(
+                name=name+".blockstack.attn"+str(i+1),
                 c_main=c_mid,
                 config=config,
                 activation=activation,
                 pos_len=pos_len,
-                use_swiglu=use_swiglu,
                 use_rope=use_rope,
                 use_gab=use_gab,
                 use_tab=use_tab,
+            ))
+            self.blockstack.append(TransformerFFNBlock(
+                name=name+".blockstack.ffn"+str(i+1),
+                c_main=c_mid,
+                config=config,
+                activation=activation,
+                use_swiglu=use_swiglu,
             ))
 
         self.normactconvq = NormActConv(
@@ -1999,38 +1892,41 @@ class NestedBottleneckTransformerBlock(torch.nn.Module):
         )
 
     def initialize(self, fixup_scale):
+        num_internal_blocks = 2 * self.internal_length
         if self.norm_kind == "fixup":
             self.normactconvp.initialize(scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
-            for i in range(self.internal_length):
+            for i in range(num_internal_blocks):
                 self.blockstack[i].initialize(fixup_scale=math.pow(fixup_scale, 1.0 / (1.0 + self.internal_length)))
             self.normactconvq.initialize(scale=0.0)
         elif self.norm_kind == "fixscale" or self.norm_kind == "fixbrenorm" or self.norm_kind == "fixscaleonenorm":
             self.normactconvp.initialize(scale=1.0, norm_scale=fixup_scale)
-            for i in range(self.internal_length):
-                self.blockstack[i].initialize(fixup_scale=1.0 / math.sqrt(i+1.0))
+            for i in range(num_internal_blocks):
+                # Scale based on logical transformer block index (i//2), not the doubled block object index,
+                # since splitting into attention+FFN blocks should not change initialization scaling.
+                self.blockstack[i].initialize(fixup_scale=1.0 / math.sqrt(i//2+1.0))
             self.normactconvq.initialize(scale=1.0, norm_scale=1.0 / math.sqrt(self.internal_length+1.0))
         else:
             self.normactconvp.initialize(scale=1.0)
-            for i in range(self.internal_length):
+            for i in range(num_internal_blocks):
                 self.blockstack[i].initialize(fixup_scale=1.0)
             self.normactconvq.initialize(scale=1.0)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         self.normactconvp.add_reg_dict(reg_dict)
-        for i in range(self.internal_length):
-            self.blockstack[i].add_reg_dict(reg_dict)
+        for block in self.blockstack:
+            block.add_reg_dict(reg_dict)
         self.normactconvq.add_reg_dict(reg_dict)
 
     def set_brenorm_params(self, renorm_avg_momentum: float, rmax: float, dmax: float):
         self.normactconvp.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
-        for i in range(self.internal_length):
-            self.blockstack[i].set_brenorm_params(renorm_avg_momentum, rmax, dmax)
+        for block in self.blockstack:
+            block.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
         self.normactconvq.set_brenorm_params(renorm_avg_momentum, rmax, dmax)
 
     def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
         self.normactconvp.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
-        for i in range(self.internal_length):
-            self.blockstack[i].add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+        for block in self.blockstack:
+            block.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
         self.normactconvq.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
     def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
@@ -2041,20 +1937,24 @@ class NestedBottleneckTransformerBlock(torch.nn.Module):
         mask_sum_hw: N111
         mask_sum: scalar
 
-        Returns: NCHW
+        Returns: NCHW (residual only, caller is responsible for adding to trunk)
         """
         out = x
         out = self.normactconvp(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        for i in range(self.internal_length):
-            out = self.blockstack[i](out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
+        for block in self.blockstack:
+            out = out + block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
         out = self.normactconvq(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
-        result = x + out
         if extra_outputs is not None:
-            extra_outputs.report(self.name+".out", result)
-        return result
+            extra_outputs.report(self.name+".out", out)
+        return out
 
 
-class TransformerBlock(torch.nn.Module):
+class TransformerAttentionBlock(torch.nn.Module):
+    """Self-attention half of a transformer block, with its own residual connection.
+
+    Contains: RMSNorm -> Q/K/V projections -> (optional RoPE) -> attention -> output projection.
+    Returns residual only; caller is responsible for adding to trunk.
+    """
     def __init__(
         self,
         name,
@@ -2062,16 +1962,13 @@ class TransformerBlock(torch.nn.Module):
         config,
         activation,
         pos_len,
-        use_swiglu,
         use_rope=True,
         use_gab=False,
         use_tab=False,
     ):
-        super(TransformerBlock, self).__init__()
+        super(TransformerAttentionBlock, self).__init__()
         self.name = name
         self.norm_kind = config.get("norm_kind", "layer")
-        self.ffn_dim = config["transformer_ffn_channels"]
-        self.use_swiglu = use_swiglu
         self.use_rope = use_rope
         self.use_gab = use_gab
         self.use_tab = use_tab
@@ -2079,24 +1976,32 @@ class TransformerBlock(torch.nn.Module):
         self.num_heads = config["transformer_heads"]
         self.num_kv_heads = config.get("transformer_kv_heads", self.num_heads)
         self.n_rep = self.num_heads // self.num_kv_heads
-        self.head_dim = c_main // self.num_heads
 
-        assert self.head_dim * self.num_heads == c_main, f"Embed dim mismatch"
+        self.q_head_dim = config.get("attention_query_head_dim", c_main // self.num_heads)
+        self.v_head_dim = config.get("attention_value_head_dim", c_main // self.num_heads)
+
         if self.use_rope:
-            assert self.head_dim % 4 == 0, f"Head dim must be divisible by 4 for 2D RoPE"
+            assert self.q_head_dim % 4 == 0, f"Query head dim must be divisible by 4 for 2D RoPE"
         assert self.num_heads % self.num_kv_heads == 0, \
             f"Query heads ({self.num_heads}) must be divisible by KV heads ({self.num_kv_heads})"
 
-        self.q_proj = torch.nn.Linear(c_main, c_main, bias=False)
-        self.k_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.head_dim, bias=False)
-        self.v_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.head_dim, bias=False)
-        self.out_proj = torch.nn.Linear(c_main, c_main, bias=False)
+        self.q_proj = torch.nn.Linear(c_main, self.num_heads * self.q_head_dim, bias=False)
+        self.k_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.q_head_dim, bias=False)
+        self.v_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.v_head_dim, bias=False)
+        self.out_proj = torch.nn.Linear(self.num_heads * self.v_head_dim, c_main, bias=False)
+
+        # QK-norm: RMSNorm on Q and K per-head before the attention dot product.
+        # See ViT-22B, etc.
+        self.use_qk_norm = config.get("attention_qk_norm", False)
+        if self.use_qk_norm:
+            self.q_norm = torch.nn.RMSNorm(self.q_head_dim, eps=1e-6)
+            self.k_norm = torch.nn.RMSNorm(self.q_head_dim, eps=1e-6)
 
         self.learnable_rope = config.get("learnable_rope", False) if self.use_rope else False
         if self.use_rope:
             if self.learnable_rope:
-                assert self.head_dim % 2 == 0, f"Head dim must be even for learnable RoPE, got {self.head_dim}"
-                num_pairs = self.head_dim // 2
+                assert self.q_head_dim % 2 == 0, f"Head dim must be even for learnable RoPE, got {self.q_head_dim}"
+                num_pairs = self.q_head_dim // 2
                 # Learnable 2D RoPE frequencies.
                 # Geometric initialization from 1 rad/square to 1/50 rad/square
                 log_lo = math.log(1.0 / 50.0)
@@ -2110,7 +2015,7 @@ class TransformerBlock(torch.nn.Module):
             else:
                 self.rope_theta = config.get("rope_theta", 100.0)
                 assert self.rope_theta > pos_len * 2.0, f"theta={self.rope_theta} of RoPE may be too small for pos_len={pos_len}"
-                cos_cached, sin_cached = precompute_freqs_cos_sin_2d(self.head_dim, pos_len, self.rope_theta)
+                cos_cached, sin_cached = precompute_freqs_cos_sin_2d(self.q_head_dim, pos_len, self.rope_theta)
                 self.register_buffer("cos_cached", cos_cached, persistent=False)
                 self.register_buffer("sin_cached", sin_cached, persistent=False)
         else:
@@ -2133,16 +2038,7 @@ class TransformerBlock(torch.nn.Module):
             self.gab_act1 = act(activation, inplace=False)
             self.gab_act2 = act(activation, inplace=False)
 
-        self.ffn_linear1 = torch.nn.Linear(c_main, self.ffn_dim, bias=False)
-        if self.use_swiglu:
-            self.ffn_linear_gate = torch.nn.Linear(c_main, self.ffn_dim, bias=False)
-            self.ffn_act = torch.nn.SiLU(inplace=False)
-        else:
-            self.ffn_act = act(activation, inplace=False)
-        self.ffn_linear2 = torch.nn.Linear(self.ffn_dim, c_main, bias=False)
-
         self.norm1 = torch.nn.RMSNorm(c_main, eps=1e-6)
-        self.norm2 = torch.nn.RMSNorm(c_main, eps=1e-6)
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         for name, param in self.named_parameters():
@@ -2252,7 +2148,7 @@ class TransformerBlock(torch.nn.Module):
         mask_sum_hw: N111
         mask_sum: scalar
 
-        Returns: NCHW
+        Returns: NCHW (residual only, caller is responsible for adding to trunk)
         """
         batch_size, channels, height, width = x.shape
         seq_len = height * width
@@ -2264,9 +2160,9 @@ class TransformerBlock(torch.nn.Module):
         k = self.k_proj(x_norm)
         v = self.v_proj(x_norm)
 
-        q = q.view(batch_size, seq_len, self.num_heads, self.head_dim)
-        k = k.view(batch_size, seq_len, self.num_kv_heads, self.head_dim)
-        v = v.view(batch_size, seq_len, self.num_kv_heads, self.head_dim)
+        q = q.view(batch_size, seq_len, self.num_heads, self.q_head_dim)
+        k = k.view(batch_size, seq_len, self.num_kv_heads, self.q_head_dim)
+        v = v.view(batch_size, seq_len, self.num_kv_heads, self.v_head_dim)
 
         if self.use_rope:
             if self.learnable_rope:
@@ -2295,10 +2191,14 @@ class TransformerBlock(torch.nn.Module):
         v = v.permute(0, 2, 1, 3)
 
         if self.n_rep > 1:
-            k = k.unsqueeze(2).expand(batch_size, self.num_kv_heads, self.n_rep, seq_len, self.head_dim)
-            k = k.reshape(batch_size, self.num_heads, seq_len, self.head_dim)
-            v = v.unsqueeze(2).expand(batch_size, self.num_kv_heads, self.n_rep, seq_len, self.head_dim)
-            v = v.reshape(batch_size, self.num_heads, seq_len, self.head_dim)
+            k = k.unsqueeze(2).expand(batch_size, self.num_kv_heads, self.n_rep, seq_len, self.q_head_dim)
+            k = k.reshape(batch_size, self.num_heads, seq_len, self.q_head_dim)
+            v = v.unsqueeze(2).expand(batch_size, self.num_kv_heads, self.n_rep, seq_len, self.v_head_dim)
+            v = v.reshape(batch_size, self.num_heads, seq_len, self.v_head_dim)
+
+        if self.use_qk_norm:
+            q = self.q_norm(q)
+            k = self.k_norm(k)
 
         template_bias = None
         extra_kq = None
@@ -2318,8 +2218,8 @@ class TransformerBlock(torch.nn.Module):
             else:
                 attn_mask = template_bias
 
-        # Default scaling for q/k dot product, 1/sqrt(channels per head)
-        scale = 1.0 / math.sqrt(self.head_dim)
+        # Default scaling for q/k dot product, 1/sqrt(query head dim)
+        scale = 1.0 / math.sqrt(self.q_head_dim)
 
         if extra_kq is not None:
             # Concatenate extra keys/queries (from TAB) onto main K/Q.
@@ -2336,20 +2236,111 @@ class TransformerBlock(torch.nn.Module):
             k = torch.cat([k, extra_k], dim=-1)  # (B, H, S, d_head + D_extra)
             # v stays (B, H, S, d_head), scaled_dot_product_attention supports differing channels for v than q/k
 
-        attn_output = torch.nn.functional.scaled_dot_product_attention(
-            q, k, v,
-            attn_mask=attn_mask,
-            dropout_p=0.0,
-            scale=scale,
+        # If attention weights are requested, force the manual path so we can capture them.
+        wants_attn_weights = (
+            extra_outputs is not None
+            and self.name+".attn_weights" in extra_outputs.requested
         )
 
+        if not wants_attn_weights:
+            attn_output = torch.nn.functional.scaled_dot_product_attention(
+                q, k, v,
+                attn_mask=attn_mask,
+                dropout_p=0.0,
+                scale=scale,
+            )
+        else:
+            # Manual attention path to capture weights.
+            logits = torch.matmul(q, k.transpose(-2, -1)) * scale  # (B, H, S, S)
+
+            if attn_mask is not None:
+                logits = logits + attn_mask
+
+            attn_weights = torch.softmax(logits, dim=-1)
+
+            if extra_outputs is not None:
+                extra_outputs.report(self.name+".attn_weights", attn_weights)
+
+            attn_output = torch.matmul(attn_weights, v)  # (B, H, S, Dv)
+
         attn_output = attn_output.permute(0, 2, 1, 3).contiguous()
-        attn_output = attn_output.view(batch_size, seq_len, channels)
-
+        attn_output = attn_output.view(batch_size, seq_len, self.num_heads * self.v_head_dim)
         attn_output = self.out_proj(attn_output)
-        x = x_in + attn_output
 
-        xn = self.norm2(x)
+        result = attn_output.permute(0, 2, 1).view(batch_size, channels, height, width)
+        if extra_outputs is not None:
+            extra_outputs.report(self.name+".out", result)
+        return result
+
+
+class TransformerFFNBlock(torch.nn.Module):
+    """Feed-forward half of a transformer block, with its own residual connection.
+
+    Contains: RMSNorm -> FFN (optionally SwiGLU) -> optional depthwise conv.
+    Returns residual only; caller is responsible for adding to trunk.
+    """
+    def __init__(
+        self,
+        name,
+        c_main,
+        config,
+        activation,
+        use_swiglu,
+    ):
+        super(TransformerFFNBlock, self).__init__()
+        self.name = name
+        self.norm_kind = config.get("norm_kind", "layer")
+        self.ffn_dim = config["transformer_ffn_channels"]
+        self.use_swiglu = use_swiglu
+
+        self.use_depthwise_conv = config.get("transformer_ffn_depthwise_conv", False)
+
+        self.ffn_linear1 = torch.nn.Linear(c_main, self.ffn_dim, bias=False)
+        if self.use_swiglu:
+            self.ffn_linear_gate = torch.nn.Linear(c_main, self.ffn_dim, bias=False)
+            self.ffn_act = torch.nn.SiLU(inplace=False)
+        else:
+            self.ffn_act = act(activation, inplace=False)
+        if self.use_depthwise_conv:
+            self.ffn_dwconv = torch.nn.Conv2d(self.ffn_dim, self.ffn_dim, kernel_size=3, padding=1, groups=self.ffn_dim, bias=False)
+        self.ffn_linear2 = torch.nn.Linear(self.ffn_dim, c_main, bias=False)
+
+        self.norm = torch.nn.RMSNorm(c_main, eps=1e-6)
+
+    def add_reg_dict(self, reg_dict:Dict[str,List]):
+        for name, param in self.named_parameters():
+            if "norm" in name:
+                reg_dict["noreg"].append(param)
+                continue
+            if "weight" in name:
+                reg_dict["normal"].append(param)
+            else:
+                reg_dict["noreg"].append(param)
+
+    def initialize(self, fixup_scale):
+        pass
+
+    def set_brenorm_params(self, renorm_avg_momentum, rmax, dmax):
+        pass
+
+    def add_brenorm_clippage(self, upper_rclippage, lower_rclippage, dclippage):
+        pass
+
+    def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
+        """
+        Parameters:
+        x: NCHW
+        mask: N1HW
+        mask_sum_hw: N111
+        mask_sum: scalar
+
+        Returns: NCHW (residual only, caller is responsible for adding to trunk)
+        """
+        batch_size, channels, height, width = x.shape
+        seq_len = height * width
+        x_in = x.view(batch_size, channels, -1).permute(0, 2, 1)
+
+        xn = self.norm(x_in)
 
         if self.use_swiglu:
             x1 = self.ffn_linear1(xn)
@@ -2359,11 +2350,18 @@ class TransformerBlock(torch.nn.Module):
         else:
             x1 = self.ffn_linear1(xn)
             x1 = self.ffn_act(x1)
+        if self.use_depthwise_conv:
+            # Reshape to NCHW for depthwise conv, apply mask, reshape back
+            x1_spatial = x1.permute(0, 2, 1).view(batch_size, self.ffn_dim, height, width)
+            x1_spatial = self.ffn_dwconv(x1_spatial) * mask
+            x1 = x1_spatial.view(batch_size, self.ffn_dim, -1).permute(0, 2, 1)
         x1 = self.ffn_linear2(x1)
-        x = x + x1
 
-        x = x.permute(0, 2, 1).view(batch_size, channels, height, width)
-        return x
+        result = x1.permute(0, 2, 1).view(batch_size, channels, height, width)
+
+        if extra_outputs is not None:
+            extra_outputs.report(self.name+".out", result)
+        return result
 
 
 class PolicyHead(torch.nn.Module):
@@ -2715,12 +2713,12 @@ _BLOCK_KIND_FLAGS = {
     "bottlenest2":                          (False, False),
     "dilatedbottlenest2":                   (False, False),
     "bottlenest3":                          (False, False),
-    "bottlenest2bottlenest2":               (False, False),
-    "transformerropesg":                    (False, False),
-    "transformerropeg":                     (False, False),
-    "transformergabsg":                     (True,  False),
-    "transformerropegabsg":                 (True,  False),
-    "transformerropegabg":                  (True,  False),
+    "attnrope":                             (False, False),
+    "attngab":                              (True,  False),
+    "attnropegab":                          (True,  False),
+    "attnropetab":                          (False, True),
+    "ffnsg":                                (False, False),
+    "ffng":                                 (False, False),
     "bottlenest2transformerropesg":         (False, False),
     "bottlenest2transformergabsg":          (True,  False),
     "bottlenest2transformerropegabsg":      (True,  False),
@@ -2926,70 +2924,60 @@ class Model(torch.nn.Module):
                     config=self.config,
                     activation=self.activation,
                 ))
-            elif block_kind == "bottlenest2bottlenest2":
-                self.blocks.append(NestedNestedBottleneckResBlock(
-                    name=block_name,
-                    internal_length=2,
-                    sub_internal_length=2,
-                    c_main=self.c_trunk,
-                    c_outermid=self.c_outermid,
-                    c_mid=self.c_mid,
-                    c_gpool=(self.c_gpool if use_gpool_this_block else None),
-                    config=self.config,
-                    activation=self.activation,
-                ))
-            elif block_kind == "transformerropesg":
-                self.blocks.append(TransformerBlock(
+            elif block_kind == "attnrope":
+                self.blocks.append(TransformerAttentionBlock(
                     name=block_name,
                     c_main=self.c_trunk,
                     config=self.config,
                     activation=self.activation,
                     pos_len=pos_len,
-                    use_swiglu=True,
                     use_rope=True,
                 ))
-            elif block_kind == "transformerropeg":
-                self.blocks.append(TransformerBlock(
+            elif block_kind == "attngab":
+                self.blocks.append(TransformerAttentionBlock(
                     name=block_name,
                     c_main=self.c_trunk,
                     config=self.config,
                     activation=self.activation,
                     pos_len=pos_len,
-                    use_swiglu=False,
-                    use_rope=True,
-                ))
-            elif block_kind == "transformergabsg":
-                self.blocks.append(TransformerBlock(
-                    name=block_name,
-                    c_main=self.c_trunk,
-                    config=self.config,
-                    activation=self.activation,
-                    pos_len=pos_len,
-                    use_swiglu=True,
                     use_rope=False,
                     use_gab=True,
                 ))
-            elif block_kind == "transformerropegabsg":
-                self.blocks.append(TransformerBlock(
+            elif block_kind == "attnropegab":
+                self.blocks.append(TransformerAttentionBlock(
                     name=block_name,
                     c_main=self.c_trunk,
                     config=self.config,
                     activation=self.activation,
                     pos_len=pos_len,
-                    use_swiglu=True,
                     use_rope=True,
                     use_gab=True,
                 ))
-            elif block_kind == "transformerropegabg":
-                self.blocks.append(TransformerBlock(
+            elif block_kind == "attnropetab":
+                self.blocks.append(TransformerAttentionBlock(
                     name=block_name,
                     c_main=self.c_trunk,
                     config=self.config,
                     activation=self.activation,
                     pos_len=pos_len,
-                    use_swiglu=False,
                     use_rope=True,
-                    use_gab=True,
+                    use_tab=True,
+                ))
+            elif block_kind == "ffnsg":
+                self.blocks.append(TransformerFFNBlock(
+                    name=block_name,
+                    c_main=self.c_trunk,
+                    config=self.config,
+                    activation=self.activation,
+                    use_swiglu=True,
+                ))
+            elif block_kind == "ffng":
+                self.blocks.append(TransformerFFNBlock(
+                    name=block_name,
+                    c_main=self.c_trunk,
+                    config=self.config,
+                    activation=self.activation,
+                    use_swiglu=False,
                 ))
             elif block_kind == "bottlenest2transformerropesg":
                 self.blocks.append(NestedBottleneckTransformerBlock(
@@ -3057,6 +3045,15 @@ class Model(torch.nn.Module):
                 ))
             else:
                 assert False, f"Unknown block kind: {block_config[1]}"
+
+        # Trunk channel gating: per-channel learned gate that interpolates between
+        # trunk and residual at each block.
+        self.use_trunk_channel_gate = config.get("use_trunk_channel_gate", False)
+        if self.use_trunk_channel_gate:
+            num_blocks = len(self.blocks)
+            self.trunk_channel_gate_logits = torch.nn.ParameterList()
+            for k in range(num_blocks):
+                self.trunk_channel_gate_logits.append(torch.nn.Parameter(torch.zeros(1, self.c_trunk, 1, 1)))
 
         if self.trunk_final_rmsnorm:
             spatial = config.get("trunk_rmsnorm_spatial", False)
@@ -3173,6 +3170,9 @@ class Model(torch.nn.Module):
             self.gab_template_mlp.add_reg_dict(reg_dict)
         if self.tab_module is not None:
             self.tab_module.add_reg_dict(reg_dict)
+        if self.use_trunk_channel_gate:
+            for gate_logit in self.trunk_channel_gate_logits:
+                reg_dict["normal_gamma"].append(gate_logit)
         self.norm_trunkfinal.add_reg_dict(reg_dict)
         self.policy_head.add_reg_dict(reg_dict)
         self.value_head.add_reg_dict(reg_dict)
@@ -3203,6 +3203,17 @@ class Model(torch.nn.Module):
             self.norm_intermediate_trunkfinal.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
             self.intermediate_policy_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
             self.intermediate_value_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
+
+    def _channel_gated_add(self, trunk, residual, block_idx, mask, mask_sum_hw):
+        """Add residual to trunk with per-channel gate.
+
+        The gate logits are static (1, C, 1, 1) learned params initialized to zero.
+        """
+        gate_logit = 0.5 * self.trunk_channel_gate_logits[block_idx]
+        w = ((block_idx+2) / (block_idx+1)) / ((1.0 / (block_idx+1)) + torch.exp(-gate_logit))
+        trunk_factor = (1.0/(block_idx+1)) * ((block_idx+2) - w)
+        residual_factor = w
+        return trunk_factor * trunk + residual_factor * residual
 
     # Returns a tuple of tuples of outputs
     # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads.
@@ -3247,14 +3258,14 @@ class Model(torch.nn.Module):
 
         if self.has_intermediate_head:
             count = 0
-            for block in self.blocks[:self.intermediate_head_blocks]:
-                # print("TENSOR BEFORE BLOCK")
-                # print(count)
-                # print(out)
-                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
+            for i, block in enumerate(self.blocks[:self.intermediate_head_blocks]):
+                residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
+                if self.use_trunk_channel_gate:
+                    out = self._channel_gated_add(out, residual, i, mask, mask_sum_hw)
+                else:
+                    out = out + residual
                 count += 1
 
-            # print("INTERMEDIATE")
             iout = out
             iout = self.norm_intermediate_trunkfinal(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
             iout = self.act_intermediate_trunkfinal(iout)
@@ -3291,21 +3302,21 @@ class Model(torch.nn.Module):
                     extra_outputs=extra_outputs
                 )
 
-            for block in self.blocks[self.intermediate_head_blocks:]:
-                # print("TENSOR BEFORE BLOCK")
-                # print(count)
-                # print(out)
-                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
+            for i, block in enumerate(self.blocks[self.intermediate_head_blocks:], start=self.intermediate_head_blocks):
+                residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
+                if self.use_trunk_channel_gate:
+                    out = self._channel_gated_add(out, residual, i, mask, mask_sum_hw)
+                else:
+                    out = out + residual
                 count += 1
 
         else:
-            count = 0
-            for block in self.blocks:
-                # print("TENSOR BEFORE BLOCK")
-                # print(count)
-                # print(out)
-                out = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
-                count += 1
+            for i, block in enumerate(self.blocks):
+                residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
+                if self.use_trunk_channel_gate:
+                    out = self._channel_gated_add(out, residual, i, mask, mask_sum_hw)
+                else:
+                    out = out + residual
 
         out = self.norm_trunkfinal(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
         out = self.act_trunkfinal(out)
