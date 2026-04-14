@@ -411,7 +411,8 @@ class AttentionVisualizer:
             attn_dict, policy_probs, predictions = run_inference(self.model, self.game_state, self.attn_block_names, suppress_history=suppress)
             self.attention_cache[key] = (attn_dict, policy_probs, predictions)
             self.info_label.config(text="")
-            self._update_predictions_label(predictions)
+        _, _, predictions = self.attention_cache[key]
+        self._update_predictions_label(predictions)
 
     def draw_board(self):
         self.canvas.delete("all")
