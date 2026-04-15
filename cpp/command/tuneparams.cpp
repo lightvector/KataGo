@@ -42,7 +42,7 @@ struct TuneDimension {
 };
 
 static const TuneDimension tuneDims[] = {
-  {"cpuctExplorationLog",       "Log",    0.05, 1.0,  "cpuctExplorationLogMin",       "cpuctExplorationLogMax",       &SearchParams::cpuctExplorationLog},
+  {"cpuctExploration",          "Cpuct",  0.5,  1.5,  "cpuctExplorationMin",          "cpuctExplorationMax",          &SearchParams::cpuctExploration},
 };
 static const int nDims = sizeof(tuneDims) / sizeof(tuneDims[0]);
 
