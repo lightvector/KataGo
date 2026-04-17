@@ -322,7 +322,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
       nullGames++;
       logger.write("Warning: trial " + Global::intToString(trial) + " returned null game data");
       //Too many null games corrupt the optimizer with noise — abort early.
-      if(nullGames * 20 > trial + 1) {
+      if(trial + 1 >= 20 && nullGames * 20 > trial + 1) {
         logger.write("Error: >5% of games returned null data (" +
           Global::intToString(nullGames) + "/" + Global::intToString(trial + 1) +
           "), aborting. Check model files and config.");
