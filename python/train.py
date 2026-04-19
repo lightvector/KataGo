@@ -83,6 +83,9 @@ if __name__ == "__main__":
     optional_args.add_argument('-head-lr-factor', help='LR factor for output head weights', type=float, required=False, default=0.5)
     optional_args.add_argument('-noreg-lr-factor', help='LR factor for noreg params (biases, norms)', type=float, required=False, default=1.0)
     optional_args.add_argument('-muon-adam-lr-factor', help='LR factor for muon-ineligible (adam) params when using muon', type=float, required=False, default=1.0)
+    optional_args.add_argument('-input-wd-factor', help='Extra scaling factor for input weight decay', type=float, required=False, default=1.0)
+    optional_args.add_argument('-normal-wd-factor', help='Extra scaling factor for normal weight decay', type=float, required=False, default=1.0)
+    optional_args.add_argument('-normal-attn-wd-factor', help='Extra scaling factor for normal_attn weight decay', type=float, required=False, default=1.0)
     optional_args.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
     optional_args.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
     optional_args.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
@@ -199,6 +202,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     head_lr_factor = args["head_lr_factor"]
     noreg_lr_factor = args["noreg_lr_factor"]
     muon_adam_lr_factor = args["muon_adam_lr_factor"]
+    input_wd_factor = args["input_wd_factor"]
+    normal_wd_factor = args["normal_wd_factor"]
+    normal_attn_wd_factor = args["normal_attn_wd_factor"]
     gnorm_clip_scale = args["gnorm_clip_scale"]
     sub_epochs = args["sub_epochs"]
     swa_period_samples = args["swa_period_samples"]
@@ -370,7 +376,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 return 0.25 * lr_scale_auto2
             if train_state["global_step_samples"] < 500000000:
                 return 0.18 * lr_scale_auto2
-            return 0.10 * lr_scale_auto2
+            if train_state["global_step_samples"] < 550000000:
+                return 0.12 * lr_scale_auto2
+            if train_state["global_step_samples"] < 600000000:
+                return 0.08 * lr_scale_auto2
+            return 0.05 * lr_scale_auto2
         else:
             return 1.0
 
@@ -421,7 +431,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
     def get_is_muon_suitable(group_name: str):
-        if group_name == "normal" or group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
+        if group_name == "normal" or group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "tab_module":
             return True
         elif group_name in ["normal_gamma", "noreg", "output", "output_noreg", "input", "input_noreg"]:
             return False
@@ -437,22 +447,33 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         else:
             batch_scaling = world_size * batch_size / 256.0
 
+        if group_name == "input":
+            cmdline_wd_factor = input_wd_factor
+        elif group_name == "normal":
+            cmdline_wd_factor = normal_wd_factor
+        elif group_name == "normal_attn":
+            cmdline_wd_factor = normal_attn_wd_factor
+        else:
+            cmdline_wd_factor = 1.0
+
+        wd_scaling = batch_scaling * cmdline_wd_factor
+
         if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
             if group_name == "input" or group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
                 if use_adamw or use_muon:
                     # Total guess, this configuration was never tested
-                    return 0.005000 * batch_scaling
+                    return 0.005000 * wd_scaling
                 else:
-                    return 0.000001 * batch_scaling
-            elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
+                    return 0.000001 * wd_scaling
+            elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "tab_module":
                 if use_adamw or use_muon:
-                    return 0.005000 * 0.5 * batch_scaling
+                    return 0.005000 * 0.5 * wd_scaling
                 else:
-                    return 0.000001 * 0.5 * batch_scaling
+                    return 0.000001 * 0.5 * wd_scaling
             elif group_name == "input_noreg" or group_name == "noreg":
-                return 0.00000001 * batch_scaling
+                return 0.00000001 * wd_scaling
             elif group_name == "output_noreg":
-                return 0.00000001 * batch_scaling
+                return 0.00000001 * wd_scaling
             else:
                 assert False
         elif (
@@ -461,7 +482,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             raw_model.get_norm_kind() == "fixbrenorm" or
             raw_model.get_norm_kind() == "fixscaleonenorm"
         ):
-            if group_name == "input" or group_name == "normal" or group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "normal_gamma":
+            if group_name == "input" or group_name == "normal" or group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "tab_module" or group_name == "normal_gamma":
                 adaptive_scale = 1.0
                 if "sums" in running_metrics:
                     metrics_key = "norm_normal_batch" if group_name != "input" else "norm_input_batch"
@@ -487,49 +508,55 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 else:
                     wd_with_lr_scale = math.pow(effective_lr_scale * warmup_scale,0.75) * adaptive_scale
 
-                if use_adamw or (use_muon and not is_muon_suitable):
-                    if group_name == "input":
-                        return 0.00600 * batch_scaling * wd_with_lr_scale
-                    elif group_name == "normal":
-                        return 0.00900 * batch_scaling * wd_with_lr_scale
-                    elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
-                        return 0.00450 * batch_scaling * wd_with_lr_scale
-                    elif group_name == "normal_gamma":
-                        # Batch norm gammas can be regularized a bit less, doing them just as much empirically seemed to be a bit more unstable
-                        return 0.00900 / 4.0 * batch_scaling * wd_with_lr_scale
+                if group_name == "input":
+                    # Branch here is mostly preserving inconsistent historical behavior, there's not
+                    # a great reason these should be different.
+                    if use_adamw or use_muon:
+                        wd_group_factor = 2.0/3.0
                     else:
-                        assert False
-                elif use_muon:
-                    if group_name == "normal":
-                        return 0.02000 * batch_scaling * wd_with_lr_scale
-                    elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
-                        return 0.01000 * batch_scaling * wd_with_lr_scale
+                        wd_group_factor = 1.0
+                elif group_name == "normal":
+                    wd_group_factor = 1.0
+                elif group_name == "normal_attn":
+                    wd_group_factor = 0.5
+                elif group_name == "normal_gab":
+                    wd_group_factor = 0.3
+                elif group_name == "gab_mlp":
+                    wd_group_factor = 0.1
+                elif group_name == "tab_module":
+                    wd_group_factor = 0.1
+                elif group_name == "normal_gamma":
+                    # Batch norm gammas can be regularized a bit less, doing them just as much empirically seemed to be a bit more unstable
+                    if use_adamw or use_muon:
+                        wd_group_factor = 0.25
                     else:
-                        assert False
+                        wd_group_factor = 0.125
                 else:
-                    if group_name == "input":
-                        return 0.00125 * batch_scaling * wd_with_lr_scale
-                    elif group_name == "normal":
-                        return 0.00125 * batch_scaling * wd_with_lr_scale
-                    elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
-                        return 0.00125 * 0.5 * batch_scaling * wd_with_lr_scale
-                    elif group_name == "normal_gamma":
-                        # Batch norm gammas can be regularized a bit less, doing them just as much empirically seemed to be a bit more unstable
-                        return 0.00125 / 8.0 * batch_scaling * wd_with_lr_scale
-                    else:
-                        assert False
+                    assert False
+
+                if use_adamw or (use_muon and not is_muon_suitable):
+                    return 0.00900 * wd_scaling * wd_with_lr_scale * wd_group_factor
+                elif use_muon:
+                    return 0.02000 * wd_scaling * wd_with_lr_scale * wd_group_factor
+                else:
+                    return 0.00125 * wd_scaling * wd_with_lr_scale * wd_group_factor
 
             elif group_name == "output":
                 if use_adamw or (use_muon and not is_muon_suitable):
-                    return 0.00400 * batch_scaling
+                    return 0.00400 * wd_scaling
                 elif use_muon:
                     assert False
                 else:
-                    return 0.000001 * batch_scaling
+                    return 0.000001 * wd_scaling
             elif group_name == "input_noreg" or group_name == "noreg":
-                return 0.000001 * batch_scaling * math.pow(effective_lr_scale * warmup_scale,0.75)
+                return 0.000001 * wd_scaling * math.pow(effective_lr_scale * warmup_scale,0.75)
             elif group_name == "output_noreg":
-                return 0.00000001 * batch_scaling
+                if use_adamw or (use_muon and not is_muon_suitable):
+                    return 0.000001 * wd_scaling
+                elif use_muon:
+                    assert False
+                else:
+                    return 0.00000001 * wd_scaling
             else:
                 assert False
         else:
@@ -835,36 +862,24 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     def update_and_return_lr_and_wd():
         # Warmup for initial training
         warmup_scale = 1.0
-        if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
-            if train_state["global_step_samples"] < 1000000:
-                warmup_scale = 1.0 / 5.0
-            elif train_state["global_step_samples"] < 2000000:
-                warmup_scale = 1.0 / 3.0
-            elif train_state["global_step_samples"] < 4000000:
-                warmup_scale = 1.0 / 2.0
-            elif train_state["global_step_samples"] < 6000000:
-                warmup_scale = 1.0 / 1.4
-        elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-            if train_state["global_step_samples"] < 250000:
-                warmup_scale = 1.0 / 20.0
-            elif train_state["global_step_samples"] < 500000:
-                warmup_scale = 1.0 / 14.0
-            elif train_state["global_step_samples"] < 750000:
-                warmup_scale = 1.0 / 10.0
-            elif train_state["global_step_samples"] < 1000000:
-                warmup_scale = 1.0 / 7.0
-            elif train_state["global_step_samples"] < 1250000:
-                warmup_scale = 1.0 / 5.0
-            elif train_state["global_step_samples"] < 1500000:
-                warmup_scale = 1.0 / 3.0
-            elif train_state["global_step_samples"] < 1750000:
-                warmup_scale = 1.0 / 2.0
-            elif train_state["global_step_samples"] < 2000000:
-                warmup_scale = 1.0 / 1.4
-            else:
-                warmup_scale = 1.0 / 1.0
+        if train_state["global_step_samples"] < 250000:
+            warmup_scale = 1.0 / 20.0
+        elif train_state["global_step_samples"] < 500000:
+            warmup_scale = 1.0 / 14.0
+        elif train_state["global_step_samples"] < 750000:
+            warmup_scale = 1.0 / 10.0
+        elif train_state["global_step_samples"] < 1000000:
+            warmup_scale = 1.0 / 7.0
+        elif train_state["global_step_samples"] < 1250000:
+            warmup_scale = 1.0 / 5.0
+        elif train_state["global_step_samples"] < 1500000:
+            warmup_scale = 1.0 / 3.0
+        elif train_state["global_step_samples"] < 1750000:
+            warmup_scale = 1.0 / 2.0
+        elif train_state["global_step_samples"] < 2000000:
+            warmup_scale = 1.0 / 1.4
         else:
-            assert False
+            warmup_scale = 1.0 / 1.0
 
         normal_weight_decay = 0.0
 
@@ -893,7 +908,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     group_scale = 2.0
                 else:
                     group_scale = 1.0
-            elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp":
+            elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "tab_module":
                 if use_muon:
                     group_scale = 2.0
                 else:
@@ -1375,14 +1390,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 else:
                     loss.backward()
 
-                if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
-                    gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+                if use_adamw or use_muon:
+                    gnorm_cap = 11000.0
+                elif model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
+                    gnorm_cap = 2500.0
                 elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-                    gnorm_cap = 5500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+                    gnorm_cap = 5500.0
                 else:
                     assert False
-                if use_adamw or use_muon:
-                    gnorm_cap *= 2.0
+
+                gnorm_cap *= (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
                 gnorm_cap *= math.sqrt((batch_size * world_size) / 256.0)
 
                 if gnorm_stats_debug:
@@ -1454,6 +1471,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     # Store per-group step norms
                     for group_name, norm_squared in step_norm_squared_per_group.items():
                         metrics[f"step_norm_{group_name}_batch"] = math.sqrt(norm_squared)
+
+                del model_outputs, postprocessed, loss, old_params
 
                 batch_count_this_epoch += 1
                 train_state["train_steps_since_last_reload"] += batch_size * world_size

@@ -35,6 +35,7 @@ def main():
     parser.add_argument('-print-per-tensor-counts', help='Print parameter counts per tensor', action='store_true')
     parser.add_argument('-no-compile', help='Do not torch.compile', action='store_true')
     parser.add_argument('-use-tf32-matmul', help='Reduce float32 precision for speed on some gpus', action='store_true')
+    parser.add_argument('-override-config', help='Override model config params, e.g. "gab_d1=16,tab_num_freqs=8"', type=str, default=None)
     args = vars(parser.parse_args())
 
     model_kind = args["model_kind"]
@@ -48,6 +49,7 @@ def main():
     print_per_tensor = args["print_per_tensor_counts"]
     no_compile = args["no_compile"]
     use_tf32_matmul = args["use_tf32_matmul"]
+    override_config_str = args["override_config"]
 
     device = torch.device(f"cuda:{gpu_idx}")
 
@@ -60,7 +62,45 @@ def main():
 
     # Load model config and create model
     assert model_kind in modelconfigs.config_of_name, f"Unknown model kind: {model_kind}, available: {list(modelconfigs.config_of_name.keys())}"
-    model_config = modelconfigs.config_of_name[model_kind]
+    model_config = modelconfigs.config_of_name[model_kind].copy()
+
+    # Apply config overrides
+    if override_config_str:
+        for kv in override_config_str.split(","):
+            kv = kv.strip()
+            if not kv:
+                continue
+            key, val_str = kv.split("=", 1)
+            key = key.strip()
+            val_str = val_str.strip()
+            if key in model_config:
+                orig = model_config[key]
+                if isinstance(orig, bool):
+                    model_config[key] = val_str.lower() in ("true", "1", "yes")
+                elif isinstance(orig, int):
+                    model_config[key] = int(val_str)
+                elif isinstance(orig, float):
+                    model_config[key] = float(val_str)
+                elif isinstance(orig, str):
+                    model_config[key] = val_str
+                else:
+                    import json
+                    model_config[key] = json.loads(val_str)
+                print(f"Config override: {key} = {model_config[key]} (was {orig})")
+            else:
+                # New key: infer type from value string
+                if val_str.lower() in ("true", "false"):
+                    model_config[key] = val_str.lower() == "true"
+                else:
+                    try:
+                        model_config[key] = int(val_str)
+                    except ValueError:
+                        try:
+                            model_config[key] = float(val_str)
+                        except ValueError:
+                            model_config[key] = val_str
+                print(f"Config override (new): {key} = {model_config[key]}")
+
     print(f"Model kind: {model_kind}")
     print(f"Optimizer: {optimizer_kind}")
     print(f"Batch size: {batch_size}")
@@ -143,6 +183,7 @@ def main():
     forward_times = benchmark_forward(model, batch, num_iters, warmup_iters)
     print_timing_stats("Forward", forward_times)
     print()
+    torch.cuda.empty_cache()
 
     # Benchmark forward + backward + optimizer step with attribution
     print("=" * 80)
@@ -157,6 +198,7 @@ def main():
     total_times = [f + b + o for f, b, o in zip(fwd_times, bwd_times, opt_times)]
     print_timing_stats("Total   ", total_times)
     print()
+    torch.cuda.empty_cache()
 
     # Print proportions
     mean_fwd = sum(fwd_times) / len(fwd_times)
@@ -247,6 +289,7 @@ def benchmark_forward(model, batch, num_iters, warmup_iters):
 
         torch.cuda.synchronize()
         t1 = time.perf_counter()
+        del model_outputs
 
         if i >= warmup_iters:
             times.append(t1 - t0)
@@ -303,6 +346,7 @@ def benchmark_full_step(model, raw_model, optimizer, metrics_obj, batch, model_c
 
         torch.cuda.synchronize()
         t_opt_end = time.perf_counter()
+        del model_outputs, postprocessed, metrics, loss
 
         if i >= warmup_iters:
             fwd_times.append(t_bwd_start - t_fwd_start)
@@ -348,6 +392,7 @@ def benchmark_full_step_throughput(model, raw_model, optimizer, metrics_obj, bat
 
         torch.cuda.synchronize()
         t1 = time.perf_counter()
+        del model_outputs, postprocessed, metrics, loss
 
         if i >= warmup_iters:
             times.append(t1 - t0)

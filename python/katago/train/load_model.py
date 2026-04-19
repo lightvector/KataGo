@@ -15,12 +15,15 @@ if packaging.version.parse(torch.__version__) > packaging.version.parse("2.4.0")
     torch.serialization.add_safe_globals([float])
 
 def load_model_state_dict(state_dict):
-    # Strip off any "module." from when the model was saved with DDP or other things
+    # Strip off any "module." from DDP or "_orig_mod." from torch.compile
     model_state_dict = {}
     for key in state_dict["model"]:
         old_key = key
-        while key.startswith("module."):
-            key = key[7:]
+        while key.startswith("module.") or key.startswith("_orig_mod."):
+            if key.startswith("module."):
+                key = key[len("module."):]
+            elif key.startswith("_orig_mod."):
+                key = key[len("_orig_mod."):]
         # Filter out some extra keys that were present in older checkpoints
         if "score_belief_offset_vector" in key or "score_belief_offset_bias_vector" in key or "score_belief_parity_vector" in key:
             continue
