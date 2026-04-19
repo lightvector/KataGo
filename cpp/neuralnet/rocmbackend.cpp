@@ -253,6 +253,7 @@ struct ConvLayer {
   const int outChannels;
   const int nnXLen;
   const int nnYLen;
+  const int maxBatchSize;
   const bool usingFP16;
   ByBatchSizeView<miopenTensorDescriptor_t> inputDescriptors;
   ByBatchSizeView<miopenTensorDescriptor_t> outputDescriptors;
@@ -260,6 +261,7 @@ struct ConvLayer {
   miopenConvolutionDescriptor_t convolutionDescriptor;
   ByBatchSize<miopenConvSolution_t>* convolutionAlgorithms; //array of one for each batch size
   void* filterBuf;
+  void* accumBuf; // Pre-allocated buffer for residual accumulation (miopenConvolutionForwardImmediate has no beta)
 
   ConvLayer() = delete;
   ConvLayer(const ConvLayer&) = delete;
@@ -287,6 +289,7 @@ struct ConvLayer {
     outChannels(desc->outChannels),
     nnXLen(manager->nnXLen),
     nnYLen(manager->nnYLen),
+    maxBatchSize(manager->maxBatchSize),
     usingFP16(useFP16)
   {
     int convYSize = desc->convYSize;
@@ -395,10 +398,20 @@ struct ConvLayer {
     }
     else
       CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf,useFP16);
+
+    // Pre-allocate buffer for accumulate mode (residual skip connections).
+    // miopenConvolutionForwardImmediate does not support alpha/beta unlike cuDNN,
+    // so we need to save the output before conv and add it back afterwards.
+    {
+      int elemSize = usingFP16 ? sizeof(half_t) : sizeof(float);
+      size_t accumBytes = (size_t)maxBatchSize * outChannels * nnXLen * nnYLen * elemSize;
+      CUDA_ERR(name.c_str(), hipMalloc(&accumBuf, accumBytes));
+    }
   }
 
   ~ConvLayer() {
     hipFree(filterBuf);
+    hipFree(accumBuf);
     miopenDestroyTensorDescriptor(filterDescriptor);
     miopenDestroyConvolutionDescriptor(convolutionDescriptor);
     delete convolutionAlgorithms;
@@ -432,14 +445,11 @@ struct ConvLayer {
   ) const {
     // miopenConvolutionForwardImmediate does NOT support alpha/beta (unlike cuDNN).
     // When accumulate=true, we need: outputBuf = conv(inputBuf) + outputBuf (residual skip connection).
-    // So we save outputBuf first, run conv (which overwrites outputBuf), then add saved data back.
-    void* residualBuf = nullptr;
+    // Save outputBuf content to pre-allocated accumBuf, run conv, then add back.
     if(accumulate) {
       int elemSize = usingFP16 ? sizeof(half) : sizeof(float);
-      size_t outputElems = (size_t)batchSize * outChannels * nnXLen * nnYLen;
-      size_t outputBytes = outputElems * elemSize;
-      CUDA_ERR(name.c_str(), hipMalloc(&residualBuf, outputBytes));
-      CUDA_ERR(name.c_str(), hipMemcpy(residualBuf, outputBuf, outputBytes, hipMemcpyDeviceToDevice));
+      size_t outputBytes = (size_t)batchSize * outChannels * nnXLen * nnYLen * elemSize;
+      CUDA_ERR(name.c_str(), hipMemcpyAsync(accumBuf, outputBuf, outputBytes, hipMemcpyDeviceToDevice));
     }
 
     CUDNN_ERR(name.c_str(), miopenConvolutionForwardImmediate(
@@ -457,12 +467,11 @@ struct ConvLayer {
     ));
 
     if(accumulate) {
-      size_t outputElems = (size_t)batchSize * outChannels * nnXLen * nnYLen;
+      int outputElems = (int)((size_t)batchSize * outChannels * nnXLen * nnYLen);
       if(usingFP16)
-        customCudaAddTensorsInplace((half*)outputBuf, (const half*)residualBuf, (int)outputElems);
+        customCudaAddTensorsInplace((half*)outputBuf, (const half*)accumBuf, outputElems);
       else
-        customCudaAddTensorsInplace((float*)outputBuf, (const float*)residualBuf, (int)outputElems);
-      CUDA_ERR(name.c_str(), hipFree(residualBuf));
+        customCudaAddTensorsInplace((float*)outputBuf, (const float*)accumBuf, outputElems);
     }
   }
 
