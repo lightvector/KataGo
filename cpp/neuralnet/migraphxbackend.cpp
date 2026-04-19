@@ -4,6 +4,8 @@
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/desc.h"
 #include "../neuralnet/sgfmetadata.h"
+#include "../neuralnet/activations.h"
+#include "../neuralnet/activations.h"
 
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
@@ -36,6 +38,7 @@
 #include <cmath>
 #include <cstring>
 #include <mutex>
+#include <map>
 
 using namespace std;
 
@@ -63,8 +66,12 @@ using namespace std;
 //------------------------ MIGraphX Model Implementation ------------------------
 
 struct MIGraphXModel {
-    migraphx::program prog;
+    // Multiple compiled programs for different batch sizes
+    // Key: batch size, Value: compiled program
+    map<int, migraphx::program> progs;
     migraphx::target tgt;
+    // Sorted batch sizes for quick lookup
+    vector<int> batchSizes;
     
     int modelVersion;
     int maxBatchSize;
@@ -86,6 +93,18 @@ struct MIGraphXModel {
           numInputChannels(0), numInputGlobalChannels(0), numInputMetaChannels(0),
           numPolicyChannels(0), numValueChannels(3),
           numScoreValueChannels(0), numOwnershipChannels(0) {}
+    
+    // Find the best (smallest sufficient) batch size for the given actual batch
+    int getBestBatchSize(int actualBatch) const {
+        for(int bs : batchSizes) {
+            if(bs >= actualBatch) return bs;
+        }
+        return batchSizes.back();
+    }
+    
+    migraphx::program& getProgram(int batchSize) {
+        return progs.at(batchSize);
+    }
 };
 
 // Helper class to build MIGraphX graph
@@ -242,6 +261,11 @@ public:
                 auto unsqueeze_op = migraphx::make_op("unsqueeze", {{"axes", migraphx::value({0})}});
                 bias = main_module->add_instruction(unsqueeze_op, bias);
                 
+                // Explicit broadcast to match matmul output shape
+                auto matmulShape = matmul->get_shape().lens();
+                bias = main_module->add_instruction(
+                    migraphx::make_op("multibroadcast", {{"out_lens", matmulShape}}), bias);
+                
                 matmul = main_module->add_instruction(migraphx::make_op("add"), matmul, bias);
             }
         }
@@ -251,20 +275,59 @@ public:
     
     // Add activation
     migraphx::instruction_ref addActivation(migraphx::instruction_ref input, int activationType) {
-        if(activationType == 1) {  // GELU
-            return addGELU(input);
+        if(activationType == ACTIVATION_IDENTITY) {
+            return input;
         }
+        else if(activationType == ACTIVATION_RELU) {
+            return main_module->add_instruction(migraphx::make_op("relu"), input);
+        }
+        else if(activationType == ACTIVATION_MISH) {
+            return addMish(input);
+        }
+        else if(activationType == ACTIVATION_MISH_SCALE8) {
+            return addMishScale8(input);
+        }
+        // Fallback to relu
         return main_module->add_instruction(migraphx::make_op("relu"), input);
     }
     
-    // GELU activation
-    migraphx::instruction_ref addGELU(migraphx::instruction_ref input) {
-        vector<float> constData = {1.702f};
-        auto constLit = addLiteral(constData, {1, 1, 1, 1});
-        
-        auto scaled = main_module->add_instruction(migraphx::make_op("mul"), input, constLit);
-        auto sigmoid = main_module->add_instruction(migraphx::make_op("sigmoid"), scaled);
-        return main_module->add_instruction(migraphx::make_op("mul"), input, sigmoid);
+    // Mish activation: x * tanh(softplus(x)) = x * tanh(log(1 + exp(x)))
+    migraphx::instruction_ref addMish(migraphx::instruction_ref input) {
+        auto inputLens = input->get_shape().lens();
+        // softplus(x) = log(1 + exp(x))
+        auto exp_x = main_module->add_instruction(migraphx::make_op("exp"), input);
+        auto ones = broadcastScalar(1.0f, inputLens);
+        auto one_plus_exp = main_module->add_instruction(migraphx::make_op("add"), exp_x, ones);
+        auto softplus = main_module->add_instruction(migraphx::make_op("log"), one_plus_exp);
+        auto tanh_sp = main_module->add_instruction(migraphx::make_op("tanh"), softplus);
+        return main_module->add_instruction(migraphx::make_op("mul"), input, tanh_sp);
+    }
+    
+    // Mish-scale8 activation: x * tanh(softplus(clamp(8x, -, 30)))
+    // For x >= 2.5: tanh(softplus(20+)) ≈ 1, so result ≈ x (identity)
+    // For x < 2.5: standard mish with 8x scaling of softplus argument
+    migraphx::instruction_ref addMishScale8(migraphx::instruction_ref input) {
+        auto inputLens = input->get_shape().lens();
+        // scaled = 8 * x, clamped to max 30 to prevent exp overflow
+        auto eight = broadcastScalar(8.0f, inputLens);
+        auto scaled = main_module->add_instruction(migraphx::make_op("mul"), input, eight);
+        auto thirty = broadcastScalar(30.0f, inputLens);
+        scaled = main_module->add_instruction(migraphx::make_op("min"), scaled, thirty);
+        // softplus(scaled) = log(1 + exp(scaled))
+        auto exp_s = main_module->add_instruction(migraphx::make_op("exp"), scaled);
+        auto ones = broadcastScalar(1.0f, inputLens);
+        auto one_plus_exp = main_module->add_instruction(migraphx::make_op("add"), exp_s, ones);
+        auto softplus = main_module->add_instruction(migraphx::make_op("log"), one_plus_exp);
+        auto tanh_sp = main_module->add_instruction(migraphx::make_op("tanh"), softplus);
+        return main_module->add_instruction(migraphx::make_op("mul"), input, tanh_sp);
+    }
+    
+    // Helper: broadcast a scalar to the given shape
+    migraphx::instruction_ref broadcastScalar(float val, const vector<size_t>& targetLens) {
+        vector<size_t> onesShape(targetLens.size(), 1);
+        auto lit = addLiteral({val}, onesShape);
+        return main_module->add_instruction(
+            migraphx::make_op("multibroadcast", {{"out_lens", targetLens}}), lit);
     }
     
     // Add literal
@@ -372,6 +435,46 @@ public:
         return main_module->add_instruction(concat_op, inputs);
     }
     
+    // Global pooling producing 3 features per channel.
+    // For trunk/policy: [mean, mean*scale1, max]
+    // For value head:   [mean, mean*scale1, mean*scale2]
+    // Input: [batch, C, H, W], Output: [batch, C*3]
+    // Note: assumes full board (no mask), correct for standard play at nnXLen x nnYLen.
+    migraphx::instruction_ref addGPool(migraphx::instruction_ref input, bool isValueHead = false) {
+        float boardArea = (float)(nnXLen * nnYLen);
+        float sqrtBoardArea = sqrtf(boardArea);
+        float scale1Factor = (sqrtBoardArea - 14.0f) * 0.1f;
+        
+        // mean: [batch, C, H, W] -> [batch, C, 1, 1] -> [batch, C]
+        auto mean = addReduceMean(input, {2, 3});
+        mean = addSqueeze(mean, {2, 3});
+        
+        auto meanShape = mean->get_shape().lens();
+        
+        // scale1 = mean * scale1Factor
+        auto scale1Lit = addLiteral({scale1Factor}, {1, 1});
+        auto scale1Broadcast = main_module->add_instruction(
+            migraphx::make_op("multibroadcast", {{"out_lens", meanShape}}), scale1Lit);
+        auto scale1 = main_module->add_instruction(migraphx::make_op("mul"), mean, scale1Broadcast);
+        
+        migraphx::instruction_ref third;
+        if(isValueHead) {
+            // scale2 = mean * ((sqrtBoardArea - 14)^2 * 0.01 - 0.1)
+            float scale2Factor = (sqrtBoardArea - 14.0f) * (sqrtBoardArea - 14.0f) * 0.01f - 0.1f;
+            auto scale2Lit = addLiteral({scale2Factor}, {1, 1});
+            auto scale2Broadcast = main_module->add_instruction(
+                migraphx::make_op("multibroadcast", {{"out_lens", meanShape}}), scale2Lit);
+            third = main_module->add_instruction(migraphx::make_op("mul"), mean, scale2Broadcast);
+        } else {
+            // max: [batch, C, H, W] -> [batch, C, 1, 1] -> [batch, C]
+            auto maxVal = addReduceMax(input, {2, 3});
+            third = addSqueeze(maxVal, {2, 3});
+        }
+        
+        // Concat [mean, scale1, third] along axis 1 -> [batch, C*3]
+        return addConcat({mean, scale1, third}, 1);
+    }
+    
 };
 
 // Build residual block
@@ -477,22 +580,55 @@ static migraphx::instruction_ref buildResidualBlockStack(
             const NestedBottleneckResidualBlockDesc* blockDesc = static_cast<const NestedBottleneckResidualBlockDesc*>(blocks[i].second.get());
             trunk = buildNestedBottleneckResidualBlock(builder, trunk, *blockDesc);
         }
+        
     }
     
     return trunk;
 }
 
-// Build global pooling residual block - fallback to ordinary residual block
-// Full implementation requires careful handling of gpool mean/scale/max concatenation
+// Build global pooling residual block - full implementation
 static migraphx::instruction_ref buildGlobalPoolingResidualBlock(
     MIGraphXGraphBuilder& builder,
     migraphx::instruction_ref input,
     const GlobalPoolingResidualBlockDesc& blockDesc
 ) {
-    // For now, treat as ordinary residual block
-    // Full implementation would use gpoolConv, gpool pooling, and gpoolToBiasMul
-    (void)blockDesc;
-    return buildResidualBlock(builder, input, *(const ResidualBlockDesc*)&blockDesc);
+    auto residual = input;
+    
+    // preBN + preActivation
+    auto x = builder.addBatchNorm(input, blockDesc.preBN);
+    x = builder.addActivation(x, blockDesc.preActivation.activation);
+    
+    // Branch A: regular spatial conv
+    auto regularOut = builder.addConv(x, blockDesc.regularConv);
+    
+    // Branch B: global pooling conv
+    auto gpoolOut = builder.addConv(x, blockDesc.gpoolConv);
+    gpoolOut = builder.addBatchNorm(gpoolOut, blockDesc.gpoolBN);
+    gpoolOut = builder.addActivation(gpoolOut, blockDesc.gpoolActivation.activation);
+    
+    // Global pool: [batch, gpoolC, H, W] -> [batch, gpoolC*3]
+    auto gpoolFeatures = builder.addGPool(gpoolOut, false);
+    
+    // gpoolToBiasMul: [batch, gpoolC*3] -> [batch, regularC]
+    auto bias = builder.addMatMul(gpoolFeatures, blockDesc.gpoolToBiasMul);
+    
+    // Broadcast bias to spatial dims and add to regularOut
+    auto regularShape = regularOut->get_shape().lens();
+    auto biasUnsqueezed = builder.main_module->add_instruction(
+        migraphx::make_op("unsqueeze", {{"axes", migraphx::value(vector<int64_t>{2, 3})}}), bias);
+    auto biasBroadcast = builder.main_module->add_instruction(
+        migraphx::make_op("multibroadcast", {{"out_lens", regularShape}}), biasUnsqueezed);
+    regularOut = builder.main_module->add_instruction(migraphx::make_op("add"), regularOut, biasBroadcast);
+    
+    // midBN + midActivation
+    regularOut = builder.addBatchNorm(regularOut, blockDesc.midBN);
+    regularOut = builder.addActivation(regularOut, blockDesc.midActivation.activation);
+    
+    // finalConv
+    regularOut = builder.addConv(regularOut, blockDesc.finalConv);
+    
+    // Add residual
+    return builder.main_module->add_instruction(migraphx::make_op("add"), regularOut, residual);
 }
 
 // Build complete MIGraphX program from ModelDesc
@@ -517,13 +653,21 @@ static migraphx::program buildMIGraphXProgram(
     vector<size_t> inputShape = {(size_t)maxBatchSize, (size_t)numSpatialFeatures, (size_t)nnYLen, (size_t)nnXLen};
     vector<size_t> inputGlobalShape = {(size_t)maxBatchSize, (size_t)numGlobalFeatures};
     
-    auto inputSpatial = main_module->add_parameter("input_spatial", migraphx::shape(dataType, inputShape));
-    auto inputGlobal = main_module->add_parameter("input_global", migraphx::shape(dataType, inputGlobalShape));
+    // Input parameters are always float_type (host buffers are float).
+    // If using FP16, we convert to half inside the graph so MIGraphX handles conversion on GPU.
+    auto inputSpatial = main_module->add_parameter("input_spatial", migraphx::shape(migraphx::shape::float_type, inputShape));
+    auto inputGlobal = main_module->add_parameter("input_global", migraphx::shape(migraphx::shape::float_type, inputGlobalShape));
     
     // MIGraphX backend uses NCHW format only
     (void)useNHWC;  // Silently ignore NHWC setting
     
     MIGraphXGraphBuilder builder(main_module, dataType, maxBatchSize, nnXLen, nnYLen);
+    
+    // Convert inputs to computation type if using FP16
+    if(useFP16) {
+        inputSpatial = builder.addConvert(inputSpatial, dataType);
+        inputGlobal = builder.addConvert(inputGlobal, dataType);
+    }
     
     // Build trunk
     auto trunk = inputSpatial;
@@ -561,118 +705,90 @@ static migraphx::program buildMIGraphXProgram(
     trunk = builder.addBatchNorm(trunk, trunkDesc.trunkTipBN);
     trunk = builder.addActivation(trunk, trunkDesc.trunkTipActivation.activation);
     
-    // Policy head - full implementation with gpool
-    auto policy = trunk;
+    // ======== Policy Head ========
     const PolicyHeadDesc& policyDesc = modelDesc.policyHead;
     
+    migraphx::instruction_ref policy = trunk;
+    migraphx::instruction_ref policyPass = trunk; // will be overwritten
+    
     if(policyDesc.p1Conv.outChannels > 0) {
-        // p1Conv branch
+        // p1Conv branch (spatial policy)
         auto p1Conv = builder.addConv(trunk, policyDesc.p1Conv);
         
-        // g1Conv branch for global pooling (simplified - just use mean)
+        // g1Conv branch for global pooling
         auto g1Conv = builder.addConv(trunk, policyDesc.g1Conv);
         g1Conv = builder.addBatchNorm(g1Conv, policyDesc.g1BN);
         g1Conv = builder.addActivation(g1Conv, policyDesc.g1Activation.activation);
         
-        // Global pool g1Conv
-        auto gpool = builder.addReduceMean(g1Conv, {2, 3});
-        gpool = builder.addSqueeze(gpool, {2, 3});
+        // Global pool: [batch, g1C, H, W] -> [batch, g1C*3]
+        auto gpool = builder.addGPool(g1Conv, false);
         
-        // gpoolToBiasMul - only if weights are available and dimensions match
-        int gpoolChannels = policyDesc.g1Conv.outChannels;
-        if(policyDesc.gpoolToBiasMul.inChannels == gpoolChannels && !policyDesc.gpoolToBiasMul.weights.empty()) {
-            vector<size_t> gpoolWeightShape = {(size_t)policyDesc.gpoolToBiasMul.inChannels, (size_t)policyDesc.gpoolToBiasMul.outChannels};
-            auto gpoolWeights = builder.addLiteral(policyDesc.gpoolToBiasMul.weights, gpoolWeightShape);
-            auto gpoolBias = main_module->add_instruction(migraphx::make_op("dot"), gpool, gpoolWeights);
-            
-            // Broadcast and add to p1Conv
-            auto p1Shape = p1Conv->get_shape().lens();
-            auto biasUnsqueezed = main_module->add_instruction(
-                migraphx::make_op("unsqueeze", {{"axes", migraphx::value(vector<int64_t>{2, 3})}}), gpoolBias);
-            auto biasBroadcast = main_module->add_instruction(
-                migraphx::make_op("multibroadcast", {{"out_lens", p1Shape}}), biasUnsqueezed);
-            policy = main_module->add_instruction(migraphx::make_op("add"), p1Conv, biasBroadcast);
-        } else {
-            policy = p1Conv;
-        }
+        // gpoolToBiasMul: [batch, g1C*3] -> [batch, p1C] bias
+        auto gpoolBias = builder.addMatMul(gpool, policyDesc.gpoolToBiasMul);
+        
+        // Broadcast bias and add to p1Conv
+        auto p1Shape = p1Conv->get_shape().lens();
+        auto biasUnsqueezed = main_module->add_instruction(
+            migraphx::make_op("unsqueeze", {{"axes", migraphx::value(vector<int64_t>{2, 3})}}), gpoolBias);
+        auto biasBroadcast = main_module->add_instruction(
+            migraphx::make_op("multibroadcast", {{"out_lens", p1Shape}}), biasUnsqueezed);
+        policy = main_module->add_instruction(migraphx::make_op("add"), p1Conv, biasBroadcast);
         
         policy = builder.addBatchNorm(policy, policyDesc.p1BN);
         policy = builder.addActivation(policy, policyDesc.p1Activation.activation);
+        
+        // p2Conv -> spatial policy logits
+        if(policyDesc.p2Conv.outChannels > 0) {
+            policy = builder.addConv(policy, policyDesc.p2Conv);
+        }
+        
+        // Flatten spatial policy: [batch, numPolicyChannels, H, W] -> [batch, numPolicyChannels*H*W]
+        policy = builder.addFlatten(policy);
+        
+        // Pass policy (separate path from spatial, uses same gpool)
+        // gpoolToPassMul: [batch, g1C*3] -> passHidden
+        policyPass = builder.addMatMul(gpool, policyDesc.gpoolToPassMul, &policyDesc.gpoolToPassBias);
+        policyPass = builder.addActivation(policyPass, policyDesc.passActivation.activation);
+        
+        // gpoolToPassMul2: passHidden -> [batch, numPolicyChannels] (for modelVersion >= 15)
+        if(policyDesc.gpoolToPassMul2.outChannels > 0) {
+            policyPass = builder.addMatMul(policyPass, policyDesc.gpoolToPassMul2);
+        }
+    } else {
+        policy = builder.addFlatten(trunk);
+        // Zero pass policy fallback
+        vector<float> zeroPass(modelDesc.numPolicyChannels, 0.0f);
+        policyPass = builder.addLiteral(zeroPass, {1, (size_t)modelDesc.numPolicyChannels});
+        policyPass = main_module->add_instruction(
+            migraphx::make_op("multibroadcast", {{"out_lens", vector<size_t>{(size_t)maxBatchSize, (size_t)modelDesc.numPolicyChannels}}}), policyPass);
     }
     
-    if(policyDesc.p2Conv.outChannels > 0) {
-        policy = builder.addConv(policy, policyDesc.p2Conv);
-    }
-    
-    // Flatten policy
-    policy = builder.addFlatten(policy);
-    
-    // Value head - full implementation
-    auto value = trunk;
+    // ======== Value Head ========
     const ValueHeadDesc& valueDesc = modelDesc.valueHead;
     
-    // v1Conv output for both value and ownership branches
-    migraphx::instruction_ref v1Out = value;
+    // v1Conv + v1BN + v1Activation
+    auto v1Out = builder.addConv(trunk, valueDesc.v1Conv);
+    v1Out = builder.addBatchNorm(v1Out, valueDesc.v1BN);
+    v1Out = builder.addActivation(v1Out, valueDesc.v1Activation.activation);
     
-    if(valueDesc.v1Conv.outChannels > 0) {
-        v1Out = builder.addConv(v1Out, valueDesc.v1Conv);
-        v1Out = builder.addBatchNorm(v1Out, valueDesc.v1BN);
-        v1Out = builder.addActivation(v1Out, valueDesc.v1Activation.activation);
-    }
+    // Ownership branch: v1Out -> vOwnershipConv -> flatten (no tanh - matches CUDA backend)
+    auto ownership = builder.addConv(v1Out, valueDesc.vOwnershipConv);
+    ownership = builder.addFlatten(ownership);
     
-    // Ownership branch
-    migraphx::instruction_ref ownership = v1Out;
-    if(valueDesc.vOwnershipConv.outChannels > 0) {
-        ownership = builder.addConv(ownership, valueDesc.vOwnershipConv);
-        ownership = builder.addFlatten(ownership);
-        ownership = builder.addTanh(ownership);
-    } else {
-        ownership = builder.addFlatten(ownership);
-        int v1Channels = valueDesc.v1Conv.outChannels;
-        vector<float> oWeights(v1Channels * nnXLen * nnYLen, 0.0f);
-        for(int i = 0; i < v1Channels; i++) {
-            oWeights[i * nnXLen * nnYLen + (i % (nnXLen * nnYLen))] = 0.01f;
-        }
-        auto oW = builder.addLiteral(oWeights, {(size_t)v1Channels, (size_t)(nnXLen * nnYLen)});
-        ownership = main_module->add_instruction(migraphx::make_op("dot"), ownership, oW);
-        ownership = builder.addTanh(ownership);
-    }
+    // Value branch: v1Out -> GPool (value head style) -> v2Mul + v2Bias + v2Activation -> v3Mul + v3Bias
+    auto vGpool = builder.addGPool(v1Out, true);  // value head: mean, scale1, scale2
     
-    // Value branch - simplified implementation using direct projection
-    value = v1Out;
+    auto v2 = builder.addMatMul(vGpool, valueDesc.v2Mul, &valueDesc.v2Bias);
+    v2 = builder.addActivation(v2, valueDesc.v2Activation.activation);
     
-    // Global pool v1Out
-    auto vGpool = builder.addReduceMean(value, {2, 3});
-    vGpool = builder.addSqueeze(vGpool, {2, 3});
+    auto valueOut = builder.addMatMul(v2, valueDesc.v3Mul, &valueDesc.v3Bias);
     
-    int v1Channels = valueDesc.v1Conv.outChannels;
+    // Score value branch: same v2 -> sv3Mul + sv3Bias
+    auto scoreValue = builder.addMatMul(v2, valueDesc.sv3Mul, &valueDesc.sv3Bias);
     
-    // Simplified value projection to 3 outputs (win/loss/noresult)
-    vector<float> vWeights(v1Channels * 3, 0.0f);
-    for(int i = 0; i < v1Channels; i++) {
-        vWeights[i * 3 + 0] = 0.1f;  // win
-        vWeights[i * 3 + 1] = 0.1f;  // loss
-        vWeights[i * 3 + 2] = 0.05f; // no result
-    }
-    auto vW = builder.addLiteral(vWeights, {(size_t)v1Channels, 3});
-    auto valueOut = main_module->add_instruction(migraphx::make_op("dot"), vGpool, vW);
-    
-    // Score value - simplified to 6 outputs
-    vector<float> svWeights(v1Channels * 6, 0.0f);
-    for(int i = 0; i < v1Channels; i++) {
-        svWeights[i * 6 + 0] = 0.1f;  // score mean
-        svWeights[i * 6 + 1] = 0.05f; // score mean sq
-        svWeights[i * 6 + 2] = 0.1f;  // lead
-        svWeights[i * 6 + 3] = 0.0f;  // var time left
-        svWeights[i * 6 + 4] = 0.0f;  // shortterm winloss error
-        svWeights[i * 6 + 5] = 0.0f;  // shortterm score error
-    }
-    auto svW = builder.addLiteral(svWeights, {(size_t)v1Channels, 6});
-    auto scoreValue = main_module->add_instruction(migraphx::make_op("dot"), vGpool, svW);
-    
-    // Set outputs
+    // Set outputs: policy, policyPass, value, scoreValue, ownership
     if(modelDesc.modelVersion >= 2) {
-        main_module->add_return({policy, valueOut, scoreValue, ownership});
+        main_module->add_return({policy, policyPass, valueOut, scoreValue, ownership});
     } else {
         main_module->add_return({policy, valueOut});
     }
@@ -817,6 +933,21 @@ void freeComputeContext(ComputeContext* computeContext) {
 // Static mutex for cache operations
 static mutex migraphxCacheMutex;
 
+// Generate batch sizes to compile for MIGraphX (no dynamic batch support).
+static vector<int> generateBatchSizes(int maxBatchSize) {
+    vector<int> candidates = {4, 8, 16, 24, 32, 40, 64};
+    
+    // Keep only sizes <= maxBatchSize, always include maxBatchSize itself
+    vector<int> sizes;
+    for(int s : candidates) {
+        if(s <= maxBatchSize)
+            sizes.push_back(s);
+    }
+    if(sizes.empty() || sizes.back() != maxBatchSize)
+        sizes.push_back(maxBatchSize);
+    return sizes;
+}
+
 // Generate cache file path
 static string getCacheFilePath(
     const string& homeDataDir,
@@ -873,7 +1004,7 @@ ComputeHandle* createComputeHandle(
     handle->nnXLen = ctx->nnXLen;
     handle->nnYLen = ctx->nnYLen;
     
-    bool useFP16 = (ctx->useFP16Mode == enabled_t::True);
+    bool useFP16 = (ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto);
     bool useNHWC = (ctx->useNHWCMode == enabled_t::True);
     
     // MIGraphX backend only supports NCHW format
@@ -898,89 +1029,96 @@ ComputeHandle* createComputeHandle(
     handle->model->numScoreValueChannels = model->modelDesc.numScoreValueChannels;
     handle->model->numOwnershipChannels = model->modelDesc.numOwnershipChannels;
     
-    // Generate cache file path
-    string cacheFile = getCacheFilePath(
-        ctx->homeDataDir,
-        model->modelDesc,
-        ctx->nnXLen,
-        ctx->nnYLen,
-        maxBatchSize,
-        useFP16,
-        useNHWC,
-        requireExactNNLen
-    );
+    // Generate batch sizes to compile
+    vector<int> batchSizesToCompile = generateBatchSizes(maxBatchSize);
+    handle->model->batchSizes = batchSizesToCompile;
+    handle->model->tgt = migraphx::make_target("gpu");
     
-    bool cacheLoaded = false;
-    
-    // Try to load from cache
     lock_guard<mutex> cacheLock(migraphxCacheMutex);
     
-    if(FileUtils::exists(cacheFile)) {
-        try {
-            if(logger) {
-                logger->write("MIGraphX: Loading compiled program from cache: " + cacheFile);
+    for(int bs : batchSizesToCompile) {
+        // Generate cache file path for this batch size
+        string cacheFile = getCacheFilePath(
+            ctx->homeDataDir,
+            model->modelDesc,
+            ctx->nnXLen,
+            ctx->nnYLen,
+            bs,
+            useFP16,
+            useNHWC,
+            requireExactNNLen
+        );
+        
+        bool cacheLoaded = false;
+        
+        // Try to load from cache
+        if(FileUtils::exists(cacheFile)) {
+            try {
+                if(logger) {
+                    logger->write("MIGraphX: Loading compiled program from cache (batch " + Global::intToString(bs) + "): " + cacheFile);
+                }
+                cout << "MIGraphX: Loading batch " << bs << " from cache..." << endl;
+                
+                handle->model->progs[bs] = migraphx::load(cacheFile);
+                cacheLoaded = true;
+                
+                cout << "MIGraphX: Batch " << bs << " loaded! (FP16: " << (useFP16 ? "yes" : "no") << ")" << endl;
+            } catch(const exception& e) {
+                if(logger) {
+                    logger->write(string("MIGraphX: Cache load failed for batch ") + Global::intToString(bs) + ": " + e.what());
+                }
+                cout << "MIGraphX: Cache load failed for batch " << bs << ", rebuilding..." << endl;
             }
-            cout << "MIGraphX: Loading compiled program from cache..." << endl;
+        }
+        
+        if(!cacheLoaded) {
+            cout << "MIGraphX: Building model (version " << model->modelDesc.modelVersion << ")..." << endl;
+            cout << "  Board size: " << ctx->nnXLen << "x" << ctx->nnYLen << endl;
+            cout << "  Batch size: " << bs << endl;
+            cout << "  FP16: " << (useFP16 ? "yes" : "no") << endl;
+            cout << "  NHWC: " << (useNHWC ? "yes" : "no") << endl;
+            cout << "  Trunk channels: " << model->modelDesc.trunk.trunkNumChannels << endl;
+            cout << "  Num blocks: " << model->modelDesc.trunk.numBlocks << endl;
             
-            // Load compiled program using MIGraphX C++ API
-            handle->model->prog = migraphx::load(cacheFile);
-            handle->model->tgt = migraphx::make_target("gpu");
-            cacheLoaded = true;
+            handle->model->progs[bs] = buildMIGraphXProgram(
+                model->modelDesc,
+                bs,
+                ctx->nnXLen,
+                ctx->nnYLen,
+                useFP16,
+                useNHWC
+            );
             
-            cout << "MIGraphX: Cache loaded successfully! (FP16: " << (useFP16 ? "yes" : "no") << ")" << endl;
-        } catch(const exception& e) {
-            if(logger) {
-                logger->write(string("MIGraphX: Cache load failed: ") + e.what());
+            cout << "MIGraphX: Compiling batch " << bs << "..." << endl;
+            migraphx::compile_options compile_opts;
+            compile_opts.offload_copy = true;
+            
+            handle->model->progs[bs].compile(handle->model->tgt, compile_opts);
+            
+            cout << "MIGraphX: Batch " << bs << " compiled!" << endl;
+            
+            // Save to cache
+            try {
+                if(logger) {
+                    logger->write("MIGraphX: Saving compiled program to cache (batch " + Global::intToString(bs) + "): " + cacheFile);
+                }
+                migraphx::save(handle->model->progs[bs], cacheFile);
+                cout << "MIGraphX: Batch " << bs << " cached!" << endl;
+            } catch(const exception& e) {
+                if(logger) {
+                    logger->write(string("MIGraphX: Cache save failed: ") + e.what());
+                }
+                cout << "MIGraphX: Cache save failed: " << e.what() << endl;
             }
-            cout << "MIGraphX: Cache load failed, rebuilding..." << endl;
         }
     }
     
-    if(!cacheLoaded) {
-        cout << "MIGraphX: Building model (version " << model->modelDesc.modelVersion << ")..." << endl;
-        cout << "  Board size: " << ctx->nnXLen << "x" << ctx->nnYLen << endl;
-        cout << "  Batch size: " << maxBatchSize << endl;
-        cout << "  FP16: " << (useFP16 ? "yes" : "no") << endl;
-        cout << "  NHWC: " << (useNHWC ? "yes" : "no") << endl;
-        cout << "  Trunk channels: " << model->modelDesc.trunk.trunkNumChannels << endl;
-        cout << "  Num blocks: " << model->modelDesc.trunk.numBlocks << endl;
-        
-        handle->model->prog = buildMIGraphXProgram(
-            model->modelDesc,
-            maxBatchSize,
-            ctx->nnXLen,
-            ctx->nnYLen,
-            useFP16,
-            useNHWC
-        );
-        
-        cout << "MIGraphX: Compiling program..." << endl;
-        migraphx::compile_options compile_opts;
-        compile_opts.offload_copy = true;
-        
-        handle->model->tgt = migraphx::make_target("gpu");
-        handle->model->prog.compile(handle->model->tgt, compile_opts);
-        
-        cout << "MIGraphX: Compilation complete!" << endl;
-        
-        // Save to cache using MIGraphX C++ API
-        try {
-            if(logger) {
-                logger->write("MIGraphX: Saving compiled program to cache: " + cacheFile);
-            }
-            cout << "MIGraphX: Saving to cache..." << endl;
-            
-            // Save compiled program using MIGraphX C++ API
-            migraphx::save(handle->model->prog, cacheFile);
-            
-            cout << "MIGraphX: Cache saved successfully!" << endl;
-        } catch(const exception& e) {
-            if(logger) {
-                logger->write(string("MIGraphX: Cache save failed: ") + e.what());
-            }
-            cout << "MIGraphX: Cache save failed: " << e.what() << endl;
-        }
+    cout << "MIGraphX: All " << batchSizesToCompile.size() << " batch sizes ready: ";
+    for(size_t i = 0; i < batchSizesToCompile.size(); i++) {
+        if(i > 0) cout << ", ";
+        cout << batchSizesToCompile[i];
     }
+    cout << endl;
     
     return reinterpret_cast<ComputeHandle*>(handle);
 }
@@ -1105,29 +1243,105 @@ void getOutput(
         );
     }
     
-    // Run inference
-    int maxBatchSize = handle->model->maxBatchSize;
+    // Run inference - pick the smallest compiled batch size that fits
+    int bestBatchSize = handle->model->getBestBatchSize(batchSize);
     migraphx::parameter_map params;
     
+    // Always use float_type for input shapes - host buffers are float, graph handles conversion
     migraphx::shape input_shape(
-        handle->model->useFP16 ? migraphx::shape::half_type : migraphx::shape::float_type,
-        {(size_t)maxBatchSize, (size_t)numSpatialFeatures, (size_t)nnYLen, (size_t)nnXLen}
+        migraphx::shape::float_type,
+        {(size_t)bestBatchSize, (size_t)numSpatialFeatures, (size_t)nnYLen, (size_t)nnXLen}
     );
     params["input_spatial"] = migraphx::argument(input_shape, buffers->userInputBuffer.data());
     
     migraphx::shape global_shape(
-        handle->model->useFP16 ? migraphx::shape::half_type : migraphx::shape::float_type,
-        {(size_t)maxBatchSize, (size_t)numGlobalFeatures}
+        migraphx::shape::float_type,
+        {(size_t)bestBatchSize, (size_t)numGlobalFeatures}
     );
     params["input_global"] = migraphx::argument(global_shape, buffers->userInputGlobalBuffer.data());
     
-    auto results = handle->model->prog.eval(params);
+    auto results = handle->model->getProgram(bestBatchSize).eval(params);
     
-    // Process outputs
+    // Extract results from MIGraphX eval into buffers
+    // Output order for modelVersion >= 2: policy, policyPass, value, scoreValue, ownership
+    int numPolicyChannels = handle->model->numPolicyChannels;
+    size_t policySize = (size_t)numPolicyChannels * nnXLen * nnYLen;
+    int numValueChannels = handle->model->numValueChannels;
+    int numScoreValueChannels = handle->model->numScoreValueChannels;
+    size_t ownershipSize = (size_t)nnXLen * nnYLen;
+    
+    // Policy: [maxBatchSize, numPolicyChannels * H * W]
+    if(results.size() > 0) {
+        results[0].visit([&](auto output) {
+            for(int row = 0; row < batchSize; row++) {
+                for(size_t i = 0; i < policySize; i++) {
+                    buffers->policyResults[row * policySize + i] = static_cast<float>(output[row * policySize + i]);
+                }
+            }
+        });
+    }
+    
+    if(modelVersion >= 2) {
+        // Policy pass: [maxBatchSize, numPolicyChannels]
+        if(results.size() > 1) {
+            results[1].visit([&](auto output) {
+                for(int row = 0; row < batchSize; row++) {
+                    for(int i = 0; i < numPolicyChannels; i++) {
+                        buffers->policyPassResults[row * numPolicyChannels + i] = static_cast<float>(output[row * numPolicyChannels + i]);
+                    }
+                }
+            });
+        }
+        
+        // Value: [maxBatchSize, numValueChannels]
+        if(results.size() > 2) {
+            results[2].visit([&](auto output) {
+                for(int row = 0; row < batchSize; row++) {
+                    for(int i = 0; i < numValueChannels; i++) {
+                        buffers->valueResults[row * numValueChannels + i] = static_cast<float>(output[row * numValueChannels + i]);
+                    }
+                }
+            });
+        }
+        
+        // Score value: [maxBatchSize, numScoreValueChannels]
+        if(results.size() > 3) {
+            results[3].visit([&](auto output) {
+                for(int row = 0; row < batchSize; row++) {
+                    for(int i = 0; i < numScoreValueChannels; i++) {
+                        buffers->scoreValueResults[row * numScoreValueChannels + i] = static_cast<float>(output[row * numScoreValueChannels + i]);
+                    }
+                }
+            });
+        }
+        
+        // Ownership: [maxBatchSize, H * W]
+        if(results.size() > 4) {
+            results[4].visit([&](auto output) {
+                for(int row = 0; row < batchSize; row++) {
+                    for(size_t i = 0; i < ownershipSize; i++) {
+                        buffers->ownershipResults[row * ownershipSize + i] = static_cast<float>(output[row * ownershipSize + i]);
+                    }
+                }
+            });
+        }
+    } else {
+        // Value: [maxBatchSize, numValueChannels]
+        if(results.size() > 1) {
+            results[1].visit([&](auto output) {
+                for(int row = 0; row < batchSize; row++) {
+                    for(int i = 0; i < numValueChannels; i++) {
+                        buffers->valueResults[row * numValueChannels + i] = static_cast<float>(output[row * numValueChannels + i]);
+                    }
+                }
+            });
+        }
+    }
+    
+    // Process outputs per row
     assert(outputs.size() == (size_t)batchSize);
     
     float policyProbsTmp[NNPos::MAX_NN_POLICY_SIZE];
-    int numPolicyChannels = handle->model->numPolicyChannels;
     
     for(int row = 0; row < batchSize; row++) {
         NNOutput* output = outputs[row];
@@ -1136,7 +1350,7 @@ void getOutput(
         float policyOptimism = (float)inputBufs[row]->policyOptimism;
         
         const float* policyPassSrcBuf = buffers->policyPassResults.data() + row * numPolicyChannels;
-        const float* policySrcBuf = buffers->policyResults.data() + row * numPolicyChannels * nnXLen * nnYLen;
+        const float* policySrcBuf = buffers->policyResults.data() + row * policySize;
         float* policyProbs = output->policyProbs;
         
         if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
@@ -1157,25 +1371,58 @@ void getOutput(
             policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0];
         }
         
-        int numValueChannels = handle->model->numValueChannels;
         assert(numValueChannels == 3);
         output->whiteWinProb = buffers->valueResults[row * numValueChannels];
         output->whiteLossProb = buffers->valueResults[row * numValueChannels + 1];
         output->whiteNoResultProb = buffers->valueResults[row * numValueChannels + 2];
         
-        if(modelVersion >= 2 && handle->model->numScoreValueChannels > 0) {
-            output->whiteScoreMean = buffers->scoreValueResults[row * handle->model->numScoreValueChannels];
-            output->whiteScoreMeanSq = buffers->scoreValueResults[row * handle->model->numScoreValueChannels + 1];
-            output->whiteLead = buffers->scoreValueResults[row * handle->model->numScoreValueChannels + 2];
+        if(output->whiteOwnerMap != NULL) {
+            const float* ownershipSrcBuf = buffers->ownershipResults.data() + row * ownershipSize;
+            assert(handle->model->numOwnershipChannels == 1);
+            SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        }
+        
+        if(modelVersion >= 9) {
+            assert(numScoreValueChannels == 6);
+            output->whiteScoreMean = buffers->scoreValueResults[row * numScoreValueChannels];
+            output->whiteScoreMeanSq = buffers->scoreValueResults[row * numScoreValueChannels + 1];
+            output->whiteLead = buffers->scoreValueResults[row * numScoreValueChannels + 2];
+            output->varTimeLeft = buffers->scoreValueResults[row * numScoreValueChannels + 3];
+            output->shorttermWinlossError = buffers->scoreValueResults[row * numScoreValueChannels + 4];
+            output->shorttermScoreError = buffers->scoreValueResults[row * numScoreValueChannels + 5];
+        } else if(modelVersion >= 8) {
+            assert(numScoreValueChannels == 4);
+            output->whiteScoreMean = buffers->scoreValueResults[row * numScoreValueChannels];
+            output->whiteScoreMeanSq = buffers->scoreValueResults[row * numScoreValueChannels + 1];
+            output->whiteLead = buffers->scoreValueResults[row * numScoreValueChannels + 2];
+            output->varTimeLeft = buffers->scoreValueResults[row * numScoreValueChannels + 3];
+            output->shorttermWinlossError = 0.0f;
+            output->shorttermScoreError = 0.0f;
+        } else if(modelVersion >= 4) {
+            assert(numScoreValueChannels == 2);
+            output->whiteScoreMean = buffers->scoreValueResults[row * numScoreValueChannels];
+            output->whiteScoreMeanSq = buffers->scoreValueResults[row * numScoreValueChannels + 1];
+            output->whiteLead = output->whiteScoreMean;
+            output->varTimeLeft = 0.0f;
+            output->shorttermWinlossError = 0.0f;
+            output->shorttermScoreError = 0.0f;
+        } else if(modelVersion >= 3) {
+            assert(numScoreValueChannels == 1);
+            output->whiteScoreMean = buffers->scoreValueResults[row * numScoreValueChannels];
+            output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
+            output->whiteLead = output->whiteScoreMean;
+            output->varTimeLeft = 0.0f;
+            output->shorttermWinlossError = 0.0f;
+            output->shorttermScoreError = 0.0f;
         } else {
             output->whiteScoreMean = 0.0f;
             output->whiteScoreMeanSq = 1.0f;
             output->whiteLead = 0.0f;
+            output->varTimeLeft = 0.0f;
+            output->shorttermWinlossError = 0.0f;
+            output->shorttermScoreError = 0.0f;
         }
         
-        output->varTimeLeft = 1.0f;
-        output->shorttermWinlossError = 0.0f;
-        output->shorttermScoreError = 0.0f;
         output->policyOptimismUsed = policyOptimism;
     }
 }
