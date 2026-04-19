@@ -1010,6 +1010,43 @@ void customCudaCopyFromHalf(const half* in, float* out, int n) {
 //--------------------------------------------------------------------------------------------------------------
 
 
+//--------------------------------------------------------------------------------------------------------------
+// Element-wise tensor add: buf[i] += toAdd[i], for float and half
+
+__global__
+void addTensorsInplaceKernel(float *buf, const float* toAdd, int nSize)
+{
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if(idx < nSize) {
+    buf[idx] += toAdd[idx];
+  }
+}
+void customCudaAddTensorsInplace(float* buf, const float* toAdd, int nSize) {
+  int blockSize = targetNumThreads;
+  int numBlocks = (nSize+blockSize-1)/blockSize;
+  addTensorsInplaceKernel<<<numBlocks, blockSize>>>(buf,toAdd,nSize);
+}
+
+__global__
+void addTensorsInplaceHalfKernel(half *buf, const half* toAdd, int nSize)
+{
+#ifdef HIP_SUPPORTS_FP16
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if(idx < nSize) {
+    buf[idx] = __hadd(buf[idx],toAdd[idx]);
+  }
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
+void customCudaAddTensorsInplace(half* buf, const half* toAdd, int nSize) {
+  int blockSize = targetNumThreads;
+  int numBlocks = (nSize+blockSize-1)/blockSize;
+  addTensorsInplaceHalfKernel<<<numBlocks, blockSize>>>(buf,toAdd,nSize);
+}
+
+//--------------------------------------------------------------------------------------------------------------
+
 __global__
 void addTensorInplaceHalfKernel(half *buf, const half* biases, int nSize)
 {

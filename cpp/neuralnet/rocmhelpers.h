@@ -32,6 +32,9 @@ void customCudaPoolRowsGPoolNHWC(const half* in, half* out, int nSize, int xySiz
 void customCudaCopyToHalf(const float* in, half* out, int n);
 void customCudaCopyFromHalf(const half* in, float* out, int n);
 
+//Given a tensor, add another tensor element-wise to it (same shape).
+void customCudaAddTensorsInplace(float* buf, const float* toAdd, int n);
+void customCudaAddTensorsInplace(half* buf, const half* toAdd, int n);
 //Given a tensor, add another tensor to it.
 void customCudaAddTensorInplace(half* buf, const half* biases, int n);
 //Given an input with shape [n,c] and biases of shape [c], add the biases in-place.

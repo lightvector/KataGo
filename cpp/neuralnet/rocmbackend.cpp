@@ -251,6 +251,9 @@ struct ConvLayer {
   const string name;
   const int inChannels;
   const int outChannels;
+  const int nnXLen;
+  const int nnYLen;
+  const bool usingFP16;
   ByBatchSizeView<miopenTensorDescriptor_t> inputDescriptors;
   ByBatchSizeView<miopenTensorDescriptor_t> outputDescriptors;
   miopenTensorDescriptor_t filterDescriptor;
@@ -281,7 +284,10 @@ struct ConvLayer {
   ) :
     name(desc->name),
     inChannels(desc->inChannels),
-    outChannels(desc->outChannels)
+    outChannels(desc->outChannels),
+    nnXLen(manager->nnXLen),
+    nnYLen(manager->nnYLen),
+    usingFP16(useFP16)
   {
     int convYSize = desc->convYSize;
     int convXSize = desc->convXSize;
@@ -334,26 +340,28 @@ struct ConvLayer {
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
       const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
-      size_t requestedAlgoCount = 8;
-      size_t returnedAlgoCount = -1;
-      miopenConvSolution_t solutions[2 * requestedAlgoCount];
+      size_t availableAlgoCount = 0;
       CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionCount(
         cudaHandles->cudnn,
         filterDescriptor,
         inputDescriptor,
         convolutionDescriptor,
         outputDescriptor,
-        &requestedAlgoCount
+        &availableAlgoCount
       ));
+      if(availableAlgoCount <= 0)
+        throw StringError("miopenConvolutionForwardGetSolutionCount returned 0 algorithms?");
+      std::vector<miopenConvSolution_t> solutions(availableAlgoCount);
+      size_t returnedAlgoCount = 0;
       CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolution(
           cudaHandles->cudnn,
           filterDescriptor,
           inputDescriptor,
           convolutionDescriptor,
           outputDescriptor,
-          requestedAlgoCount,
+          availableAlgoCount,
           &returnedAlgoCount,
-          solutions
+          solutions.data()
         ));
       if(returnedAlgoCount <= 0)
         throw StringError("miopenConvolutionForwardGetSolution returned no algorithms?");
@@ -422,8 +430,18 @@ struct ConvLayer {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
-    const float alpha = 1.0f;
-    const float beta = accumulate ? 1.0f : 0.0f;
+    // miopenConvolutionForwardImmediate does NOT support alpha/beta (unlike cuDNN).
+    // When accumulate=true, we need: outputBuf = conv(inputBuf) + outputBuf (residual skip connection).
+    // So we save outputBuf first, run conv (which overwrites outputBuf), then add saved data back.
+    void* residualBuf = nullptr;
+    if(accumulate) {
+      int elemSize = usingFP16 ? sizeof(half) : sizeof(float);
+      size_t outputElems = (size_t)batchSize * outChannels * nnXLen * nnYLen;
+      size_t outputBytes = outputElems * elemSize;
+      CUDA_ERR(name.c_str(), hipMalloc(&residualBuf, outputBytes));
+      CUDA_ERR(name.c_str(), hipMemcpy(residualBuf, outputBuf, outputBytes, hipMemcpyDeviceToDevice));
+    }
+
     CUDNN_ERR(name.c_str(), miopenConvolutionForwardImmediate(
       cudaHandles->cudnn,
       filterDescriptor,
@@ -437,6 +455,15 @@ struct ConvLayer {
       workspaceBytes,
       (*convolutionAlgorithms)[batchSize].solution_id
     ));
+
+    if(accumulate) {
+      size_t outputElems = (size_t)batchSize * outChannels * nnXLen * nnYLen;
+      if(usingFP16)
+        customCudaAddTensorsInplace((half*)outputBuf, (const half*)residualBuf, (int)outputElems);
+      else
+        customCudaAddTensorsInplace((float*)outputBuf, (const float*)residualBuf, (int)outputElems);
+      CUDA_ERR(name.c_str(), hipFree(residualBuf));
+    }
   }
 
 };
