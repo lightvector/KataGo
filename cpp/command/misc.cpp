@@ -371,84 +371,87 @@ int MainCmds::searchentropyanalysis(const vector<string>& args) {
     throw StringError("Unknown dataset to test gpu error on: " + boardSizeDataset);
   }
 
+  // Build list of all (sgfIdx, turnIdx) pairs, then deterministically shuffle
+  vector<std::pair<int,int>> positions;
+  {
+    vector<std::unique_ptr<CompactSgf>> sgfObjs;
+    for(const string& sgf : sgfData)
+      sgfObjs.push_back(CompactSgf::parse(sgf));
+    for(int sgfIdx = 0; sgfIdx < (int)sgfObjs.size(); sgfIdx++) {
+      for(int turnIdx = 0; turnIdx < (int)sgfObjs[sgfIdx]->moves.size(); turnIdx++) {
+        positions.push_back({sgfIdx, turnIdx});
+      }
+    }
+  }
+  {
+    Rand shuffleRand("searchentropyanalysis_shuffle_seed");
+    shuffleRand.shuffle(positions);
+  }
+  logger.write("Total positions to search: " + Global::intToString((int)positions.size()));
+
   vector<double> searchEntropies;
   vector<double> searchSurprises;
   int numPositions = 0;
 
-  for(const string& sgf : sgfData) {
-    std::unique_ptr<CompactSgf> sgfObj = CompactSgf::parse(sgf);
+  auto printRunningStats = [&]() {
+    cout << "Searched numPositions: " << numPositions << endl;
+    if(numPositions > 0) {
+      double entropyMean = 0.0;
+      for(double v : searchEntropies) entropyMean += v;
+      entropyMean /= numPositions;
+      double entropyVar = 0.0;
+      for(double v : searchEntropies) { double d = v - entropyMean; entropyVar += d * d; }
+      entropyVar /= numPositions;
+      cout << "Mean search entropy: " << entropyMean << " standard deviation: " << sqrt(entropyVar) << endl;
 
-    for(int turnIdx = 0; turnIdx < sgfObj->moves.size(); turnIdx++) {
-      Board board;
-      Player pla;
-      BoardHistory hist;
-      Rules initialRules;
-      sgfObj->setupInitialBoardAndHist(initialRules, board, pla, hist);
+      double surpriseMean = 0.0;
+      for(double v : searchSurprises) surpriseMean += v;
+      surpriseMean /= numPositions;
+      double surpriseVar = 0.0;
+      for(double v : searchSurprises) { double d = v - surpriseMean; surpriseVar += d * d; }
+      surpriseVar /= numPositions;
+      cout << "Mean search surprise: " << surpriseMean << " standard deviation: " << sqrt(surpriseVar) << endl;
+    }
+  };
 
-      for(int i = 0; i < turnIdx; i++) {
-        Loc moveLoc = sgfObj->moves[i].loc;
-        if(moveLoc != Board::NULL_LOC && hist.isLegal(board, moveLoc, pla)) {
-          hist.makeBoardMoveAssumeLegal(board, moveLoc, pla, NULL);
-          pla = getOpp(pla);
-        }
+  for(const auto& pos : positions) {
+    int sgfIdx = pos.first;
+    int turnIdx = pos.second;
+
+    std::unique_ptr<CompactSgf> sgfObj = CompactSgf::parse(sgfData[sgfIdx]);
+
+    Board board;
+    Player pla;
+    BoardHistory hist;
+    Rules initialRules;
+    sgfObj->setupInitialBoardAndHist(initialRules, board, pla, hist);
+
+    for(int i = 0; i < turnIdx; i++) {
+      Loc moveLoc = sgfObj->moves[i].loc;
+      if(moveLoc != Board::NULL_LOC && hist.isLegal(board, moveLoc, pla)) {
+        hist.makeBoardMoveAssumeLegal(board, moveLoc, pla, NULL);
+        pla = getOpp(pla);
       }
+    }
 
-      if(!hist.isGameFinished) {
-        bot->setPosition(pla, board, hist);
-        bot->runWholeSearch(pla);
+    if(!hist.isGameFinished) {
+      bot->setPosition(pla, board, hist);
+      bot->runWholeSearch(pla);
 
-        double surprise, searchEntropy, policyEntropy;
-        if(bot->getPolicySurpriseAndEntropy(surprise, searchEntropy, policyEntropy)) {
-          searchEntropies.push_back(searchEntropy);
-          searchSurprises.push_back(surprise);
-          numPositions++;
-          if(numPositions % 10 == 0)
-            cout << "Searched numPositions: " << numPositions << endl;
-        }
+      double surprise, searchEntropy, policyEntropy;
+      if(bot->getPolicySurpriseAndEntropy(surprise, searchEntropy, policyEntropy)) {
+        searchEntropies.push_back(searchEntropy);
+        searchSurprises.push_back(surprise);
+        numPositions++;
+        if(numPositions % 10 == 0)
+          printRunningStats();
       }
     }
   }
 
   cout << modelFile << endl;
   cout << "Dataset: " << boardSizeDataset << endl;
-  cout << "Num positions: " << numPositions << endl;
-
-  {
-    double mean = 0.0;
-    for(double entropy : searchEntropies) {
-      mean += entropy;
-    }
-    mean /= numPositions;
-
-    double variance = 0.0;
-    for(double entropy : searchEntropies) {
-      double diff = entropy - mean;
-      variance += diff * diff;
-    }
-    variance /= numPositions;
-    double stdev = sqrt(variance);
-
-    cout << "Mean search entropy: " << mean << endl;
-    cout << "Standard deviation: " << stdev << endl;
-  }
-  {
-    double mean = 0.0;
-    for(double surprise : searchSurprises) {
-      mean += surprise;
-    }
-    mean /= numPositions;
-
-    double variance = 0.0;
-    for(double surprise : searchSurprises) {
-      double diff = surprise - mean;
-      variance += diff * diff;
-    }
-    variance /= numPositions;
-    double stdev = sqrt(variance);
-
-    cout << "Mean search surprise: " << mean << endl;
-    cout << "Standard deviation: " << stdev << endl;
-  }
+  printRunningStats();
 
   delete bot;
   delete nnEval;
