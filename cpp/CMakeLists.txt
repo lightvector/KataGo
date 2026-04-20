@@ -7,6 +7,14 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 
+if(NOT CMAKE_CONFIGURATION_TYPES)
+  # Default to RelWithDebInfo if no build type specified
+  if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
+  endif()
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+endif()
+
 include_directories(external)
 include_directories(SYSTEM external/tclap-1.2.5/include) #SYSTEM suppresses warnings from external library
 include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses a few warnings
@@ -504,8 +512,6 @@ endif()
 
 #------------------------------------------------------------------------------------
 
-# add_compile_definitions(NDEBUG)
-
 if (WIN32) # handles both x86 and x64
   message(STATUS "Setting up build for Windows.")
   # Suppress min and max macros on windows
@@ -572,7 +578,15 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
   find_package (Threads REQUIRED)
   target_link_libraries(katago Threads::Threads)
 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2 -pedantic -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Wmissing-declarations -Wmissing-include-dirs -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-overflow=1 -Wswitch-default -Wfloat-conversion -Wunused")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Wmissing-declarations -Wmissing-include-dirs -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-overflow=1 -Wswitch-default -Wfloat-conversion -Wunused")
+  set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0 -fno-omit-frame-pointer")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -O2")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+
+  if(NOT CMAKE_CONFIGURATION_TYPES)
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" _bt)
+    message(STATUS "CXX flags from build type: ${CMAKE_CXX_FLAGS_${_bt}}")
+  endif()
 
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(STATUS "Enabling GNU-specific build options.")
