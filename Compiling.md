@@ -68,45 +68,11 @@ The ONNX backend uses ONNX Runtime for inference, and supports both:
 3. Build ONNX Runtime with OpenVINO EP for NPU (same ORT flow as Windows):
    * https://onnxruntime.ai/docs/build/eps.html#openvino
    * Set OpenVINO EP build option so `use_openvino` is `NPU` (for example `--use_openvino NPU` in ORT build.py).
+   * For instance, `./build.sh --config Release --use_openvino NPU --build_shared_lib --skip_tests --parallel --cmake_extra_defines CMAKE_INSTALL_PREFIX=<path to your katago dir>/cpp/external/onnxruntime-win-x64-openvino`.
 
 ##### Prepare `ONNXRUNTIME_ROOT` in KataGo (Linux)
-Use package root:
-* `cpp/external/onnxruntime-linux-x64-openvino`
-
-Linux one-to-one mapping (`<ORT_PACKAGE_ROOT>` -> KataGo):
-
-Include files:
-
-| Source (`<ORT_PACKAGE_ROOT>`) | Destination (KataGo) |
-| --- | --- |
-| `include/core/*` | `cpp/external/onnxruntime-linux-x64-openvino/include/core/` |
-| `include/cpu_provider_factory.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/cpu_provider_factory.h` |
-| `include/provider_options.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/provider_options.h` |
-| `include/onnxruntime_c_api.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_c_api.h` |
-| `include/onnxruntime_cxx_api.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_cxx_api.h` |
-| `include/onnxruntime_cxx_inline.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_cxx_inline.h` |
-| `include/onnxruntime_env_config_keys.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_env_config_keys.h` |
-| `include/onnxruntime_ep_c_api.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_ep_c_api.h` |
-| `include/onnxruntime_ep_device_ep_metadata_keys.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_ep_device_ep_metadata_keys.h` |
-| `include/onnxruntime_float16.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_float16.h` |
-| `include/onnxruntime_lite_custom_op.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_lite_custom_op.h` |
-| `include/onnxruntime_run_options_config_keys.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_run_options_config_keys.h` |
-| `include/onnxruntime_session_options_config_keys.h` | `cpp/external/onnxruntime-linux-x64-openvino/include/onnxruntime_session_options_config_keys.h` |
-
-Library/config/pkgconfig files:
-
-| Source (`<ORT_PACKAGE_ROOT>`) | Destination (KataGo) |
-| --- | --- |
-| `lib/libonnxruntime_providers_openvino.so` | `cpp/external/onnxruntime-linux-x64-openvino/lib/libonnxruntime_providers_openvino.so` |
-| `lib/libonnxruntime_providers_shared.so` | `cpp/external/onnxruntime-linux-x64-openvino/lib/libonnxruntime_providers_shared.so` |
-| `lib/libonnxruntime.so.1.24.3` | `cpp/external/onnxruntime-linux-x64-openvino/lib/libonnxruntime.so.1.24.3` |
-| `lib/libonnxruntime.so.1` (symlink to `.1.24.3`) | `cpp/external/onnxruntime-linux-x64-openvino/lib/libonnxruntime.so.1` |
-| `lib/libonnxruntime.so` (symlink to `.1`) | `cpp/external/onnxruntime-linux-x64-openvino/lib/libonnxruntime.so` |
-| `lib/cmake/onnxruntime/onnxruntimeConfig.cmake` | `cpp/external/onnxruntime-linux-x64-openvino/lib/cmake/onnxruntime/onnxruntimeConfig.cmake` |
-| `lib/cmake/onnxruntime/onnxruntimeConfigVersion.cmake` | `cpp/external/onnxruntime-linux-x64-openvino/lib/cmake/onnxruntime/onnxruntimeConfigVersion.cmake` |
-| `lib/cmake/onnxruntime/onnxruntimeTargets.cmake` | `cpp/external/onnxruntime-linux-x64-openvino/lib/cmake/onnxruntime/onnxruntimeTargets.cmake` |
-| `lib/cmake/onnxruntime/onnxruntimeTargets-release.cmake` | `cpp/external/onnxruntime-linux-x64-openvino/lib/cmake/onnxruntime/onnxruntimeTargets-release.cmake` |
-| `lib/pkgconfig/libonnxruntime.pc` | `cpp/external/onnxruntime-linux-x64-openvino/lib/pkgconfig/libonnxruntime.pc` |
+Install package root:
+* `cpp/external/onnxruntime-linux-x64-openvino` by running `cmake --install build\Linux\Release --config Release`.
 
 ##### Minimal KataGo Build Commands (Linux, ONNX backend)
 On Linux, `KATAGO_AUTO_FETCH_DEPS=ON` can auto-fetch missing `zlib`, `onnx`, and `protobuf` dependencies via vcpkg into `cpp/build/deps/vcpkg`.
@@ -200,56 +166,18 @@ The ONNX backend uses ONNX Runtime for inference, and supports both:
    * https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
 3. Install OpenVINO 2026 archive package on Windows:
    * https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-archive-windows.html
-   * Typical install root looks like: `C:\Program Files (x86)\Intel\openvino_2026.0`
+   * Typical install root looks like: `C:\Program Files (x86)\Intel\openvino`
 4. Add these to System PATH:
-   * `C:\Program Files (x86)\Intel\openvino_2026.0\runtime\bin\intel64\Release`
-   * `C:\Program Files (x86)\Intel\openvino_2026.0\runtime\3rdparty\tbb\bin`
+   * `C:\Program Files (x86)\Intel\openvino\runtime\bin\intel64\Release`
+   * `C:\Program Files (x86)\Intel\openvino\runtime\3rdparty\tbb\bin`
 5. Build ONNX Runtime with OpenVINO EP for NPU (follow official docs):
    * https://onnxruntime.ai/docs/build/eps.html#openvino
    * Set OpenVINO EP build option so `use_openvino` is `NPU` (for example `--use_openvino NPU` in ORT build.py).
+   * For example, `.\build.bat --config Release --use_openvino NPU --build_shared_lib --skip_tests --parallel --cmake_extra_defines CMAKE_INSTALL_PREFIX=<path to your katago dir>\cpp\external\onnxruntime-win-x64-openvino`
 
 ##### Prepare `ONNXRUNTIME_ROOT` in KataGo (Windows)
-Use package root:
-* `cpp/external/onnxruntime-win-x64-openvino`
-
-Windows one-to-one mapping (`<ORT_PACKAGE_ROOT>` -> KataGo):
-
-Windows and Linux generally share the same ORT include/config layout.
-The main differences are binary file names/extensions (`.dll/.lib` vs `.so`).
-
-Include files:
-
-| Source (`<ORT_PACKAGE_ROOT>`) | Destination (KataGo) |
-| --- | --- |
-| `include/core/*` | `cpp/external/onnxruntime-win-x64-openvino/include/core/` |
-| `include/cpu_provider_factory.h` | `cpp/external/onnxruntime-win-x64-openvino/include/cpu_provider_factory.h` |
-| `include/provider_options.h` | `cpp/external/onnxruntime-win-x64-openvino/include/provider_options.h` |
-| `include/onnxruntime_c_api.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_c_api.h` |
-| `include/onnxruntime_cxx_api.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_cxx_api.h` |
-| `include/onnxruntime_cxx_inline.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_cxx_inline.h` |
-| `include/onnxruntime_env_config_keys.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_env_config_keys.h` |
-| `include/onnxruntime_ep_c_api.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_ep_c_api.h` |
-| `include/onnxruntime_ep_device_ep_metadata_keys.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_ep_device_ep_metadata_keys.h` |
-| `include/onnxruntime_float16.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_float16.h` |
-| `include/onnxruntime_lite_custom_op.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_lite_custom_op.h` |
-| `include/onnxruntime_run_options_config_keys.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_run_options_config_keys.h` |
-| `include/onnxruntime_session_options_config_keys.h` | `cpp/external/onnxruntime-win-x64-openvino/include/onnxruntime_session_options_config_keys.h` |
-
-Library/config/pkgconfig files:
-
-| Source (`<ORT_PACKAGE_ROOT>`) | Destination (KataGo) |
-| --- | --- |
-| `lib/onnxruntime.lib` | `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime.lib` |
-| `lib/onnxruntime.dll` | `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime.dll` |
-| `lib/onnxruntime_providers_shared.dll` | `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime_providers_shared.dll` |
-| `lib/onnxruntime_providers_openvino.dll` | `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime_providers_openvino.dll` |
-| `lib/onnxruntime_providers_shared.lib` (optional import lib) | `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime_providers_shared.lib` |
-| `lib/onnxruntime_providers_openvino.lib` (optional import lib) | `cpp/external/onnxruntime-win-x64-openvino/lib/onnxruntime_providers_openvino.lib` |
-| `lib/cmake/onnxruntime/onnxruntimeConfig.cmake` | `cpp/external/onnxruntime-win-x64-openvino/lib/cmake/onnxruntime/onnxruntimeConfig.cmake` |
-| `lib/cmake/onnxruntime/onnxruntimeConfigVersion.cmake` | `cpp/external/onnxruntime-win-x64-openvino/lib/cmake/onnxruntime/onnxruntimeConfigVersion.cmake` |
-| `lib/cmake/onnxruntime/onnxruntimeTargets.cmake` | `cpp/external/onnxruntime-win-x64-openvino/lib/cmake/onnxruntime/onnxruntimeTargets.cmake` |
-| `lib/cmake/onnxruntime/onnxruntimeTargets-release.cmake` | `cpp/external/onnxruntime-win-x64-openvino/lib/cmake/onnxruntime/onnxruntimeTargets-release.cmake` |
-| `lib/pkgconfig/libonnxruntime.pc` (optional) | `cpp/external/onnxruntime-win-x64-openvino/lib/pkgconfig/libonnxruntime.pc` |
+Install package root:
+* `cpp/external/onnxruntime-win-x64-openvino` by running `cmake --install build\Windows\Release --config Release`
 
 ##### Minimal KataGo Build Commands (Windows, ONNX backend)
 On Windows, `KATAGO_AUTO_FETCH_DEPS=ON` by default, so missing `zlib`, `onnx`, and `protobuf` dependencies are auto-fetched via vcpkg into `cpp/build/deps/vcpkg`.
