@@ -215,7 +215,7 @@ struct Search {
   Player getPlayoutDoublingAdvantagePla() const;
 
   //Get the NNPos corresponding to a loc, convenience method
-  int getPos(Loc moveLoc) const;
+  inline int getPos(Loc moveLoc) const { return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen); }
 
   //Clear all results of search and sets a new position or something else
   void setPosition(Player pla, const Board& board, const BoardHistory& history);

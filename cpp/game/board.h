@@ -49,9 +49,9 @@ namespace PlayerIO {
 typedef short Loc;
 namespace Location
 {
-  Loc getLoc(int x, int y, int x_size);
-  int getX(Loc loc, int x_size);
-  int getY(Loc loc, int x_size);
+  inline Loc getLoc(int x, int y, int x_size) { return (Loc)((x+1) + (y+1)*(x_size+1)); }
+  inline int getX(Loc loc, int x_size) { return (loc % (x_size+1)) - 1; }
+  inline int getY(Loc loc, int x_size) { return (loc / (x_size+1)) - 1; }
 
   void getAdjacentOffsets(short adj_offsets[8], int x_size);
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);

@@ -2,38 +2,6 @@
 
 using namespace std;
 
-int NNPos::xyToPos(int x, int y, int nnXLen) {
-  return y * nnXLen + x;
-}
-int NNPos::locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen) {
-  if(loc == Board::PASS_LOC)
-    return nnXLen * nnYLen;
-  else if(loc == Board::NULL_LOC)
-    return nnXLen * (nnYLen + 1);
-  return Location::getY(loc,boardXSize) * nnXLen + Location::getX(loc,boardXSize);
-}
-Loc NNPos::posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnYLen) {
-  if(pos == nnXLen * nnYLen)
-    return Board::PASS_LOC;
-  int x = pos % nnXLen;
-  int y = pos / nnXLen;
-  if(x < 0 || x >= boardXSize || y < 0 || y >= boardYSize)
-    return Board::NULL_LOC;
-  return Location::getLoc(x,y,boardXSize);
-}
-
-int NNPos::getPassPos(int nnXLen, int nnYLen) {
-  return nnXLen * nnYLen;
-}
-
-bool NNPos::isPassPos(int pos, int nnXLen, int nnYLen) {
-  return pos == nnXLen * nnYLen;
-}
-
-int NNPos::getPolicySize(int nnXLen, int nnYLen) {
-  return nnXLen * nnYLen + 1;
-}
-
 //-----------------------------------------------------------------------------------------------------------
 //-----------------------------------------------------------------------------------------------------------
 
@@ -856,13 +824,13 @@ static void iterLadders(const Board& board, int nnXLen, std::function<void(Loc,i
 
   for(int y = 0; y<ySize; y++) {
     for(int x = 0; x<xSize; x++) {
-      int pos = NNPos::xyToPos(x,y,nnXLen);
       Loc loc = Location::getLoc(x,y,xSize);
       Color stone = board.colors[loc];
       if(stone == P_BLACK || stone == P_WHITE) {
         int libs = board.getNumLiberties(loc);
         if(libs == 1 || libs == 2) {
           bool alreadySolved = false;
+          int pos = NNPos::xyToPos(x,y,nnXLen);
           Loc head = board.chain_head[loc];
           for(int i = 0; i<numChainHeadsSolved; i++) {
             if(chainHeadsSolved[i] == head) {

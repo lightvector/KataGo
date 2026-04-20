@@ -171,10 +171,6 @@ Player Search::getPlayoutDoublingAdvantagePla() const {
   return searchParams.playoutDoublingAdvantagePla == C_EMPTY ? plaThatSearchIsFor : searchParams.playoutDoublingAdvantagePla;
 }
 
-int Search::getPos(Loc moveLoc) const {
-  return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
-}
-
 void Search::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   clearSearch();
   rootPla = pla;

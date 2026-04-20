@@ -20,12 +20,26 @@ namespace NNPos {
   //Used various places we clip komi beyond board area.
   constexpr float KOMI_CLIP_RADIUS = 20.0f;
 
-  int xyToPos(int x, int y, int nnXLen);
-  int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen);
-  Loc posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnYLen);
-  int getPassPos(int nnXLen, int nnYLen);
-  bool isPassPos(int pos, int nnXLen, int nnYLen);
-  int getPolicySize(int nnXLen, int nnYLen);
+  inline int xyToPos(int x, int y, int nnXLen) { return y * nnXLen + x; }
+  inline int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen) {
+    if(loc == Board::PASS_LOC)
+      return nnXLen * nnYLen;
+    else if(loc == Board::NULL_LOC)
+      return nnXLen * (nnYLen + 1);
+    return Location::getY(loc,boardXSize) * nnXLen + Location::getX(loc,boardXSize);
+  }
+  inline Loc posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnYLen) {
+    if(pos == nnXLen * nnYLen)
+      return Board::PASS_LOC;
+    int x = pos % nnXLen;
+    int y = pos / nnXLen;
+    if(x < 0 || x >= boardXSize || y < 0 || y >= boardYSize)
+      return Board::NULL_LOC;
+    return Location::getLoc(x,y,boardXSize);
+  }
+  inline int getPassPos(int nnXLen, int nnYLen) { return nnXLen * nnYLen; }
+  inline bool isPassPos(int pos, int nnXLen, int nnYLen) { return pos == nnXLen * nnYLen; }
+  inline int getPolicySize(int nnXLen, int nnYLen) { return nnXLen * nnYLen + 1; }
 }
 
 namespace NNInputs {

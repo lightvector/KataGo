@@ -117,24 +117,24 @@ public:
 
   void storeAll(const SearchChildPointer& other);
 
-  SearchNode* getIfAllocated();
-  const SearchNode* getIfAllocated() const;
-  SearchNode* getIfAllocatedRelaxed();
-  void store(SearchNode* node);
-  void storeRelaxed(SearchNode* node);
+  inline SearchNode* getIfAllocated() { return data.load(std::memory_order_acquire); }
+  inline const SearchNode* getIfAllocated() const { return data.load(std::memory_order_acquire); }
+  inline SearchNode* getIfAllocatedRelaxed() { return data.load(std::memory_order_relaxed); }
+  inline void store(SearchNode* node) { data.store(node, std::memory_order_release); }
+  inline void storeRelaxed(SearchNode* node) { data.store(node, std::memory_order_relaxed); }
   bool storeIfNull(SearchNode* node);
 
-  int64_t getEdgeVisits() const;
-  int64_t getEdgeVisitsRelaxed() const;
-  void setEdgeVisits(int64_t x);
-  void setEdgeVisitsRelaxed(int64_t x);
-  void addEdgeVisits(int64_t delta);
+  inline int64_t getEdgeVisits() const { return edgeVisits.load(std::memory_order_acquire); }
+  inline int64_t getEdgeVisitsRelaxed() const { return edgeVisits.load(std::memory_order_relaxed); }
+  inline void setEdgeVisits(int64_t x) { edgeVisits.store(x, std::memory_order_release); }
+  inline void setEdgeVisitsRelaxed(int64_t x) { edgeVisits.store(x, std::memory_order_relaxed); }
+  inline void addEdgeVisits(int64_t delta) { edgeVisits.fetch_add(delta, std::memory_order_acq_rel); }
   bool compexweakEdgeVisits(int64_t& expected, int64_t desired);
 
-  Loc getMoveLoc() const;
-  Loc getMoveLocRelaxed() const;
-  void setMoveLoc(Loc loc);
-  void setMoveLocRelaxed(Loc loc);
+  inline Loc getMoveLoc() const { return moveLoc.load(std::memory_order_acquire); }
+  inline Loc getMoveLocRelaxed() const { return moveLoc.load(std::memory_order_relaxed); }
+  inline void setMoveLoc(Loc loc) { moveLoc.store(loc, std::memory_order_release); }
+  inline void setMoveLocRelaxed(Loc loc) { moveLoc.store(loc, std::memory_order_relaxed); }
 };
 
 namespace SearchChildrenSizes {

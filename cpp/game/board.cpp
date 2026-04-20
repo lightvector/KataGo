@@ -33,18 +33,6 @@ const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOB
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
 
 //LOCATION--------------------------------------------------------------------------------
-Loc Location::getLoc(int x, int y, int x_size)
-{
-  return (x+1) + (y+1)*(x_size+1);
-}
-int Location::getX(Loc loc, int x_size)
-{
-  return (loc % (x_size+1)) - 1;
-}
-int Location::getY(Loc loc, int x_size)
-{
-  return (loc / (x_size+1)) - 1;
-}
 void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
 {
   adj_offsets[0] = -(x_size+1);

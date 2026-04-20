@@ -1051,11 +1051,13 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         //Cannot be superko banned if it's not a pseudolegal move in the first place, or we would already ban the move under simple ko.
-        if(board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,nextPla,rules.multiStoneSuicideLegal) || loc == board.ko_loc)
+        if(board.colors[loc] != C_EMPTY)
           superKoBanned[loc] = false;
         //Also cannot be superko banned if a stone was never there or played there before AND the move is not suicide, because that means
         //the move results in a new stone there and if no stone was ever there in the past the it must be a new position.
         else if(!wasEverOccupiedOrPlayed[loc] && !board.isSuicide(loc,nextPla))
+          superKoBanned[loc] = false;
+        else if(board.isIllegalSuicide(loc,nextPla,rules.multiStoneSuicideLegal) || loc == board.ko_loc)
           superKoBanned[loc] = false;
         else {
           Hash128 posHashAfterMove = board.getPosHashAfterMove(loc,nextPla);
