@@ -89,7 +89,7 @@ class PriorityLock {
     testAssert(!isLocked);
     isLocked = true;
     isHighPriority = false;
-    mutex->lockHighPriority();
+    mutex->lockLowPriority();
   }
 
   inline void unlock() {
