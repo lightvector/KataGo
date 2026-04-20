@@ -10,6 +10,7 @@
 
 #include "../game/rules.h"
 #include "../neuralnet/activations.h"
+#include "../neuralnet/onnxprotoreader.h"
 
 struct ConvLayerDesc {
   std::string name;
@@ -357,6 +358,9 @@ struct ModelDesc {
 
   int metaEncoderVersion;
 
+  //std::map<std::string, std::string> onnxMetadata; //only non-empty when loading from ONNX
+  ONNXModelHeader onnxHeader;
+
   ModelPostProcessParams postProcessParams;
 
   TrunkDesc trunk;
@@ -383,6 +387,7 @@ struct ModelDesc {
   //Loads a model from a file that may or may not be gzipped, storing it in descBuf
   //If expectedSha256 is nonempty, will also verify sha256 of the loaded data.
   static void loadFromFileMaybeGZipped(const std::string& fileName, ModelDesc& descBuf, const std::string& expectedSha256);
+  static void loadFromONNX(const std::string& onnxFile, ModelDesc& descBuf);
 
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.

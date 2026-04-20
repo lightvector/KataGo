@@ -1851,7 +1851,24 @@ void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& desc
     throw StringError("Error loading or parsing model file " + fileName + ": " + e.what());
   }
 }
+void ModelDesc::loadFromONNX(const string& onnxFile, ModelDesc& descBuf) {
+  descBuf.onnxHeader.load(onnxFile);
+  
+  descBuf.modelVersion = descBuf.onnxHeader.modelVersion;
+  descBuf.name = descBuf.onnxHeader.modelName;
+  descBuf.numInputChannels = descBuf.onnxHeader.num_spatial_inputs;
+  descBuf.numInputGlobalChannels = descBuf.onnxHeader.num_global_inputs;
+  descBuf.numInputMetaChannels = 0;  // not supported
+  if(descBuf.numInputChannels != NNModelVersion::getNumSpatialFeatures(descBuf.modelVersion))
+    throw StringError("ONNX model requires num_spatial_inputs metadata field to match modelVersion");
+  if(descBuf.numInputGlobalChannels != NNModelVersion::getNumGlobalFeatures(descBuf.modelVersion))
+    throw StringError("ONNX model requires num_global_inputs metadata field to match modelVersion");
 
+  descBuf.numPolicyChannels = 0;  // will not be used
+  descBuf.numValueChannels = 0;   // will not be used
+  descBuf.numScoreValueChannels = 0;
+  descBuf.numOwnershipChannels = 0;
+}
 
 Rules ModelDesc::getSupportedRules(const Rules& desiredRules, bool& supported) const {
   Rules rules = desiredRules;
