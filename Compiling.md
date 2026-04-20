@@ -33,6 +33,8 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
       * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
+      * If using the ROCm backend, ROCm 6.4 or later and a GPU capable of supporting them. More information about installation(https://rocm.docs.amd.com/projects/install-on-linux/en/latest/) and please install all possible ROCm developer packages, instead of just ROCm runtime packages.
+      * If using the MIGraphX backend, ROCm 7.0 or later with MIGraphX library installed (e.g. `sudo apt install migraphx` via the ROCm package repo).
       * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
       * zlib, libzip. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`.
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
@@ -41,7 +43,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * `git clone https://github.com/lightvector/KataGo.git`
    * Compile using CMake and make in the cpp directory:
       * `cd KataGo/cpp`
-      * `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=CUDA` or `cmake . -DUSE_BACKEND=TENSORRT` or `cmake . -DUSE_BACKEND=EIGEN` depending on which backend you want.
+      * `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=CUDA` or `cmake . -DUSE_BACKEND=TENSORRT` or `cmake . -DUSE_BACKEND=EIGEN` or `cmake . -DUSE_BACKEND=ROCM` or `cmake . -DUSE_BACKEND=MIGRAPHX` depending on which backend you want.
          * Specify also `-DUSE_TCMALLOC=1` if using TCMalloc.
          * Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
          * Specify `-DUSE_AVX2=1` to also compile Eigen with AVX2 and FMA support, which will make it incompatible with old CPUs but much faster. (If you want to go further, you can also add `-DCMAKE_CXX_FLAGS='-march=native'` which will specialize to precisely your machine's CPU, but the exe might not run on other machines at all).
@@ -53,6 +55,30 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+
+   * **ROCm backend (Linux) — additional notes:**
+      * Install ROCm following the [official guide](https://rocm.docs.amd.com/en/7.12.0-preview/install/rocm.html). Install the full developer stack (not just runtime): `sudo apt install rocm-dev miopen-hip rocblas hipblas`.
+      * Build:
+        ```
+        cd KataGo/cpp
+        mkdir build && cd build
+        cmake .. -DUSE_BACKEND=ROCM -DCMAKE_BUILD_TYPE=Release
+        make -j$(nproc)
+        ```
+      * GPU architecture is auto-detected via `amdgpu-arch`. If auto-detection fails, specify manually: `-DCMAKE_HIP_ARCHITECTURES=gfx1100` (replace with your GPU's gfx target).
+      * On first run, MIOpen will search for optimal convolution algorithms for your specific GPU and network size. This may take up to a minute and results are cached in `~/.config/miopen/` for subsequent runs.
+
+   * **MIGraphX backend (Linux) — additional notes:**
+      * Requires ROCm 7.0+ with MIGraphX installed. Install via: `sudo apt install migraphx`.
+      * Build:
+        ```
+        cd KataGo/cpp
+        mkdir build && cd build
+        cmake .. -DUSE_BACKEND=MIGRAPHX -DCMAKE_BUILD_TYPE=Release
+        make -j$(nproc)
+        ```
+      * On first launch, MIGraphX compiles and caches GPU programs for each batch size (4, 8, 16, 24, 32, 40, 64 up to `maxBatchSize`) in `~/.katago/migraphxcache/`. This initial compilation may take several minutes but subsequent launches load from cache instantly.
+      * MIGraphX may offer better GPU utilization and throughput than the ROCm/MIOpen backend on some workloads due to whole-graph operator fusion.
 
 ## Windows
    * TLDR:
@@ -116,6 +142,42 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+
+   * **ROCm backend (Windows) — building via AMD TheRock:**
+      * The ROCm (MIOpen) backend supports Windows via [AMD TheRock](https://github.com/ROCm/TheRock) (tested with TheRock 7.12.0 / ROCm 7.2.0, RX 7900 XTX / gfx1100).
+      * **Prerequisites:**
+         * Install ROCm following the [official guide](https://rocm.docs.amd.com/en/7.12.0-preview/install/rocm.html). For Windows, download [AMD TheRock](https://github.com/ROCm/TheRock) and extract to e.g. `C:\TheRock\build`.
+         * Install **Visual Studio 2026 Build Tools** or **Visual Studio 2026 Community** with the "Desktop development with C++" workload. This provides the MSVC toolchain and Windows SDK required by the HIP compiler.
+         * Install [Ninja](https://ninja-build.org) build tool: `winget install Ninja-build.Ninja`.
+         * Set the following **system environment variables** (via System Properties → Advanced → Environment Variables):
+           ```
+           HIP_PATH=C:/TheRock/build
+           HIP_PLATFORM=amd
+           HIP_DEVICE_LIB_PATH=C:/TheRock/build/lib/llvm/amdgcn/bitcode
+           LLVM_PATH=C:/TheRock/build/lib/llvm
+           ```
+         * Add to system `PATH`:
+           ```
+           C:\TheRock\build\bin
+           C:\TheRock\build\lib\llvm\bin
+           ```
+         * Reboot after setting environment variables so they take effect system-wide.
+      * **Build** (from a terminal with the above env vars active):
+        ```
+        cd KataGo/cpp
+        mkdir build
+        cd build
+        cmake .. -G Ninja -DUSE_BACKEND=ROCM -DCMAKE_BUILD_TYPE=Release
+        ninja -j $env:NUMBER_OF_PROCESSORS
+        ```
+        No additional `-D` flags are needed — `CMakeLists.txt` automatically detects the HIP/clang compiler, GPU architecture (via `amdgpu-arch.exe`), Windows SDK include paths, and zlib from `HIP_PATH`.
+      * **Runtime DLL setup** — copy the following next to `katago.exe`:
+         * `amdhip64_7.dll` — **required**: must be copied from `D:\TheRock\build\bin\` to override the incompatible version that AMD GPU drivers install into `C:\Windows\System32\`.
+         * All other ROCm DLLs (`MIOpen.dll`, `hipblas.dll`, `rocblas.dll`, `hiprtc0702.dll`, `amd_comgr0702.dll`, `libhipblaslt.dll`, `amdocl64.dll`) are found automatically from `D:\TheRock\build\bin\` via `PATH` — no need to copy them.
+         * If `rocblas.dll` is copied, also copy the `rocblas\library\` directory alongside it (rocBLAS looks for its kernel files relative to its own DLL location).
+         * MSVC runtime DLLs (`msvcp140.dll`, `vcruntime140.dll`, etc.) are in `C:\Windows\System32\` on any machine with the Visual C++ Redistributable installed.
+      * **First-run note:** MIOpen will search for optimal convolution algorithms on the first run. This may take 45+ seconds per network configuration and results are cached in `%USERPROFILE%\.miopen\` for subsequent runs. Do not terminate the process during this initial tuning.
+      * **Performance note:** GPU utilization on Windows may be somewhat lower than on Linux due to the Windows Driver Model (WDDM) adding overhead to GPU kernel submissions. This is a known limitation of ROCm on Windows.
 
 ## MacOS
    * TLDR:

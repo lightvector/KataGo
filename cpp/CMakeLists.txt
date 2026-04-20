@@ -1,6 +1,141 @@
 cmake_minimum_required(VERSION 3.18.2)
 if(USE_BACKEND STREQUAL "METAL")
   project(katago LANGUAGES CXX Swift)
+elseif(USE_BACKEND STREQUAL "ROCM")
+  if(WIN32)
+    # Normalize HIP_PATH to forward slashes.
+    # cmake's HIP detection calls `hipconfig --rocmpath` which returns
+    # backslash paths on Windows; it writes the result into the generated
+    # CMakeHIPCompiler.cmake without normalizing, causing "Invalid character
+    # escape '\T'" errors.  Pre-setting CMAKE_HIP_COMPILER_ROCM_ROOT (and
+    # CMAKE_PREFIX_PATH) before project() bypasses that detection entirely.
+    if(DEFINED ENV{HIP_PATH})
+      file(TO_CMAKE_PATH "$ENV{HIP_PATH}" _hip_path_fwd)
+      set(ENV{HIP_PATH} "${_hip_path_fwd}")
+      list(APPEND CMAKE_PREFIX_PATH "${_hip_path_fwd}")
+      if(NOT CMAKE_HIP_COMPILER_ROCM_ROOT)
+        set(CMAKE_HIP_COMPILER_ROCM_ROOT "${_hip_path_fwd}" CACHE PATH "" FORCE)
+      endif()
+    endif()
+    # ---------- C/C++ compiler (clang++ from HIP SDK) ----------
+    if(NOT CMAKE_CXX_COMPILER)
+      if(DEFINED ENV{HIP_PATH})
+        if(EXISTS "$ENV{HIP_PATH}/lib/llvm/bin/clang++.exe")
+          set(CMAKE_CXX_COMPILER "$ENV{HIP_PATH}/lib/llvm/bin/clang++.exe" CACHE FILEPATH "" FORCE)
+          set(CMAKE_C_COMPILER   "$ENV{HIP_PATH}/lib/llvm/bin/clang.exe"   CACHE FILEPATH "" FORCE)
+        elseif(EXISTS "$ENV{HIP_PATH}/bin/clang++.exe")
+          set(CMAKE_CXX_COMPILER "$ENV{HIP_PATH}/bin/clang++.exe" CACHE FILEPATH "" FORCE)
+          set(CMAKE_C_COMPILER   "$ENV{HIP_PATH}/bin/clang.exe"   CACHE FILEPATH "" FORCE)
+        endif()
+      endif()
+    endif()
+    # HIP compiler = same binary as C++ compiler
+    if(NOT CMAKE_HIP_COMPILER AND CMAKE_CXX_COMPILER)
+      set(CMAKE_HIP_COMPILER "${CMAKE_CXX_COMPILER}" CACHE FILEPATH "" FORCE)
+    endif()
+    # ---------- HIP architectures (must be set before project() / enable_language(HIP)) ----------
+    if(NOT DEFINED CMAKE_HIP_ARCHITECTURES AND DEFINED ENV{HIP_PATH})
+      # TheRock layout: lib/llvm/bin/; standard HIP SDK layout: bin/
+      foreach(_arch_candidate
+          "$ENV{HIP_PATH}/lib/llvm/bin/amdgpu-arch.exe"
+          "$ENV{HIP_PATH}/bin/amdgpu-arch.exe")
+        if(EXISTS "${_arch_candidate}")
+          set(_amdgpu_arch_exe "${_arch_candidate}")
+          break()
+        endif()
+      endforeach()
+      if(EXISTS "${_amdgpu_arch_exe}")
+        execute_process(COMMAND "${_amdgpu_arch_exe}"
+          OUTPUT_VARIABLE _detected_archs OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+        if(_detected_archs)
+          string(REPLACE "\n" ";" _arch_list "${_detected_archs}")
+          # Filter to only valid gfxNNNN entries (amdgpu-arch may also print
+          # "HIP Library Path: ..." header lines on some installations)
+          set(_filtered_archs "")
+          foreach(_a ${_arch_list})
+            if(_a MATCHES "^gfx[0-9]")
+              list(APPEND _filtered_archs "${_a}")
+            endif()
+          endforeach()
+          list(REMOVE_DUPLICATES _filtered_archs)
+          if(_filtered_archs)
+            set(CMAKE_HIP_ARCHITECTURES "${_filtered_archs}" CACHE STRING "Auto-detected AMD GPU targets")
+            message(STATUS "Pre-project auto-detected AMD GPU architectures: ${CMAKE_HIP_ARCHITECTURES}")
+          endif()
+        endif()
+      endif()
+      if(NOT CMAKE_HIP_ARCHITECTURES)
+        # Conservative fallback covering RDNA2/3/4 and CDNA2/3
+        set(CMAKE_HIP_ARCHITECTURES "gfx1030;gfx1100;gfx1101;gfx1151;gfx1201;gfx90a;gfx942;gfx950" CACHE STRING "Fallback AMD GPU targets")
+        message(STATUS "amdgpu-arch not available; using fallback architectures: ${CMAKE_HIP_ARCHITECTURES}")
+      endif()
+    endif()
+    # ---------- Windows SDK includes (needed by HIP compiler test during project()) ----------
+    # The HIP runtime wrapper includes MSVC headers that require Windows SDK ucrt/shared/um.
+    # These flags must be set before project() so cmake's HIP compiler test can compile.
+    if(NOT KATAGO_WINSDK_ROOT)
+      get_filename_component(_pre_winsdk_root
+        "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;KitsRoot10]"
+        ABSOLUTE)
+      if(NOT EXISTS "${_pre_winsdk_root}")
+        foreach(_p "C:/Program Files (x86)/Windows Kits/10"
+                   "C:/Program Files/Windows Kits/10")
+          if(EXISTS "${_p}")
+            set(_pre_winsdk_root "${_p}")
+            break()
+          endif()
+        endforeach()
+      endif()
+      if(EXISTS "${_pre_winsdk_root}")
+        set(KATAGO_WINSDK_ROOT "${_pre_winsdk_root}" CACHE INTERNAL "")
+      endif()
+    endif()
+    if(KATAGO_WINSDK_ROOT)
+      file(GLOB _pre_sdk_ver_dirs "${KATAGO_WINSDK_ROOT}/Include/*/ucrt")
+      if(_pre_sdk_ver_dirs)
+        list(SORT _pre_sdk_ver_dirs ORDER DESCENDING)
+        list(GET _pre_sdk_ver_dirs 0 _pre_ucrt_dir)
+        get_filename_component(_pre_sdk_ver_dir "${_pre_ucrt_dir}" DIRECTORY)
+        set(_winsdk_cflags
+          "-I\"${_pre_sdk_ver_dir}/ucrt\" -I\"${_pre_sdk_ver_dir}/shared\" -I\"${_pre_sdk_ver_dir}/um\"")
+        set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} ${_winsdk_cflags}" CACHE STRING "" FORCE)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_winsdk_cflags}" CACHE STRING "" FORCE)
+        set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS}   ${_winsdk_cflags}" CACHE STRING "" FORCE)
+        message(STATUS "Pre-project: injected Windows SDK includes from ${_pre_sdk_ver_dir}")
+      endif()
+    endif()
+    # ---------- RC compiler (Windows resource compiler, highest SDK version) ----------
+    if(NOT CMAKE_RC_COMPILER)
+      # Try registry first
+      get_filename_component(_winsdk_root
+        "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;KitsRoot10]"
+        ABSOLUTE)
+      if(NOT EXISTS "${_winsdk_root}")
+        foreach(_p "C:/Program Files (x86)/Windows Kits/10"
+                   "C:/Program Files/Windows Kits/10")
+          if(EXISTS "${_p}")
+            set(_winsdk_root "${_p}")
+            break()
+          endif()
+        endforeach()
+      endif()
+      if(EXISTS "${_winsdk_root}")
+        file(GLOB _rc_candidates "${_winsdk_root}/bin/*/x64/rc.exe")
+        if(_rc_candidates)
+          list(SORT _rc_candidates ORDER DESCENDING)
+          list(GET _rc_candidates 0 _rc_exe)
+          set(CMAKE_RC_COMPILER "${_rc_exe}" CACHE FILEPATH "" FORCE)
+        endif()
+        # Persist for use in compiler flags section below
+        set(KATAGO_WINSDK_ROOT "${_winsdk_root}" CACHE INTERNAL "")
+      endif()
+    endif()
+  else()
+    # Linux: Use hipcc
+    set(CMAKE_C_COMPILER  /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
+    set(CMAKE_CXX_COMPILER /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
+  endif()
+  project(katago LANGUAGES C CXX HIP)
 else()
   project(katago)
 endif()
@@ -40,7 +175,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN ROCM MIGRAPHX)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -153,6 +288,140 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
+# --------------------------- ROCM backend（AMD GPU / HIP  MIOpen） ---------------------------
+elseif(USE_BACKEND STREQUAL "ROCM")
+  message(STATUS "-DUSE_BACKEND=ROCM, using AMD ROCm backend.")
+
+  enable_language(HIP)
+  set(CMAKE_HIP_STANDARD 17)
+
+  if(CMAKE_PREFIX_PATH STREQUAL "" OR NOT DEFINED CMAKE_PREFIX_PATH)
+    if(WIN32)
+      # Windows: HIP SDK installed via installer or manually
+      if(DEFINED ENV{HIP_PATH})
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{HIP_PATH}")
+        message(STATUS "Auto-detected HIP_PATH=$ENV{HIP_PATH} → CMAKE_PREFIX_PATH")
+      elseif(DEFINED ENV{ROCM_PATH})
+        list(APPEND CMAKE_PREFIX_PATH "$ENV{ROCM_PATH}")
+        message(STATUS "Auto-detected ROCM_PATH=$ENV{ROCM_PATH} → CMAKE_PREFIX_PATH")
+      else()
+        message(WARNING "HIP_PATH or ROCM_PATH environment variable not set. Please install HIP SDK for Windows.")
+      endif()
+    else()
+      # Linux: Standard ROCm installation path
+      if(EXISTS "/opt/rocm")
+        list(APPEND CMAKE_PREFIX_PATH "/opt/rocm")
+        message(STATUS "CMAKE_PREFIX_PATH not given; defaulting to /opt/rocm")
+      endif()
+    endif()
+  endif()
+
+  # Users can -DCMAKE_HIP_ARCHITECTURES=gfx90a;gfx942 manually specify GFX architectures
+  if(NOT DEFINED CMAKE_HIP_ARCHITECTURES)
+    # Auto-detect installed GPU architectures via amdgpu-arch
+    set(_amdgpu_arch_exe "")
+    if(WIN32 AND DEFINED ENV{HIP_PATH})
+      foreach(_arch_cand
+          "$ENV{HIP_PATH}/lib/llvm/bin/amdgpu-arch.exe"
+          "$ENV{HIP_PATH}/bin/amdgpu-arch.exe")
+        if(EXISTS "${_arch_cand}")
+          set(_amdgpu_arch_exe "${_arch_cand}")
+          break()
+        endif()
+      endforeach()
+    elseif(EXISTS "/opt/rocm/bin/amdgpu-arch")
+      set(_amdgpu_arch_exe "/opt/rocm/bin/amdgpu-arch")
+    endif()
+    if(_amdgpu_arch_exe)
+      execute_process(COMMAND "${_amdgpu_arch_exe}"
+        OUTPUT_VARIABLE _detected_archs OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+      if(_detected_archs)
+        string(REPLACE "\n" ";" _arch_list "${_detected_archs}")
+        set(_filtered_archs2 "")
+        foreach(_a ${_arch_list})
+          if(_a MATCHES "^gfx[0-9]")
+            list(APPEND _filtered_archs2 "${_a}")
+          endif()
+        endforeach()
+        list(REMOVE_DUPLICATES _filtered_archs2)
+        if(_filtered_archs2)
+          set(CMAKE_HIP_ARCHITECTURES "${_filtered_archs2}" CACHE STRING "Auto-detected AMD GPU targets")
+          message(STATUS "Auto-detected AMD GPU architectures: ${CMAKE_HIP_ARCHITECTURES}")
+        endif()
+      endif()
+    endif()
+    if(NOT CMAKE_HIP_ARCHITECTURES)
+      # Fallback: compile for a broad range of supported architectures
+      add_compile_definitions(-DGPU_TARGETS=gfx950,gfx942,gfx90a,gfx908,gfx1100,gfx1101,gfx1151,gfx1201,gfx1030)
+    endif()
+  endif()
+
+  # 2) Specify backend source code. rocmhelpers.hip contains GPU kernels, don't forget it
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/rocmbackend.cpp
+    neuralnet/rocmutils.cpp
+    neuralnet/rocmhelpers.hip
+  )
+
+  # Optional: Enable model-size‑based autotuning and other macros
+  # add_compile_definitions(HIP_SUPPORTS_FP16)
+
+# --------------------------- MIGRAPHX backend（AMD MIGraphX graph inference） ---------------------------
+elseif(USE_BACKEND STREQUAL "MIGRAPHX")
+  message(STATUS "-DUSE_BACKEND=MIGRAPHX, using AMD MIGraphX backend.")
+
+  # Use standard C++ compiler with MIGraphX
+  set(CMAKE_CXX_STANDARD 17)
+  
+  # Find MIGraphX manually (avoid CMake config which adds hipcc-specific flags)
+  # Note: MIGraphX headers are split between two locations:
+  # - /opt/rocm/lib/migraphx/include/migraphx/ (C++ API headers like program.hpp)
+  # - /opt/rocm/include/migraphx/ (export.h and other common headers)
+  find_path(MIGRAPHX_CXX_INCLUDE_DIR migraphx/program.hpp
+            HINTS /opt/rocm/lib/migraphx/include
+            PATH_SUFFIXES include)
+  
+  find_path(MIGRAPHX_INCLUDE_DIR migraphx/export.h
+            HINTS /opt/rocm/include
+            PATH_SUFFIXES include)
+  
+  find_library(MIGRAPHX_LIBRARY migraphx
+               HINTS /opt/rocm/lib/migraphx/lib /opt/rocm/lib
+               PATH_SUFFIXES lib lib64)
+  
+  find_library(MIGRAPHX_GPU_LIBRARY migraphx_gpu
+               HINTS /opt/rocm/lib/migraphx/lib /opt/rocm/lib
+               PATH_SUFFIXES lib lib64)
+  
+  if(NOT MIGRAPHX_CXX_INCLUDE_DIR)
+    message(FATAL_ERROR "MIGraphX C++ headers not found. Please install MIGraphX.")
+  endif()
+  
+  if(NOT MIGRAPHX_LIBRARY)
+    message(FATAL_ERROR "MIGraphX library not found. Please install MIGraphX.")
+  endif()
+
+  message(STATUS "MIGraphX C++ include: ${MIGRAPHX_CXX_INCLUDE_DIR}")
+  message(STATUS "MIGraphX include: ${MIGRAPHX_INCLUDE_DIR}")
+  message(STATUS "MIGraphX library: ${MIGRAPHX_LIBRARY}")
+  if(MIGRAPHX_GPU_LIBRARY)
+    message(STATUS "MIGraphX GPU library: ${MIGRAPHX_GPU_LIBRARY}")
+  endif()
+
+  # Source files for MIGraphX backend
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/migraphxbackend.cpp
+  )
+  
+  # Include directories (both locations needed)
+  include_directories(SYSTEM ${MIGRAPHX_CXX_INCLUDE_DIR})
+  if(MIGRAPHX_INCLUDE_DIR)
+    include_directories(SYSTEM ${MIGRAPHX_INCLUDE_DIR})
+  endif()
+  
+  # Add ROCm lib directory for linking
+  link_directories(/opt/rocm/lib)
+
 elseif(USE_BACKEND STREQUAL "")
   message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
@@ -436,6 +705,110 @@ elseif(USE_BACKEND STREQUAL "OPENCL")
     link_directories(${OpenCL_LIBRARY})
     target_link_libraries(katago ${OpenCL_LIBRARY})
   endif()
+# --------------------------- ROCM linking stage ---------------------------
+elseif(USE_BACKEND STREQUAL "ROCM")
+  # Macro: used in source code with #ifdef USE_ROCM_BACKEND
+  target_compile_definitions(katago PRIVATE USE_ROCM_BACKEND)
+  target_compile_definitions(katago PRIVATE HIP_TARGET_VERSION=${CMAKE_HIP_COMPILER_VERSION})
+
+  string(TOLOWER "${CMAKE_HIP_ARCHITECTURES}" _gfxlist)  # e.g. "90a;942"
+  if(_gfxlist MATCHES "803|900|90a|94[0-9]|110[0-9]|120[0-9]|115[0-9]|1030")
+    target_compile_definitions(katago PRIVATE HIP_SUPPORTS_FP16)
+    message(STATUS "Detected FP16‑capable GFX arch (${CMAKE_HIP_ARCHITECTURES}); defining HIP_SUPPORTS_FP16")
+  endif()
+
+  # 3) Find ROCm runtime & libraries. Since ROCm 6.x, CMake config-mode packages are included. If not found, add -DCMAKE_PREFIX_PATH=/opt/rocm (Linux) or HIP SDK path (Windows)
+  find_package(hip        QUIET CONFIG)   # Export hip::device / hip::host
+  find_package(hipblas    QUIET CONFIG)   # Export roc::hipblas
+  find_package(miopen     QUIET CONFIG)   # Export roc::miopen or MIOpen
+  
+  # ---------- fallback：HIP Runtime ----------
+  if(NOT hip_FOUND)
+    if(WIN32)
+      # Windows: Search in HIP SDK installation
+      find_path(HIP_INCLUDE_DIR hip/hip_runtime.h
+                HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
+                PATH_SUFFIXES include)
+      find_library(HIP_RUNTIME_LIB 
+                   NAMES amdhip64 amdhip64_6
+                   HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
+                   PATH_SUFFIXES lib bin)
+    else()
+      # Linux: Search in /opt/rocm
+      find_path(HIP_INCLUDE_DIR hip/hip_runtime.h
+                HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
+                PATH_SUFFIXES include)
+      find_library(HIP_RUNTIME_LIB amdhip64
+                   HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
+                   PATH_SUFFIXES lib lib64)
+    endif()
+    
+    if(NOT HIP_INCLUDE_DIR OR NOT HIP_RUNTIME_LIB)
+      if(WIN32)
+        message(FATAL_ERROR "HIP headers or runtime NOT found; install HIP SDK for Windows or set CMAKE_PREFIX_PATH to HIP SDK installation path.")
+      else()
+        message(FATAL_ERROR "HIP headers or runtime NOT found; install ROCm or set CMAKE_PREFIX_PATH.")
+      endif()
+    endif()
+    add_library(hip::device UNKNOWN IMPORTED)
+    set_target_properties(hip::device PROPERTIES
+      IMPORTED_LOCATION "${HIP_RUNTIME_LIB}"
+      INTERFACE_INCLUDE_DIRECTORIES "${HIP_INCLUDE_DIR}")
+    target_include_directories(katago SYSTEM PRIVATE ${HIP_INCLUDE_DIR})
+  endif()
+
+  # ---------- fallback：hipBLAS / MIOpen ----------
+  foreach(_pkg hipblas miopen)
+    if(NOT ${_pkg}_FOUND)
+      if(WIN32)
+        # Windows naming conventions
+        if(_pkg STREQUAL "hipblas")
+          set(_lib_names hipblas)
+        else()
+          set(_lib_names MIOpen)
+        endif()
+        find_library(${_pkg}_LIB 
+                     NAMES ${_lib_names}
+                     HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
+                     PATH_SUFFIXES lib bin)
+      else()
+        # Linux naming
+        find_library(${_pkg}_LIB ${_pkg}
+                     HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
+                     PATH_SUFFIXES lib lib64)
+      endif()
+      
+      if(${_pkg}_LIB)
+        add_library(roc::${_pkg} UNKNOWN IMPORTED)
+        set_target_properties(roc::${_pkg} PROPERTIES
+          IMPORTED_LOCATION "${${_pkg}_LIB}")
+        target_include_directories(katago SYSTEM PRIVATE ${HIP_INCLUDE_DIR})
+        message(STATUS "Found ${_pkg} at ${${_pkg}_LIB}")
+      else()
+        if(WIN32)
+          message(FATAL_ERROR "Required ROCm component ${_pkg} not found – install HIP SDK for Windows or set CMAKE_PREFIX_PATH.")
+        else()
+          message(FATAL_ERROR "Required ROCm component ${_pkg} not found – install it or set CMAKE_PREFIX_PATH.")
+        endif()
+      endif()
+    endif()
+  endforeach()
+
+  # 4) Link libraries
+  # Note: On Windows, MIOpen might need to be linked as "MIOpen" directly if the target doesn't exist
+  if(TARGET MIOpen)
+    set(_miopen_target MIOpen)
+  elseif(TARGET roc::miopen)
+    set(_miopen_target roc::miopen)
+  else()
+    set(_miopen_target roc::miopen)
+  endif()
+  
+  target_link_libraries(katago
+    hip::device          # HIP runtime & kernel offload
+    roc::hipblas         # BLAS
+    ${_miopen_target}    # DNN primitives
+  )
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
   if(NOT (MSVC))
@@ -457,6 +830,35 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
       endif()
     endif()
   endif()
+elseif(USE_BACKEND STREQUAL "MIGRAPHX")
+  target_compile_definitions(katago PRIVATE USE_MIGRAPHX_BACKEND)
+  
+  # Link MIGraphX libraries
+  target_link_libraries(katago ${MIGRAPHX_LIBRARY})
+  if(MIGRAPHX_GPU_LIBRARY)
+    target_link_libraries(katago ${MIGRAPHX_GPU_LIBRARY})
+  endif()
+  
+  # Link HIP runtime
+  find_library(AMDHIP64_LIBRARY amdhip64
+               HINTS /opt/rocm/lib
+               PATH_SUFFIXES lib lib64)
+  if(AMDHIP64_LIBRARY)
+    target_link_libraries(katago ${AMDHIP64_LIBRARY})
+  else()
+    target_link_libraries(katago amdhip64)
+  endif()
+  
+  # Link other required libraries
+  find_library(HIPRTC_LIBRARY hiprtc
+               HINTS /opt/rocm/lib
+               PATH_SUFFIXES lib lib64)
+  if(HIPRTC_LIBRARY)
+    target_link_libraries(katago ${HIPRTC_LIBRARY})
+  endif()
+  
+  # Add ROCm library directories
+  link_directories(/opt/rocm/lib)
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)
@@ -465,6 +867,21 @@ endif()
 
 if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
   target_compile_definitions(katago PRIVATE NO_GIT_REVISION)
+endif()
+
+# On Windows ROCm builds, zlib is bundled inside the HIP SDK (TheRock layout)
+if(WIN32 AND USE_BACKEND STREQUAL "ROCM" AND DEFINED ENV{HIP_PATH})
+  if(NOT ZLIB_INCLUDE_DIR AND EXISTS "$ENV{HIP_PATH}/lib/rocm_sysdeps/include/zlib.h")
+    set(ZLIB_INCLUDE_DIR "$ENV{HIP_PATH}/lib/rocm_sysdeps/include" CACHE PATH "" FORCE)
+  endif()
+  if(NOT ZLIB_LIBRARY)
+    foreach(_zlib_name "zlibstatic.lib" "zlib.lib" "zlibstaticd.lib")
+      if(EXISTS "$ENV{HIP_PATH}/lib/rocm_sysdeps/lib/${_zlib_name}")
+        set(ZLIB_LIBRARY "$ENV{HIP_PATH}/lib/rocm_sysdeps/lib/${_zlib_name}" CACHE FILEPATH "" FORCE)
+        break()
+      endif()
+    endforeach()
+  endif()
 endif()
 
 find_package(ZLIB)
@@ -563,7 +980,7 @@ if(MSVC)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:8388608")
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
   message(STATUS "Setting up build for GNU, Clang or MinGW.")
-  if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)"))
+  if(NOT (${CMAKE_SYSTEM_PROCESSOR} MATCHES "(arm|aarch32|aarch64)") AND NOT USE_BACKEND STREQUAL "ROCM")
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -mfpmath=sse")
   else()
     # For ARM architecture, as a hack, ensure that char is signed
@@ -600,7 +1017,10 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
   else()
     message(STATUS "Enabling Clang-specific build options.")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wnull-dereference -Wdangling-else")
-    target_link_libraries(katago "atomic")
+    if(NOT WIN32)
+      # libatomic is a Linux GCC/Clang runtime; not needed (or available) on Windows
+      target_link_libraries(katago "atomic")
+    endif()
   endif()
 
   if(USE_TCMALLOC)
@@ -611,4 +1031,42 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
 endif()
 
 target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
+# On Windows ROCm builds, clang compiles all files with -x hip which pulls in
+# MSVC-compatibility headers that require Windows SDK ucrt/shared/um headers.
+if(WIN32 AND USE_BACKEND STREQUAL "ROCM")
+  # Prefer the KATAGO_WINSDK_ROOT detected earlier in the pre-project() block
+  if(NOT KATAGO_WINSDK_ROOT)
+    get_filename_component(_winsdk_root2
+      "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;KitsRoot10]"
+      ABSOLUTE)
+    if(EXISTS "${_winsdk_root2}")
+      set(KATAGO_WINSDK_ROOT "${_winsdk_root2}" CACHE INTERNAL "")
+    else()
+      foreach(_p "C:/Program Files (x86)/Windows Kits/10"
+                 "C:/Program Files/Windows Kits/10")
+        if(EXISTS "${_p}")
+          set(KATAGO_WINSDK_ROOT "${_p}" CACHE INTERNAL "")
+          break()
+        endif()
+      endforeach()
+    endif()
+  endif()
+  if(KATAGO_WINSDK_ROOT)
+    # Pick highest version directory
+    file(GLOB _sdk_ver_dirs "${KATAGO_WINSDK_ROOT}/Include/*/ucrt")
+    if(_sdk_ver_dirs)
+      list(SORT _sdk_ver_dirs ORDER DESCENDING)
+      list(GET _sdk_ver_dirs 0 _ucrt_dir)
+      get_filename_component(_sdk_ver_dir "${_ucrt_dir}" DIRECTORY)
+      set(_winsdk_include "${_sdk_ver_dir}")
+      message(STATUS "Auto-detected Windows SDK include root: ${_winsdk_include}")
+      target_include_directories(katago PRIVATE
+        "${_winsdk_include}/ucrt"
+        "${_winsdk_include}/shared"
+        "${_winsdk_include}/um"
+      )
+    endif()
+  endif()
+endif()
 
