@@ -473,8 +473,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
     if(printSharpScore) {
       double ret = 0.0;
       bool suc = search->getSharpScore(NULL,ret);
-      assert(suc);
-      (void)suc;
+      testAssert(suc);
       cout << "White sharp score " << ret << endl;
     }
 

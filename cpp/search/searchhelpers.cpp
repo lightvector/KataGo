@@ -183,7 +183,7 @@ std::shared_ptr<NNOutput>* Search::maybeAddPolicyNoiseAndTemp(SearchThread& thre
       if(prob > maxValue)
         maxValue = prob;
     }
-    assert(maxValue > 0.0);
+    testAssert(maxValue > 0.0);
 
     double logMaxValue = log(maxValue);
     double invTemp = 1.0 / rootPolicyTemperature;
@@ -197,7 +197,7 @@ std::shared_ptr<NNOutput>* Search::maybeAddPolicyNoiseAndTemp(SearchThread& thre
         sum += p;
       }
     }
-    assert(sum > 0.0);
+    testAssert(sum > 0.0);
     for(int i = 0; i<policySize; i++) {
       if(noisedPolicyProbs[i] >= 0) {
         noisedPolicyProbs[i] = (float)(noisedPolicyProbs[i] / sum);
@@ -212,7 +212,7 @@ std::shared_ptr<NNOutput>* Search::maybeAddPolicyNoiseAndTemp(SearchThread& thre
   if(avoidMoveUntilRescaleRoot) {
     const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
     if(avoidMoveUntilByLoc.size() > 0) {
-      assert(avoidMoveUntilByLoc.size() >= Board::MAX_ARR_SIZE);
+      testAssert(avoidMoveUntilByLoc.size() >= Board::MAX_ARR_SIZE);
       double policySum = 0.0;
       for(Loc loc = 0; loc<Board::MAX_ARR_SIZE; loc++) {
         if((rootBoard.isOnBoard(loc) || loc == Board::PASS_LOC) && avoidMoveUntilByLoc[loc] <= 0) {
@@ -358,8 +358,8 @@ double Search::getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) c
 
   bool isAreaIsh = rootHistory.rules.scoringRule == Rules::SCORING_AREA
     || (rootHistory.rules.scoringRule == Rules::SCORING_TERRITORY && rootHistory.encorePhase >= 2);
-  assert(nnOutput->nnXLen == nnXLen);
-  assert(nnOutput->nnYLen == nnYLen);
+  testAssert(nnOutput->nnXLen == nnXLen);
+  testAssert(nnOutput->nnYLen == nnYLen);
   float* whiteOwnerMap = nnOutput->whiteOwnerMap;
 
   const double extreme = 0.95;
@@ -435,8 +435,8 @@ bool Search::shouldSuppressPass(const SearchNode* n) const {
     return false;
   if(nnOutput->whiteOwnerMap == NULL)
     return false;
-  assert(nnOutput->nnXLen == nnXLen);
-  assert(nnOutput->nnYLen == nnYLen);
+  testAssert(nnOutput->nnXLen == nnXLen);
+  testAssert(nnOutput->nnYLen == nnYLen);
   const float* whiteOwnerMap = nnOutput->whiteOwnerMap;
 
   //Find the pass move

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "../core/rand.h"
+#include "../core/test.h"
 
 using namespace std;
 
@@ -119,7 +120,7 @@ Board::Board(const Board& other)
 
 void Board::init(int xS, int yS)
 {
-  assert(IS_ZOBRIST_INITALIZED);
+  testAssert(IS_ZOBRIST_INITALIZED);
   if(xS < 0 || yS < 0 || xS > MAX_LEN || yS > MAX_LEN)
     throw StringError("Board::init - invalid board size");
 

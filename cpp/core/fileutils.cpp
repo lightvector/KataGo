@@ -187,7 +187,10 @@ void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const st
 
     zret = inflate(&zs,(totalSizeLeft > 0 ? Z_SYNC_FLUSH : Z_FINISH));
 
-    assert(zret != Z_STREAM_ERROR);
+    if(zret == Z_STREAM_ERROR) {
+      (void)inflateEnd(&zs);
+      throw StringError("Error while ungzipping file, Z_STREAM_ERROR. Invalid or corrupt file? File: " + filename);
+    }
     switch(zret) {
     case Z_NEED_DICT:
       (void)inflateEnd(&zs);
@@ -205,7 +208,7 @@ void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const st
     //Still more input to consume?
     if(totalSizeLeft > 0) {
       size_t amountMoreInputToProvide = std::min(INPUT_CHUNK_SIZE - zs.avail_in, totalSizeLeft);
-      assert(amountMoreInputToProvide > 0);
+      testAssert(amountMoreInputToProvide > 0);
       zs.avail_in += (unsigned int)amountMoreInputToProvide;
       totalSizeLeft -= amountMoreInputToProvide;
       assert(zs.avail_out < CHUNK_SIZE);
@@ -229,7 +232,10 @@ void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const st
     assert(zs.avail_out > 0);
     //It must be the case that we're done
     if(zret == Z_STREAM_END) {
-      assert(zs.next_in == (Bytef*)(&(*compressed)[0]) + compressed->size());
+      if(zs.next_in != (Bytef*)(&(*compressed)[0]) + compressed->size()) {
+        (void)inflateEnd(&zs);
+        throw StringError("Error while ungzipping file, not all input was consumed. Invalid or corrupt file? File: " + filename);
+      }
       break;
     }
     //Otherwise, we're in trouble
@@ -237,7 +243,7 @@ void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const st
     throw StringError("Error while ungzipping file, reached unexpected end of input. File: " + filename);
   }
   //Prune string down to just what we need.
-  assert(totalAmountOfOutputProduced <= uncompressed.size());
+  testAssert(totalAmountOfOutputProduced <= uncompressed.size());
   uncompressed.resize(totalAmountOfOutputProduced);
   //Clean up
   (void)inflateEnd(&zs);

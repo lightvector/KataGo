@@ -12,6 +12,7 @@
 #include "../program/setup.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include <chrono>
@@ -30,7 +31,7 @@ static ValueTargets makeForcedWinnerValueTarget(Player winner) {
     targets.lead = 0.0f;
     return targets;
   }
-  assert(winner == P_BLACK || winner == P_WHITE);
+  testAssert(winner == P_BLACK || winner == P_WHITE);
   targets.win = winner == P_WHITE ? 1.0f : 0.0f;
   targets.loss = winner == P_BLACK ? 1.0f : 0.0f;
   targets.noResult = 0.0f;
@@ -387,7 +388,8 @@ static void parseSGFRank(
     throw StringError("Unable to parse rank: " + rankStr);
   }
 
-  assert((int)isKyu + (int)isKyuAma + (int)isDan + (int)isDanAma + (int)isPro + (int)isUnranked + (int)isUnknown == 1);
+  if((int)isKyu + (int)isKyuAma + (int)isDan + (int)isDanAma + (int)isPro + (int)isUnranked + (int)isUnknown != 1)
+    throw StringError("Unable to parse rank, ambiguous classification: " + rankStr);
 
   //Special handling for gogod ranks. Gogod labels pro dan as d, and amateur dan sometimes as "a" or "d ama".
   //Also Gogod kyu labels are not reliable to modern kyu since they could be historical very strong kyu.
@@ -2072,8 +2074,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           trainingWeights.push_back(0.05);
 
           bool suc = hist.isLegal(board,moveLoc,nextPla);
-          (void)suc;
-          assert(suc);
+          testAssert(suc);
 
           bool preventEncore = false;
           hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL,preventEncore);
@@ -2300,7 +2301,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     // Only fill in the lead when we have ownership targets, with the game scored correctly.
     // Lead is going to be pretty high variance,
     if(hasOwnershipTargets) {
-      assert(!hasForcedWinner);
+      testAssert(!hasForcedWinner);
       for(size_t m = 0; m<whiteValueTargets.size()-1; m++) {
         const ValueTargets& finalTargets = whiteValueTargets[whiteValueTargets.size()-1];
         whiteValueTargets[m].hasLead = true;

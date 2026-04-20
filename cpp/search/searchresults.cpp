@@ -7,6 +7,7 @@
 
 #include <cinttypes>
 
+#include "../core/test.h"
 #include "../program/playutils.h"
 #include "../search/searchnode.h"
 
@@ -143,7 +144,7 @@ bool Search::getPlaySelectionValues(
     const SearchNode* bestChild = bestChildPointer.getIfAllocated();
     int64_t bestChildEdgeVisits = bestChildPointer.getEdgeVisits();
     Loc bestMoveLoc = bestChildPointer.getMoveLocRelaxed();
-    assert(bestChild != NULL);
+    testAssert(bestChild != NULL);
     const bool isRoot = true;
     const double policyProbMassVisited = 1.0; //doesn't matter, since fpu value computed from it isn't used here
     double parentUtility;
@@ -158,7 +159,7 @@ bool Search::getPlaySelectionValues(
 
     double exploreScaling = getExploreScaling(totalChildWeight, parentUtilityStdevFactor);
 
-    assert(nnOutput != NULL);
+    testAssert(nnOutput != NULL);
     const bool countEdgeVisit = true;
     double bestChildExploreSelectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,bestChild,
@@ -246,7 +247,7 @@ bool Search::getPlaySelectionValues(
       return false;
     const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
     if(avoidMoveUntilByLoc.size() > 0) {
-      assert(avoidMoveUntilByLoc.size() >= Board::MAX_ARR_SIZE);
+      testAssert(avoidMoveUntilByLoc.size() >= Board::MAX_ARR_SIZE);
       int untilDepth = avoidMoveUntilByLoc[moveLoc];
       if(untilDepth > 0)
         return false;
@@ -312,7 +313,7 @@ bool Search::getPlaySelectionValues(
   }
 
   //Sanity check - if somehow we had more than this, something must have overflowed or gone wrong
-  assert(maxValue < 1e40);
+  testAssert(maxValue < 1e40);
 
   double amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxValue/64.0);
   double amountToPrune = std::min(searchParams.chosenMovePrune, maxValue/64.0);
@@ -433,7 +434,7 @@ bool Search::getPlaySelectionValues(
     if(playSelectionValues[i] > maxValue)
       maxValue = playSelectionValues[i];
   }
-  assert(maxValue > 0.0);
+  testAssert(maxValue > 0.0);
   if(maxValue < scaleMaxToAtLeast) {
     for(int i = 0; i<numChildren; i++) {
       playSelectionValues[i] *= scaleMaxToAtLeast / maxValue;
@@ -494,10 +495,10 @@ bool Search::getNodeRawNNValues(const SearchNode& node, ReportedSearchValues& va
   values.lead = nnOutput->whiteLead;
 
   //Sanity check
-  assert(values.winValue >= 0.0);
-  assert(values.lossValue >= 0.0);
-  assert(values.noResultValue >= 0.0);
-  assert(values.winValue + values.lossValue + values.noResultValue < 1.001);
+  testAssert(values.winValue >= 0.0);
+  testAssert(values.lossValue >= 0.0);
+  testAssert(values.noResultValue >= 0.0);
+  testAssert(values.winValue + values.lossValue + values.noResultValue < 1.001);
 
   double winLossValue = values.winValue - values.lossValue;
   if(winLossValue > 1.0) winLossValue = 1.0;
@@ -531,7 +532,7 @@ bool Search::getNodeValues(const SearchNode* node, ReportedSearchValues& values)
     //But for the root, the root is never treated as a terminal node and always gets an nneval, so if
     //it has visits and weight, it has an nnoutput unless something has gone wrong.
     const NNOutput* nnOutput = node->getNNOutput();
-    assert(nnOutput != NULL);
+    testAssert(nnOutput != NULL);
     (void)nnOutput;
   }
 
@@ -579,7 +580,7 @@ Loc Search::getChosenMoveLoc() {
   if(!suc)
     return Board::NULL_LOC;
 
-  assert(locs.size() == playSelectionValues.size());
+  testAssert(locs.size() == playSelectionValues.size());
 
   double temperature = interpolateEarly(
     searchParams.chosenMoveTemperatureHalflife, searchParams.chosenMoveTemperatureEarly, searchParams.chosenMoveTemperature
@@ -2072,13 +2073,13 @@ bool Search::getAnalysisJson(
     moveInfo["pv"] = pv;
 
     if(includePVVisits) {
-      assert(data.pvVisits.size() >= pvLen);
+      testAssert(data.pvVisits.size() >= pvLen);
       json pvVisits = json::array();
       for(int j = 0; j < pvLen; j++)
         pvVisits.push_back(data.pvVisits[j]);
       moveInfo["pvVisits"] = pvVisits;
 
-      assert(data.pvEdgeVisits.size() >= pvLen);
+      testAssert(data.pvEdgeVisits.size() >= pvLen);
       json pvEdgeVisits = json::array();
       for(int j = 0; j < pvLen; j++)
         pvEdgeVisits.push_back(data.pvEdgeVisits[j]);

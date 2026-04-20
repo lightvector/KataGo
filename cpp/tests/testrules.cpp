@@ -4153,7 +4153,7 @@ Illegal: (8,3) X
     makeMoveAssertLegal(hist, board, Location::getLoc(6,1,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
     printEncoreKoBlock(out,board,hist);
-    assert(hist.isLegal(board, Location::getLoc(7,2,board.x_size), P_WHITE));
+    testAssert(hist.isLegal(board, Location::getLoc(7,2,board.x_size), P_WHITE));
     makeMoveAssertLegal(hist, board, Location::getLoc(8,2,board.x_size), P_WHITE, __LINE__);
     out << board << endl;
     printEncoreKoBlock(out,board,hist);
@@ -4326,7 +4326,7 @@ Last moves pass pass H7 G9 J6 H8 G8 J7
     makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
     printEncoreKoBlock(out,board,hist);
-    assert(hist.isLegal(board, Location::getLoc(7,2,board.x_size), P_WHITE));
+    testAssert(hist.isLegal(board, Location::getLoc(7,2,board.x_size), P_WHITE));
     makeMoveAssertLegal(hist, board, Location::getLoc(8,3,board.x_size), P_WHITE, __LINE__);
     out << board << endl;
     printEncoreKoBlock(out,board,hist);
@@ -4349,7 +4349,7 @@ Last moves pass pass H7 G9 J6 H8 G8 J7
     out << board << endl;
     printEncoreKoBlock(out,board,hist);
     printIllegalMoves(out,board,hist,P_BLACK);
-    assert(hist.isLegal(board, Location::getLoc(7,1,board.x_size), P_BLACK));
+    testAssert(hist.isLegal(board, Location::getLoc(7,1,board.x_size), P_BLACK));
     makeMoveAssertLegal(hist, board, Location::getLoc(7,2,board.x_size), P_BLACK, __LINE__);
     out << board << endl;
     printEncoreKoBlock(out,board,hist);
@@ -4663,7 +4663,7 @@ Last moves pass pass H7 G9 J6 H8 H8 J6 G8 J7 F9 H7 F9 H8 H7 pass
     makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_WHITE, __LINE__);
     out << board << endl;
     printEncoreKoBlock(out,board,hist);
-    assert(!hist.isLegal(board, Location::getLoc(6,0,board.x_size), P_BLACK));
+    testAssert(!hist.isLegal(board, Location::getLoc(6,0,board.x_size), P_BLACK));
     makeMoveAssertLegal(hist, board, Location::getLoc(7,1,board.x_size), P_BLACK, __LINE__);
     hist.printDebugInfo(out,board);
     out << endl;

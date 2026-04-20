@@ -584,7 +584,7 @@ struct GTPEngine {
   }
 
   void clearBoard() {
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
     int newXSize = bot->getRootBoard().x_size;
     int newYSize = bot->getRootBoard().y_size;
     Board board(newXSize,newYSize);
@@ -596,7 +596,7 @@ struct GTPEngine {
   }
 
   bool setPosition(const vector<Move>& initialStones) {
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
     int newXSize = bot->getRootBoard().x_size;
     int newYSize = bot->getRootBoard().y_size;
     Board board(newXSize,newYSize);
@@ -607,7 +607,6 @@ struct GTPEngine {
     //Sanity check
     for(int i = 0; i<initialStones.size(); i++) {
       if(board.colors[initialStones[i].loc] != initialStones[i].pla) {
-        assert(false);
         return false;
       }
     }
@@ -635,7 +634,7 @@ struct GTPEngine {
   }
 
   bool play(Loc loc, Player pla) {
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
     bool suc = bot->makeMove(loc,pla,preventEncore);
     if(suc)
       moveHistory.emplace_back(loc,pla);
@@ -645,7 +644,7 @@ struct GTPEngine {
   bool undo() {
     if(moveHistory.size() <= 0)
       return false;
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
 
     vector<Move> moveHistoryCopy = moveHistory;
 
@@ -659,15 +658,14 @@ struct GTPEngine {
       Loc moveLoc = moveHistoryCopy[i].loc;
       Player movePla = moveHistoryCopy[i].pla;
       bool suc = play(moveLoc,movePla);
-      assert(suc);
-      (void)suc; //Avoid warning when asserts are off
+      testAssert(suc);
     }
     return true;
   }
 
   bool setRulesNotIncludingKomi(Rules newRules, string& error) {
-    assert(nnEval != NULL);
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(nnEval != NULL);
+    testAssert(bot->getRootHist().rules == currentRules);
     newRules.komi = currentRules.komi;
 
     bool rulesWereSupported;
@@ -1035,8 +1033,15 @@ struct GTPEngine {
       bool suc = bot->makeMove(moveLocToPlay,pla,preventEncore);
       if(suc)
         moveHistory.emplace_back(moveLocToPlay,pla);
-      assert(suc);
-      (void)suc; //Avoid warning when asserts are off
+      if(!suc) {
+        ostringstream sout;
+        sout << "Engine chose move but makeMove failed" << "\n";
+        sout << bot->getRootBoard() << "\n";
+        sout << "Pla: " << PlayerIO::playerToString(pla) << "\n";
+        sout << "MoveLoc: " << Location::toString(moveLocToPlay,bot->getRootBoard()) << "\n";
+        logger.write(sout.str());
+        Global::fatalError(sout.str());
+      }
 
       maybeStartPondering = true;
     }
@@ -1099,7 +1104,8 @@ struct GTPEngine {
         (paramsToUse.playoutDoublingAdvantagePla == P_BLACK) ? -desiredDynamicPDAForWhite :
         (paramsToUse.playoutDoublingAdvantagePla == C_EMPTY && pla == P_WHITE) ? desiredDynamicPDAForWhite :
         (paramsToUse.playoutDoublingAdvantagePla == C_EMPTY && pla == P_BLACK) ? -desiredDynamicPDAForWhite :
-        (assert(false),0.0);
+        NAN;
+      testAssert(!std::isnan(desiredDynamicPDA));
 
       paramsToUse.playoutDoublingAdvantage = desiredDynamicPDA;
     }
@@ -1316,7 +1322,7 @@ struct GTPEngine {
       response = string(e.what()) + ", try place_free_handicap";
       return;
     }
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
 
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules,0);
@@ -1356,7 +1362,7 @@ struct GTPEngine {
     if(n > maxHandicap)
       n = maxHandicap;
 
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
 
     Board board(xSize,ySize);
     Player pla = P_BLACK;
@@ -1387,7 +1393,7 @@ struct GTPEngine {
   }
 
   void analyze(Player pla, AnalyzeArgs args) {
-    assert(args.analyzing);
+    testAssert(args.analyzing);
     if(isGenmoveParams) {
       bot->setParams(analysisParams);
       isGenmoveParams = false;
@@ -2023,7 +2029,7 @@ int MainCmds::gtp(const vector<string>& args) {
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
   {
     std::vector<std::unique_ptr<PatternBonusTable>> tables = Setup::loadAvoidSgfPatternBonusTables(cfg,logger);
-    assert(tables.size() == 1);
+    testAssert(tables.size() == 1);
     patternBonusTable = std::move(tables[0]);
   }
 
@@ -2169,7 +2175,7 @@ int MainCmds::gtp(const vector<string>& args) {
       pieces = Global::split(line,' ');
       for(size_t i = 0; i<pieces.size(); i++)
         pieces[i] = Global::trim(pieces[i]);
-      assert(pieces.size() > 0);
+      testAssert(pieces.size() > 0);
 
       command = pieces[0];
       pieces.erase(pieces.begin());

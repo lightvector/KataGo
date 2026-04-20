@@ -1,4 +1,5 @@
 #include "../game/graphhash.h"
+#include "../core/test.h"
 
 Hash128 GraphHash::getStateHash(const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite) {
   const Board& board = hist.getRecentBoard(0);
@@ -45,9 +46,9 @@ Hash128 GraphHash::getGraphHashFromScratch(const BoardHistory& histOrig, Player 
   for(size_t i = 0; i<histOrig.moveHistory.size(); i++) {
     graphHash = getGraphHash(graphHash, hist, histOrig.moveHistory[i].pla, repBound, drawEquivalentWinsForWhite);
     bool suc = hist.makeBoardMoveTolerant(board, histOrig.moveHistory[i].loc, histOrig.moveHistory[i].pla, histOrig.preventEncoreHistory[i]);
-    assert(suc);
+    testAssert(suc);
   }
-  assert(
+  testAssert(
     BoardHistory::getSituationRulesAndKoHash(board, hist, nextPlayer, drawEquivalentWinsForWhite) ==
     BoardHistory::getSituationRulesAndKoHash(histOrig.getRecentBoard(0), histOrig, nextPlayer, drawEquivalentWinsForWhite)
   );

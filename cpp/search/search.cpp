@@ -9,6 +9,7 @@
 #include <numeric>
 
 #include "../core/fancymath.h"
+#include "../core/test.h"
 #include "../core/timer.h"
 #include "../game/graphhash.h"
 #include "../search/distributiontable.h"
@@ -111,11 +112,11 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
    oldNNOutputsToCleanUpMutex(),
    oldNNOutputsToCleanUp()
 {
-  assert(logger != NULL);
+  testAssert(logger != NULL);
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
-  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
-  assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
 
   if(humanEvaluator != NULL) {
@@ -282,8 +283,8 @@ void Search::setNNEval(NNEvaluator* nnEval) {
   nnEvaluator = nnEval;
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
-  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
-  assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
 
   if(humanEvaluator != NULL) {
@@ -762,8 +763,7 @@ void Search::beginSearch(bool pondering) {
         }
         for(; i<childrenCapacity; i++) {
           SearchNode* child = children[i].getIfAllocated();
-          (void)child;
-          assert(child == NULL);
+          testAssert(child == NULL);
         }
       }
 
@@ -925,7 +925,7 @@ void Search::removeSubtreeValueBias(SearchNode* node) {
 //Also clears subtreevaluebias for deleted nodes.
 void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old) {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
-  assert(numAdditionalThreads >= 0);
+  testAssert(numAdditionalThreads >= 0);
   std::function<void(int)> g = [&](int threadIdx) {
     size_t idx0 = (size_t)((uint64_t)(threadIdx) * nodeTable->entries.size() / (numAdditionalThreads+1));
     size_t idx1 = (size_t)((uint64_t)(threadIdx+1) * nodeTable->entries.size() / (numAdditionalThreads+1));
@@ -950,7 +950,7 @@ void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool 
 //Doesn't clear subtree value bias.
 void Search::deleteAllTableNodesMulithreaded() {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
-  assert(numAdditionalThreads >= 0);
+  testAssert(numAdditionalThreads >= 0);
   std::function<void(int)> g = [&](int threadIdx) noexcept {
     size_t idx0 = (size_t)((uint64_t)(threadIdx) * nodeTable->entries.size() / (numAdditionalThreads+1));
     size_t idx1 = (size_t)((uint64_t)(threadIdx+1) * nodeTable->entries.size() / (numAdditionalThreads+1));
@@ -1023,8 +1023,8 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
       //and has 0 visits because we began a search and then stopped it before any playouts happened.
       //In that case, there's not much to recompute.
       if(weightSum <= 0.0) {
-        assert(numVisits == 0);
-        assert(isRoot);
+        testAssert(numVisits == 0);
+        testAssert(isRoot);
       }
       else {
         double resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);

@@ -1,6 +1,7 @@
 #include "../core/config_parser.h"
 
 #include "../core/fileutils.h"
+#include "../core/test.h"
 
 #include <cmath>
 #include <fstream>
@@ -157,7 +158,7 @@ bool ConfigParser::parseKeyValue(const std::string& trimmedLine, std::string& ke
   // Skip equals sign
   bool foundEquals = false;
   if(i < trimmedLine.size()) {
-    assert(trimmedLine[i] == '=');
+    testAssert(trimmedLine[i] == '=');
     foundEquals = true;
     i++;
   }
@@ -597,7 +598,7 @@ enabled_t ConfigParser::getEnabled(const string& key) {
 }
 
 int ConfigParser::getInt(const string& key, const int min, const int max) {
-  assert(min <= max);
+  testAssert(min <= max);
   string value = getString(key);
   int x;
   if(!Global::tryStringToInt(value,x))
@@ -651,7 +652,7 @@ vector<std::pair<int,int>> ConfigParser::getNonNegativeIntDashedPairs(const stri
 }
 
 int64_t ConfigParser::getInt64(const string& key, const int64_t min, const int64_t max) {
-  assert(min <= max);
+  testAssert(min <= max);
   string value = getString(key);
   int64_t x;
   if(!Global::tryStringToInt64(value,x))
@@ -677,7 +678,7 @@ vector<int64_t> ConfigParser::getInt64s(const string& key, const int64_t min, co
 }
 
 uint64_t ConfigParser::getUInt64(const string& key, const uint64_t min, const uint64_t max) {
-  assert(min <= max);
+  testAssert(min <= max);
   string value = getString(key);
   uint64_t x;
   if(!Global::tryStringToUInt64(value,x))
@@ -703,7 +704,7 @@ vector<uint64_t> ConfigParser::getUInt64s(const string& key, const uint64_t min,
 }
 
 float ConfigParser::getFloat(const string& key, const float min, const float max) {
-  assert(min <= max);
+  testAssert(min <= max);
   string value = getString(key);
   float x;
   if(!Global::tryStringToFloat(value,x))
@@ -733,7 +734,7 @@ vector<float> ConfigParser::getFloats(const string& key, const float min, const 
 }
 
 double ConfigParser::getDouble(const string& key, const double min, const double max) {
-  assert(min <= max);
+  testAssert(min <= max);
   string value = getString(key);
   double x;
   if(!Global::tryStringToDouble(value,x))

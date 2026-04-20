@@ -1,5 +1,7 @@
 #include "../neuralnet/sgfmetadata.h"
 
+#include "../core/test.h"
+
 //------------------------
 #include "../core/using.h"
 //------------------------
@@ -101,8 +103,9 @@ Hash128 SGFMetadata::getHash(Player nextPlayer) const {
   // 7 bits left for source going up to 128
   x0 += (uint32_t)source << 25;
 
-  assert(std::isfinite(mainTimeSeconds));
-  assert(std::isfinite(periodTimeSeconds));
+  if(!std::isfinite(mainTimeSeconds) || !std::isfinite(periodTimeSeconds))
+    Global::fatalError("Invalid SGFMetadata: non-finite time values, mainTimeSeconds=" +
+      Global::doubleToString(mainTimeSeconds) + " periodTimeSeconds=" + Global::doubleToString(periodTimeSeconds));
   double mainTimeSecondsCapped = std::min(std::max(mainTimeSeconds,0.0),3.0*86400);
   // ~20 bits
   x1 += (uint32_t)(mainTimeSecondsCapped * 4);
@@ -130,7 +133,7 @@ Hash128 SGFMetadata::getHash(Player nextPlayer) const {
 
 
 void SGFMetadata::fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea) {
-  assert(sgfMeta != NULL);
+  testAssert(sgfMeta != NULL);
   if(!sgfMeta->initialized)
     Global::fatalError("Invalid or uninitialized SGFMetadata");
 
@@ -175,7 +178,8 @@ void SGFMetadata::fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata
   rowMetadata[79] = sgfMeta->tcIsByoYomi ? 1.0f : 0.0f;
   rowMetadata[80] = sgfMeta->tcIsCanadian ? 1.0f : 0.0f;
   rowMetadata[81] = sgfMeta->tcIsFischer ? 1.0f : 0.0f;
-  assert(rowMetadata[75] + rowMetadata[76] + rowMetadata[77] + rowMetadata[78] + rowMetadata[79] + rowMetadata[80] + rowMetadata[81] == 1.0f);
+  if(rowMetadata[75] + rowMetadata[76] + rowMetadata[77] + rowMetadata[78] + rowMetadata[79] + rowMetadata[80] + rowMetadata[81] != 1.0f)
+    Global::fatalError("SGFMetadata has invalid time control flags - exactly one must be set");
 
   double mainTimeSecondsCapped = std::min(std::max(sgfMeta->mainTimeSeconds,0.0),3.0*86400);
   double periodTimeSecondsCapped = std::min(std::max(sgfMeta->periodTimeSeconds,0.0),1.0*86400);
@@ -204,7 +208,8 @@ void SGFMetadata::fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata
   }
   static_assert(151 == DATE_START_IDX + 2 * DATE_LEN, "");
 
-  assert(sgfMeta->source >= 0 && sgfMeta->source < 16);
+  if(sgfMeta->source < 0 || sgfMeta->source >= 16)
+    Global::fatalError("SGFMetadata has invalid source: " + Global::intToString(sgfMeta->source));
   rowMetadata[151 + sgfMeta->source] = 1.0f;
 
   static_assert(151 + 16 < SGFMetadata::METADATA_INPUT_NUM_CHANNELS, "");

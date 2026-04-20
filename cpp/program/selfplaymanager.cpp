@@ -1,5 +1,7 @@
 #include "../program/selfplaymanager.h"
 
+#include "../core/test.h"
+
 using namespace std;
 
 SelfplayManager::ModelData::ModelData(
@@ -52,7 +54,7 @@ SelfplayManager::~SelfplayManager() {
   std::unique_lock<std::mutex> lock(managerMutex);
   for(size_t i = 0; i<modelDatas.size(); i++) {
     //If a client tries to delete this while something is still acquired, there's something wrong.
-    assert(modelDatas[i]->acquireCount == 0);
+    testAssert(modelDatas[i]->acquireCount == 0);
     //Trigger data writing loop to quit once it reaches end of its queue
     modelDatas[i]->finishedGameQueue.setReadOnly();
     totalNumRowsProcessed += modelDatas[i]->nnEval->numRowsProcessed();
@@ -85,7 +87,7 @@ void SelfplayManager::maybeAutoCleanupAlreadyLocked() {
     for(size_t i = 0; i<modelDatas.size()-1; i++) {
       ModelData* foundData = modelDatas[i];
       if(foundData->acquireCount <= 0) {
-        assert(foundData->acquireCount == 0);
+        testAssert(foundData->acquireCount == 0);
         //Trigger data writing loop to quit once it reaches end of its queue
         foundData->finishedGameQueue.setReadOnly();
         totalNumRowsProcessed += foundData->nnEval->numRowsProcessed();
@@ -106,7 +108,7 @@ void SelfplayManager::cleanupUnusedModelsOlderThan(double seconds) {
   for(size_t i = 0; i<modelDatas.size(); i++) {
     ModelData* foundData = modelDatas[i];
     if(foundData->acquireCount <= 0 && now - foundData->lastReleaseTime > seconds) {
-      assert(foundData->acquireCount == 0);
+      testAssert(foundData->acquireCount == 0);
       logger->write("Unloading network that hasn't been used in a while: " + foundData->modelName);
       //Trigger data writing loop to quit once it reaches end of its queue
       foundData->finishedGameQueue.setReadOnly();
@@ -306,7 +308,7 @@ void SelfplayManager::enqueueDataToWrite(const string& modelName, FinishedGameDa
   }
   if(foundData == NULL)
     throw StringError("SelfplayManager::enqueueDataToWrite: could not find model. Possible bug - client did not acquire model?");
-  assert(foundData->hasDataWriteLoop == true);
+  testAssert(foundData->hasDataWriteLoop == true);
 
   //In case it takes a while to push the game on, drop the lock. We're guaranteed as a precondition that
   //the caller has acquired the model as well, so it won't be cleaned up underneath us.
@@ -351,12 +353,12 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
     if(!suc)
       break;
 
-    assert(gameData != NULL);
+    testAssert(gameData != NULL);
 
     modelData->tdataWriter->writeGame(*gameData);
 
     if(modelData->sgfOut != NULL) {
-      assert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());
+      testAssert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());
       WriteSgf::writeSgf(*modelData->sgfOut,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
       (*modelData->sgfOut) << endl;
     }
@@ -370,7 +372,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
   if(logger != NULL)
     logger->write("Data write loop finishing for neural net: " + modelData->modelName);
 
-  assert(modelData->acquireCount == 0);
+  testAssert(modelData->acquireCount == 0);
 
   string name = modelData->modelName;
 
@@ -382,7 +384,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
     std::lock_guard<std::mutex> lock(managerMutex);
     for(size_t i = 0; i<modelDatas.size(); i++) {
       (void)i;
-      assert(modelDatas[i] != modelData);
+      testAssert(modelDatas[i] != modelData);
     }
   }
 
@@ -404,9 +406,9 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
   //Check back in and notify that we're done once done cleaning up.
   std::unique_lock<std::mutex> lock(managerMutex);
   numDataWriteLoopsActive--;
-  assert(numDataWriteLoopsActive >= 0);
+  testAssert(numDataWriteLoopsActive >= 0);
   if(numDataWriteLoopsActive == 0) {
-    assert(modelDatas.size() == 0);
+    testAssert(modelDatas.size() == 0);
     dataWriteLoopsAreDone.notify_all();
   }
   lock.unlock();
@@ -426,7 +428,7 @@ void SelfplayManager::withDataWriters(
   }
   if(foundData == NULL)
     throw StringError("SelfplayManager::withDataWriters: could not find model. Possible bug - client did not acquire model?");
-  assert(foundData->hasDataWriteLoop == false);
+  testAssert(foundData->hasDataWriteLoop == false);
 
   f(foundData->tdataWriter, foundData->sgfOut);
 }

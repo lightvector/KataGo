@@ -8,6 +8,7 @@
 
 #include "../core/global.h"
 #include "../core/multithread.h"
+#include "../core/test.h"
 
 class PriorityMutex {
   std::mutex mutex;
@@ -35,7 +36,7 @@ class PriorityMutex {
   inline void unlockHighPriority() {
     int oldValue = numHighPriorityThreads.fetch_add(-1);
     int newValue = oldValue-1;
-    assert(newValue >= 0);
+    testAssert(newValue >= 0);
     if(newValue <= 0)
       lowPriorityOkayToGo.notify_all();
     mutex.unlock();
@@ -78,21 +79,21 @@ class PriorityLock {
   }
 
   inline void lockHighPriority() {
-    assert(!isLocked);
+    testAssert(!isLocked);
     isLocked = true;
     isHighPriority = true;
     mutex->lockHighPriority();
   }
 
   inline void lockLowPriority() {
-    assert(!isLocked);
+    testAssert(!isLocked);
     isLocked = true;
     isHighPriority = false;
     mutex->lockHighPriority();
   }
 
   inline void unlock() {
-    assert(isLocked);
+    testAssert(isLocked);
     isLocked = false;
     if(isHighPriority)
       mutex->unlockHighPriority();

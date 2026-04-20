@@ -550,7 +550,7 @@ struct ComputeHandleInternal {
     clContext = device->context;
     commandQueue = device->commandQueue;
     CompiledPrograms* progs = computeContext->compiledProgramsByDeviceId[device->info.deviceId];
-    assert(progs != NULL);
+    testAssert(progs != NULL);
     tuneParams = progs->tuneParams;
 
     if(inputsUseNHWC != false)
@@ -898,12 +898,12 @@ struct BatchNormLayer {
     nnYLen(nnY),
     nnXYLen(nnX * nnY)
   {
-    assert(desc->mean.size() == numChannels);
-    assert(desc->variance.size() == numChannels);
-    assert(desc->scale.size() == numChannels);
-    assert(desc->bias.size() == numChannels);
-    assert(desc->mergedScale.size() == numChannels);
-    assert(desc->mergedBias.size() == numChannels);
+    testAssert(desc->mean.size() == numChannels);
+    testAssert(desc->variance.size() == numChannels);
+    testAssert(desc->scale.size() == numChannels);
+    testAssert(desc->bias.size() == numChannels);
+    testAssert(desc->mergedScale.size() == numChannels);
+    testAssert(desc->mergedBias.size() == numChannels);
 
     std::vector<float> mergedScale = desc->mergedScale;
     std::vector<float> mergedBias = desc->mergedBias;
@@ -1005,8 +1005,8 @@ struct ConvLayer {
     nnXLen(nnX),
     nnYLen(nnY)
   {
-    assert(convXSize % 2 == 1);
-    assert(convYSize % 2 == 1);
+    testAssert(convXSize % 2 == 1);
+    testAssert(convYSize % 2 == 1);
     if(dilationX != 1 || dilationY != 1)
       throw StringError("OpenCL backend: Encountered convolution dilation factors other than 1, not supported");
 
@@ -1049,8 +1049,8 @@ struct ConvLayer {
       static constexpr int maxTileXSize = 6;
       static constexpr int maxTileYSize = 6;
 
-      assert((convXSize == 3 && convYSize == 3) ? (inTileXSize == 4 && outTileXSize == 2) || (inTileXSize == 6 && outTileXSize == 4) : true);
-      assert((convXSize == 5 && convYSize == 5) ? (inTileYSize == 6 && outTileYSize == 2) : true);
+      testAssert((convXSize == 3 && convYSize == 3) ? (inTileXSize == 4 && outTileXSize == 2) || (inTileXSize == 6 && outTileXSize == 4) : true);
+      testAssert((convXSize == 5 && convYSize == 5) ? (inTileYSize == 6 && outTileYSize == 2) : true);
 
       //INTILE_YSIZE, INTILE_XSIZE, ic, oc
       vector<float> transWeights(inTileXYSize * inChannelsPadded * outChannelsPadded);
@@ -1450,7 +1450,7 @@ struct MatMulLayer {
       outChannels(desc->outChannels)
   {
     if(inChannels > 0 && outChannels > 0) {
-      assert(desc->weights.size() == inChannels * outChannels);
+      testAssert(desc->weights.size() == inChannels * outChannels);
       vector<float> weights(desc->weights.size());
       //Transpose weights, we implemented the opencl kernel to expect oc,ic
       for(int oc = 0; oc < outChannels; oc++) {
@@ -1509,7 +1509,7 @@ struct MatBiasLayer {
       activation(activation_)
   {
     if(numChannels > 0) {
-      assert(desc->weights.size() == numChannels);
+      testAssert(desc->weights.size() == numChannels);
       vector<float> weights = desc->weights;
       //See notes about FP16 conventions at the top of file
       bool useFP16 = false;
@@ -1585,7 +1585,7 @@ struct NormActConv {
     inChannels(norm.numChannels),
     outChannels(conv.outChannels)
   {
-    assert(norm.numChannels == conv.inChannels);
+    testAssert(norm.numChannels == conv.inChannels);
   }
 
   ~NormActConv() {
@@ -1888,7 +1888,7 @@ BlockStack::BlockStack(
   nnXLen(nnX),
   nnYLen(nnY)
 {
-  assert(descBlocks.size() == numBlocks);
+  testAssert(descBlocks.size() == numBlocks);
   for(int i = 0; i<numBlocks; i++) {
     if(descBlocks[i].first == ORDINARY_BLOCK_KIND) {
       ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)descBlocks[i].second.get();
@@ -2890,10 +2890,10 @@ struct InputBuffers {
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
     singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
 
-    assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
-    assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    testAssert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+    testAssert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
     if(m.numInputMetaChannels > 0) {
-      assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
+      testAssert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
     }
 
     userInputBufferElts = (size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen;

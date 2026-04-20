@@ -1,6 +1,7 @@
 #include "../dataio/numpywrite.h"
 
 #include <cstring>
+#include "../core/test.h"
 
 #ifndef NO_LIBZIP
 #include <zip.h>
@@ -98,9 +99,9 @@ NumpyBuffer<T>::NumpyBuffer(const vector<int64_t>& shp, const char* dt)
   : shape(shp),dtype(dt)
 {
   dataLen = 1;
-  assert(shape.size() > 0);
+  testAssert(shape.size() > 0);
   for(size_t i = 0; i<shape.size(); i++) {
-    assert(shape[i] >= 0);
+    testAssert(shape[i] >= 0);
     if((uint64_t)dataLen * (uint64_t)shape[i] < (uint64_t)dataLen)
       throw StringError("NumpyBuffer shape overflows");
     dataLen *= shape[i];
@@ -108,10 +109,10 @@ NumpyBuffer<T>::NumpyBuffer(const vector<int64_t>& shp, const char* dt)
 
   //Leave 256 bytes at the start for the header
   int sizeOfT = sizeof(T);
-  assert(sizeOfT > 0 && sizeOfT <= TOTAL_HEADER_BYTES);
+  testAssert(sizeOfT > 0 && sizeOfT <= TOTAL_HEADER_BYTES);
 
   headerLen = TOTAL_HEADER_BYTES / sizeOfT;
-  assert(headerLen * sizeOfT == TOTAL_HEADER_BYTES);
+  testAssert(headerLen * sizeOfT == TOTAL_HEADER_BYTES);
 
   dataIncludingHeader = new T[headerLen+dataLen];
   data = dataIncludingHeader + headerLen;

@@ -1,6 +1,7 @@
 #include "../dataio/sgf.h"
 
 #include "../core/fileutils.h"
+#include "../core/test.h"
 #include "../core/sha2.h"
 #include "../dataio/files.h"
 #include "../program/playutils.h"
@@ -554,8 +555,7 @@ int Sgf::getRank(Player pla) const {
     rankStr = nodes[0]->getSingleProperty("WR");
   }
   else {
-    assert(false);
-    return Sgf::RANK_UNKNOWN;
+    ASSERT_UNREACHABLE;
   }
   int rank;
   static constexpr int TOP_DAN = 13;
@@ -651,8 +651,7 @@ int Sgf::getRating(Player pla) const {
     ratingStr = nodes[0]->getSingleProperty("WR");
   }
   else {
-    assert(false);
-    propertyFail("Could not find rating in sgf");
+    ASSERT_UNREACHABLE;
   }
 
   int rating;
@@ -674,8 +673,9 @@ string Sgf::getPlayerName(Player pla) const {
       return "";
     return nodes[0]->getSingleProperty("PW");
   }
-  assert(false);
-  return "";
+  else {
+    ASSERT_UNREACHABLE;
+  }
 }
 
 bool Sgf::hasRootProperty(const std::string& property) const {
@@ -952,14 +952,14 @@ void Sgf::iterAllPositionsHelper(
     children[i]->iterAllPositionsHelper(
       *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,false,rand,variationTraceNodesBranch,f
     );
-    assert(variationTraceNodesBranch.size() > 0);
+    testAssert(variationTraceNodesBranch.size() > 0);
     variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
   }
 }
 
 void Sgf::PositionSample::writePosOfHist(PositionSample& sampleBuf, const BoardHistory& hist, Player nextPla) {
   //Snap the position 5 turns ago so as to include 5 moves of history.
-  assert(BoardHistory::NUM_RECENT_BOARDS > 5);
+  static_assert(BoardHistory::NUM_RECENT_BOARDS > 5, "");
   int turnsAgoToSnap = 0;
   while(turnsAgoToSnap < 5) {
     if(turnsAgoToSnap >= hist.moveHistory.size())
@@ -1014,7 +1014,8 @@ void Sgf::samplePositionHelper(
   //Hash based on position, player, and simple ko
   Hash128 situationHash = board.pos_hash;
   situationHash ^= Board::ZOBRIST_PLAYER_HASH[nextPla];
-  assert(hist.encorePhase == 0);
+  if(hist.encorePhase != 0)
+    throw StringError("Unexpected encore phase when sampling position from SGF: " + Global::intToString(hist.encorePhase));
   if(board.ko_loc != Board::NULL_LOC)
     situationHash ^= Board::ZOBRIST_KO_LOC_HASH[board.ko_loc];
 
@@ -1049,7 +1050,8 @@ void Sgf::samplePositionHelper(
 }
 
 static uint64_t parseHex64(const string& str) {
-  assert(str.length() == 16);
+  if(str.length() != 16)
+    throw IOError("Could not parse hex string, expected length 16: " + str);
   uint64_t x = 0;
   for(int i = 0; i<16; i++) {
     x *= 16;
@@ -1060,7 +1062,7 @@ static uint64_t parseHex64(const string& str) {
     else if(str[i] >= 'A' && str[i] <= 'F')
       x += str[i] - 'A' + 10;
     else
-      assert(false);
+      throw IOError("Could not parse hex string, invalid hex character: " + str);
   }
   return x;
 }
@@ -1168,8 +1170,8 @@ Sgf::PositionSample Sgf::PositionSample::getColorFlipped() const {
       Loc loc = Location::getLoc(x,y,other.board.x_size);
       if(other.board.colors[loc] == C_BLACK || other.board.colors[loc] == C_WHITE) {
         bool suc = newBoard.setStoneFailIfNoLibs(loc, getOpp(other.board.colors[loc]));
-        assert(suc);
-        (void)suc;
+        if(!suc)
+          throw StringError("Color-flipped position from SGF has a stone with no liberties");
       }
     }
   }
@@ -1204,7 +1206,7 @@ bool Sgf::PositionSample::tryGetCurrentBoardHistory(const Rules& rules, Player& 
   for(int i = 0; i<numSampleMoves; i++) {
     if(!hist.isLegal(boardCopy,moves[i].loc,moves[i].pla))
       return false;
-    assert(moves[i].pla == pla);
+    testAssert(moves[i].pla == pla);
     hist.makeBoardMoveAssumeLegal(boardCopy,moves[i].loc,moves[i].pla,NULL);
     pla = getOpp(pla);
   }
@@ -2023,7 +2025,7 @@ void WriteSgf::writeSgf(
       commentOut << "," << "bTimeUsed=" << gameData->bTimeUsed;
       commentOut << "," << "wTimeUsed=" << gameData->wTimeUsed;
     }
-    assert(endHist.moveHistory.size() <= startTurnIdx + gameData->whiteValueTargetsByTurn.size());
+    testAssert(endHist.moveHistory.size() <= startTurnIdx + gameData->whiteValueTargetsByTurn.size());
   }
 
   if(extraComments.size() > 0) {

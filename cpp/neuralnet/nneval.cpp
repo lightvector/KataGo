@@ -1,5 +1,6 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/modelversion.h"
+#include "../core/test.h"
 
 using namespace std;
 
@@ -418,9 +419,9 @@ void NNEvaluator::killServerThreads() {
   //Can unset now that threads are dead
   isKilled = false;
 
-  assert(numOngoingEvals == 0);
-  assert(numWaitingEvals == 0);
-  assert(numEvalsToAwaken == 0);
+  testAssert(numOngoingEvals == 0);
+  testAssert(numWaitingEvals == 0);
+  testAssert(numEvalsToAwaken == 0);
 }
 
 void NNEvaluator::serve(
@@ -446,7 +447,7 @@ void NNEvaluator::serve(
 
   {
     lock_guard<std::mutex> lock(bufferMutex);
-    assert(serverThreadIdx < serverThreadsIsUsingFP16.size());
+    testAssert(serverThreadIdx < serverThreadsIsUsingFP16.size());
     serverThreadsIsUsingFP16[serverThreadIdx] = gpuHandle == NULL ? 0 : NeuralNet::isUsingFP16(gpuHandle) ? 1 : 0;
     numServerThreadsStartingUp--;
     if(numServerThreadsStartingUp <= 0)
@@ -468,14 +469,14 @@ void NNEvaluator::serve(
       break;
 
     int numRows = (int)resultBufs.size();
-    assert(numRows > 0);
+    testAssert(numRows > 0);
 
     bool doRandomize = currentDoRandomize.load(std::memory_order_acquire);
     int defaultSymmetry = currentDefaultSymmetry.load(std::memory_order_acquire);
 
     if(debugSkipNeuralNet) {
       for(int row = 0; row < numRows; row++) {
-        assert(resultBufs[row] != NULL);
+        testAssert(resultBufs[row] != NULL);
         NNResultBuf* resultBuf = resultBufs[row];
         resultBufs[row] = NULL;
 
@@ -483,7 +484,7 @@ void NNEvaluator::serve(
         int boardYSize = resultBuf->boardYSizeForServer;
 
         unique_lock<std::mutex> resultLock(resultBuf->resultMutex);
-        assert(resultBuf->hasResult == false);
+        testAssert(resultBuf->hasResult == false);
         resultBuf->result = std::make_shared<NNOutput>();
 
         float* policyProbs = resultBuf->result->policyProbs;
@@ -545,7 +546,7 @@ void NNEvaluator::serve(
       outputBuf.clear();
       for(int row = 0; row<numRows; row++) {
         NNOutput* emptyOutput = new NNOutput();
-        assert(resultBufs[row] != NULL);
+        testAssert(resultBufs[row] != NULL);
         emptyOutput->nnXLen = nnXLen;
         emptyOutput->nnYLen = nnYLen;
         if(resultBufs[row]->includeOwnerMap)
@@ -560,14 +561,14 @@ void NNEvaluator::serve(
           if(doRandomize)
             resultBufs[row]->symmetry = rand.nextUInt(SymmetryHelpers::NUM_SYMMETRIES);
           else {
-            assert(defaultSymmetry >= 0 && defaultSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1);
+            testAssert(defaultSymmetry >= 0 && defaultSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1);
             resultBufs[row]->symmetry = defaultSymmetry;
           }
         }
       }
 
       NeuralNet::getOutput(gpuHandle, buf.inputBuffers, numRows, resultBufs.data(), outputBuf);
-      assert(outputBuf.size() == numRows);
+      testAssert(outputBuf.size() == numRows);
 
       m_numRowsProcessed.fetch_add(numRows, std::memory_order_relaxed);
       m_numBatchesProcessed.fetch_add(1, std::memory_order_relaxed);
@@ -575,12 +576,12 @@ void NNEvaluator::serve(
       numBatchesHandledThisThread += 1;
 
       for(int row = 0; row < numRows; row++) {
-        assert(resultBufs[row] != NULL);
+        testAssert(resultBufs[row] != NULL);
         NNResultBuf* resultBuf = resultBufs[row];
         resultBufs[row] = NULL;
 
         unique_lock<std::mutex> resultLock(resultBuf->resultMutex);
-        assert(resultBuf->hasResult == false);
+        testAssert(resultBuf->hasResult == false);
         resultBuf->result = std::shared_ptr<NNOutput>(outputBuf[row]);
         resultBuf->hasResult = true;
         resultBuf->clientWaitingForResult.notify_all();
@@ -728,7 +729,7 @@ void NNEvaluator::evaluate(
   bool skipCache,
   bool includeOwnerMap
 ) {
-  assert(!isKilled);
+  testAssert(!isKilled);
   buf.hasResult = false;
 
   if(board.x_size > nnXLen || board.y_size > nnYLen)
@@ -826,7 +827,7 @@ void NNEvaluator::evaluate(
   lock.unlock();
 
   bool suc = queryQueue.forcePush(&buf);
-  assert(suc);
+  testAssert(suc);
 
   unique_lock<std::mutex> resultLock(buf.resultMutex);
   while(!buf.hasResult)
@@ -852,7 +853,7 @@ void NNEvaluator::evaluate(
     buf.result->policyOptimismUsed = (float)resultWithoutOwnerMap->policyOptimismUsed;
     buf.result->nnXLen = resultWithoutOwnerMap->nnXLen;
     buf.result->nnYLen = resultWithoutOwnerMap->nnYLen;
-    assert(buf.result->whiteOwnerMap != NULL);
+    testAssert(buf.result->whiteOwnerMap != NULL);
   }
   else {
     float* policy = buf.result->policyProbs;
@@ -865,7 +866,7 @@ void NNEvaluator::evaluate(
     float maxPolicy = -1e25f;
     bool isLegal[NNPos::MAX_NN_POLICY_SIZE];
     int legalCount = 0;
-    assert(nextPlayer == history.presumedNextMovePla);
+    testAssert(nextPlayer == history.presumedNextMovePla);
     for(int i = 0; i<policySize; i++) {
       Loc loc = NNPos::posToLoc(i,xSize,ySize,nnXLen,nnYLen);
       isLegal[i] = history.isLegal(board,loc,nextPlayer);
@@ -896,7 +897,7 @@ void NNEvaluator::evaluate(
         maxPolicy = policyValue;
     }
 
-    assert(legalCount > 0);
+    testAssert(legalCount > 0);
 
     float policySum = 0.0f;
 
@@ -909,7 +910,7 @@ void NNEvaluator::evaluate(
         policySum += policy[i];
       }
       int passPos = NNPos::locToPos(Board::PASS_LOC, xSize, nnXLen, nnYLen);
-      assert(passPos == policySize-1);
+      testAssert(passPos == policySize-1);
       int i = passPos;
       policy[i] = std::max(1e-20f, std::min(exp(policy[i] - maxPolicy), policySum * maxPassPolicySumFactor));
       policySum += policy[i];

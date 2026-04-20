@@ -9,6 +9,7 @@
 #include "../program/playutils.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include "../external/nlohmann_json/json.hpp"
@@ -142,7 +143,7 @@ int MainCmds::analysis(const vector<string>& args) {
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
   {
     std::vector<std::unique_ptr<PatternBonusTable>> tables = Setup::loadAvoidSgfPatternBonusTables(cfg,logger);
-    assert(tables.size() == 1);
+    testAssert(tables.size() == 1);
     patternBonusTable = std::move(tables[0]);
   }
 
@@ -352,7 +353,7 @@ int MainCmds::analysis(const vector<string>& args) {
       int expected = AnalyzeRequest::STATUS_IN_QUEUE;
       //If it's already terminated, then there's nothing for us to do
       if(!request->status.compare_exchange_strong(expected, AnalyzeRequest::STATUS_POPPED, std::memory_order_acq_rel)) {
-        assert(expected == AnalyzeRequest::STATUS_TERMINATED);
+        testAssert(expected == AnalyzeRequest::STATUS_TERMINATED);
       }
       //Else, the request is live and we marked it as popped
       else {
@@ -370,7 +371,7 @@ int MainCmds::analysis(const vector<string>& args) {
           int expected2 = AnalyzeRequest::STATUS_POPPED;
           //If it was terminated, then stop our search
           if(!request->status.compare_exchange_strong(expected2, threadIdx, std::memory_order_acq_rel)) {
-            assert(expected2 == AnalyzeRequest::STATUS_TERMINATED);
+            testAssert(expected2 == AnalyzeRequest::STATUS_TERMINATED);
             bot->stopWithoutWait();
           }
         };
@@ -461,7 +462,7 @@ int MainCmds::analysis(const vector<string>& args) {
     {}
     //A thread started searching it and put its thread idx in
     else {
-      assert(prevStatus >= 0);
+      testAssert(prevStatus >= 0);
       //We've already set the above status to terminated so when the thread terminates due to our killing it below, it will see this.
       //Or else the thread has already done so, in which case it's already properly written a result, also fine.
       int threadIdx = prevStatus;
@@ -1160,8 +1161,8 @@ int MainCmds::analysis(const vector<string>& args) {
         if(shouldAnalyze[turnNumber]) {
           int64_t priority = rbase.priority;
           if(priorities.size() > 0) {
-            assert(priorities.size() > newRequests.size());
-            assert(priorities.find(turnNumber) != priorities.end());
+            testAssert(priorities.size() > newRequests.size());
+            testAssert(priorities.find(turnNumber) != priorities.end());
             priority = priorities[turnNumber];
           }
 
@@ -1230,8 +1231,7 @@ int MainCmds::analysis(const vector<string>& args) {
         //Compare first by user-provided priority, and next breaks ties by preferring earlier requests.
         std::pair<int64_t,int64_t> priorityKey = std::make_pair(newRequests[i]->priority, -numRequestsSoFar);
         bool suc = toAnalyzeQueue.forcePush( std::make_pair(priorityKey, newRequests[i]) );
-        assert(suc);
-        (void)suc;
+        testAssert(suc);
         numRequestsSoFar++;
       }
       newRequests.clear();

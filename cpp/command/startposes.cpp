@@ -349,7 +349,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
     [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&weightKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight,minWeight](
       Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
-      assert(posSample.getCurrentTurnNumber() == hist.getCurrentTurnNumber());
+      testAssert(posSample.getCurrentTurnNumber() == hist.getCurrentTurnNumber());
       double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
       if(posSample.getCurrentTurnNumber() < minTurnNumber || posSample.getCurrentTurnNumber() > maxTurnNumber)
@@ -616,7 +616,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         sample.initialTurnNumber = hist.initialTurnNumber + startIdx;
         sample.hintLoc = Board::NULL_LOC;
 
-        assert(desiredWeight.size() > 0);
+        testAssert(desiredWeight.size() > 0);
         int64_t turnIdx = std::min((int64_t)(desiredWeight.size()-1), hists[m].getCurrentTurnNumber());
         turnIdx = std::max(turnIdx,(int64_t)0);
         sample.weight = desiredWeight[turnIdx];
@@ -643,7 +643,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
         [&blockedSituationHashes, &desiredWeight, &posHandler, trainingWeight](
           Sgf::PositionSample& posSample, const BoardHistory& posHist, const string& comments
         ) {
-          assert(posSample.getCurrentTurnNumber() == posHist.getCurrentTurnNumber());
+          testAssert(posSample.getCurrentTurnNumber() == posHist.getCurrentTurnNumber());
           // cout << "AAAA " << (posHist.initialTurnNumber + (int)posHist.moveHistory.size()) << endl;
           if(contains(
                blockedSituationHashes,
@@ -1692,15 +1692,15 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     for(int i = 0; i<numSampleMoves; i++) {
       if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))
         return;
-      assert(sample.moves[i].pla == pla);
+      testAssert(sample.moves[i].pla == pla);
       hist.makeBoardMoveAssumeLegal(board,sample.moves[i].loc,sample.moves[i].pla,NULL);
       pla = getOpp(pla);
     }
 
     //Make sure the hinted move is legal too under our randomized rules.
     int hintIdx = (int)treeHist.moveHistory.size()-1;
-    assert(treeHist.moveHistory[hintIdx].pla == pla);
-    assert(treeHist.moveHistory[hintIdx].loc == sample.hintLoc);
+    testAssert(treeHist.moveHistory[hintIdx].pla == pla);
+    testAssert(treeHist.moveHistory[hintIdx].loc == sample.hintLoc);
     if(!hist.isLegal(board,sample.hintLoc,pla))
       return;
 
@@ -1725,11 +1725,11 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         shared_ptr<NNOutput>& nnOutput = buf.result;
         int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
         double prob = nnOutput->policyProbs[pos];
-        assert(prob >= 0.0);
+        testAssert(prob >= 0.0);
         acc += log(prob + 1e-30);
         count += 1;
       }
-      assert(count > 0);
+      testAssert(count > 0);
       policyProb = 1.1 * exp(acc / count);
     }
 
@@ -1898,7 +1898,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
                 logger.write("Enqueued " + Global::int64ToString(numEnqueued) + " poses");
               PosQueueEntry entry;
               entry.hist = new BoardHistory(hist);
-              assert(hist.getCurrentTurnNumber() == unusedSample.getCurrentTurnNumber());
+              testAssert(hist.getCurrentTurnNumber() == unusedSample.getCurrentTurnNumber());
               entry.markedAsHintPos = markedAsHintPos;
               entry.markedAsHintPosLight = markedAsHintPosLight;
               posQueue.waitPush(entry);
@@ -2090,8 +2090,7 @@ int MainCmds::trystartposes(const vector<string>& args) {
     {
       ReportedSearchValues values;
       bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,pla,board,hist,1.0,values);
-      (void)suc;
-      assert(suc);
+      testAssert(suc);
       cout << "Searching startpos: " << "\n";
       cout << "Weight: " << startPos.weight << "\n";
       cout << "Training Weight: " << startPos.trainingWeight << "\n";
@@ -2109,12 +2108,18 @@ int MainCmds::trystartposes(const vector<string>& args) {
       else {
         ReportedSearchValues values;
         cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", re-searching after playing it: " << "\n";
-        bool suc = maybeGetValuesAfterMove(search,hintLoc,pla,board,hist,1.0,values);
-        (void)suc;
-        assert(suc);
-        Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
-        search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_WHITE);
-        cout << endl;
+        if(!hist.isLegal(board,hintLoc,pla)) {
+          //Hint move from SGF was illegal, skip
+          Board::printBoard(cout, board, hintLoc, NULL);
+          cout << "Hint move was illegal, skipping" << endl;
+        }
+        else {
+          bool suc = maybeGetValuesAfterMove(search,hintLoc,pla,board,hist,1.0,values);
+          testAssert(suc);
+          Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
+          search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_WHITE);
+          cout << endl;
+        }
       }
     }
   }
@@ -2415,7 +2420,10 @@ int MainCmds::checksgfhintpolicy(const vector<string>& args) {
           Player nextPla;
           BoardHistory histBefore;
           bool suc = priorPosSample.tryGetCurrentBoardHistory(rules,nextPla,histBefore);
-          testAssert(suc);
+          if(!suc) {
+            logger.write("WARNING: unable to get current history for pos, skipping: " + Sgf::PositionSample::toJsonLine(priorPosSample));
+            continue;
+          }
           const Board& board = histBefore.getRecentBoard(0);
 
           for(int symmetry = 0; symmetry < 8; symmetry++) {

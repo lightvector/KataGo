@@ -1,5 +1,7 @@
 #include "../neuralnet/nninputs.h"
 
+#include "../core/test.h"
+
 using namespace std;
 
 //-----------------------------------------------------------------------------------------------------------
@@ -31,7 +33,7 @@ double ScoreValue::whiteWinsOfWinner(Player winner, double drawEquivalentWinsFor
   else if(winner == P_BLACK)
     return 0.0;
 
-  assert(winner == C_EMPTY);
+  testAssert(winner == C_EMPTY);
   return drawEquivalentWinsForWhite;
 }
 
@@ -73,13 +75,13 @@ static double inverse_atan(double x) {
 }
 
 double ScoreValue::approxWhiteScoreOfScoreValueSmooth(double scoreValue, double center, double scale, double sqrtBoardArea) {
-  assert(scoreValue >= -1 && scoreValue <= 1);
+  testAssert(scoreValue >= -1 && scoreValue <= 1);
   double scoreUnscaled = inverse_atan(scoreValue * piOverTwo);
   return scoreUnscaled * (scale * sqrtBoardArea) + center;
 }
 
 double ScoreValue::whiteScoreMeanSqOfScoreGridded(double finalWhiteMinusBlackScore, double drawEquivalentWinsForWhite) {
-  assert((int)(finalWhiteMinusBlackScore * 2) == finalWhiteMinusBlackScore * 2);
+  testAssert((int)(finalWhiteMinusBlackScore * 2) == finalWhiteMinusBlackScore * 2);
   bool finalScoreIsInteger = ((int)finalWhiteMinusBlackScore == finalWhiteMinusBlackScore);
   if(!finalScoreIsInteger)
     return finalWhiteMinusBlackScore * finalWhiteMinusBlackScore;
@@ -109,7 +111,7 @@ void ScoreValue::freeTables() {
 }
 
 void ScoreValue::initTables() {
-  assert(!scoreValueTablesInitialized);
+  testAssert(!scoreValueTablesInitialized);
   expectedSVTable = new double[svTableMeanLen*svTableStdevLen];
 
   //Precompute normal PDF
@@ -157,7 +159,7 @@ void ScoreValue::initTables() {
 }
 
 double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteScoreStdev, double center, double scale, double sqrtBoardArea) {
-  assert(scoreValueTablesInitialized);
+  testAssert(scoreValueTablesInitialized);
 
   double scaleFactor = (double)svTableAssumedBSize / (scale * sqrtBoardArea);
 
@@ -173,7 +175,7 @@ double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteSc
 
   if(meanIdx0 < 0) { meanIdx0 = 0; meanIdx1 = 0; }
   if(meanIdx1 >= svTableMeanLen) { meanIdx0 = svTableMeanLen-1; meanIdx1 = svTableMeanLen-1; }
-  assert(stdevIdx0 >= 0);
+  testAssert(stdevIdx0 >= 0);
   if(stdevIdx1 >= svTableStdevLen) { stdevIdx0 = svTableStdevLen-1; stdevIdx1 = svTableStdevLen-1; }
 
   double lambdaMean = meanScaled - meanRounded + 0.5;
@@ -320,12 +322,12 @@ NNOutput::NNOutput(const NNOutput& other) {
 }
 
 NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
-  assert(others.size() < 1000000);
+  testAssert(others.size() < 1000000);
   int len = (int)others.size();
   float floatLen = (float)len;
-  assert(len > 0);
+  testAssert(len > 0);
   for(int i = 1; i<len; i++) {
-    assert(others[i]->nnHash == others[0]->nnHash);
+    testAssert(others[i]->nnHash == others[0]->nnHash);
   }
   nnHash = others[0]->nnHash;
 
@@ -379,7 +381,7 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
       }
     }
     if(whiteOwnerMap != NULL) {
-      assert(whiteOwnerMapCount > 0);
+      testAssert(whiteOwnerMapCount > 0);
       for(int pos = 0; pos<nnXLen*nnYLen; pos++)
         whiteOwnerMap[pos] /= whiteOwnerMapCount;
     }
@@ -659,8 +661,7 @@ Board SymmetryHelpers::getSymBoard(const Board& board, int symmetry) {
         std::swap(symX,symY);
       Loc symLoc = Location::getLoc(symX,symY,symBoard.x_size);
       bool suc = symBoard.setStoneFailIfNoLibs(symLoc,board.colors[loc]);
-      assert(suc);
-      (void)suc;
+      testAssert(suc);
       if(loc == board.ko_loc)
         symKoLoc = symLoc;
     }

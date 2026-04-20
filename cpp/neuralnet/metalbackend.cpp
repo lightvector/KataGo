@@ -572,7 +572,7 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
 
-  assert(((m.modelVersion < 16) || (policyResultChannels == 4)) &&
+  testAssert(((m.modelVersion < 16) || (policyResultChannels == 4)) &&
          ((m.modelVersion >= 16) || (m.modelVersion < 12) || (policyResultChannels == 2)) &&
          ((m.modelVersion >= 12) || (policyResultChannels == 1)));
 
@@ -588,9 +588,9 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   singleOwnerMapElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
   singleScoreValuesResultElts = (size_t)m.numScoreValueChannels;
 
-  assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
-  assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
-  assert(singleValueResultElts == 3);
+  testAssert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+  testAssert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+  testAssert(singleValueResultElts == 3);
 
   rowSpatialBufferElts = (size_t)maxBatchSz * singleSpatialElts;
   userInputBufferElts = (size_t)maxBatchSize * singleInputElts;

@@ -51,7 +51,7 @@ static void readFloats(istream& in, size_t numFloats, bool binaryFloats, const s
   }
   else {
     //KataGo hacky model format - "@BIN@" followed by the expected number of 32 bit floats, in little-endian binary
-    assert(sizeof(float) == 4);
+    testAssert(sizeof(float) == 4);
     {
       string s;
       int numCharsBeforeAt = 0;
@@ -179,8 +179,8 @@ double ConvLayerDesc::getSpatialConvDepth() const {
 }
 
 void ConvLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
-  assert(weights.size() == convYSize * convXSize * inChannels * outChannels);
-  assert(scaling.size() == outChannels);
+  testAssert(weights.size() == convYSize * convXSize * inChannels * outChannels);
+  testAssert(scaling.size() == outChannels);
   size_t idx = 0;
   for(int oc = 0; oc < outChannels; oc++) {
     for(int ic = 0; ic < inChannels; ic++) {
@@ -271,8 +271,8 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
 
 
 void BatchNormLayerDesc::scaleInputChannels(const std::vector<float>& scaling) {
-  assert(mergedScale.size() == numChannels);
-  assert(scaling.size() == numChannels);
+  testAssert(mergedScale.size() == numChannels);
+  testAssert(scaling.size() == numChannels);
   epsilon = (float)(1e-20);
   for(int c = 0; c < numChannels; c++) {
     mergedScale[c] *= scaling[c];
@@ -397,7 +397,7 @@ void ActivationLayerDesc::applyScale8ToReduceActivations() {
     throw StringError("Cannot applyScale8ToReduceActivations twice, already applied");
   }
   else {
-    testAssert(false);
+    ASSERT_UNREACHABLE;
   }
 }
 
@@ -449,8 +449,8 @@ MatMulLayerDesc& MatMulLayerDesc::operator=(MatMulLayerDesc&& other) {
 
 
 void MatMulLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
-  assert(weights.size() == inChannels * outChannels);
-  assert(scaling.size() == outChannels);
+  testAssert(weights.size() == inChannels * outChannels);
+  testAssert(scaling.size() == outChannels);
   size_t idx = 0;
   for(int ic = 0; ic < inChannels; ic++) {
     for(int oc = 0; oc < outChannels; oc++) {
@@ -755,7 +755,7 @@ void NestedBottleneckResidualBlockDesc::iterConvLayers(std::function<void(const 
       desc->iterConvLayers(f);
     }
     else {
-      testAssert(false);
+      ASSERT_UNREACHABLE;
     }
   }
   f(postConv);
@@ -779,7 +779,7 @@ double NestedBottleneckResidualBlockDesc::getSpatialConvDepth() const {
       depth += desc->getSpatialConvDepth();
     }
     else {
-      testAssert(false);
+      ASSERT_UNREACHABLE;
     }
   }
   depth += postConv.getSpatialConvDepth();
@@ -813,7 +813,7 @@ void NestedBottleneckResidualBlockDesc::transformToReduceActivations() {
       desc->transformToReduceActivations();
     }
     else {
-      testAssert(false);
+      ASSERT_UNREACHABLE;
     }
   }
 }
@@ -836,7 +836,7 @@ void NestedBottleneckResidualBlockDesc::applyScale8ToReduceActivations() {
       desc->applyScale8ToReduceActivations();
     }
     else {
-      testAssert(false);
+      ASSERT_UNREACHABLE;
     }
   }
   postBN.applyScale8ToReduceActivations();
@@ -1156,7 +1156,7 @@ void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f)
       desc->iterConvLayers(f);
     }
     else {
-      testAssert(false);
+      ASSERT_UNREACHABLE;
     }
   }
 }
@@ -1179,7 +1179,7 @@ double TrunkDesc::getSpatialConvDepth() const {
       depth += desc->getSpatialConvDepth();
     }
     else {
-      testAssert(false);
+      ASSERT_UNREACHABLE;
     }
   }
   return depth;
@@ -1217,7 +1217,7 @@ void TrunkDesc::transformToReduceActivations() {
       desc->transformToReduceActivations();
     }
     else {
-      testAssert(false);
+      ASSERT_UNREACHABLE;
     }
   }
 }
@@ -1250,7 +1250,7 @@ void TrunkDesc::applyScale8ToReduceActivations() {
       desc->applyScale8ToReduceActivations();
     }
     else {
-      testAssert(false);
+      ASSERT_UNREACHABLE;
     }
   }
 }

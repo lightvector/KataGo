@@ -1,6 +1,7 @@
 #include "../game/boardhistory.h"
 
 #include <algorithm>
+#include "../core/test.h"
 
 using namespace std;
 
@@ -323,9 +324,9 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   //Handle encore phase
   encorePhase = ePhase;
-  assert(encorePhase >= 0 && encorePhase <= 2);
+  testAssert(encorePhase >= 0 && encorePhase <= 2);
   if(encorePhase > 0)
-    assert(rules.scoringRule == Rules::SCORING_TERRITORY);
+    testAssert(rules.scoringRule == Rules::SCORING_TERRITORY);
   //Update the few parameters that depend on encore
   if(encorePhase == 2)
     std::copy(board.colors, board.colors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
@@ -568,8 +569,7 @@ float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhit
   else if(pla == P_BLACK)
     return -whiteKomiAdjusted;
   else {
-    assert(false);
-    return 0.0f;
+    ASSERT_UNREACHABLE;
   }
 }
 
@@ -1207,7 +1207,7 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
 
-  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
+  testAssert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
   hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
 
   if(hist.encorePhase == 0) {

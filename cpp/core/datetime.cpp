@@ -193,7 +193,7 @@ bool SimpleDate::isDuringLeapYear() const {
 }
 
 int SimpleDate::numDaysIntoYear() const {
-  assert(month >= 1 && month <= 12);
+  testAssert(month >= 1 && month <= 12);
   if(isLeapYear(year))
     return CUMULATIVE_DAYS_UNTIL_MONTH_LEAP_YEAR[month] + (day-1);
   else
@@ -218,8 +218,8 @@ int SimpleDate::numDaysAfter(const SimpleDate& other) const {
   dayCount += 365 * (dLater.year - dEarly.year);
   dayCount += numLeapYearsUpToAndIncluding(dLater.year-1) - numLeapYearsUpToAndIncluding(dEarly.year-1);
 
-  assert(dEarly.month >= 1 && dEarly.month <= 12);
-  assert(dLater.month >= 1 && dLater.month <= 12);
+  testAssert(dEarly.month >= 1 && dEarly.month <= 12);
+  testAssert(dLater.month >= 1 && dLater.month <= 12);
 
   // Now adjust for months and days
   dayCount -= dEarly.numDaysIntoYear();
@@ -268,7 +268,7 @@ SimpleDate& SimpleDate::operator+=(int n) {
     n += this->numDaysAfter(date2);
     year -= approxYearsToSub;
     // Since we overshooted, this should be true.
-    assert(n >= 0);
+    testAssert(n >= 0);
   }
   while(n >= 366) {
     // Divide by 366 for leap years, because of non leap years we should undershoot a bit.
@@ -278,7 +278,7 @@ SimpleDate& SimpleDate::operator+=(int n) {
     n -= date2.numDaysAfter(*this);
     year += approxYearsToAdd;
     // Since we overshooted, this should be true.
-    assert(n >= 0);
+    testAssert(n >= 0);
   }
   if(n == 365) {
     if(isLeapYear(year)) {
@@ -294,7 +294,7 @@ SimpleDate& SimpleDate::operator+=(int n) {
     }
   }
   // Now we should be definitely on the right year, with n from 0 to 364 inclusive.
-  assert(n >= 0 && n <= 364);
+  testAssert(n >= 0 && n <= 364);
   // Work out days and months.
   if(isLeapYear(year)) {
     while(n >= CUMULATIVE_DAYS_UNTIL_MONTH_LEAP_YEAR[month+1])

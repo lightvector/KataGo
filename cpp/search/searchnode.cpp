@@ -174,7 +174,7 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
   if(copySubtreeValueBias) {
     //Currently NOT implemented. If we ever want this, think very carefully about copying subtree value bias since
     //if we later delete this node we risk double-counting removal of the subtree value bias!
-    assert(false);
+    ASSERT_UNREACHABLE;
     //lastSubtreeValueBiasDeltaSum = other.lastSubtreeValueBiasDeltaSum;
     //lastSubtreeValueBiasWeight = other.lastSubtreeValueBiasWeight;
     //subtreeValueBiasTableEntry = other.subtreeValueBiasTableEntry;

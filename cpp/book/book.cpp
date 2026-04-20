@@ -4,6 +4,7 @@
 #include <fstream>
 #include <thread>
 #include "../core/makedir.h"
+#include "../core/test.h"
 #include "../core/fancymath.h"
 #include "../core/fileutils.h"
 #include "../game/graphhash.h"
@@ -673,8 +674,7 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
   if(child == nullptr) {
     child = new BookNode(childHash, node->book, hist.presumedNextMovePla, symmetriesOfChild);
     bool suc = node->book->add(childHash,child);
-    assert(suc);
-    (void)suc;
+    testAssert(suc);
     childIsTransposing = false;
   }
   else {
@@ -720,10 +720,9 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
       return Book::DFSAction::recurse;
     }
   );
-  (void)suc;
-  assert(suc);
-  assert(pathFromRoot.size() >= 1);
-  assert(movesFromRoot.size() == pathFromRoot.size());
+  testAssert(suc);
+  testAssert(pathFromRoot.size() >= 1);
+  testAssert(movesFromRoot.size() == pathFromRoot.size());
 
   winlossRet.clear();
   for(const BookNode* pathNode: pathFromRoot)
@@ -734,7 +733,7 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
   int symmetryAcc = 0;
   for(size_t i = 0; i < pathFromRoot.size()-1; i++) {
     auto iter = pathFromRoot[i]->moves.find(movesFromRoot[i]);
-    assert(iter != pathFromRoot[i]->moves.end());
+    testAssert(iter != pathFromRoot[i]->moves.end());
     symmetryAcc = SymmetryHelpers::compose(symmetryAcc,iter->second.symmetryToAlign);
   }
   // At the end, we'll need this symmetry to transform it into SymBookNode space.
@@ -1926,7 +1925,7 @@ Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
         if(!inserted) {
           // Avoid double counting. Cache is guaranteed to be populated by recursive calls
           std::map<BookHash,double>::const_iterator cacheIter = costCache.find(hash);
-          assert(cacheIter != costCache.end());
+          testAssert(cacheIter != costCache.end());
           result.totalCost -= cacheIter->second;
         }
       }
@@ -1961,7 +1960,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       std::pair<BookHash,Loc>& parentInfo = node->parents[parentIdx];
       const BookNode* parent = getAssertNotNull(parentInfo.first);
       auto parentLocAndBookMove = parent->moves.find(parentInfo.second);
-      assert(parentLocAndBookMove != parent->moves.end());
+      testAssert(parentLocAndBookMove != parent->moves.end());
       int depth = parent->minDepthFromRoot + 1;
       double cost = parentLocAndBookMove->second.costFromRoot;
       double biggestWLCostFromRoot = parentLocAndBookMove->second.biggestWLCostFromRoot;
@@ -2718,7 +2717,7 @@ int64_t Book::exportToHtmlDir(
       path += "root/root";
     else {
       string hashStr = node->hash.toString();
-      assert(hashStr.size() > 10);
+      testAssert(hashStr.size() > 10);
       // Pull from the middle of the string, to avoid the fact that the hashes are
       // biased towards small hashes due to finding the minimum of the 8 symmetries.
       path += hashStr.substr(8,2) + "/" + node->hash.toString();
@@ -2742,7 +2741,7 @@ int64_t Book::exportToHtmlDir(
     string html = HTML_TEMPLATE;
     auto replace = [&](const string& key, const string& replacement) {
       size_t pos = html.find(key);
-      assert(pos != string::npos);
+      testAssert(pos != string::npos);
       html.replace(pos, key.size(), replacement);
     };
 

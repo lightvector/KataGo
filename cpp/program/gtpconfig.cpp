@@ -1,5 +1,7 @@
 #include "../program/gtpconfig.h"
 
+#include "../core/test.h"
+
 using namespace std;
 
 static const string gtpBasePart1 = R"%%(
@@ -471,7 +473,7 @@ string GTPConfig::makeConfig(
   string config = gtpBasePart1 + gtpBasePart2;
   auto replace = [&](const string& key, const string& replacement) {
     size_t pos = config.find(key);
-    assert(pos != string::npos);
+    testAssert(pos != string::npos);
     config.replace(pos, key.size(), replacement);
   };
 

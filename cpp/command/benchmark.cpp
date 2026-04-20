@@ -216,7 +216,7 @@ int MainCmds::benchmark(const vector<string>& args) {
     nnEval = createNNEval(batchSizeLimit, *sgf, modelFile, logger, cfg, params);
   };
   auto getDesiredBatchSize = [&](int currentNumThreads) {
-    assert(nnEval != NULL);
+    testAssert(nnEval != NULL);
     if(fixedBatchSize != -1)
       return fixedBatchSize;
     if(useHalfBatchSize)

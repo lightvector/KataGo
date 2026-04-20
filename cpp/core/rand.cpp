@@ -258,7 +258,7 @@ void Rand::init()
 
   char hash[65];
   SHA2::get256(s.c_str(), hash);
-  assert(hash[64] == '\0');
+  testAssert(hash[64] == '\0');
   string hashed(hash);
   init(hashed);
 }
@@ -320,8 +320,8 @@ void Rand::init(const string& seed)
 
 size_t Rand::nextIndexCumulative(const double* cumRelProbs, size_t n)
 {
-  assert(n > 0);
-  assert(n < 0xFFFFFFFF);
+  testAssert(n > 0);
+  testAssert(n < 0xFFFFFFFF);
   double sum = cumRelProbs[n-1];
   double d = nextDouble(sum);
   size_t r = BSearch::findFirstGt(cumRelProbs,d,0,n);
