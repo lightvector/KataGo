@@ -20,30 +20,34 @@ std::time_t to_time_t(TP tp)
 static const vector<string> ACCEPTABLE_MODEL_SUFFIXES {
   ".bin.gz",
   ".bin",
+  ".onnx",
   "model.txt.gz",
   "model.txt"
 };
 static const vector<string> GENERIC_MODEL_NAMES {
   "model.bin.gz",
   "model.bin",
+  "model.onnx",
   "model.txt.gz",
-  "model.txt"
+  "model.txt",
   "Model.bin.gz",
   "Model.bin",
+  "Model.onnx",
   "Model.txt.gz",
-  "Model.txt"
+  "Model.txt",
   "MODEL.bin.gz",
   "MODEL.bin",
+  "MODEL.onnx",
   "MODEL.txt.gz",
-  "MODEL.txt"
+  "MODEL.txt",
   "model.ckpt",
-  "Model.ckpt"
+  "Model.ckpt",
   "MODEL.ckpt",
   "model.checkpoint",
-  "Model.checkpoint"
+  "Model.checkpoint",
   "MODEL.checkpoint",
   "model",
-  "Model"
+  "Model",
   "MODEL",
 };
 
@@ -115,7 +119,8 @@ void LoadModel::deleteModelsOlderThan(const string& modelsDir, Logger& logger, c
     if(Global::isSuffix(filePathStr,".bin.gz") ||
        Global::isSuffix(filePathStr,".txt.gz") ||
        Global::isSuffix(filePathStr,".bin") ||
-       Global::isSuffix(filePathStr,".txt")) {
+       Global::isSuffix(filePathStr,".txt") ||
+       Global::isSuffix(filePathStr,".onnx")) {
       time_t thisTime = to_time_t(gfs::last_write_time(filePath));
       if(thisTime < time) {
         pathsToRemove.push_back(filePath);

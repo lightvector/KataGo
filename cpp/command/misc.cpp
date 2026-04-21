@@ -13,6 +13,10 @@
 #include "../program/setup.h"
 #include "../program/playutils.h"
 #include "../program/play.h"
+#include "../neuralnet/nninterface.h"
+#ifdef USE_ONNX_BACKEND
+#include "../neuralnet/onnxmodelbuilder.h"
+#endif
 #include "../command/commandline.h"
 #include "../tests/tests.h"
 #include "../main.h"
@@ -20,6 +24,7 @@
 #include <chrono>
 #include <csignal>
 #include <cmath>
+#include <memory>
 
 using namespace std;
 
@@ -33,6 +38,58 @@ int MainCmds::printclockinfo(const vector<string>& args) {
   cout << "Ticks since epoch: " << std::chrono::steady_clock::now().time_since_epoch().count() << endl;
 #endif
   return 0;
+}
+
+int MainCmds::exportonnx(const vector<string>& args) {
+#ifndef USE_ONNX_BACKEND
+  (void)args;
+  cerr << "exportonnx is only available in ONNX backend builds (USE_BACKEND=ONNX)." << endl;
+  return 1;
+#else
+  string modelFile;
+  string outputFile;
+  int nnXLen;
+  int nnYLen;
+  try {
+    KataGoCommandLine cmd("Export KataGo .bin/.bin.gz model to ONNX file.");
+    cmd.addModelFileArg();
+    TCLAP::ValueArg<string> outputArg("o","output","Output ONNX file path",true,string(),"FILE");
+    TCLAP::ValueArg<int> xLenArg("x","xlen","Board x size baked into exported model",false,19,"N");
+    TCLAP::ValueArg<int> yLenArg("y","ylen","Board y size baked into exported model",false,19,"N");
+    cmd.add(outputArg);
+    cmd.add(xLenArg);
+    cmd.add(yLenArg);
+    cmd.parseArgs(args);
+
+    modelFile = cmd.getModelFile();
+    outputFile = outputArg.getValue();
+    nnXLen = xLenArg.getValue();
+    nnYLen = yLenArg.getValue();
+  }
+  catch(TCLAP::ArgException& e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  if(nnXLen < 2 || nnXLen > NNPos::MAX_BOARD_LEN || nnYLen < 2 || nnYLen > NNPos::MAX_BOARD_LEN)
+    throw StringError("Invalid board size for exportonnx");
+
+  const string expectedSha256 = "";
+  std::unique_ptr<LoadedModel, void(*)(LoadedModel*)> loadedModel(
+    NeuralNet::loadModelFile(modelFile, expectedSha256),
+    NeuralNet::freeLoadedModel
+  );
+  const ModelDesc& modelDesc = NeuralNet::getModelDesc(loadedModel.get());
+  string onnxBytes = OnnxModelBuilder::buildOnnxModel(modelDesc, nnXLen, nnYLen);
+
+  ofstream out;
+  FileUtils::open(out, outputFile, std::ios::binary | std::ios::out);
+  out.write(onnxBytes.data(), onnxBytes.size());
+  out.close();
+
+  cout << "Exported ONNX model to " << outputFile << " (" << onnxBytes.size() << " bytes)" << endl;
+  return 0;
+#endif
 }
 
 int MainCmds::sampleinitializations(const vector<string>& args) {

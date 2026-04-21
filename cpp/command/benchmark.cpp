@@ -268,6 +268,21 @@ int MainCmds::benchmark(const vector<string>& args) {
 #ifdef USE_EIGEN_BACKEND
   cout << "You are currently using the Eigen (CPU) version of KataGo. Due to having no GPU, it may be slow." << endl;
 #endif
+#ifdef USE_ONNX_BACKEND
+  string onnxProvider = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
+  string onnxProviderLower = Global::toLower(onnxProvider);
+  cout << "You are currently using the ONNX Runtime version of KataGo." << endl;
+  cout << "Your GTP config is currently set to onnxProvider = " << onnxProvider << endl;
+  if(onnxProviderLower == "openvino") {
+    string deviceType = cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "CPU";
+    cout << "OpenVINO device type = " << deviceType << endl;
+    cout << "For Intel NPU, typically set onnxOpenVINODeviceType = NPU." << endl;
+    cout << "OpenVINO/NPU usually uses a single device; onnxDeviceToUseThread* is typically for cuda/trt/migraphx providers." << endl;
+  }
+  else if(onnxProviderLower == "cuda" || onnxProviderLower == "tensorrt" || onnxProviderLower == "migraphx") {
+    cout << "For ONNX Runtime multi-GPU, use numNNServerThreadsPerModel + onnxDeviceToUseThreadX." << endl;
+  }
+#endif
   cout << endl;
   cout << "Your GTP config is currently set to use numSearchThreads = " << params.numThreads << endl;
 
@@ -633,6 +648,9 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   int configNNCacheSizePowerOfTwo = 20;
   int configNNMutexPoolSizePowerOfTwo = 16;
   int configNumSearchThreads = 6;
+#ifdef USE_ONNX_BACKEND
+  string configOnnxProvider = "openvino";
+#endif
 
   cout << endl;
   cout << "=========================================================================" << endl;
@@ -758,30 +776,72 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
       });
   }
 
+#ifdef USE_ONNX_BACKEND
+  {
+    cout << endl;
+    string prompt =
+      "Select ONNX Runtime execution provider in the generated config\n"
+      "(cpu, openvino, cuda, tensorrt, migraphx, coreml), default openvino:\n";
+    promptAndParseInput(prompt, [&](const string& line) {
+        string provider = Global::toLower(Global::trim(line));
+        if(provider == "")
+          provider = "openvino";
+        if(
+          provider != "cpu" &&
+          provider != "openvino" &&
+          provider != "cuda" &&
+          provider != "tensorrt" &&
+          provider != "migraphx" &&
+          provider != "coreml"
+        )
+          throw StringError("Must be one of: cpu, openvino, cuda, tensorrt, migraphx, coreml");
+        configOnnxProvider = provider;
+      });
+  }
+#endif
+
   cout << endl;
   cout << "=========================================================================" << endl;
   cout << "GPUS AND RAM" << endl;
 
 #ifndef USE_EIGEN_BACKEND
   {
-    cout << endl;
-    cout << "Finding available GPU-like devices..." << endl;
-    NeuralNet::printDevices();
-    cout << endl;
+    bool askForDeviceIdxs = true;
+#ifdef USE_ONNX_BACKEND
+    bool onnxProviderSupportsThreadDeviceMap =
+      configOnnxProvider == "cuda" ||
+      configOnnxProvider == "tensorrt" ||
+      configOnnxProvider == "migraphx";
+    askForDeviceIdxs = onnxProviderSupportsThreadDeviceMap;
+#endif
+    if(askForDeviceIdxs) {
+      cout << endl;
+      cout << "Finding available GPU-like devices..." << endl;
+      NeuralNet::printDevices();
+      cout << endl;
 
-    string prompt =
-      "Specify devices/GPUs to use (for example \"0,1,2\" to use devices 0, 1, and 2). Leave blank for a default SINGLE-GPU config:\n";
-    promptAndParseInput(prompt, [&](const string& line) {
-        vector<string> pieces = Global::split(line,',');
-        configDeviceIdxs.clear();
-        for(size_t i = 0; i<pieces.size(); i++) {
-          string piece = Global::trim(pieces[i]);
-          int idx = Global::stringToInt(piece);
-          if(idx < 0 || idx > 10000)
-            throw StringError("Invalid device idx: " + Global::intToString(idx));
-          configDeviceIdxs.push_back(idx);
-        }
-      });
+      string prompt =
+        "Specify devices/GPUs to use (for example \"0,1,2\" to use devices 0, 1, and 2). Leave blank for a default SINGLE-GPU config:\n";
+      promptAndParseInput(prompt, [&](const string& line) {
+          vector<string> pieces = Global::split(line,',');
+          configDeviceIdxs.clear();
+          for(size_t i = 0; i<pieces.size(); i++) {
+            string piece = Global::trim(pieces[i]);
+            int idx = Global::stringToInt(piece);
+            if(idx < 0 || idx > 10000)
+              throw StringError("Invalid device idx: " + Global::intToString(idx));
+            configDeviceIdxs.push_back(idx);
+          }
+        });
+    }
+#ifdef USE_ONNX_BACKEND
+    else {
+      cout << endl;
+      cout << "onnxProvider = " << configOnnxProvider << " selected." << endl;
+      cout << "Skipping per-thread multi-device mapping (mainly used by cuda/tensorrt/migraphx providers)." << endl;
+      configDeviceIdxs.clear();
+    }
+#endif
   }
 #endif
 
@@ -858,6 +918,9 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
       configNNCacheSizePowerOfTwo,
       configNNMutexPoolSizePowerOfTwo,
       configNumSearchThreads
+#ifdef USE_ONNX_BACKEND
+      ,configOnnxProvider
+#endif
     );
   };
   updateConfigContents();

@@ -34,6 +34,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
       * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
+      * If using the ONNX backend, ONNX Runtime headers/libs and ONNX protobuf dependencies (`onnx/onnx_pb.h`, `onnx_proto`, `protobuf-lite`) for `.bin.gz` model conversion support.
       * zlib, libzip. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`.
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
       * If compiling to contribute to public distributed training runs, OpenSSL is required (`libssl-dev`).
@@ -41,7 +42,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * `git clone https://github.com/lightvector/KataGo.git`
    * Compile using CMake and make in the cpp directory:
       * `cd KataGo/cpp`
-      * `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=CUDA` or `cmake . -DUSE_BACKEND=TENSORRT` or `cmake . -DUSE_BACKEND=EIGEN` depending on which backend you want.
+      * `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=CUDA` or `cmake . -DUSE_BACKEND=TENSORRT` or `cmake . -DUSE_BACKEND=EIGEN` or `cmake . -DUSE_BACKEND=ONNX` depending on which backend you want.
          * Specify also `-DUSE_TCMALLOC=1` if using TCMalloc.
          * Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
          * Specify `-DUSE_AVX2=1` to also compile Eigen with AVX2 and FMA support, which will make it incompatible with old CPUs but much faster. (If you want to go further, you can also add `-DCMAKE_CXX_FLAGS='-march=native'` which will specialize to precisely your machine's CPU, but the exe might not run on other machines at all).
@@ -54,6 +55,46 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
+##### ONNX Runtime Backend (Linux)
+The ONNX backend uses ONNX Runtime for inference, and supports both:
+* `.onnx` models loaded directly.
+* `.bin.gz` KataGo models via internal conversion to ONNX graph (requires ONNX protobuf dependencies in CMake).
+
+##### Linux Intel NPU (OpenVINO EP) Setup
+1. Install Intel NPU driver on Linux:
+   * https://github.com/intel/linux-npu-driver
+2. Install OpenVINO via system package manager (APT example):
+   * https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-apt.html
+3. Build ONNX Runtime with OpenVINO EP for NPU (same ORT flow as Windows):
+   * https://onnxruntime.ai/docs/build/eps.html#openvino
+   * Set OpenVINO EP build option so `use_openvino` is `NPU` (for example `--use_openvino NPU` in ORT build.py).
+   * For instance, `./build.sh --config Release --use_openvino NPU --build_shared_lib --skip_tests --parallel --cmake_extra_defines CMAKE_INSTALL_PREFIX=<path to your katago dir>/cpp/external/onnxruntime-win-x64-openvino`.
+
+##### Prepare `ONNXRUNTIME_ROOT` in KataGo (Linux)
+Install package root:
+* `cpp/external/onnxruntime-linux-x64-openvino` by running `cmake --install build\Linux\Release --config Release`.
+
+##### Minimal KataGo Build Commands (Linux, ONNX backend)
+On Linux, `KATAGO_AUTO_FETCH_DEPS=ON` can auto-fetch missing `zlib`, `onnx`, and `protobuf` dependencies via vcpkg into `cpp/build/deps/vcpkg`.
+
+```bash
+cmake -S cpp -B cpp/build -G Ninja -DUSE_BACKEND=ONNX -DONNXRUNTIME_ROOT=cpp/external/onnxruntime-linux-x64-openvino
+cmake --build cpp/build -j
+```
+
+If you want to disable auto-fetch and provide dependencies manually:
+* `-DKATAGO_AUTO_FETCH_DEPS=OFF`
+* plus `-DONNX_INCLUDE_DIR=... -DONNX_PROTO_LIB=... -DPROTOBUF_INCLUDE_DIR=... -DPROTOBUF_LIB=... -DZLIB_INCLUDE_DIR=... -DZLIB_LIBRARY=...`
+
+Typical run config for Intel NPU:
+* `onnxProvider = openvino`
+* `onnxOpenVINODeviceType = NPU`
+* `onnxOpenVINOEnableNPUFastCompile = true` (optional; may be ignored on ORT builds that do not support this key)
+
+Multi-device assignment is mainly for `onnxProvider=cuda/tensorrt` (`onnxDeviceToUseThread*`).
+For `onnxProvider=openvino` on Intel NPU, a single device is typically used.
+
+
 ## Windows
    * TLDR:
       * Building from source on Windows is actually a bit tricky, depending on what version you're building, there's not necessarily a super-fast way.
@@ -64,13 +105,8 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
       * If using the Eigen backend, Eigen3, version 3.3.x. (http://eigen.tuxfamily.org/index.php?title=Main_Page#Download).
-      * zlib. Easy way to build zlib on Windows is to use vcpkg. Run in Powershell:
-         * git clone https://github.com/microsoft/vcpkg.git
-         * cd .\vcpkg\
-         * .\bootstrap-vcpkg.bat
-         * .\vcpkg.exe install zlib:x64-windows
-         * Set CMake ZLIB_LIBRARY to vcpkg\installed\x64-windows\lib\zlib.lib and ZLIB_INCLUDE_DIRECTORY to vcpkg\installed\x64-windows\include.
-         * Copy zlib1.dll from vcpkg\installed\x64-windows\bin to Katago folder after you've built Katago executable.
+      * If using the ONNX backend, ONNX Runtime package (headers + import libs + runtime DLLs).
+      * On Windows, missing `zlib` and ONNX model-conversion dependencies (`onnx`, `protobuf`) can be auto-fetched by CMake into `cpp/build/deps/vcpkg` (default `KATAGO_AUTO_FETCH_DEPS=ON`).
       * libzip (optional, needed only for self-play training) - for example https://github.com/kiyolee/libzip-win-build
       * For MinGW it's recommended to use [MSYS2](https://www.msys2.org/) building platform to get necessary zlib and libzip dependencies:
         * Install MSYS2 according to the instruction on the official site
@@ -97,7 +133,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
           -DLIBZIP_INCLUDE_DIR_ZIPCONF:PATH="C:/msys64/mingw64/include"
           -DLIBZIP_LIBRARY:FILEPATH="C:/msys64/mingw64/lib/libzip.dll.a"
           ```
-      * Also set `USE_BACKEND` to `OPENCL`, or `CUDA`, or `TENSORRT`, or `EIGEN` depending on what backend you want to use.
+      * Also set `USE_BACKEND` to `OPENCL`, or `CUDA`, or `TENSORRT`, or `EIGEN`, or `ONNX` depending on what backend you want to use.
       * Set any other options you want and re-run "Configure" again as needed after setting them. Such as:
          * `NO_GIT_REVISION` if you don't have Git or if cmake is not finding it.
          * `NO_LIBZIP` if you don't care about running self-play training and you don't have libzip.
@@ -116,6 +152,52 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+
+##### ONNX Runtime Backend
+The ONNX backend uses ONNX Runtime for inference, and supports both:
+* `.onnx` models loaded directly.
+* `.bin.gz` KataGo models via internal conversion to ONNX graph (requires ONNX protobuf dependencies in CMake).
+
+##### Windows Intel NPU (OpenVINO EP) Setup
+1. Install Visual Studio 2026 Community or Visual Studio 2026 Build Tools:
+   * https://visualstudio.microsoft.com/zh-hans/downloads/
+   * In installer workloads, select **Desktop development with C++**.
+2. Install Intel NPU driver:
+   * https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
+3. Install OpenVINO 2026 archive package on Windows:
+   * https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-archive-windows.html
+   * Typical install root looks like: `C:\Program Files (x86)\Intel\openvino`
+4. Add these to System PATH:
+   * `C:\Program Files (x86)\Intel\openvino\runtime\bin\intel64\Release`
+   * `C:\Program Files (x86)\Intel\openvino\runtime\3rdparty\tbb\bin`
+5. Build ONNX Runtime with OpenVINO EP for NPU (follow official docs):
+   * https://onnxruntime.ai/docs/build/eps.html#openvino
+   * Set OpenVINO EP build option so `use_openvino` is `NPU` (for example `--use_openvino NPU` in ORT build.py).
+   * For example, `.\build.bat --config Release --use_openvino NPU --build_shared_lib --skip_tests --parallel --cmake_extra_defines CMAKE_INSTALL_PREFIX=<path to your katago dir>\cpp\external\onnxruntime-win-x64-openvino`
+
+##### Prepare `ONNXRUNTIME_ROOT` in KataGo (Windows)
+Install package root:
+* `cpp/external/onnxruntime-win-x64-openvino` by running `cmake --install build\Windows\Release --config Release`
+
+##### Minimal KataGo Build Commands (Windows, ONNX backend)
+On Windows, `KATAGO_AUTO_FETCH_DEPS=ON` by default, so missing `zlib`, `onnx`, and `protobuf` dependencies are auto-fetched via vcpkg into `cpp/build/deps/vcpkg`.
+
+```
+cmake -S cpp -B cpp/build -G "Visual Studio 18 2026" -A x64 -DUSE_BACKEND=ONNX -DONNXRUNTIME_ROOT=cpp/external/onnxruntime-win-x64-openvino
+cmake --build cpp/build --config Release -j
+```
+
+If you want to disable auto-fetch and provide dependencies manually:
+* `-DKATAGO_AUTO_FETCH_DEPS=OFF`
+* plus `-DONNX_INCLUDE_DIR=... -DONNX_PROTO_LIB=... -DPROTOBUF_INCLUDE_DIR=... -DPROTOBUF_LIB=... -DZLIB_INCLUDE_DIR=... -DZLIB_LIBRARY=...`
+
+Typical run config for Intel NPU:
+* `onnxProvider = openvino`
+* `onnxOpenVINODeviceType = NPU`
+* `onnxOpenVINOEnableNPUFastCompile = true` (optional; may be ignored on ORT builds that do not support this key)
+
+Multi-device assignment is mainly for `onnxProvider=cuda/tensorrt` (`onnxDeviceToUseThread*`).
+For `onnxProvider=openvino` on Intel NPU, a single device is typically used.
 
 ## MacOS
    * TLDR:
