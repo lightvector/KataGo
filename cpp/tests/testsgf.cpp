@@ -143,7 +143,7 @@ void Tests::runSgfTests() {
       false,
       false,
       NULL,
-      [&out](Sgf::PositionSample& sample, const BoardHistory& hist, const std::string& comments) {
+      [&out](const Sgf::PositionSample& sample, const BoardHistory& hist, const std::string& comments) {
         out << sample.board.pos_hash << endl;
         out << "Comments: " << comments << endl;
         Board::printBoard(out, hist.getRecentBoard(0), Board::NULL_LOC, &(hist.moveHistory));

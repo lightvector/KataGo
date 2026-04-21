@@ -200,7 +200,7 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
   constexpr int numThreads = 30;
   vector<NNBatchingTestItem> items;
 
-  auto appendSgfPoses = [&](string sgfStr) {
+  auto appendSgfPoses = [&](const string& sgfStr) {
     Rand rand("runNNBatchingTest");
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
     for(int turnIdx = 0; turnIdx<sgf->moves.size(); turnIdx++) {

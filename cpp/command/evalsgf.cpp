@@ -564,14 +564,13 @@ int MainCmds::evalsgf(const vector<string>& args) {
 
     if(printScoreNow) {
       sout << "Score now (ROOT position):\n";
-      Board copy(board);
       BoardHistory copyHist(hist);
       Color area[Board::MAX_ARR_SIZE];
-      copyHist.endAndScoreGameNow(copy,area);
+      copyHist.endAndScoreGameNow(board,area);
 
-      for(int y = 0; y<copy.y_size; y++) {
-        for(int x = 0; x<copy.x_size; x++) {
-          Loc l = Location::getLoc(x,y,copy.x_size);
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          Loc l = Location::getLoc(x,y,board.x_size);
           sout << PlayerIO::colorToChar(area[l]);
         }
         sout << endl;

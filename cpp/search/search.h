@@ -182,13 +182,13 @@ struct Search {
   //Note - randSeed controls a few things in the search, but a lot of the randomness actually comes from
   //random symmetries of the neural net evaluations, see nneval.h
   Search(
-    SearchParams params,
+    const SearchParams& params,
     NNEvaluator* nnEval,
     Logger* logger,
     const std::string& randSeed
   );
   Search(
-    SearchParams params,
+    const SearchParams& params,
     NNEvaluator* nnEval,
     NNEvaluator* humanEval,
     Logger* logger,
@@ -228,11 +228,11 @@ struct Search {
   void setAvoidMoveUntilRescaleRoot(bool b);
   void setAlwaysIncludeOwnerMap(bool b);
   void setRootSymmetryPruningOnly(const std::vector<int>& rootPruneOnlySymmetries);
-  void setParams(SearchParams params);
-  void setParamsNoClearing(SearchParams params); //Does not clear search
+  void setParams(const SearchParams& params);
+  void setParamsNoClearing(const SearchParams& params); //Does not clear search
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
   void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
-  void setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache);
+  void setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache);
   void setNNEval(NNEvaluator* nnEval);
 
   //If the number of threads is reduced, this can free up some excess threads in the thread pool.
@@ -264,7 +264,7 @@ struct Search {
   void runWholeSearch(Player movePla, bool pondering, std::function<bool()>* shouldStopEarly);
 
   void runWholeSearch(
-    std::function<void()>* searchBegun, //If not null, will be called once search has begun and tree inspection is safe
+    const std::function<void()>* searchBegun, //If not null, will be called once search has begun and tree inspection is safe
     std::function<bool()>* shouldStopEarly, //If not null and returns true, search will stop soon after
     bool pondering,
     const TimeControls& tc,
@@ -343,7 +343,7 @@ struct Search {
 
   void printPV(std::ostream& out, const SearchNode* node, int maxDepth) const;
   void printPVForMove(std::ostream& out, const SearchNode* node, Loc move, int maxDepth) const;
-  void printTree(std::ostream& out, const SearchNode* node, PrintTreeOptions options, Player perspective) const;
+  void printTree(std::ostream& out, const SearchNode* node, const PrintTreeOptions& options, Player perspective) const;
   void printRootPolicyMap(std::ostream& out) const;
   void printRootOwnershipMap(std::ostream& out, Player perspective) const;
   void printRootEndingScoreValueBonus(std::ostream& out) const;
@@ -432,7 +432,7 @@ public:
   static void computeDirichletAlphaDistribution(int policySize, const float* policyProbs, double* alphaDistr);
   static void addDirichletNoise(const SearchParams& searchParams, Rand& rand, int policySize, float* policyProbs);
 private:
-  std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const;
+  std::shared_ptr<NNOutput>* maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, const NNOutput* oldNNOutput) const;
 
   //----------------------------------------------------------------------------------------
   // Computing basic utility and scores
@@ -671,7 +671,7 @@ private:
   bool maybeCatchUpEdgeVisits(
     SearchThread& thread,
     SearchNode& node,
-    SearchNode* child,
+    const SearchNode* child,
     const SearchNodeState& nodeState,
     const int bestChildIdx
   );

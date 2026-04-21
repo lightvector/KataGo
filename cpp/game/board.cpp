@@ -598,7 +598,7 @@ bool Board::isAdjacentToChain(Loc loc, Loc chain) const {
 
 
 //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
-bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const {
+bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, const Color* passAliveArea) const {
   if(colors[loc] != C_EMPTY || passAliveArea[loc] == pla)
     return false;
 
@@ -716,7 +716,7 @@ bool Board::setStoneFailIfNoLibs(Loc loc, Color color) {
   return true;
 }
 
-bool Board::setStonesFailIfNoLibs(std::vector<Move> placements) {
+bool Board::setStonesFailIfNoLibs(const std::vector<Move>& placements) {
   std::set<Loc> locs;
   for(const Move& placement: placements) {
     if(locs.find(placement.loc) != locs.end())

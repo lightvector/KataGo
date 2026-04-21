@@ -1207,7 +1207,7 @@ void Search::printPVForMove(ostream& out, const SearchNode* n, Loc move, int max
   }
 }
 
-void Search::printTree(ostream& out, const SearchNode* node, PrintTreeOptions options, Player perspective) const {
+void Search::printTree(ostream& out, const SearchNode* node, const PrintTreeOptions& options, Player perspective) const {
   if(node == NULL)
     return;
   string prefix;
@@ -1753,7 +1753,7 @@ vector<double> Search::getAverageTreeOwnership(const SearchNode* node) const {
   if(!alwaysIncludeOwnerMap)
     throw StringError("Called Search::getAverageTreeOwnership when alwaysIncludeOwnerMap is false");
   vector<double> vec(nnXLen*nnYLen,0.0);
-  auto accumulate = [&vec,this](float* ownership, double selfProp){
+  auto accumulate = [&vec,this](const float* ownership, double selfProp){
     for (int pos = 0; pos < nnXLen*nnYLen; pos++)
       vec[pos] += selfProp * ownership[pos];
   };
@@ -1773,7 +1773,7 @@ std::pair<vector<double>,vector<double>> Search::getAverageAndStandardDeviationT
     node = rootNode;
   vector<double> average(nnXLen*nnYLen,0.0);
   vector<double> stdev(nnXLen*nnYLen,0.0);
-  auto accumulate = [&average,&stdev,this](float* ownership, double selfProp) {
+  auto accumulate = [&average,&stdev,this](const float* ownership, double selfProp) {
     for (int pos = 0; pos < nnXLen*nnYLen; pos++) {
       const double value = ownership[pos];
       average[pos] += selfProp * value;

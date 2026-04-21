@@ -485,7 +485,7 @@ NNOutput::~NNOutput() {
 }
 
 
-void NNOutput::debugPrint(ostream& out, const Board& board) {
+void NNOutput::debugPrint(ostream& out, const Board& board) const {
   out << "Win " << Global::strprintf("%.2fc",whiteWinProb*100) << endl;
   out << "Loss " << Global::strprintf("%.2fc",whiteLossProb*100) << endl;
   out << "NoResult " << Global::strprintf("%.2fc",whiteNoResultProb*100) << endl;
@@ -812,7 +812,7 @@ static void setRowBin(float* rowBin, int pos, int feature, float value, int posS
 }
 
 //Calls f on each location that is part of an inescapable atari, or a group that can be put into inescapable atari
-static void iterLadders(const Board& board, int nnXLen, std::function<void(Loc,int,const vector<Loc>&)> f) {
+static void iterLadders(const Board& board, int nnXLen, const std::function<void(Loc,int,const vector<Loc>&)>& f) {
   int xSize = board.x_size;
   int ySize = board.y_size;
 

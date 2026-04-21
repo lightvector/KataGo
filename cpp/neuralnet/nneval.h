@@ -133,7 +133,7 @@ class NNEvaluator {
 
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
-  Rules getSupportedRules(const Rules& desiredRules, bool& supported);
+  Rules getSupportedRules(const Rules& desiredRules, bool& supported) const;
 
   //Clear all entires cached in the table
   void clearCache();

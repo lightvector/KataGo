@@ -75,7 +75,7 @@ class SelfplayManager {
   //Use these if loadModelNoDataWritingLoop was used to start the model.
   void withDataWriters(
     NNEvaluator* nnEval,
-    std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)> f
+    const std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)>& f
   );
 
   //====================================================================================

@@ -177,7 +177,7 @@ Loc PlayUtils::chooseRandomPolicyMove(
 
 
 Loc PlayUtils::getGameInitializationMove(
-  Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
+  Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
   Rand& gameRand, double temperature
 ) {
   NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
@@ -362,7 +362,7 @@ float PlayUtils::roundAndClipKomi(double unrounded, const Board& board) {
   return (float)(0.5 * round(2.0 * unrounded));
 }
 
-static SearchParams getNoiselessParams(SearchParams oldParams, int64_t numVisits) {
+static SearchParams getNoiselessParams(const SearchParams& oldParams, int64_t numVisits) {
   SearchParams newParams = oldParams;
   newParams.maxVisits = numVisits;
   newParams.maxPlayouts = numVisits;

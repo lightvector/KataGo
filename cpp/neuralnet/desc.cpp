@@ -95,7 +95,7 @@ static void parseResidualBlockStack(
   std::istream& in,
   int modelVersion,
   bool binaryFloats,
-  std::string name,
+  const std::string& name,
   int numBlocks,
   int trunkNumChannels,
   std::vector<std::pair<int, unique_ptr_void>>& blocks
@@ -548,7 +548,7 @@ ResidualBlockDesc& ResidualBlockDesc::operator=(ResidualBlockDesc&& other) {
   return *this;
 }
 
-void ResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+void ResidualBlockDesc::iterConvLayers(const std::function<void(const ConvLayerDesc& desc)>& f) const {
   f(regularConv);
   f(finalConv);
 }
@@ -646,7 +646,7 @@ GlobalPoolingResidualBlockDesc& GlobalPoolingResidualBlockDesc::operator=(Global
   return *this;
 }
 
-void GlobalPoolingResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+void GlobalPoolingResidualBlockDesc::iterConvLayers(const std::function<void(const ConvLayerDesc& desc)>& f) const {
   f(regularConv);
   f(gpoolConv);
   f(finalConv);
@@ -739,7 +739,7 @@ NestedBottleneckResidualBlockDesc& NestedBottleneckResidualBlockDesc::operator=(
   return *this;
 }
 
-void NestedBottleneckResidualBlockDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+void NestedBottleneckResidualBlockDesc::iterConvLayers(const std::function<void(const ConvLayerDesc& desc)>& f) const {
   f(preConv);
   for(int i = 0; i < blocks.size(); i++) {
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -849,7 +849,7 @@ static void parseResidualBlockStack(
   std::istream& in,
   int modelVersion,
   bool binaryFloats,
-  std::string name,
+  const std::string& name,
   int numBlocks,
   int trunkNumChannels,
   std::vector<std::pair<int, unique_ptr_void>>& blocks
@@ -1140,7 +1140,7 @@ TrunkDesc& TrunkDesc::operator=(TrunkDesc&& other) {
   return *this;
 }
 
-void TrunkDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+void TrunkDesc::iterConvLayers(const std::function<void(const ConvLayerDesc& desc)>& f) const {
   f(initialConv);
   for(int i = 0; i < blocks.size(); i++) {
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -1371,7 +1371,7 @@ PolicyHeadDesc& PolicyHeadDesc::operator=(PolicyHeadDesc&& other) {
   return *this;
 }
 
-void PolicyHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+void PolicyHeadDesc::iterConvLayers(const std::function<void(const ConvLayerDesc& desc)>& f) const {
   f(p1Conv);
   f(g1Conv);
   f(p2Conv);
@@ -1515,7 +1515,7 @@ ValueHeadDesc& ValueHeadDesc::operator=(ValueHeadDesc&& other) {
   return *this;
 }
 
-void ValueHeadDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+void ValueHeadDesc::iterConvLayers(const std::function<void(const ConvLayerDesc& desc)>& f) const {
   f(v1Conv);
   f(vOwnershipConv);
 }
@@ -1741,7 +1741,7 @@ ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   return *this;
 }
 
-void ModelDesc::iterConvLayers(std::function<void(const ConvLayerDesc& desc)> f) const {
+void ModelDesc::iterConvLayers(const std::function<void(const ConvLayerDesc& desc)>& f) const {
   trunk.iterConvLayers(f);
   policyHead.iterConvLayers(f);
   valueHead.iterConvLayers(f);

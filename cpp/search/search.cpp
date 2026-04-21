@@ -66,10 +66,10 @@ SearchThread::~SearchThread() {
 
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
-Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
+Search::Search(const SearchParams& params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
   :Search(params,nnEval,NULL,lg,rSeed)
 {}
-Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed)
+Search::Search(const SearchParams& params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed)
   :rootPla(P_BLACK),
    rootBoard(),
    rootHistory(),
@@ -249,12 +249,12 @@ void Search::setRootSymmetryPruningOnly(const std::vector<int>& v) {
 }
 
 
-void Search::setParams(SearchParams params) {
+void Search::setParams(const SearchParams& params) {
   clearSearch();
   searchParams = params;
 }
 
-void Search::setParamsNoClearing(SearchParams params) {
+void Search::setParamsNoClearing(const SearchParams& params) {
   searchParams = params;
 }
 
@@ -271,7 +271,7 @@ void Search::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBon
   setExternalPatternBonusTable(table == nullptr ? nullptr : std::make_unique<PatternBonusTable>(*table));
 }
 
-void Search::setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache) {
+void Search::setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache) {
   if(cache == evalCache)
     return;
   clearSearch();
@@ -445,7 +445,7 @@ void Search::runWholeSearch(Player movePla, bool pondering, std::function<bool()
 }
 
 void Search::runWholeSearch(
-  std::function<void()>* searchBegun,
+  const std::function<void()>* searchBegun,
   std::function<bool()>* shouldStopEarly,
   bool pondering,
   const TimeControls& tc,
@@ -1054,7 +1054,7 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
 }
 
 void Search::recursivelyRecordEvalCache(SearchNode& n) {
-  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+  std::function<void(SearchNode*,int)> f = [&](const SearchNode* node, int threadIdx) {
     (void)threadIdx;
     int64_t numVisits = node->stats.visits.load(std::memory_order_acquire);
     if(numVisits >= searchParams.evalCacheMinVisits && !node->forceNonTerminal) {
@@ -1428,7 +1428,7 @@ bool Search::playoutDescend(
 bool Search::maybeCatchUpEdgeVisits(
   SearchThread& thread,
   SearchNode& node,
-  SearchNode* child,
+  const SearchNode* child,
   const SearchNodeState& nodeState,
   const int bestChildIdx
 ) {

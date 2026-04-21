@@ -21,7 +21,7 @@ static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
 }
 
 AsyncBot::AsyncBot(
-  SearchParams params,
+  const SearchParams& params,
   NNEvaluator* nnEval,
   Logger* l,
   const string& randSeed
@@ -40,7 +40,7 @@ AsyncBot::AsyncBot(
 }
 
 AsyncBot::AsyncBot(
-  SearchParams params,
+  const SearchParams& params,
   NNEvaluator* nnEval,
   NNEvaluator* humanEval,
   Logger* l,
@@ -128,11 +128,11 @@ void AsyncBot::setAlwaysIncludeOwnerMap(bool b) {
   stopAndWait();
   search->setAlwaysIncludeOwnerMap(b);
 }
-void AsyncBot::setParams(SearchParams params) {
+void AsyncBot::setParams(const SearchParams& params) {
   stopAndWait();
   search->setParams(params);
 }
-void AsyncBot::setParamsNoClearing(SearchParams params) {
+void AsyncBot::setParamsNoClearing(const SearchParams& params) {
   stopAndWait();
   search->setParamsNoClearing(params);
 }
@@ -144,7 +144,7 @@ void AsyncBot::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternB
   stopAndWait();
   search->setCopyOfExternalPatternBonusTable(table);
 }
-void AsyncBot::setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache) {
+void AsyncBot::setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache) {
   stopAndWait();
   search->setExternalEvalCache(cache);
 }

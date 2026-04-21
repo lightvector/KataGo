@@ -416,7 +416,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
 
 void SelfplayManager::withDataWriters(
   NNEvaluator* nnEval,
-  std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)> f
+  const std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)>& f
 ) {
   std::lock_guard<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;

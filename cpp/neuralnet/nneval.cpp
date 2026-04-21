@@ -313,7 +313,7 @@ void NNEvaluator::setDefaultSymmetry(int s) {
   currentDefaultSymmetry.store(s, std::memory_order_release);
 }
 
-Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) {
+Rules NNEvaluator::getSupportedRules(const Rules& desiredRules, bool& supported) const {
   if(loadedModel == NULL) {
     supported = true;
     return desiredRules;

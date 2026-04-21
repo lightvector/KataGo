@@ -149,7 +149,7 @@ void Search::addDirichletNoise(const SearchParams& searchParams, Rand& rand, int
 }
 
 
-std::shared_ptr<NNOutput>* Search::maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, NNOutput* oldNNOutput) const {
+std::shared_ptr<NNOutput>* Search::maybeAddPolicyNoiseAndTemp(SearchThread& thread, bool isRoot, const NNOutput* oldNNOutput) const {
   if(!isRoot)
     return NULL;
   if(!searchParams.rootNoiseEnabled &&
