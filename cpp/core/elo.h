@@ -3,6 +3,9 @@
 
 #include "../core/global.h"
 
+#include <array>
+#include <map>
+
 namespace ComputeElos {
   STRUCT_NAMED_PAIR(double,firstWins,double,secondWins,WLRecord);
     
@@ -29,6 +32,16 @@ namespace ComputeElos {
 
   //What's the probability of winning correspnding to this elo difference?
   double probWin(double eloDiff);
+
+  //Bradley-Terry MLE Elo via Newton-Raphson, for symmetric pairwise W/L/D data.
+  //pairStats: {nameA,nameB} -> {winsA, winsB, draws}, nameA < nameB lexicographically.
+  //Draws count as 0.5 wins for each side. Returns true if converged.
+  bool computeBradleyTerryElo(
+    const std::vector<std::string>& botNames,
+    const std::map<std::pair<std::string,std::string>, std::array<int64_t,3>>& pairStats,
+    std::vector<double>& outElo,
+    std::vector<double>& outStderr
+  );
 
   void runTests();
 }
