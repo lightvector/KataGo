@@ -50,6 +50,8 @@ set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 50. Compil
 set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache. May use a lot of disk space. Only applies when USE_BACKEND is TENSORRT.")
 mark_as_advanced(USE_CACHE_TENSORRT_PLAN)
 
+set(USE_CLANG_TIDY 1 CACHE BOOL "Run clang-tidy static analysis during build")
+
 #--------------------------- NEURAL NET BACKEND ------------------------------------------------------------------------
 
 message(STATUS "Building 'katago' executable for GTP engine and other tools.")
@@ -608,6 +610,13 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
   endif()
 
+endif()
+
+if(USE_CLANG_TIDY)
+  message(STATUS "Setting up clang-tidy checks.")
+  find_program(CLANG_TIDY_EXE NAMES clang-tidy HINTS /opt/homebrew/opt/llvm/bin REQUIRED)
+  set_target_properties(katago PROPERTIES
+    CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-checks=-*,performance-inefficient-vector-operation,performance-unnecessary-copy-initialization,readability-non-const-parameter,readability-make-member-function-const")
 endif()
 
 target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
