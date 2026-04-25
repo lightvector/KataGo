@@ -50,6 +50,8 @@ set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 50. Compil
 set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache. May use a lot of disk space. Only applies when USE_BACKEND is TENSORRT.")
 mark_as_advanced(USE_CACHE_TENSORRT_PLAN)
 
+set(USE_CLANG_TIDY 1 CACHE BOOL "Run clang-tidy static analysis during build")
+
 #--------------------------- NEURAL NET BACKEND ------------------------------------------------------------------------
 
 message(STATUS "Building 'katago' executable for GTP engine and other tools.")
@@ -608,6 +610,38 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free")
   endif()
 
+endif()
+
+if(USE_CLANG_TIDY)
+  message(STATUS "Setting up clang-tidy checks.")
+
+  set(CLANG_TIDY_HINTS)
+  if(WIN32)
+    if(MSVC)
+      set(_vs_root "$ENV{ProgramFiles}/Microsoft Visual Studio")
+      if(EXISTS "${_vs_root}")
+        file(GLOB _vs_install_dirs LIST_DIRECTORIES true "${_vs_root}/*/*")
+        foreach(_vs_dir ${_vs_install_dirs})
+          list(APPEND CLANG_TIDY_HINTS "${_vs_dir}/VC/Tools/Llvm/bin")
+        endforeach()
+      endif()
+    else()
+      list(APPEND CLANG_TIDY_HINTS "$ENV{ProgramFiles}/LLVM/bin")
+    endif()
+  elseif(APPLE)
+    set(CLANG_TIDY_HINTS /opt/homebrew/opt/llvm/bin)
+  endif()
+
+  find_program(CLANG_TIDY_EXE NAMES clang-tidy HINTS ${CLANG_TIDY_HINTS} REQUIRED)
+
+  if(MSVC)
+    set(CLANG_TIDY_EXTRA_ARGS "--extra-arg=/EHsc")
+  else()
+    set(CLANG_TIDY_EXTRA_ARGS "--extra-arg=-fexceptions")
+  endif()
+
+  set_target_properties(katago PROPERTIES
+    CXX_CLANG_TIDY "${CLANG_TIDY_EXE};-checks=-*,performance-inefficient-vector-operation,performance-unnecessary-copy-initialization,readability-non-const-parameter,readability-make-member-function-const;${CLANG_TIDY_EXTRA_ARGS}")
 endif()
 
 target_include_directories(katago PUBLIC ${CMAKE_CURRENT_BINARY_DIR})

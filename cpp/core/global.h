@@ -261,7 +261,7 @@ unique_ptr_void make_unique_void(T* ptr)
   });
 }
 
-template<typename T, typename DeleterRet, DeleterRet (*deleter)(T)>
+template<typename T, typename DeleterRet, auto deleter>
 struct WrappedWithDeleter {
   bool assigned;
   T val;
