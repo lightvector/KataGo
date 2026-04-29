@@ -15,6 +15,8 @@
 #include "../main.h"
 
 #include "../qrstune/QRSOptimizer.h"
+#include "../command/tuneparams.h"
+#include "../core/test.h"
 
 #include <vector>
 #include <algorithm>
@@ -42,9 +44,14 @@ struct TuneDimension {
 };
 
 static const TuneDimension tuneDims[] = {
-  {"cpuctExploration",          "Cpuct",  0.5,  1.5,  "cpuctExplorationMin",          "cpuctExplorationMax",          &SearchParams::cpuctExploration},
+  {"cpuctExploration",     "Cpuct",   0.5,  1.5,
+   "cpuctExplorationMin",     "cpuctExplorationMax",     &SearchParams::cpuctExploration},
+  {"fpuReductionMax",      "Fpu",     0.0,  0.5,
+   "fpuReductionMaxMin",      "fpuReductionMaxMax",      &SearchParams::fpuReductionMax},
+  {"rootFpuReductionMax",  "RootFpu", 0.0,  0.4,
+   "rootFpuReductionMaxMin",  "rootFpuReductionMaxMax",  &SearchParams::rootFpuReductionMax},
 };
-static const int nDims = sizeof(tuneDims) / sizeof(tuneDims[0]);
+static const int nAllowedDims = (int)(sizeof(tuneDims) / sizeof(tuneDims[0]));
 
 //Map QRS-Tune normalized coordinate x in [-1,+1] to real PUCT value.
 static double qrsDimToReal(int dim, double x, const double* mins, const double* maxs) {
@@ -57,13 +64,14 @@ static const double Z_95 = 1.96;
 
 // Compute 95% CI bounds for each parameter in real (non-normalized) coordinates.
 // Returns false if CIs are unavailable. Fills ciLo/ciHi/clamped arrays of size nDims.
-static bool computeParamCIs(const QRSTune::QRSTuner& tuner,
+static bool computeParamCIs(int nDims,
+                             const QRSTune::QRSTuner& tuner,
                              const vector<double>& vBest,
                              const double* mins, const double* maxs,
                              double* ciLo, double* ciHi, bool* clamped) {
-  double se[nDims];
+  vector<double> se(nDims);
   bool hasCIs = tuner.model().computeOptimumSE(
-    tuner.buffer().xs(), se, clamped);
+    tuner.buffer().xs(), se.data(), clamped);
   if(!hasCIs) return false;
   for(int d = 0; d < nDims; d++) {
     double radius = (maxs[d] - mins[d]) * 0.5;
@@ -77,12 +85,14 @@ static bool computeParamCIs(const QRSTune::QRSTuner& tuner,
 
 //Print ASCII-art regression curve for each PUCT dimension.
 //For dimension d: fix all other dims at vBest, sweep d from -1 to +1.
-static void printRegressionCurves(const QRSTune::QRSTuner& tuner,
+static void printRegressionCurves(const vector<TuneDimension>& activeDims,
+                                   const QRSTune::QRSTuner& tuner,
                                    const vector<double>& vBest,
                                    const double* mins, const double* maxs,
                                    Logger& logger) {
   const int plotW = 60;
   const int plotH = 20;
+  const int nDims = (int)activeDims.size();
   double bestWinRate = tuner.model().predict(vBest.data());
 
   for(int dim = 0; dim < nDims; dim++) {
@@ -105,7 +115,7 @@ static void printRegressionCurves(const QRSTune::QRSTuner& tuner,
     double bestReal = qrsDimToReal(dim, vBest[dim], mins, maxs);
     logger.write("");
     logger.write(
-      "[Dim " + Global::intToString(dim) + "] " + tuneDims[dim].name +
+      "[Dim " + Global::intToString(dim) + "] " + activeDims[dim].name +
       "  (best QRS=" + Global::strprintf("%.3f", vBest[dim]) +
       " -> real=" + Global::strprintf("%.3f", bestReal) +
       ", est.winrate=" + Global::strprintf("%.3f", bestWinRate) + ")"
@@ -182,24 +192,30 @@ int MainCmds::tuneparams(const vector<string>& args) {
   //Read tuning-specific config
   int numTrials = cfg.getInt("numTrials", 1, 100000);
 
+  //Resolve which dimension to tune from cfg's tuneDimension key.
+  int selectedDimIdx = TuneParams::resolveDimension(cfg);
+  vector<TuneDimension> activeDims = { tuneDims[selectedDimIdx] };
+  const int nDims = (int)activeDims.size();
+  logger.write("Tuning dimension: " + string(activeDims[0].name));
+
   //Search ranges (configurable; defaults preserve prior behaviour)
-  double qrsMins[nDims], qrsMaxs[nDims];
+  vector<double> qrsMins(nDims), qrsMaxs(nDims);
   for(int d = 0; d < nDims; d++) {
-    qrsMins[d] = cfg.contains(tuneDims[d].minKey)
-                    ? cfg.getDouble(tuneDims[d].minKey, -1e9, 1e9)
-                    : tuneDims[d].defaultMin;
-    qrsMaxs[d] = cfg.contains(tuneDims[d].maxKey)
-                    ? cfg.getDouble(tuneDims[d].maxKey, -1e9, 1e9)
-                    : tuneDims[d].defaultMax;
+    qrsMins[d] = cfg.contains(activeDims[d].minKey)
+                    ? cfg.getDouble(activeDims[d].minKey, -1e9, 1e9)
+                    : activeDims[d].defaultMin;
+    qrsMaxs[d] = cfg.contains(activeDims[d].maxKey)
+                    ? cfg.getDouble(activeDims[d].maxKey, -1e9, 1e9)
+                    : activeDims[d].defaultMax;
     if(qrsMins[d] >= qrsMaxs[d])
       throw StringError(
-        string("tune-params: ") + tuneDims[d].minKey + " must be < " + tuneDims[d].maxKey);
+        string("tune-params: ") + activeDims[d].minKey + " must be < " + activeDims[d].maxKey);
   }
   {
     string rangeStr;
     for(int d = 0; d < nDims; d++) {
       if(d > 0) rangeStr += ", ";
-      rangeStr += string(tuneDims[d].name) + "=[" +
+      rangeStr += string(activeDims[d].name) + "=[" +
         Global::strprintf("%.4f", qrsMins[d]) + "," + Global::strprintf("%.4f", qrsMaxs[d]) + "]";
     }
     logger.write("QRS ranges: " + rangeStr);
@@ -265,7 +281,7 @@ int MainCmds::tuneparams(const vector<string>& args) {
 
     SearchParams expParams = paramss[1];
     for(int d = 0; d < nDims; d++)
-      expParams.*(tuneDims[d].field) = qrsDimToReal(d, sample[d], qrsMins, qrsMaxs);
+      expParams.*(activeDims[d].field) = qrsDimToReal(d, sample[d], qrsMins.data(), qrsMaxs.data());
 
     //Alternate colors to remove first-move advantage bias
     bool expIsBlack = (trial % 2 == 0);
@@ -354,16 +370,18 @@ int MainCmds::tuneparams(const vector<string>& args) {
 
       {
         string paramStr;
-        double ciLo[nDims], ciHi[nDims];
-        bool clampedDims[nDims];
-        if(computeParamCIs(tuner, vBest, qrsMins, qrsMaxs, ciLo, ciHi, clampedDims)) {
+        vector<double> ciLo(nDims), ciHi(nDims);
+        std::unique_ptr<bool[]> clampedRaw(new bool[nDims]);
+        if(computeParamCIs(nDims, tuner, vBest, qrsMins.data(), qrsMaxs.data(),
+                           ciLo.data(), ciHi.data(), clampedRaw.get())) {
           for(int d = 0; d < nDims; d++) {
-            paramStr += Global::strprintf(" %s=[%.4f, %.4f]", tuneDims[d].shortName, ciLo[d], ciHi[d]);
-            if(clampedDims[d]) paramStr += "*";
+            paramStr += Global::strprintf(" %s=[%.4f, %.4f]", activeDims[d].shortName, ciLo[d], ciHi[d]);
+            if(clampedRaw[d]) paramStr += "*";
           }
         } else {
           for(int d = 0; d < nDims; d++)
-            paramStr += Global::strprintf(" %s=%.4f", tuneDims[d].shortName, qrsDimToReal(d, vBest[d], qrsMins, qrsMaxs));
+            paramStr += Global::strprintf(" %s=%.4f", activeDims[d].shortName,
+              qrsDimToReal(d, vBest[d], qrsMins.data(), qrsMaxs.data()));
         }
         logger.write(Global::strprintf(
           "[%d%%] %d/%d | W=%d L=%d D=%d |%s | ETA %s",
@@ -385,19 +403,20 @@ int MainCmds::tuneparams(const vector<string>& args) {
     "  Draws: " + Global::intToString(draws)
   );
   {
-    double ciLo[nDims], ciHi[nDims];
-    bool clampedDims[nDims];
-    bool hasCIs = computeParamCIs(tuner, vBest, qrsMins, qrsMaxs, ciLo, ciHi, clampedDims);
+    vector<double> ciLo(nDims), ciHi(nDims);
+    std::unique_ptr<bool[]> clampedRaw(new bool[nDims]);
+    bool hasCIs = computeParamCIs(nDims, tuner, vBest, qrsMins.data(), qrsMaxs.data(),
+                                   ciLo.data(), ciHi.data(), clampedRaw.get());
 
     for(int d = 0; d < nDims; d++) {
-      double bestReal = qrsDimToReal(d, vBest[d], qrsMins, qrsMaxs);
+      double bestReal = qrsDimToReal(d, vBest[d], qrsMins.data(), qrsMaxs.data());
       if(hasCIs) {
-        string warn = clampedDims[d] ? "  [boundary - CI may be unreliable]" : "";
+        string warn = clampedRaw[d] ? "  [boundary - CI may be unreliable]" : "";
         logger.write(Global::strprintf("Best %-25s = %.4f  95%%CI [%.4f, %.4f]%s",
-          tuneDims[d].name, bestReal, ciLo[d], ciHi[d], warn.c_str()));
+          activeDims[d].name, bestReal, ciLo[d], ciHi[d], warn.c_str()));
       } else {
         logger.write(Global::strprintf("Best %-25s = %.4f  (CI unavailable)",
-          tuneDims[d].name, bestReal));
+          activeDims[d].name, bestReal));
       }
     }
   }
@@ -411,14 +430,14 @@ int MainCmds::tuneparams(const vector<string>& args) {
   }
 
   //ASCII-art regression curves (one per PUCT dimension)
-  printRegressionCurves(tuner, vBest, qrsMins, qrsMaxs, logger);
+  printRegressionCurves(activeDims, tuner, vBest, qrsMins.data(), qrsMaxs.data(), logger);
 
   //Suggested match command for verification
   {
     string overrides = "botName0=tuned,botName1=default,";
     for(int d = 0; d < nDims; d++)
-      overrides += string(tuneDims[d].name) + "0=" +
-        Global::strprintf("%.4f", qrsDimToReal(d, vBest[d], qrsMins, qrsMaxs)) + ",";
+      overrides += string(activeDims[d].name) + "0=" +
+        Global::strprintf("%.4f", qrsDimToReal(d, vBest[d], qrsMins.data(), qrsMaxs.data())) + ",";
     overrides += "numGameThreads=8,numGamesTotal=200";
     overrides += ",nnModelFile0=" + nnModelFile0 + ",nnModelFile1=" + nnModelFile1;
     logger.write("");
@@ -438,4 +457,59 @@ int MainCmds::tuneparams(const vector<string>& args) {
   NeuralNet::globalCleanup();
   ScoreValue::freeTables();
   return 0;
+}
+
+int TuneParams::resolveDimension(ConfigParser& cfg) {
+  string tuneDimName = cfg.getString("tuneDimension");
+  for(int i = 0; i < nAllowedDims; i++) {
+    if(tuneDimName == tuneDims[i].name) return i;
+  }
+  string allowed;
+  for(int i = 0; i < nAllowedDims; i++) {
+    if(i > 0) allowed += ", ";
+    allowed += tuneDims[i].name;
+  }
+  throw StringError("tune-params: tuneDimension = '" + tuneDimName +
+                    "' not recognized; expected one of: " + allowed);
+}
+
+void TuneParams::runTests() {
+  cout << "Running TuneParams tests" << endl;
+
+  // Positive: each allowed name maps to its expected index.
+  {
+    ConfigParser cfg(std::map<string,string>{{"tuneDimension", "cpuctExploration"}});
+    testAssert(TuneParams::resolveDimension(cfg) == 0);
+  }
+  {
+    ConfigParser cfg(std::map<string,string>{{"tuneDimension", "fpuReductionMax"}});
+    testAssert(TuneParams::resolveDimension(cfg) == 1);
+  }
+  {
+    ConfigParser cfg(std::map<string,string>{{"tuneDimension", "rootFpuReductionMax"}});
+    testAssert(TuneParams::resolveDimension(cfg) == 2);
+  }
+
+  // Negative: missing tuneDimension key throws (any exception type — the
+  // exact type belongs to ConfigParser and is not this unit's contract).
+  {
+    ConfigParser cfg(std::map<string,string>{});
+    bool threw = false;
+    try { (void)TuneParams::resolveDimension(cfg); }
+    catch(const std::exception&) { threw = true; }
+    testAssert(threw);
+  }
+
+  // Negative: unrecognized value throws StringError mentioning the offending
+  // name and at least one allowed name.
+  {
+    ConfigParser cfg(std::map<string,string>{{"tuneDimension", "totallyMadeUpName"}});
+    bool threwStringError = false;
+    string msg;
+    try { (void)TuneParams::resolveDimension(cfg); }
+    catch(const StringError& e) { threwStringError = true; msg = e.what(); }
+    testAssert(threwStringError);
+    testAssert(msg.find("totallyMadeUpName") != string::npos);
+    testAssert(msg.find("cpuctExploration") != string::npos);
+  }
 }
