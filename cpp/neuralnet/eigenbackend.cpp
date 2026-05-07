@@ -1140,6 +1140,10 @@ BlockStack::BlockStack(
       std::unique_ptr<NestedBottleneckResidualBlock> block = std::make_unique<NestedBottleneckResidualBlock>(*blockDesc,nnX,nnY);
       blocks.emplace_back(NESTED_BOTTLENECK_BLOCK_KIND, std::move(block));
     }
+    else if(descBlocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            descBlocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      throw StringError("Transformer blocks are not yet supported by the Eigen backend");
+    }
     else {
       ASSERT_UNREACHABLE;
     }
@@ -1253,6 +1257,8 @@ struct Trunk {
       blocks(desc.blocks,desc.numBlocks,nnX,nnY),
       trunkTipBN(desc.trunkTipBN,desc.trunkTipActivation)
   {
+    if(desc.trunkNormKind != TRUNK_NORM_KIND_STANDARD)
+      throw StringError("Trunk RMSNorm is not yet supported by the Eigen backend");
     if(desc.metaEncoderVersion > 0) {
       sgfMetadataEncoder = std::make_unique<SGFMetadataEncoder>(desc.sgfMetadataEncoder);
       testAssert(sgfMetadataEncoder->mul3.outChannels == initialMatMul.outChannels);

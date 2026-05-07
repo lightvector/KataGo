@@ -17,9 +17,10 @@ from typing import Dict, List
 import torch
 import torch.nn
 from torch.optim.swa_utils import AveragedModel
+from katago.train.model_pytorch import RMSNormMask
 
 from katago.train import modelconfigs
-from katago.train.model_pytorch import Model, ResBlock, NestedBottleneckResBlock
+from katago.train.model_pytorch import Model, ResBlock, NestedBottleneckResBlock, TransformerAttentionBlock, TransformerFFNBlock, NestedBottleneckTransformerBlock
 from katago.train.load_model import load_model
 
 #Command and args-------------------------------------------------------------------
@@ -225,6 +226,8 @@ def main(args):
             writeln("ACTIVATION_RELU")
         elif isinstance(activation,torch.nn.Mish):
             writeln("ACTIVATION_MISH")
+        elif isinstance(activation,torch.nn.SiLU):
+            writeln("ACTIVATION_SILU")
         elif isinstance(activation,torch.nn.Identity):
             writeln("ACTIVATION_IDENTITY")
         else:
@@ -245,6 +248,24 @@ def main(args):
         (out_channels,) = linearbias.shape
         writeln(out_channels)
         write_weights(linearbias)
+
+    def write_rmsnorm(name,rmsnormmask):
+        writeln(name)
+        writeln(rmsnormmask.c_in)
+        writeln(1 if rmsnormmask.spatial else 0)
+        cgroup_size = rmsnormmask.cgroup_size if rmsnormmask.cgroup_size is not None else 0
+        writeln(cgroup_size)
+        if not rmsnormmask.spatial:
+            # Non-spatial: weight comes from torch.nn.RMSNorm
+            assert rmsnormmask.norm is not None
+            assert rmsnormmask.norm.weight.shape == (rmsnormmask.c_in,)
+            write_weights(rmsnormmask.norm.weight)
+        else:
+            # Spatial: weight comes from self.gamma
+            assert rmsnormmask.gamma.shape == (rmsnormmask.c_in,)
+            write_weights(rmsnormmask.gamma)
+        assert rmsnormmask.beta.shape == (rmsnormmask.c_in,)
+        write_weights(rmsnormmask.beta)
 
     def write_normactconv(name,normactconv):
         if normactconv.c_gpool is None:
@@ -278,6 +299,57 @@ def main(args):
             write_matmul(name+".convpool.linear_g", normactconv.convpool.linear_g.weight)
             assert normactconv.convpool.linear_g.bias is None
 
+    def write_transformer_norm(name,rmsnorm):
+        """Write an inline RMSNorm (torch.nn.RMSNorm) used inside transformer blocks.
+        These are simpler than the trunk-final RMSNormMask: just a weight vector, no bias, no spatial modes."""
+        writeln(name)
+        num_channels = rmsnorm.weight.shape[0]
+        writeln(num_channels)
+        write_weights(rmsnorm.weight)
+
+    def write_transformer_attention_block(name,block):
+        writeln("transformer_attention_block")
+        writeln(name)
+        writeln(block.num_heads)
+        writeln(block.num_kv_heads)
+        writeln(block.q_head_dim)
+        writeln(block.v_head_dim)
+        writeln(1 if block.use_rope else 0)
+        writeln(1 if block.learnable_rope else 0)
+
+        write_transformer_norm(name+".norm1", block.norm1)
+        write_matmul(name+".q_proj", block.q_proj.weight)
+        write_matmul(name+".k_proj", block.k_proj.weight)
+        write_matmul(name+".v_proj", block.v_proj.weight)
+        write_matmul(name+".out_proj", block.out_proj.weight)
+
+        if block.use_rope:
+            if block.learnable_rope:
+                # rope_freqs: (num_kv_heads, q_head_dim//2, 2)
+                writeln(name+".rope_freqs")
+                freqs = block.rope_freqs.detach()
+                writeln(freqs.shape[0])  # num_kv_heads
+                writeln(freqs.shape[1])  # num_pairs
+                writeln(freqs.shape[2])  # 2 (omega_x, omega_y)
+                write_weights(freqs)
+            else:
+                # Non-learnable: write theta so C++ can recompute
+                writeln(name+".rope_theta")
+                writeln(block.rope_theta)
+
+    def write_transformer_ffn_block(name,block):
+        writeln("transformer_ffn_block")
+        writeln(name)
+        writeln(block.c_main)
+        writeln(block.ffn_dim)
+        writeln(1 if block.use_swiglu else 0)
+
+        write_transformer_norm(name+".norm", block.norm)
+        write_matmul(name+".ffn_linear1", block.ffn_linear1.weight)
+        if block.use_swiglu:
+            write_matmul(name+".ffn_linear_gate", block.ffn_linear_gate.weight)
+        write_matmul(name+".ffn_linear2", block.ffn_linear2.weight)
+
     def write_block(name,block):
         if isinstance(block,ResBlock) and block.normactconv1.c_gpool is None:
             assert block.normactconv2.c_gpool is None
@@ -300,8 +372,21 @@ def main(args):
             for i,subblock in enumerate(block.blockstack):
                 write_block(name+".blockstack."+str(i),subblock)
             write_normactconv(name+".normactconvq", block.normactconvq)
+        elif isinstance(block,TransformerAttentionBlock):
+            write_transformer_attention_block(name, block)
+        elif isinstance(block,TransformerFFNBlock):
+            write_transformer_ffn_block(name, block)
+        elif isinstance(block,NestedBottleneckTransformerBlock):
+            writeln("nested_bottleneck_block")
+            writeln(name)
+            writeln(2 * block.internal_length)
+            assert len(block.blockstack) == 2 * block.internal_length
+            write_normactconv(name+".normactconvp", block.normactconvp)
+            for i,subblock in enumerate(block.blockstack):
+                write_block(name+".blockstack."+str(i), subblock)
+            write_normactconv(name+".normactconvq", block.normactconvq)
         else:
-            assert False, "This kind of block is not supported for export right now"
+            assert False, f"This kind of block is not supported for export right now: {type(block)}"
 
     def write_metadata_encoder(name,encoder):
         writeln(name)
@@ -325,8 +410,20 @@ def main(args):
         writeln(model.c_gpool)
         writeln(model.c_gpool)
         if version >= 15:
+            # Trunk final norm kind:
+            # 0 = standard (batch norm or bias mask)
+            # 1 = RMSNorm (non-spatial)
+            # 2 = RMSNorm spatial (no groups)
+            # 3 = RMSNorm spatial grouped
+            if model.trunk_final_rmsnorm:
+                assert isinstance(model.norm_trunkfinal, RMSNormMask)
+                assert model.norm_trunkfinal.cgroup_size is None, \
+                    "Grouped spatial RMSNorm (cgroup_size != None) is not supported for export"
+                trunk_norm_kind = 1  # TRUNK_NORM_KIND_RMSNORM; spatial flag is in the RMSNormLayerDesc
+            else:
+                trunk_norm_kind = 0
+            writeln(trunk_norm_kind)
             # Write some dummy placeholders for future features
-            writeln(0)
             writeln(0)
             writeln(0)
             writeln(0)
@@ -342,7 +439,9 @@ def main(args):
 
         for i,block in enumerate(model.blocks):
             write_block("model.blocks."+str(i), block)
-        if model.trunk_normless:
+        if model.trunk_final_rmsnorm:
+            write_rmsnorm("model.norm_trunkfinal", model.norm_trunkfinal)
+        elif model.trunk_normless:
             write_biasmask("model.norm_trunkfinal", model.norm_trunkfinal)
         else:
             write_bn("model.norm_trunkfinal", model.norm_trunkfinal)

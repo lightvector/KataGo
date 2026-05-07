@@ -140,6 +140,9 @@ swift::Array<BlockDescriptor> MetalProcess::residualBlocksToSwift(const vector<p
     } else if (blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       BlockDescriptor descriptor = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
+    } else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+              blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      throw StringError("Transformer blocks are not yet supported by the Metal backend");
     } else {
       BlockDescriptor descriptor = residualBlockDescToSwift((ResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
@@ -208,6 +211,8 @@ SWTrunkDesc MetalProcess::trunkDescToSwift(const TrunkDesc * trunk) {
   SWMatMulLayerDesc initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
   auto sgfMetadataEncoder = sGFMetadataEncoderDescToSwift(&trunk->sgfMetadataEncoder);
   auto swBlocks = residualBlocksToSwift(trunk->blocks);
+  if(trunk->trunkNormKind != TRUNK_NORM_KIND_STANDARD)
+    throw StringError("Trunk RMSNorm is not yet supported by the Metal backend");
   SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
   ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
 

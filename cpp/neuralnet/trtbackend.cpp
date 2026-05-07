@@ -435,6 +435,8 @@ struct ModelParser {
     testAssert(desc->blocks.size() == desc->numBlocks);
     auto trunkScratchLayer = buildResidualBlockStack(initialBiasLayer->getOutput(0), desc->blocks, "trunk");
 
+    if(desc->trunkNormKind != TRUNK_NORM_KIND_STANDARD)
+      throw StringError("Trunk RMSNorm is not yet supported by the TensorRT backend");
     auto trunkTipBatchNormLayer = buildBatchNormLayer(trunkScratchLayer->getOutput(0), &desc->trunkTipBN);
     auto trunkTipActivationLayer =
       buildActivationLayer(trunkTipBatchNormLayer->getOutput(0), &desc->trunkTipActivation);
@@ -465,6 +467,9 @@ struct ModelParser {
       } else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
         auto blockDesc = static_cast<NestedBottleneckResidualBlockDesc*>(blocks[i].second.get());
         trunkScratchLayer = buildNestedBottleneckResidualBlock(trunkScratchLayer->getOutput(0), blockDesc);
+      } else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+                blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+        throw StringError("Transformer blocks are not yet supported by the TensorRT backend");
       } else {
         ASSERT_UNREACHABLE;
       }

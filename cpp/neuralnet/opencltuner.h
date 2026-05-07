@@ -145,6 +145,18 @@ namespace OpenCLParams {
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;
   };
+
+  struct TransformerParams {
+    // Attention kernel parameters
+    int ATTN_BLOCK_Q = 32;   // query positions per workgroup
+    int ATTN_BLOCK_KV = 32;  // key/value tile size
+    int USE_TILED_ATTN = 1;  // 1 = tiled (shared memory), 0 = naive (one work-item per query)
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
 }
 
 struct OpenCLTuneParams {
@@ -167,6 +179,7 @@ struct OpenCLTuneParams {
   OpenCLParams::Conv3x3Params conv3x3 = OpenCLParams::Conv3x3Params();
   OpenCLParams::Conv5x5Params conv5x5 = OpenCLParams::Conv5x5Params();
   OpenCLParams::GPoolParams gPool = OpenCLParams::GPoolParams();
+  OpenCLParams::TransformerParams transformer = OpenCLParams::TransformerParams();
 
   bool operator==(const OpenCLTuneParams& other) const;
   bool isValid() const;
@@ -193,6 +206,13 @@ namespace OpenCLTuner {
     int regularNumChannels;
     int gpoolNumChannels;
     int modelVersion;
+
+    // Transformer-specific info (0 if no transformer blocks)
+    int transformerHeadDim;
+    int transformerVHeadDim;
+    int transformerNumHeads;
+    int transformerNumKVHeads;
+    int transformerFFNChannels;
 
     static ModelInfoForTuning ofDesc(const ModelDesc* desc);
   };

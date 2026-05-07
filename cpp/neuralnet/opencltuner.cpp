@@ -531,6 +531,38 @@ bool OpenCLParams::GPoolParams::isValid() const {
   return true;
 }
 
+string OpenCLParams::TransformerParams::desc() const {
+  string s;
+  s += "ATTN_BLOCK_Q=" + Global::intToString(ATTN_BLOCK_Q);
+  s += " ATTN_BLOCK_KV=" + Global::intToString(ATTN_BLOCK_KV);
+  s += " USE_TILED_ATTN=" + Global::intToString(USE_TILED_ATTN);
+  return s;
+}
+string OpenCLParams::TransformerParams::compileOptions() const {
+  string s;
+  s += "-DATTN_BLOCK_Q=" + Global::intToString(ATTN_BLOCK_Q);
+  s += " -DATTN_BLOCK_KV=" + Global::intToString(ATTN_BLOCK_KV);
+  return s;
+}
+void OpenCLParams::TransformerParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  ATTN_BLOCK_Q = getInt(kvs,"ATTN_BLOCK_Q",ATTN_BLOCK_Q);
+  ATTN_BLOCK_KV = getInt(kvs,"ATTN_BLOCK_KV",ATTN_BLOCK_KV);
+  USE_TILED_ATTN = getInt(kvs,"USE_TILED_ATTN",USE_TILED_ATTN);
+}
+bool OpenCLParams::TransformerParams::isValid() const {
+  if(ATTN_BLOCK_Q <= 0) return false;
+  if(ATTN_BLOCK_KV <= 0) return false;
+  // Must be power of 2
+  if((ATTN_BLOCK_Q & (ATTN_BLOCK_Q-1)) != 0) return false;
+  if((ATTN_BLOCK_KV & (ATTN_BLOCK_KV-1)) != 0) return false;
+  // Reasonable limits
+  if(ATTN_BLOCK_Q > 128) return false;
+  if(ATTN_BLOCK_KV > 128) return false;
+  if(USE_TILED_ATTN != 0 && USE_TILED_ATTN != 1) return false;
+  return true;
+}
+
 bool OpenCLTuneParams::isValid() const {
   return
     xGemmDirect.isValid() &&
@@ -540,7 +572,8 @@ bool OpenCLTuneParams::isValid() const {
     hGemmWmmaNCHW.isValid() &&
     conv3x3.isValid() &&
     conv5x5.isValid() &&
-    gPool.isValid();
+    gPool.isValid() &&
+    transformer.isValid();
 }
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
@@ -578,8 +611,8 @@ int OpenCLTuneParams::getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16
 }
 
 
-static const int TUNER_VERSION = 11;
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=11";
+static const int TUNER_VERSION = 12;
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=12";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out;
   FileUtils::open(out,filename);
@@ -616,6 +649,8 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << config.conv5x5.desc() << "\n";
   out << "#gPool" << "\n";
   out << config.gPool.desc() << "\n";
+  out << "#transformer" << "\n";
+  out << config.transformer.desc() << "\n";
   out.flush();
   out.close();
 }
@@ -635,7 +670,7 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
 
-  if(filteredLines.size() != 17)
+  if(filteredLines.size() != 18)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
@@ -655,6 +690,7 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   config.conv3x3.fillFromDesc(filename,filteredLines[14]);
   config.conv5x5.fillFromDesc(filename,filteredLines[15]);
   config.gPool.fillFromDesc(filename,filteredLines[16]);
+  config.transformer.fillFromDesc(filename,filteredLines[17]);
   return config;
 }
 
@@ -955,6 +991,29 @@ static bool testAllConfigs(
 #define ISVALID(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p) noexcept { return p.field.isValid(); })
 #define ISSIMPLE(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p) noexcept { return p.field.isSimple(); })
 
+static void findTransformerInfo(
+  const std::vector<std::pair<int, unique_ptr_void>>& blocks,
+  int& headDim, int& vHeadDim, int& numHeads, int& numKVHeads, int& ffnChannels
+) {
+  for(size_t i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      const TransformerAttentionDesc* attn = (const TransformerAttentionDesc*)blocks[i].second.get();
+      headDim = attn->qHeadDim;
+      vHeadDim = attn->vHeadDim;
+      numHeads = attn->numHeads;
+      numKVHeads = attn->numKVHeads;
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      const TransformerFFNDesc* ffn = (const TransformerFFNDesc*)blocks[i].second.get();
+      ffnChannels = ffn->ffnChannels;
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* nbt = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      findTransformerInfo(nbt->blocks, headDim, vHeadDim, numHeads, numKVHeads, ffnChannels);
+    }
+  }
+}
+
 OpenCLTuner::ModelInfoForTuning OpenCLTuner::ModelInfoForTuning::ofDesc(const ModelDesc* desc) {
   OpenCLTuner::ModelInfoForTuning modelInfo;
   modelInfo.maxConvChannels1x1 = desc->maxConvChannels(1,1);
@@ -964,6 +1023,17 @@ OpenCLTuner::ModelInfoForTuning OpenCLTuner::ModelInfoForTuning::ofDesc(const Mo
   modelInfo.regularNumChannels = desc->trunk.regularNumChannels;
   modelInfo.gpoolNumChannels = desc->trunk.gpoolNumChannels;
   modelInfo.modelVersion = desc->modelVersion;
+  modelInfo.transformerHeadDim = 0;
+  modelInfo.transformerVHeadDim = 0;
+  modelInfo.transformerNumHeads = 0;
+  modelInfo.transformerNumKVHeads = 0;
+  modelInfo.transformerFFNChannels = 0;
+  findTransformerInfo(
+    desc->trunk.blocks,
+    modelInfo.transformerHeadDim, modelInfo.transformerVHeadDim,
+    modelInfo.transformerNumHeads, modelInfo.transformerNumKVHeads,
+    modelInfo.transformerFFNChannels
+  );
   return modelInfo;
 }
 
@@ -1092,6 +1162,7 @@ static void tuneXGemmDirect(
     maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
     maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
     maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+    maxChannels = std::max(modelInfo.transformerFFNChannels,maxChannels);
 
     int inputNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
     int outputNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
@@ -1102,8 +1173,14 @@ static void tuneXGemmDirect(
     cl_mem filter = randomReadOnlyBufferFloat("tuneXGemmDirectFilter", context, filterNumFloats, 1.0 / sqrt(maxChannels), filterVec);
     cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
 
-    const int reps = 18;
-    const int numToRecord = 6;
+    // If this is a transformer model, include transformer-relevant matmul sizes in the tuning
+    bool hasTransformer = modelInfo.transformerHeadDim > 0;
+    int transformerMidC = modelInfo.midNumChannels; // input to Q/K/V projections
+    int transformerQKVC = modelInfo.transformerNumHeads * modelInfo.transformerHeadDim; // output of Q projection
+    int transformerFFNC = modelInfo.transformerFFNChannels;
+
+    const int reps = hasTransformer ? 24 : 18;
+    const int numToRecord = hasTransformer ? 8 : 6;
     ret.resize(outputNumFloats*numToRecord, 0.0f);
     for(int i = 0; i<reps; i++) {
       int inChannels;
@@ -1117,6 +1194,9 @@ static void tuneXGemmDirect(
       case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
       case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
       case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
+      // Transformer-specific sizes (only used when hasTransformer)
+      case 6: inChannels = transformerMidC; outChannels = transformerQKVC; weight = hasTransformer ? 1.0 : 0; break;
+      case 7: inChannels = transformerMidC; outChannels = transformerFFNC; weight = hasTransformer ? 1.0 : 0; break;
       default: ASSERT_UNREACHABLE; break;
       }
 
@@ -2561,6 +2641,202 @@ static void tuneGPool(
   tunedConfig = currentConfig;
 }
 
+static void tuneTransformerAttention(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  // Skip if not a transformer model
+  if(modelInfo.transformerHeadDim <= 0) {
+    tunedConfig = currentConfig;
+    return;
+  }
+
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning transformer attention kernel" << endl;
+
+  int headDim = modelInfo.transformerHeadDim;
+  int vHeadDim = modelInfo.transformerVHeadDim;
+  int numHeads = modelInfo.transformerNumHeads;
+  int numKVHeads = modelInfo.transformerNumKVHeads;
+  int seqLen = nnXLen * nnYLen;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  // Add tiled configs with different block sizes
+  if(full) {
+    addConfigs(configs, SETTER(transformer.USE_TILED_ATTN), {0, 1});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_Q), {8, 16, 32, 64});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_KV), {8, 16, 32, 64});
+  }
+  else {
+    addConfigs(configs, SETTER(transformer.USE_TILED_ATTN), {0, 1});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_Q), {16, 32, 64});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_KV), {16, 32, 64});
+  }
+
+  filterConfigs(configs, ISVALID(transformer));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(), currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.transformer.ATTN_BLOCK_Q = untunedConfig.transformer.ATTN_BLOCK_Q;
+  referenceConfig.transformer.ATTN_BLOCK_KV = untunedConfig.transformer.ATTN_BLOCK_KV;
+  referenceConfig.transformer.USE_TILED_ATTN = untunedConfig.transformer.USE_TILED_ATTN;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.transformer.desc(); };
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+    if(computeOnCPU) {
+      accums.bad = true;
+      return accums;
+    }
+
+    cl_int err;
+    cl_program program;
+    string compileError;
+
+    // Choose which kernel to compile based on USE_TILED_ATTN
+    string compileOpts = maybeFP16CompileOptions;
+    compileOpts += " -DATTN_HEAD_DIM=" + Global::intToString(headDim);
+    compileOpts += " -DATTN_V_HEAD_DIM=" + Global::intToString(vHeadDim);
+    if(cfg.transformer.USE_TILED_ATTN) {
+      compileOpts += " -DATTN_BLOCK_Q=" + Global::intToString(cfg.transformer.ATTN_BLOCK_Q);
+      compileOpts += " -DATTN_BLOCK_KV=" + Global::intToString(cfg.transformer.ATTN_BLOCK_KV);
+    }
+
+    string kernelSource = cfg.transformer.USE_TILED_ATTN
+      ? OpenCLKernels::transformerScaledDotProductAttention
+      : OpenCLKernels::transformerScaledDotProductAttentionNaive;
+    string kernelName = cfg.transformer.USE_TILED_ATTN
+      ? "scaledDotProductAttention"
+      : "scaledDotProductAttentionNaive";
+
+    bool compileSuc = tryCompileProgram(
+      "tuneTransformerAttnProgram", context, deviceIdsToUse, kernelSource,
+      compileOpts, program, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+    cl_kernel kernel = clCreateKernel(program, kernelName.c_str(), &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseProgram(program); return accums; }
+
+    // Allocate buffers: Q, K, V, output, mask
+    int qSize = batchSize * numHeads * headDim * seqLen;
+    int kSize = batchSize * numKVHeads * headDim * seqLen;
+    int vSize = batchSize * numKVHeads * vHeadDim * seqLen;
+    int outSize = batchSize * numHeads * vHeadDim * seqLen;
+    int maskSize = batchSize * seqLen;
+
+    vector<float> qVec, kVec, vVec;
+    cl_mem qBuf, kBuf, vBuf;
+    if(cfg.shouldUseFP16Storage) {
+      qBuf = randomReadOnlyBufferHalf("tuneAttnQ", context, qSize, 1.0, qVec);
+      kBuf = randomReadOnlyBufferHalf("tuneAttnK", context, kSize, 1.0, kVec);
+      vBuf = randomReadOnlyBufferHalf("tuneAttnV", context, vSize, 1.0, vVec);
+    } else {
+      qBuf = randomReadOnlyBufferFloat("tuneAttnQ", context, qSize, 1.0, qVec);
+      kBuf = randomReadOnlyBufferFloat("tuneAttnK", context, kSize, 1.0, kVec);
+      vBuf = randomReadOnlyBufferFloat("tuneAttnV", context, vSize, 1.0, vVec);
+    }
+    cl_mem maskBuf = constantReadOnlyBufferFloat(context, maskSize, 1.0f);
+    cl_mem outBuf = createReadWriteBufferFloatZeros(context, outSize);
+
+    float scale = 1.0f / sqrtf((float)headDim);
+
+    const int reps = 12;
+    const int numToRecord = 6;
+    ret.resize(outSize * numToRecord, 0.0f);
+
+    for(int i = 0; i < reps; i++) {
+      double weight;
+      switch(i % numToRecord) {
+      case 0: weight = 0; break;  // warmup
+      default: weight = 1; break;
+      }
+
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&qBuf);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&kBuf);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&vBuf);
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&outBuf);
+      clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&maskBuf);
+      clSetKernelArg(kernel, 5, sizeof(int), (void*)&seqLen);
+      clSetKernelArg(kernel, 6, sizeof(int), (void*)&numHeads);
+      clSetKernelArg(kernel, 7, sizeof(int), (void*)&numKVHeads);
+      clSetKernelArg(kernel, 8, sizeof(float), (void*)&scale);
+
+      cl_event event;
+      if(cfg.transformer.USE_TILED_ATTN) {
+        int blockQ = cfg.transformer.ATTN_BLOCK_Q;
+        size_t globalSizes[2] = {
+          roundUpToMultiple((size_t)seqLen, (size_t)blockQ),
+          (size_t)(batchSize * numHeads)
+        };
+        size_t localSizes[2] = {(size_t)blockQ, 1};
+        err = clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, globalSizes, localSizes, 0, NULL, &event);
+      } else {
+        size_t globalSizes[2] = {
+          roundUpToMultiple((size_t)seqLen, (size_t)32),
+          (size_t)(batchSize * numHeads)
+        };
+        err = clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, globalSizes, NULL, 0, NULL, &event);
+      }
+
+      accums.countResultAndFreeEvent(err, event, weight);
+      if(accums.bad)
+        break;
+      if(i < numToRecord)
+        blockingReadBuffer(commandQueue, outBuf, outSize, ret.data() + (outSize * i));
+    }
+
+    if(accums.bad)
+      ret.assign(outSize * numToRecord, 0.0);
+
+    clReleaseMemObject(qBuf);
+    clReleaseMemObject(kBuf);
+    clReleaseMemObject(vBuf);
+    clReleaseMemObject(maskBuf);
+    clReleaseMemObject(outBuf);
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
+  testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+
+  tunedConfig = currentConfig;
+}
+
+
 static void dummyThreadLoop(
   const vector<DeviceInfo>& allDeviceInfos,
   Logger* logger,
@@ -3156,6 +3432,28 @@ void OpenCLTuner::tune(
     );
     currentConfig = result;
 
+  }
+
+  {
+    OpenCLTuneParams result;
+    tuneTransformerAttention(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
   }
 
   //Copy 5x5 conv parameters over from 3x3 conv parameters

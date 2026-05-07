@@ -1190,6 +1190,10 @@ BlockStack::BlockStack(
       );
       blocks.emplace_back(NESTED_BOTTLENECK_BLOCK_KIND,std::move(blockPtr));
     }
+    else if(descBlocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            descBlocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      throw StringError("Transformer blocks are not yet supported by the CUDA backend");
+    }
     else {
       ASSERT_UNREACHABLE;
     }
@@ -1220,6 +1224,10 @@ size_t BlockStack::requiredWorkspaceBytes(
       NestedBottleneckResidualBlock* block = (NestedBottleneckResidualBlock*)blocks[i].second.get();
       b = block->requiredWorkspaceBytes(cudaHandles,batchSize);
       bytes = std::max(bytes,b);
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      throw StringError("Transformer blocks are not yet supported by the CUDA backend");
     }
     else {
       ASSERT_UNREACHABLE;
@@ -1285,6 +1293,10 @@ void BlockStack::apply(
         workspaceBuf,
         workspaceBytes
       );
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      throw StringError("Transformer blocks are not yet supported by the CUDA backend");
     }
     else {
       ASSERT_UNREACHABLE;
@@ -1427,6 +1439,8 @@ struct Trunk {
       testAssert(sgfMetadataEncoder->mul3.outChannels == initialMatMul->outChannels);
     }
 
+    if(desc->trunkNormKind != TRUNK_NORM_KIND_STANDARD)
+      throw StringError("Trunk RMSNorm is not yet supported by the CUDA backend");
     trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16,useNHWC);
     testAssert(desc->blocks.size() == numBlocks);
   }

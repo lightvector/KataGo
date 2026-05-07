@@ -152,16 +152,23 @@ struct CompiledPrograms {
   CLProgram winogradConv3x3NCHWBNReluTransformProgram;
   CLProgram winogradConv3x3NCHWBNMishTransformProgram;
   CLProgram winogradConv3x3NCHWBNMishScale8TransformProgram;
+  CLProgram winogradConv3x3NCHWBNSiluTransformProgram;
   CLProgram winogradConv3x3NCHWUntransformProgram;
   CLProgram winogradConv5x5NCHWTransformProgram;
   CLProgram winogradConv5x5NCHWBNReluTransformProgram;
   CLProgram winogradConv5x5NCHWBNMishTransformProgram;
   CLProgram winogradConv5x5NCHWBNMishScale8TransformProgram;
+  CLProgram winogradConv5x5NCHWBNSiluTransformProgram;
   CLProgram winogradConv5x5NCHWUntransformProgram;
   CLProgram scaleBiasMaskNCHWProgram;
   CLProgram scaleBiasMaskReluNCHWProgram;
   CLProgram scaleBiasMaskMishNCHWProgram;
   CLProgram scaleBiasMaskMishScale8NCHWProgram;
+  CLProgram scaleBiasMaskSiluNCHWProgram;
+  CLProgram transformerRMSNormProgram;
+  CLProgram transformerSpatialRMSNormProgram;
+  CLProgram transformerApplyRoPEProgram;
+  CLProgram transformerSwiGLUProgram;
   CLProgram addPointWiseProgram;
   CLProgram sumChannelsNCHWProgram;
   CLProgram gPoolChannelsNCHWMaskProgram;
@@ -171,6 +178,7 @@ struct CompiledPrograms {
   CLProgram addCBiasesNCReluProgram;
   CLProgram addCBiasesNCMishProgram;
   CLProgram addCBiasesNCMishScale8Program;
+  CLProgram addCBiasesNCSiluProgram;
   CLProgram extractChannel0NCHWProgram;
   CLProgram xgemmDirectProgram;
   CLProgram xgemmDirectProgramAlwaysFP32;
@@ -218,6 +226,10 @@ struct CompiledPrograms {
       "winogradConv3x3NCHWBNMishScale8TransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNActTransformNCHW,
       tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions + OpenCLKernels::actMishScale8Define
     );
+    winogradConv3x3NCHWBNSiluTransformProgram = compileProgram(
+      "winogradConv3x3NCHWBNSiluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNActTransformNCHW,
+      tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions + OpenCLKernels::actSiluDefine
+    );
     winogradConv3x3NCHWUntransformProgram = compileProgram(
       "winogradConv3x3NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
       tuneParams.conv3x3.compileOptions() + maybeFP16CompileOptions
@@ -237,6 +249,10 @@ struct CompiledPrograms {
     winogradConv5x5NCHWBNMishScale8TransformProgram = compileProgram(
       "winogradConv5x5NCHWBNMishScale8TransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNActTransformNCHW,
       tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions + OpenCLKernels::actMishScale8Define
+    );
+    winogradConv5x5NCHWBNSiluTransformProgram = compileProgram(
+      "winogradConv5x5NCHWBNSiluTransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradBNActTransformNCHW,
+      tuneParams.conv5x5.compileOptions() + maybeFP16CompileOptions + OpenCLKernels::actSiluDefine
     );
     winogradConv5x5NCHWUntransformProgram = compileProgram(
       "winogradConv5x5NCHWUntransformProgram", context, deviceIdsToUse, OpenCLKernels::winogradUntransformNCHW,
@@ -258,6 +274,26 @@ struct CompiledPrograms {
     scaleBiasMaskMishScale8NCHWProgram = compileProgram(
       "scaleBiasMaskMishScale8NCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskActNCHW,
       maybeFP16CompileOptions + OpenCLKernels::actMishScale8Define
+    );
+    scaleBiasMaskSiluNCHWProgram = compileProgram(
+      "scaleBiasMaskSiluNCHWProgram", context, deviceIdsToUse, OpenCLKernels::scaleBiasMaskActNCHW,
+      maybeFP16CompileOptions + OpenCLKernels::actSiluDefine
+    );
+    transformerRMSNormProgram = compileProgram(
+      "transformerRMSNormProgram", context, deviceIdsToUse, OpenCLKernels::transformerRMSNorm,
+      maybeFP16CompileOptions
+    );
+    transformerSpatialRMSNormProgram = compileProgram(
+      "transformerSpatialRMSNormProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNorm,
+      tuneParams.gPool.compileOptions() + maybeFP16CompileOptions
+    );
+    transformerApplyRoPEProgram = compileProgram(
+      "transformerApplyRoPEProgram", context, deviceIdsToUse, OpenCLKernels::transformerApplyRoPE,
+      maybeFP16CompileOptions
+    );
+    transformerSwiGLUProgram = compileProgram(
+      "transformerSwiGLUProgram", context, deviceIdsToUse, OpenCLKernels::transformerSwiGLU,
+      maybeFP16CompileOptions
     );
     addPointWiseProgram = compileProgram(
       "addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise,
@@ -294,6 +330,10 @@ struct CompiledPrograms {
     addCBiasesNCMishScale8Program = compileProgram(
       "addCBiasesNCMishScale8Program", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCAct,
       maybeFP16CompileOptions + OpenCLKernels::actMishScale8Define
+    );
+    addCBiasesNCSiluProgram = compileProgram(
+      "addCBiasesNCSiluProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCAct,
+      maybeFP16CompileOptions + OpenCLKernels::actSiluDefine
     );
     extractChannel0NCHWProgram = compileProgram(
       "extractChannel0NCHWProgram", context, deviceIdsToUse, OpenCLKernels::extractChannel0NCHW,
@@ -495,10 +535,13 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 // Wraps cl_kernel with a destructor that calls clReleaseKernel
 using CLKernel = WrappedWithDeleter<cl_kernel,int,clReleaseKernel>;
 
+struct TransformerAttentionKernelSet;
+
 struct ComputeHandleInternal {
   ComputeContext* computeContext;
   cl_context clContext;
   cl_command_queue commandQueue;
+  cl_device_id deviceId;
   OpenCLTuneParams tuneParams;
 
   bool usingFP16Storage;
@@ -511,16 +554,23 @@ struct ComputeHandleInternal {
   CLKernel winogradConv3x3NCHWBNReluTransformKernel;
   CLKernel winogradConv3x3NCHWBNMishTransformKernel;
   CLKernel winogradConv3x3NCHWBNMishScale8TransformKernel;
+  CLKernel winogradConv3x3NCHWBNSiluTransformKernel;
   CLKernel winogradConv3x3NCHWUntransformKernel;
   CLKernel winogradConv5x5NCHWTransformKernel;
   CLKernel winogradConv5x5NCHWBNReluTransformKernel;
   CLKernel winogradConv5x5NCHWBNMishTransformKernel;
   CLKernel winogradConv5x5NCHWBNMishScale8TransformKernel;
+  CLKernel winogradConv5x5NCHWBNSiluTransformKernel;
   CLKernel winogradConv5x5NCHWUntransformKernel;
   CLKernel scaleBiasMaskNCHWKernel;
   CLKernel scaleBiasMaskReluNCHWKernel;
   CLKernel scaleBiasMaskMishNCHWKernel;
   CLKernel scaleBiasMaskMishScale8NCHWKernel;
+  CLKernel scaleBiasMaskSiluNCHWKernel;
+  CLKernel transformerRMSNormKernel;
+  CLKernel transformerSpatialRMSNormKernel;
+  CLKernel transformerApplyRoPEKernel;
+  CLKernel transformerSwiGLUKernel;
   CLKernel addPointWiseKernel;
   CLKernel sumChannelsNCHWKernel;
   CLKernel gPoolChannelsNCHWMaskKernel;
@@ -530,11 +580,15 @@ struct ComputeHandleInternal {
   CLKernel addCBiasesNCReluKernel;
   CLKernel addCBiasesNCMishKernel;
   CLKernel addCBiasesNCMishScale8Kernel;
+  CLKernel addCBiasesNCSiluKernel;
   CLKernel extractChannel0NCHWKernel;
   CLKernel xgemmDirectBatchedTTKernelAlwaysFP32;
   CLKernel xgemmDirectStridedBatchedNNKernel;
   CLKernel xgemmBatchedNNKernel;
   CLKernel hgemmWmmaNCHWKernel;
+
+  // Shared transformer attention kernel set (lazily created)
+  TransformerAttentionKernelSet* attnKernelSet;
 
   std::vector<const char*> profileAddeds;
   std::map<const char*, int*> counters;
@@ -545,10 +599,12 @@ struct ComputeHandleInternal {
 
   ComputeHandleInternal(ComputeContext* ctx, int gpuIdx, bool inputsUseNHWC, bool useNHWC) {
     computeContext = ctx;
+    attnKernelSet = nullptr;
 
     const InitializedDevice* device = computeContext->devicesContext->findGpuExn(gpuIdx);
     clContext = device->context;
     commandQueue = device->commandQueue;
+    deviceId = device->info.deviceId;
     CompiledPrograms* progs = computeContext->compiledProgramsByDeviceId[device->info.deviceId];
     testAssert(progs != NULL);
     tuneParams = progs->tuneParams;
@@ -575,6 +631,8 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     winogradConv3x3NCHWBNMishScale8TransformKernel = clCreateKernel(progs->winogradConv3x3NCHWBNMishScale8TransformProgram, "bnActTransform", &err);
     CHECK_ERR(err);
+    winogradConv3x3NCHWBNSiluTransformKernel = clCreateKernel(progs->winogradConv3x3NCHWBNSiluTransformProgram, "bnActTransform", &err);
+    CHECK_ERR(err);
     winogradConv3x3NCHWUntransformKernel = clCreateKernel(progs->winogradConv3x3NCHWUntransformProgram, "untransform", &err);
     CHECK_ERR(err);
 
@@ -586,6 +644,8 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     winogradConv5x5NCHWBNMishScale8TransformKernel = clCreateKernel(progs->winogradConv5x5NCHWBNMishScale8TransformProgram, "bnActTransform", &err);
     CHECK_ERR(err);
+    winogradConv5x5NCHWBNSiluTransformKernel = clCreateKernel(progs->winogradConv5x5NCHWBNSiluTransformProgram, "bnActTransform", &err);
+    CHECK_ERR(err);
     winogradConv5x5NCHWUntransformKernel = clCreateKernel(progs->winogradConv5x5NCHWUntransformProgram, "untransform", &err);
     CHECK_ERR(err);
 
@@ -596,6 +656,16 @@ struct ComputeHandleInternal {
     scaleBiasMaskMishNCHWKernel = clCreateKernel(progs->scaleBiasMaskMishNCHWProgram, "scaleBiasMaskActNCHW", &err);
     CHECK_ERR(err);
     scaleBiasMaskMishScale8NCHWKernel = clCreateKernel(progs->scaleBiasMaskMishScale8NCHWProgram, "scaleBiasMaskActNCHW", &err);
+    CHECK_ERR(err);
+    scaleBiasMaskSiluNCHWKernel = clCreateKernel(progs->scaleBiasMaskSiluNCHWProgram, "scaleBiasMaskActNCHW", &err);
+    CHECK_ERR(err);
+    transformerRMSNormKernel = clCreateKernel(progs->transformerRMSNormProgram, "transformerRMSNorm", &err);
+    CHECK_ERR(err);
+    transformerSpatialRMSNormKernel = clCreateKernel(progs->transformerSpatialRMSNormProgram, "transformerSpatialRMSNorm", &err);
+    CHECK_ERR(err);
+    transformerApplyRoPEKernel = clCreateKernel(progs->transformerApplyRoPEProgram, "transformerApplyRoPE", &err);
+    CHECK_ERR(err);
+    transformerSwiGLUKernel = clCreateKernel(progs->transformerSwiGLUProgram, "transformerSwiGLU", &err);
     CHECK_ERR(err);
     addPointWiseKernel = clCreateKernel(progs->addPointWiseProgram, "addPointWise", &err);
     CHECK_ERR(err);
@@ -615,6 +685,8 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     addCBiasesNCMishScale8Kernel = clCreateKernel(progs->addCBiasesNCMishScale8Program, "addCBiasesNCAct", &err);
     CHECK_ERR(err);
+    addCBiasesNCSiluKernel = clCreateKernel(progs->addCBiasesNCSiluProgram, "addCBiasesNCAct", &err);
+    CHECK_ERR(err);
     extractChannel0NCHWKernel = clCreateKernel(progs->extractChannel0NCHWProgram, "extractChannel0NCHW", &err);
     CHECK_ERR(err);
     xgemmDirectBatchedTTKernelAlwaysFP32 = clCreateKernel(progs->xgemmDirectProgramAlwaysFP32, "XgemmDirectBatchedTT", &err);
@@ -630,16 +702,13 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
   }
 
-  ~ComputeHandleInternal() {
-    for(int i = 0; i<profileEvents.size(); i++) {
-      if(profileEvents[i] != NULL)
-        clReleaseEvent(profileEvents[i]);
-    }
-  }
+  ~ComputeHandleInternal();
 
   ComputeHandleInternal() = delete;
   ComputeHandleInternal(const ComputeHandleInternal&) = delete;
   ComputeHandleInternal& operator=(const ComputeHandleInternal&) = delete;
+
+  const TransformerAttentionKernelSet* getOrCreateAttnKernels(int qHeadDim, int vHeadDim);
 
   int getXGemmMPaddingMult() const {
     return tuneParams.getXGemmMPaddingMult(usingFP16Compute,usingFP16TensorCores);
@@ -654,6 +723,14 @@ struct ComputeHandleInternal {
     return tuneParams.hGemmWmmaNCHW.getRequiredCDivisor();
   }
 
+  string getFP16CompileOptions() const {
+    string opts;
+    if(usingFP16Storage)
+      opts += OpenCLKernels::fp16StorageDefine;
+    if(usingFP16Compute)
+      opts += OpenCLKernels::fp16ComputeDefine;
+    return opts;
+  }
 };
 
 static cl_mem createReadOnlyBuffer(ComputeHandleInternal* handle, vector<float>& data, bool useFP16) {
@@ -929,6 +1006,8 @@ struct BatchNormLayer {
       kernel = handle->scaleBiasMaskMishNCHWKernel;
     else if(activation == ACTIVATION_MISH_SCALE8)
       kernel = handle->scaleBiasMaskMishScale8NCHWKernel;
+    else if(activation == ACTIVATION_SILU)
+      kernel = handle->scaleBiasMaskSiluNCHWKernel;
     else {
       assert(false);
       Global::fatalError("bad activation");
@@ -1338,17 +1417,35 @@ struct ConvLayer {
   ) const {
     if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
       {
-        assert(bnLayer->activation == ACTIVATION_RELU || bnLayer->activation == ACTIVATION_MISH || bnLayer->activation == ACTIVATION_MISH_SCALE8);
+        cl_kernel bnActKernel;
+        if(convXSize == 3 && convYSize == 3) {
+          if(bnLayer->activation == ACTIVATION_RELU)
+            bnActKernel = handle->winogradConv3x3NCHWBNReluTransformKernel;
+          else if(bnLayer->activation == ACTIVATION_MISH)
+            bnActKernel = handle->winogradConv3x3NCHWBNMishTransformKernel;
+          else if(bnLayer->activation == ACTIVATION_SILU)
+            bnActKernel = handle->winogradConv3x3NCHWBNSiluTransformKernel;
+          else if(bnLayer->activation == ACTIVATION_MISH_SCALE8)
+            bnActKernel = handle->winogradConv3x3NCHWBNMishScale8TransformKernel;
+          else
+            throw StringError("ConvLayer::applyWithBNAct: Unsupported activation for 3x3 conv: " + Global::intToString(bnLayer->activation));
+        }
+        else {
+          if(bnLayer->activation == ACTIVATION_RELU)
+            bnActKernel = handle->winogradConv5x5NCHWBNReluTransformKernel;
+          else if(bnLayer->activation == ACTIVATION_MISH)
+            bnActKernel = handle->winogradConv5x5NCHWBNMishTransformKernel;
+          else if(bnLayer->activation == ACTIVATION_SILU)
+            bnActKernel = handle->winogradConv5x5NCHWBNSiluTransformKernel;
+          else if(bnLayer->activation == ACTIVATION_MISH_SCALE8)
+            bnActKernel = handle->winogradConv5x5NCHWBNMishScale8TransformKernel;
+          else
+            throw StringError("ConvLayer::applyWithBNAct: Unsupported activation for 5x5 conv: " + Global::intToString(bnLayer->activation));
+        }
         cl_int err;
         MAYBE_EVENT;
         err = doWinogradTransformWithBNAct(
-          (convXSize == 3 && convYSize == 3) ?
-          (bnLayer->activation == ACTIVATION_RELU ? handle->winogradConv3x3NCHWBNReluTransformKernel :
-           bnLayer->activation == ACTIVATION_MISH ? handle->winogradConv3x3NCHWBNMishTransformKernel :
-           handle->winogradConv3x3NCHWBNMishScale8TransformKernel) :
-          (bnLayer->activation == ACTIVATION_RELU ? handle->winogradConv5x5NCHWBNReluTransformKernel :
-           bnLayer->activation == ACTIVATION_MISH ? handle->winogradConv5x5NCHWBNMishTransformKernel :
-           handle->winogradConv5x5NCHWBNMishScale8TransformKernel),
+          bnActKernel,
           handle->commandQueue,
           handle->tuneParams,
           input,convWorkspace,
@@ -1535,6 +1632,8 @@ struct MatBiasLayer {
       kernel = handle->addCBiasesNCMishKernel;
     else if(activation == ACTIVATION_MISH_SCALE8)
       kernel = handle->addCBiasesNCMishScale8Kernel;
+    else if(activation == ACTIVATION_SILU)
+      kernel = handle->addCBiasesNCSiluKernel;
     else {
       assert(false);
       Global::fatalError("bad activation");
@@ -1874,6 +1973,705 @@ struct NestedBottleneckResidualBlock {
 
 //--------------------------------------------------------------
 
+struct TransformerRMSNormLayer {
+  const string name;
+  const int numChannels;
+  const int nnXLen;
+  const int nnYLen;
+  cl_mem weightBuf;
+
+  TransformerRMSNormLayer(
+    ComputeHandleInternal* handle,
+    const TransformerRMSNormDesc* desc,
+    int nnX,
+    int nnY
+  ) :
+    name(desc->name),
+    numChannels(desc->numChannels),
+    nnXLen(nnX),
+    nnYLen(nnY)
+  {
+    testAssert(desc->weight.size() == numChannels);
+    vector<float> weight = desc->weight;
+    bool useFP16 = false;  // Keep weights in FP32
+    weightBuf = createReadOnlyBuffer(handle, weight, useFP16);
+  }
+
+  ~TransformerRMSNormLayer() {
+    clReleaseMemObject(weightBuf);
+  }
+
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask) const {
+    cl_kernel kernel = handle->transformerRMSNormKernel;
+    int nnXYLen = nnXLen * nnYLen;
+
+    clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+    clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
+    clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&weightBuf);
+    clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mask);
+    clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
+    clSetKernelArg(kernel, 5, sizeof(int), (const void *)&numChannels);
+    clSetKernelArg(kernel, 6, sizeof(int), (const void *)&nnXYLen);
+
+    cl_int err;
+    static constexpr int nKernelDims = 2;
+    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)(nnXYLen)), powerOf2ify((size_t)batchSize)};
+    size_t* localSizes = NULL;
+    MAYBE_EVENT;
+    err = clEnqueueNDRangeKernel(
+      handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+    );
+    CHECK_ERR(err);
+    MAYBE_PROFILE("TransformerRMSNorm");
+    MAYBE_FREE_EVENT;
+  }
+
+  TransformerRMSNormLayer() = delete;
+  TransformerRMSNormLayer(const TransformerRMSNormLayer&) = delete;
+  TransformerRMSNormLayer& operator=(const TransformerRMSNormLayer&) = delete;
+};
+
+//--------------------------------------------------------------
+
+struct RMSNormLayer {
+  const string name;
+  const int numChannels;
+  const bool spatial;
+  const int nnXLen;
+  const int nnYLen;
+  const int activation;
+  cl_mem gammaBuf;
+  cl_mem betaBuf;
+  cl_mem actOnesBuf;
+  cl_mem actZerosBuf;
+
+  RMSNormLayer(
+    ComputeHandleInternal* handle,
+    const RMSNormLayerDesc* desc,
+    int nnX,
+    int nnY,
+    int activation_
+  ) :
+    name(desc->name),
+    numChannels(desc->numChannels),
+    spatial(desc->spatial),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    activation(activation_),
+    actOnesBuf(NULL),
+    actZerosBuf(NULL)
+  {
+    testAssert(desc->gamma.size() == numChannels);
+    testAssert(desc->beta.size() == numChannels);
+    vector<float> gamma = desc->gamma;
+    vector<float> beta = desc->beta;
+    bool useFP16 = false;
+    gammaBuf = createReadOnlyBuffer(handle, gamma, useFP16);
+    betaBuf = createReadOnlyBuffer(handle, beta, useFP16);
+
+    if(activation != ACTIVATION_IDENTITY) {
+      if(activation != ACTIVATION_SILU)
+        throw StringError("RMSNormLayer: Unsupported activation: " + Global::intToString(activation));
+      vector<float> ones(numChannels, 1.0f);
+      vector<float> zeros(numChannels, 0.0f);
+      bool useFP16Act = handle->usingFP16Storage;
+      actOnesBuf = createReadOnlyBuffer(handle, ones, useFP16Act);
+      actZerosBuf = createReadOnlyBuffer(handle, zeros, useFP16Act);
+    }
+  }
+
+  ~RMSNormLayer() {
+    clReleaseMemObject(gammaBuf);
+    clReleaseMemObject(betaBuf);
+    if(actOnesBuf != NULL) clReleaseMemObject(actOnesBuf);
+    if(actZerosBuf != NULL) clReleaseMemObject(actZerosBuf);
+  }
+
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask, cl_mem maskSum) const {
+    int nnXYLen = nnXLen * nnYLen;
+
+    if(!spatial) {
+      // Non-spatial per-channel RMSNorm: normalize per position across channels, then apply gamma+beta.
+      cl_kernel kernel = handle->transformerRMSNormKernel;
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&gammaBuf);
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mask);
+      clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
+      clSetKernelArg(kernel, 5, sizeof(int), (const void *)&numChannels);
+      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&nnXYLen);
+
+      cl_int err;
+      static constexpr int nKernelDims = 2;
+      size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)(nnXYLen)), powerOf2ify((size_t)batchSize)};
+      size_t* localSizes = NULL;
+      MAYBE_EVENT;
+      err = clEnqueueNDRangeKernel(
+        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+      );
+      CHECK_ERR(err);
+      MAYBE_PROFILE("RMSNorm");
+      MAYBE_FREE_EVENT;
+
+      // Add beta bias
+      addChannelBiases(handle, output, betaBuf, batchSize * numChannels, nnXYLen);
+    }
+    else {
+      // Spatial RMSNorm: single RMS across all channels and spatial positions per sample.
+      cl_kernel kernel = handle->transformerSpatialRMSNormKernel;
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&gammaBuf);
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&betaBuf);
+      clSetKernelArg(kernel, 4, sizeof(cl_mem), (const void *)&mask);
+      clSetKernelArg(kernel, 5, sizeof(cl_mem), (const void *)&maskSum);
+      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&batchSize);
+      clSetKernelArg(kernel, 7, sizeof(int), (const void *)&numChannels);
+      clSetKernelArg(kernel, 8, sizeof(int), (const void *)&nnXYLen);
+
+      cl_int err;
+      static constexpr int nKernelDims = 2;
+      int xStride = handle->tuneParams.gPool.XYSTRIDE;
+      size_t globalSizes[nKernelDims] = {(size_t)xStride, powerOf2ify((size_t)batchSize)};
+      size_t localSizes[nKernelDims] = {(size_t)xStride, 1};
+      MAYBE_EVENT;
+      err = clEnqueueNDRangeKernel(
+        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+      );
+      CHECK_ERR(err);
+      MAYBE_PROFILE("SpatialRMSNorm");
+      MAYBE_FREE_EVENT;
+    }
+
+    // Apply activation in-place on output if needed
+    if(activation == ACTIVATION_SILU) {
+      cl_kernel actKernel = handle->scaleBiasMaskSiluNCHWKernel;
+      clSetKernelArg(actKernel, 0, sizeof(cl_mem), (const void *)&output);
+      clSetKernelArg(actKernel, 1, sizeof(cl_mem), (const void *)&output);
+      clSetKernelArg(actKernel, 2, sizeof(cl_mem), (const void *)&actOnesBuf);
+      clSetKernelArg(actKernel, 3, sizeof(cl_mem), (const void *)&actZerosBuf);
+      clSetKernelArg(actKernel, 4, sizeof(cl_mem), (const void *)&mask);
+      clSetKernelArg(actKernel, 5, sizeof(int), (const void *)&batchSize);
+      clSetKernelArg(actKernel, 6, sizeof(int), (const void *)&numChannels);
+      clSetKernelArg(actKernel, 7, sizeof(int), (const void *)&nnXYLen);
+
+      cl_int err;
+      size_t actGlobalSizes[2] = {powerOf2ify((size_t)nnXYLen), powerOf2ify((size_t)numChannels)};
+      size_t* actLocalSizes = NULL;
+      MAYBE_EVENT;
+      err = clEnqueueNDRangeKernel(handle->commandQueue, actKernel, 2, NULL, actGlobalSizes, actLocalSizes, 0, NULL, MAYBE_EVENTREF);
+      CHECK_ERR(err);
+      MAYBE_PROFILE("RMSNormSiLU");
+      MAYBE_FREE_EVENT;
+    }
+  }
+
+  RMSNormLayer() = delete;
+  RMSNormLayer(const RMSNormLayer&) = delete;
+  RMSNormLayer& operator=(const RMSNormLayer&) = delete;
+};
+
+//--------------------------------------------------------------
+
+struct TransformerMatMulLayer {
+  const string name;
+  const int inChannels;
+  const int outChannels;
+  const int nnXLen;
+  const int nnYLen;
+  bool usingHGemmWmmaNHCW;
+
+  cl_mem filter;
+
+  TransformerMatMulLayer(
+    ComputeHandleInternal* handle,
+    const MatMulLayerDesc* desc,
+    int nnX,
+    int nnY
+  ) :
+    name(desc->name),
+    inChannels(desc->inChannels),
+    outChannels(desc->outChannels),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    usingHGemmWmmaNHCW(false)
+  {
+    testAssert(desc->weights.size() == (size_t)(inChannels * outChannels));
+    // MatMulLayerDesc weights are (inC, outC): weights[ic * outC + oc]
+    // This is already the correct layout for XGemmDirect (K * N col-major with K=inC, N=outC)
+    vector<float> weights = desc->weights;
+    bool useFP16 = handle->usingFP16Storage;
+    filter = createReadOnlyBuffer(handle, weights, useFP16);
+
+    if(handle->usingFP16TensorCoresFor1x1) {
+      if(inChannels % handle->getHGemmWmmaNCHWRequiredCDivisor() == 0 && outChannels % handle->getHGemmWmmaNCHWRequiredCDivisor() == 0) {
+        usingHGemmWmmaNHCW = true;
+      }
+    }
+  }
+
+  ~TransformerMatMulLayer() {
+    clReleaseMemObject(filter);
+  }
+
+  // Apply per-position linear projection: input NCHW -> output NCHW
+  // This is identical to a 1x1 convolution: output[n,oc,xy] = sum_ic input[n,ic,xy] * weight[ic,oc]
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask) const {
+    (void)mask;
+    if(!usingHGemmWmmaNHCW) {
+      int filterStride = 0; // Reuse same filter for all batch elements
+      int inputStride = nnXLen * nnYLen * inChannels;
+      int outputStride = nnXLen * nnYLen * outChannels;
+      cl_int err;
+      MAYBE_EVENT;
+      err = doStridedBatchedXGemmDirect_KM_KN_NM(
+        handle->xgemmDirectStridedBatchedNNKernel,
+        handle->commandQueue,
+        handle->tuneParams,
+        nnXLen * nnYLen, outChannels, inChannels,
+        inputStride, filterStride, outputStride,
+        input, filter, output,
+        batchSize,
+        MAYBE_EVENTREF
+      );
+      CHECK_ERR(err);
+      MAYBE_PROFILE("TransformerMatMul");
+      MAYBE_FREE_EVENT;
+    }
+    else {
+      cl_int err;
+      MAYBE_EVENT;
+      err = doHGemmWmma_NCHW_ICOC(
+        handle->hgemmWmmaNCHWKernel,
+        handle->commandQueue,
+        handle->tuneParams,
+        batchSize, inChannels, nnXLen * nnYLen, outChannels,
+        input, filter, output,
+        MAYBE_EVENTREF
+      );
+      CHECK_ERR(err);
+      MAYBE_PROFILE("TransformerMatMulHGemm");
+      MAYBE_FREE_EVENT;
+    }
+  }
+
+  TransformerMatMulLayer() = delete;
+  TransformerMatMulLayer(const TransformerMatMulLayer&) = delete;
+  TransformerMatMulLayer& operator=(const TransformerMatMulLayer&) = delete;
+};
+
+//--------------------------------------------------------------
+
+// Shared attention kernel program, compiled once per unique (headDim, vHeadDim) tuple.
+// Owned by ComputeHandleInternal, lazily created on first use.
+// Supports both tiled and naive approaches based on tuned parameters.
+struct TransformerAttentionKernelSet {
+  cl_program program;
+  cl_kernel kernel;
+  int attnBlockQ;   // workgroup size for dim 0 (tiled mode), or 0 if naive
+  bool useTiled;
+  int headDim;
+  int vHeadDim;
+
+  TransformerAttentionKernelSet(
+    ComputeHandleInternal* handle,
+    int qHeadDim_,
+    int vHeadDim_
+  ) :
+    program(NULL),
+    kernel(NULL),
+    attnBlockQ(handle->tuneParams.transformer.ATTN_BLOCK_Q),
+    useTiled(handle->tuneParams.transformer.USE_TILED_ATTN != 0),
+    headDim(qHeadDim_),
+    vHeadDim(vHeadDim_)
+  {
+    string compileOpts = handle->getFP16CompileOptions();
+    compileOpts += " -DATTN_HEAD_DIM=" + Global::intToString(headDim);
+    compileOpts += " -DATTN_V_HEAD_DIM=" + Global::intToString(vHeadDim);
+
+    vector<cl_device_id> deviceIdsToUse = {handle->deviceId};
+
+    if(useTiled) {
+      int blockKV = handle->tuneParams.transformer.ATTN_BLOCK_KV;
+      compileOpts += " -DATTN_BLOCK_Q=" + Global::intToString(attnBlockQ);
+      compileOpts += " -DATTN_BLOCK_KV=" + Global::intToString(blockKV);
+      program = OpenCLHelpers::compileProgram(
+        "transformerAttentionProgram", handle->clContext, deviceIdsToUse,
+        OpenCLKernels::transformerScaledDotProductAttention,
+        compileOpts
+      );
+      cl_int err;
+      kernel = clCreateKernel(program, "scaledDotProductAttention", &err);
+      CHECK_ERR(err);
+    }
+    else {
+      program = OpenCLHelpers::compileProgram(
+        "transformerAttentionNaiveProgram", handle->clContext, deviceIdsToUse,
+        OpenCLKernels::transformerScaledDotProductAttentionNaive,
+        compileOpts
+      );
+      cl_int err;
+      kernel = clCreateKernel(program, "scaledDotProductAttentionNaive", &err);
+      CHECK_ERR(err);
+    }
+  }
+
+  ~TransformerAttentionKernelSet() {
+    if(kernel != NULL)
+      clReleaseKernel(kernel);
+    if(program != NULL)
+      clReleaseProgram(program);
+  }
+
+  TransformerAttentionKernelSet() = delete;
+  TransformerAttentionKernelSet(const TransformerAttentionKernelSet&) = delete;
+  TransformerAttentionKernelSet& operator=(const TransformerAttentionKernelSet&) = delete;
+};
+
+ComputeHandleInternal::~ComputeHandleInternal() {
+  delete attnKernelSet;
+  for(int i = 0; i<profileEvents.size(); i++) {
+    if(profileEvents[i] != NULL)
+      clReleaseEvent(profileEvents[i]);
+  }
+}
+
+const TransformerAttentionKernelSet* ComputeHandleInternal::getOrCreateAttnKernels(int qHeadDim, int vHeadDim) {
+  if(attnKernelSet == nullptr) {
+    attnKernelSet = new TransformerAttentionKernelSet(this, qHeadDim, vHeadDim);
+  }
+  else {
+    testAssert(attnKernelSet->headDim == qHeadDim);
+    testAssert(attnKernelSet->vHeadDim == vHeadDim);
+  }
+  return attnKernelSet;
+}
+
+struct TransformerAttentionBlock {
+  const string name;
+  const int numHeads;
+  const int numKVHeads;
+  const int qHeadDim;
+  const int vHeadDim;
+  const bool useRope;
+  const bool learnableRope;
+
+  const int nnXLen;
+  const int nnYLen;
+
+  const int inChannels;  // = numHeads * qHeadDim (or whatever c_main is)
+
+  const TransformerRMSNormLayer preLN;
+  const TransformerMatMulLayer qProj;
+  const TransformerMatMulLayer kProj;
+  const TransformerMatMulLayer vProj;
+  const TransformerMatMulLayer outProj;
+
+  // RoPE data
+  cl_mem ropeCosTable;
+  cl_mem ropeSinTable;
+  int ropeNumPairs;
+
+  // Shared attention kernel (not owned by this block)
+  const TransformerAttentionKernelSet* attnKernels;
+
+  TransformerAttentionBlock(
+    ComputeHandleInternal* handle,
+    const TransformerAttentionDesc* desc,
+    int nnX,
+    int nnY
+  ) :
+    name(desc->name),
+    numHeads(desc->numHeads),
+    numKVHeads(desc->numKVHeads),
+    qHeadDim(desc->qHeadDim),
+    vHeadDim(desc->vHeadDim),
+    useRope(desc->useRope),
+    learnableRope(desc->learnableRope),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    inChannels(desc->qProj.inChannels),
+    preLN(handle, &desc->preLN, nnX, nnY),
+    qProj(handle, &desc->qProj, nnX, nnY),
+    kProj(handle, &desc->kProj, nnX, nnY),
+    vProj(handle, &desc->vProj, nnX, nnY),
+    outProj(handle, &desc->outProj, nnX, nnY),
+    ropeCosTable(NULL),
+    ropeSinTable(NULL),
+    ropeNumPairs(0),
+    attnKernels(handle->getOrCreateAttnKernels(desc->qHeadDim, desc->vHeadDim))
+  {
+
+    if(useRope) {
+      ropeNumPairs = qHeadDim / 2;
+
+      vector<float> cosTableData;
+      vector<float> sinTableData;
+      desc->computeRopeCosSin(nnXLen, nnYLen, cosTableData, sinTableData);
+
+      bool useFP16 = false;
+      ropeCosTable = createReadOnlyBuffer(handle, cosTableData, useFP16);
+      ropeSinTable = createReadOnlyBuffer(handle, sinTableData, useFP16);
+    }
+  }
+
+  ~TransformerAttentionBlock() {
+    if(ropeCosTable != NULL)
+      clReleaseMemObject(ropeCosTable);
+    if(ropeSinTable != NULL)
+      clReleaseMemObject(ropeSinTable);
+  }
+
+  void apply(
+    ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
+    int batchSize,
+    cl_mem trunk,       // (N, C, H, W) - both input and where residual is added
+    cl_mem trunkScratch, // temp of same size as trunk
+    cl_mem mask,
+    cl_mem maskSum
+  ) const {
+    (void)maskSum;
+    int nnXYLen = nnXLen * nnYLen;
+    int seqLen = nnXYLen;
+    int qTotalDim = numHeads * qHeadDim;
+    int kTotalDim = numKVHeads * qHeadDim;
+    int vTotalDim = numKVHeads * vHeadDim;
+
+    // Step 1: RMSNorm
+    // preLN: trunk -> trunkScratch (normalized)
+    preLN.apply(handle, batchSize, trunk, trunkScratch, mask);
+
+    // Step 2: Q/K/V projections using tuned xgemm (same as 1x1 conv)
+    SizedBuf<cl_mem> qBuf(scratch->allocator, scratch->getBufSizeXY(qTotalDim));
+    SizedBuf<cl_mem> kBuf(scratch->allocator, scratch->getBufSizeXY(kTotalDim));
+    SizedBuf<cl_mem> vBuf(scratch->allocator, scratch->getBufSizeXY(vTotalDim));
+
+    qProj.apply(handle, batchSize, trunkScratch, qBuf.buf, mask);
+    kProj.apply(handle, batchSize, trunkScratch, kBuf.buf, mask);
+    vProj.apply(handle, batchSize, trunkScratch, vBuf.buf, mask);
+
+    // Step 3: Apply RoPE to Q and K
+    if(useRope) {
+      cl_kernel ropeKernel = handle->transformerApplyRoPEKernel;
+      int learnableInt = learnableRope ? 1 : 0;
+
+      // Apply to Q - Q is (N, numHeads*qHeadDim, HW), reshape as (N*numHeads, qHeadDim, HW)
+      clSetKernelArg(ropeKernel, 0, sizeof(cl_mem), (const void *)&qBuf.buf);
+      clSetKernelArg(ropeKernel, 1, sizeof(cl_mem), (const void *)&ropeCosTable);
+      clSetKernelArg(ropeKernel, 2, sizeof(cl_mem), (const void *)&ropeSinTable);
+      clSetKernelArg(ropeKernel, 3, sizeof(int), (const void *)&batchSize);
+      clSetKernelArg(ropeKernel, 4, sizeof(int), (const void *)&numHeads);
+      clSetKernelArg(ropeKernel, 5, sizeof(int), (const void *)&qHeadDim);
+      clSetKernelArg(ropeKernel, 6, sizeof(int), (const void *)&seqLen);
+      clSetKernelArg(ropeKernel, 7, sizeof(int), (const void *)&ropeNumPairs);
+      clSetKernelArg(ropeKernel, 8, sizeof(int), (const void *)&learnableInt);
+
+      cl_int err;
+      size_t globalSizes[3] = {
+        powerOf2ify((size_t)seqLen),
+        powerOf2ify((size_t)ropeNumPairs),
+        powerOf2ify((size_t)(batchSize * numHeads))
+      };
+      size_t* localSizes = NULL;
+      MAYBE_EVENT;
+      err = clEnqueueNDRangeKernel(
+        handle->commandQueue, ropeKernel, 3, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+      );
+      CHECK_ERR(err);
+      MAYBE_PROFILE("RoPE_Q");
+      MAYBE_FREE_EVENT;
+
+      // Apply to K
+      clSetKernelArg(ropeKernel, 0, sizeof(cl_mem), (const void *)&kBuf.buf);
+      clSetKernelArg(ropeKernel, 4, sizeof(int), (const void *)&numKVHeads);
+
+      size_t globalSizesK[3] = {
+        powerOf2ify((size_t)seqLen),
+        powerOf2ify((size_t)ropeNumPairs),
+        powerOf2ify((size_t)(batchSize * numKVHeads))
+      };
+      MAYBE_EVENT;
+      err = clEnqueueNDRangeKernel(
+        handle->commandQueue, ropeKernel, 3, NULL, globalSizesK, localSizes, 0, NULL, MAYBE_EVENTREF
+      );
+      CHECK_ERR(err);
+      MAYBE_PROFILE("RoPE_K");
+      MAYBE_FREE_EVENT;
+    }
+
+    // Step 4: Scaled dot product attention
+    // Q: (N*numHeads, qHeadDim, seqLen), K: (N*numKVHeads, qHeadDim, seqLen), V: (N*numKVHeads, vHeadDim, seqLen)
+    // Output: (N*numHeads, vHeadDim, seqLen)
+    SizedBuf<cl_mem> attnOut(scratch->allocator, scratch->getBufSizeXY(numHeads * vHeadDim));
+    {
+      cl_kernel kernel = attnKernels->kernel;
+      float scale = 1.0f / sqrtf((float)qHeadDim);
+
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&qBuf.buf);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&kBuf.buf);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&vBuf.buf);
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&attnOut.buf);
+      clSetKernelArg(kernel, 4, sizeof(cl_mem), (const void *)&mask);
+      clSetKernelArg(kernel, 5, sizeof(int), (const void *)&seqLen);
+      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&numHeads);
+      clSetKernelArg(kernel, 7, sizeof(int), (const void *)&numKVHeads);
+      clSetKernelArg(kernel, 8, sizeof(float), (const void *)&scale);
+
+      cl_int err;
+      if(attnKernels->useTiled) {
+        int blockQ = attnKernels->attnBlockQ;
+        size_t globalSizes[2] = {
+          (size_t)roundUpToMultiple((size_t)seqLen, (size_t)blockQ),
+          (size_t)(batchSize * numHeads)
+        };
+        size_t localSizes[2] = {(size_t)blockQ, 1};
+        MAYBE_EVENT;
+        err = clEnqueueNDRangeKernel(
+          handle->commandQueue, kernel, 2, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("Attention");
+        MAYBE_FREE_EVENT;
+      }
+      else {
+        size_t globalSizes[2] = {
+          powerOf2ify((size_t)seqLen),
+          (size_t)(batchSize * numHeads)
+        };
+        size_t* localSizes = NULL;
+        MAYBE_EVENT;
+        err = clEnqueueNDRangeKernel(
+          handle->commandQueue, kernel, 2, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("Attention");
+        MAYBE_FREE_EVENT;
+      }
+    }
+
+    // Step 5: Output projection: attnOut (N, numHeads*vHeadDim, H, W) -> trunkScratch (N, C, H, W)
+    outProj.apply(handle, batchSize, attnOut.buf, trunkScratch, mask);
+
+    // Step 6: Add residual: trunk += trunkScratch
+    addPointWise(handle, trunk, trunkScratch, batchSize * inChannels * nnXYLen);
+  }
+
+  TransformerAttentionBlock() = delete;
+  TransformerAttentionBlock(const TransformerAttentionBlock&) = delete;
+  TransformerAttentionBlock& operator=(const TransformerAttentionBlock&) = delete;
+};
+
+//--------------------------------------------------------------
+
+struct TransformerFFNBlock {
+  const string name;
+  const int numChannels;
+  const int ffnChannels;
+  const bool useSwiGLU;
+
+  const int nnXLen;
+  const int nnYLen;
+
+  const TransformerRMSNormLayer preLN;
+  const TransformerMatMulLayer linear1;
+  std::unique_ptr<TransformerMatMulLayer> linearGate; // only if useSwiGLU
+  const TransformerMatMulLayer linear2;
+
+  TransformerFFNBlock(
+    ComputeHandleInternal* handle,
+    const TransformerFFNDesc* desc,
+    int nnX,
+    int nnY
+  ) :
+    name(desc->name),
+    numChannels(desc->numChannels),
+    ffnChannels(desc->ffnChannels),
+    useSwiGLU(desc->useSwiGLU),
+    nnXLen(nnX),
+    nnYLen(nnY),
+    preLN(handle, &desc->preLN, nnX, nnY),
+    linear1(handle, &desc->linear1, nnX, nnY),
+    linear2(handle, &desc->linear2, nnX, nnY)
+  {
+    if(useSwiGLU) {
+      linearGate = std::make_unique<TransformerMatMulLayer>(handle, &desc->linearGate, nnX, nnY);
+    }
+  }
+
+  ~TransformerFFNBlock() {
+  }
+
+  void apply(
+    ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
+    int batchSize,
+    cl_mem trunk,        // (N, C, H, W) - input and residual target
+    cl_mem trunkScratch, // temp
+    cl_mem mask,
+    cl_mem maskSum
+  ) const {
+    (void)maskSum;
+    int nnXYLen = nnXLen * nnYLen;
+
+    // Step 1: RMSNorm
+    preLN.apply(handle, batchSize, trunk, trunkScratch, mask);
+
+    // Step 2: linear1 projection -> ffn buffer
+    SizedBuf<cl_mem> ffnBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
+    linear1.apply(handle, batchSize, trunkScratch, ffnBuf.buf, mask);
+
+    if(useSwiGLU) {
+      // Step 2b: gate projection
+      SizedBuf<cl_mem> gateBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
+      linearGate->apply(handle, batchSize, trunkScratch, gateBuf.buf, mask);
+
+      // Step 3: SwiGLU: output = SiLU(linear1) * gate
+      cl_kernel kernel = handle->transformerSwiGLUKernel;
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&ffnBuf.buf);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&gateBuf.buf);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&ffnBuf.buf);  // output in-place to ffnBuf
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mask);
+      clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
+      clSetKernelArg(kernel, 5, sizeof(int), (const void *)&ffnChannels);
+      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&nnXYLen);
+
+      cl_int err;
+      static constexpr int nKernelDims = 2;
+      size_t globalSizes[nKernelDims] = {
+        powerOf2ify((size_t)nnXYLen),
+        powerOf2ify((size_t)ffnChannels)
+      };
+      size_t* localSizes = NULL;
+      MAYBE_EVENT;
+      err = clEnqueueNDRangeKernel(
+        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+      );
+      CHECK_ERR(err);
+      MAYBE_PROFILE("SwiGLU");
+      MAYBE_FREE_EVENT;
+    }
+    else {
+      // Non-SwiGLU transformer FFN is not used in any current KataGo transformer config
+      // (all use ffnsg = SwiGLU). Throw if encountered.
+      throw StringError("Non-SwiGLU transformer FFN is not yet supported in OpenCL backend");
+    }
+
+    // Step 4: linear2 projection: ffnBuf (N, ffnC, H, W) -> trunkScratch (N, C, H, W)
+    linear2.apply(handle, batchSize, ffnBuf.buf, trunkScratch, mask);
+
+    // Step 5: Add residual
+    addPointWise(handle, trunk, trunkScratch, batchSize * numChannels * nnXYLen);
+  }
+
+  TransformerFFNBlock() = delete;
+  TransformerFFNBlock(const TransformerFFNBlock&) = delete;
+  TransformerFFNBlock& operator=(const TransformerFFNBlock&) = delete;
+};
+
+
+//--------------------------------------------------------------
+
 BlockStack::BlockStack(
   ComputeHandleInternal* handle,
   const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
@@ -1929,6 +2727,20 @@ BlockStack::BlockStack(
       );
       blocks.emplace_back(NESTED_BOTTLENECK_BLOCK_KIND,std::move(blockPtr));
     }
+    else if(descBlocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      TransformerAttentionDesc* blockDesc = (TransformerAttentionDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new TransformerAttentionBlock(handle, blockDesc, nnXLen, nnYLen)
+      );
+      blocks.emplace_back(TRANSFORMER_ATTENTION_BLOCK_KIND, std::move(blockPtr));
+    }
+    else if(descBlocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      TransformerFFNDesc* blockDesc = (TransformerFFNDesc*)descBlocks[i].second.get();
+      unique_ptr_void blockPtr = make_unique_void(
+        new TransformerFFNBlock(handle, blockDesc, nnXLen, nnYLen)
+      );
+      blocks.emplace_back(TRANSFORMER_FFN_BLOCK_KIND, std::move(blockPtr));
+    }
     else {
       ASSERT_UNREACHABLE;
     }
@@ -1953,6 +2765,12 @@ ConvWorkspaceEltsNeeded BlockStack::requiredConvWorkspaceElts(ComputeHandleInter
     else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       NestedBottleneckResidualBlock* block = (NestedBottleneckResidualBlock*)blocks[i].second.get();
       maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      // Transformer attention blocks don't use conv workspace
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      // Transformer FFN blocks don't use conv workspace
     }
     else {
       ASSERT_UNREACHABLE;
@@ -2018,6 +2836,14 @@ void BlockStack::apply(
         convWorkspace,
         convWorkspace2
       );
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      TransformerAttentionBlock* block = (TransformerAttentionBlock*)blocks[i].second.get();
+      block->apply(handle, scratch, batchSize, trunk, trunkScratch, mask, maskSum);
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      TransformerFFNBlock* block = (TransformerFFNBlock*)blocks[i].second.get();
+      block->apply(handle, scratch, batchSize, trunk, trunkScratch, mask, maskSum);
     }
     else {
       ASSERT_UNREACHABLE;
@@ -2085,6 +2911,7 @@ struct Trunk {
   const int midNumChannels;
   const int regularNumChannels;
   const int gpoolNumChannels;
+  const int trunkNormKind;
 
   const int nnXLen;
   const int nnYLen;
@@ -2094,6 +2921,7 @@ struct Trunk {
   std::unique_ptr<SGFMetadataEncoder> sgfMetadataEncoder;
   const BlockStack blocks;
   std::unique_ptr<BatchNormLayer> trunkTipBN;
+  std::unique_ptr<RMSNormLayer> trunkTipRMSNorm;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -2113,6 +2941,7 @@ struct Trunk {
     midNumChannels(desc->midNumChannels),
     regularNumChannels(desc->regularNumChannels),
     gpoolNumChannels(desc->gpoolNumChannels),
+    trunkNormKind(desc->trunkNormKind),
     nnXLen(nnX),
     nnYLen(nnY),
     blocks(handle,desc->blocks,desc->numBlocks,desc->trunkNumChannels,nnX,nnY,useFP16)
@@ -2128,7 +2957,12 @@ struct Trunk {
       sgfMetadataEncoder = std::make_unique<SGFMetadataEncoder>(handle,&desc->sgfMetadataEncoder);
       testAssert(sgfMetadataEncoder->mul3.outChannels == initialMatMul->outChannels);
     }
-    trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16);
+    if(desc->trunkNormKind == TRUNK_NORM_KIND_STANDARD) {
+      trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16);
+    }
+    else {
+      trunkTipRMSNorm = std::make_unique<RMSNormLayer>(handle,&desc->trunkTipRMSNorm,nnXLen,nnYLen,desc->trunkTipActivation.activation);
+    }
   }
 
   ~Trunk() {
@@ -2182,9 +3016,17 @@ struct Trunk {
     }
 
     blocks.apply(handle,scratch,batchSize,trunk,trunkScratch.buf,mask,maskSum,convWorkspace,convWorkspace2);
-    trunkTipBN->apply(handle,batchSize,trunk,trunk,mask);
+
+    if(trunkNormKind == TRUNK_NORM_KIND_STANDARD) {
+      trunkTipBN->apply(handle,batchSize,trunk,trunk,mask);
+    }
+    else {
+      // RMSNorm (spatial or non-spatial or grouped) for trunk tip, with fused activation
+      trunkTipRMSNorm->apply(handle,batchSize,trunk,trunk,mask,maskSum);
+    }
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
+    bool usingNHWC = false;
     debugPrint4D(string("Trunk tip"), handle, trunk, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
     #endif
   }
@@ -2272,6 +3114,7 @@ struct PolicyHead {
     SizedBuf<cl_mem> p1Pass(scratch->allocator, scratch->getBufSizeFloat(p1Channels));
 
     p1Conv->apply(handle,batchSize,trunk,p1Out.buf,convWorkspace,convWorkspace2);
+
     g1Conv->apply(handle,batchSize,trunk,gpoolOut.buf,convWorkspace,convWorkspace2);
     g1BN->apply(handle,batchSize,gpoolOut.buf,gpoolOut.buf,mask);
 
@@ -2290,6 +3133,7 @@ struct PolicyHead {
     addChannelBiases(handle, p1Out.buf, gpoolBias.buf, batchSize * p1Channels, nnXLen*nnYLen);
 
     p1BN->apply(handle,batchSize,p1Out.buf,p1Out.buf,mask);
+
     p2Conv->apply(handle,batchSize,p1Out.buf,policy,convWorkspace,convWorkspace2);
     if(modelVersion >= 15) {
       gpoolToPassMul->apply(handle,batchSize,gpoolConcat.buf,p1Pass.buf);
