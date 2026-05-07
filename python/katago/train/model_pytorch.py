@@ -1260,20 +1260,32 @@ def apply_rotary_emb(xq, xk, cos, sin):
 
     return xq_out.type_as(xq), xk_out.type_as(xk)
 
+def compute_learnable_rope_cos_sin(s_x, s_y, freqs):
+    """Compute cos/sin rotation tables from spatial positions and learnable 2D frequencies.
+    s_x: (...,) float tensor of column positions
+    s_y: (...,) float tensor of row positions
+    freqs: (H_kv, P, 2) learnable frequencies (omega_x, omega_y) per head per pair
+    Returns: (cos, sin) each of shape (..., H_kv, P)
+    """
+    # angles: (..., H_kv, P) = omega_x * x + omega_y * y
+    angles = s_x.unsqueeze(-1).unsqueeze(-1) * freqs[:, :, 0] + s_y.unsqueeze(-1).unsqueeze(-1) * freqs[:, :, 1]
+    return torch.cos(angles), torch.sin(angles)
+
 def apply_learnable_rotary_emb(xq, xk, cos_q, sin_q, cos_k, sin_k):
     """Apply learnable rotary position embeddings to Q and K tensors.
     xq: (Batch, Seq, num_heads, Dim)
     xk: (Batch, Seq, num_kv_heads, Dim)
-    cos_q, sin_q: (Seq, num_heads, Dim/2) - per-head, per-pair
-    cos_k, sin_k: (Seq, num_kv_heads, Dim/2) - per-kv-head, per-pair
+    cos_q, sin_q: (Seq, num_heads, Dim/2) or (Batch, Seq, num_heads, Dim/2)
+    cos_k, sin_k: (Seq, num_kv_heads, Dim/2) or (Batch, Seq, num_kv_heads, Dim/2)
     """
     def _rotate(x, cos, sin):
         B, S, H, D = x.shape
         P = D // 2
         x_pairs = x.view(B, S, H, P, 2)
         x0, x1 = x_pairs.unbind(dim=-1)  # each (B, S, H, P)
-        cos = cos.unsqueeze(0)  # (1, S, H, P)
-        sin = sin.unsqueeze(0)
+        if cos.dim() == 3:
+            cos = cos.unsqueeze(0)  # (1, S, H, P)
+            sin = sin.unsqueeze(0)
         out = torch.stack([x0 * cos - x1 * sin, x0 * sin + x1 * cos], dim=-1)
         return out.reshape(B, S, H, D).type_as(x)
 
@@ -1304,6 +1316,21 @@ def compute_gab_fourier_features(dr, dc, freqs):
 
 GAB_TEMPLATES = "gab_templates"
 TAB_KQ = "tab_kq"
+REGISTER_STATE = "register_state"
+
+@dataclass
+class RegisterState:
+    """Precomputed board geometry for positional registers, shared across all blocks.
+    Derived from the mask once per forward pass.
+    """
+    center_x: torch.Tensor  # (B, 1) center column of on-board positions
+    center_y: torch.Tensor  # (B, 1) center row of on-board positions
+    radius_x: torch.Tensor  # (B, 1) half-width of on-board positions
+    radius_y: torch.Tensor  # (B, 1) half-height of on-board positions
+    # Precomputed s_x, s_y for all sequence positions (board + inline registers).
+    # (B, S+k) each, or None when not using inline registers.
+    all_pos_x: Optional[torch.Tensor] = None
+    all_pos_y: Optional[torch.Tensor] = None
 
 @dataclass
 class GABTemplateData:
@@ -1968,6 +1995,7 @@ class TransformerAttentionBlock(torch.nn.Module):
     ):
         super(TransformerAttentionBlock, self).__init__()
         self.name = name
+        self.c_main = c_main
         self.norm_kind = config.get("norm_kind", "layer")
         self.use_rope = use_rope
         self.use_gab = use_gab
@@ -1997,6 +2025,17 @@ class TransformerAttentionBlock(torch.nn.Module):
             self.q_norm = torch.nn.RMSNorm(self.q_head_dim, eps=1e-6)
             self.k_norm = torch.nn.RMSNorm(self.q_head_dim, eps=1e-6)
 
+        # Inline registers: registers are part of the trunk tensor (NC1S layout),
+        # share trunk channel dim, and participate in all layers identically to
+        # board tokens. No separate parameters needed.
+        self.inline_registers = config.get("inline_registers", False)
+        self.num_rw_registers = config.get("attention_num_rw_registers", 0)
+        if self.num_rw_registers > 0 and self.inline_registers:
+            assert not (self.use_gab or self.use_tab), \
+                "Inline register tokens are not currently supported together with GAB/TAB"
+            assert self.use_rope and config.get("learnable_rope", False), \
+                "Inline register tokens require learnable RoPE"
+
         self.learnable_rope = config.get("learnable_rope", False) if self.use_rope else False
         if self.use_rope:
             if self.learnable_rope:
@@ -2006,8 +2045,10 @@ class TransformerAttentionBlock(torch.nn.Module):
                 # Geometric initialization from 1 rad/square to 1/50 rad/square
                 log_lo = math.log(1.0 / 50.0)
                 log_hi = math.log(1.0)
-                init_freqs = torch.exp(torch.empty(self.num_kv_heads, num_pairs, 2).uniform_(log_lo, log_hi))
-                init_freqs = init_freqs * (torch.randint(0, 2, (self.num_kv_heads, num_pairs, 2)) * 2 - 1).float()
+                init_freqs = (
+                    torch.exp(torch.empty(self.num_kv_heads, num_pairs, 2).uniform_(log_lo, log_hi))
+                    * (torch.randint(0, 2, (self.num_kv_heads, num_pairs, 2)) * 2 - 1).float()
+                )
                 self.rope_freqs = torch.nn.Parameter(init_freqs)  # (num_kv_heads, P, 2)
                 self.pos_len = pos_len
                 self.cos_cached = None
@@ -2056,8 +2097,6 @@ class TransformerAttentionBlock(torch.nn.Module):
                 reg_dict["noreg"].append(param)
 
     def initialize(self, fixup_scale):
-        # Relies on torch initialization, nothing to do here.
-        # Since we have active normalization layers, initial scaling doesn't matter so much.
         pass
 
     def set_brenorm_params(self, renorm_avg_momentum, rmax, dmax):
@@ -2143,12 +2182,12 @@ class TransformerAttentionBlock(torch.nn.Module):
     def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
-        x: NCHW
-        mask: N1HW
+        x: NCHW (or NC1S when inline registers are active)
+        mask: N1HW (or N11S when inline registers are active)
         mask_sum_hw: N111
         mask_sum: scalar
 
-        Returns: NCHW (residual only, caller is responsible for adding to trunk)
+        Returns: NCHW or NC1S (residual only, caller is responsible for adding to trunk)
         """
         batch_size, channels, height, width = x.shape
         seq_len = height * width
@@ -2166,19 +2205,21 @@ class TransformerAttentionBlock(torch.nn.Module):
 
         if self.use_rope:
             if self.learnable_rope:
-                # Compute per-head, per-pair angles from learnable 2D frequencies.
-                # rope_freqs: (num_kv_heads, P, 2) = (H_kv, P, [omega_x, omega_y])
-                s_idx = torch.arange(seq_len, device=q.device)
-                s_y = (s_idx // self.pos_len).float()  # row
-                s_x = (s_idx % self.pos_len).float()   # col
-                # angles: (S, H_kv, P) = omega_x * x + omega_y * y
-                angles = s_x.view(-1, 1, 1) * self.rope_freqs[:, :, 0] + s_y.view(-1, 1, 1) * self.rope_freqs[:, :, 1]
-                cos_k = torch.cos(angles)  # (S, H_kv, P)
-                sin_k = torch.sin(angles)
+                # When inline registers are active, use precomputed all_pos_x/all_pos_y
+                # which covers both board and register positions. Otherwise compute from arange.
+                if self.inline_registers and self.num_rw_registers > 0:
+                    reg_state = block_shared_data[REGISTER_STATE]
+                    s_x = reg_state.all_pos_x  # (B, S)
+                    s_y = reg_state.all_pos_y  # (B, S)
+                else:
+                    s_idx = torch.arange(seq_len, device=q.device)
+                    s_y = (s_idx // self.pos_len).float()  # row
+                    s_x = (s_idx % self.pos_len).float()   # col
+                cos_k, sin_k = compute_learnable_rope_cos_sin(s_x, s_y, self.rope_freqs)  # ([B,] S, H_kv, P)
                 # For Q: expand kv head freqs to match num_heads if using multi-query attention
                 if self.n_rep > 1:
-                    cos_q = cos_k.unsqueeze(2).expand(-1, -1, self.n_rep, -1).reshape(seq_len, self.num_heads, -1)
-                    sin_q = sin_k.unsqueeze(2).expand(-1, -1, self.n_rep, -1).reshape(seq_len, self.num_heads, -1)
+                    cos_q = cos_k.unsqueeze(-3).expand(*cos_k.shape[:-2], self.n_rep, cos_k.shape[-1]).reshape(*cos_k.shape[:-2], self.num_heads, -1)
+                    sin_q = sin_k.unsqueeze(-3).expand(*sin_k.shape[:-2], self.n_rep, sin_k.shape[-1]).reshape(*sin_k.shape[:-2], self.num_heads, -1)
                 else:
                     cos_q = cos_k
                     sin_q = sin_k
@@ -2206,6 +2247,8 @@ class TransformerAttentionBlock(torch.nn.Module):
             template_bias, extra_kq = self._compute_gab_bias(x_norm, mask, mask_sum_hw, block_shared_data)
 
         if mask is not None:
+            # For inline registers, mask is N11S and already includes register positions
+            # (always 1.0), so seq_len already covers them.
             mask_flat = mask.view(batch_size, 1, 1, seq_len)
             attn_mask = torch.zeros_like(mask_flat, dtype=q.dtype)
             attn_mask.masked_fill_(mask_flat == 0, float('-inf'))
@@ -2289,10 +2332,12 @@ class TransformerFFNBlock(torch.nn.Module):
     ):
         super(TransformerFFNBlock, self).__init__()
         self.name = name
+        self.c_main = c_main
         self.norm_kind = config.get("norm_kind", "layer")
         self.ffn_dim = config["transformer_ffn_channels"]
         self.use_swiglu = use_swiglu
 
+        self.inline_registers = config.get("inline_registers", False)
         self.use_depthwise_conv = config.get("transformer_ffn_depthwise_conv", False)
 
         self.ffn_linear1 = torch.nn.Linear(c_main, self.ffn_dim, bias=False)
@@ -2306,6 +2351,11 @@ class TransformerFFNBlock(torch.nn.Module):
         self.ffn_linear2 = torch.nn.Linear(self.ffn_dim, c_main, bias=False)
 
         self.norm = torch.nn.RMSNorm(c_main, eps=1e-6)
+
+        self.num_rw_registers = config.get("attention_num_rw_registers", 0)
+        if self.num_rw_registers > 0 and self.inline_registers:
+            assert not self.use_depthwise_conv, \
+                "Inline registers are not compatible with depthwise conv in FFN"
 
     def add_reg_dict(self, reg_dict:Dict[str,List]):
         for name, param in self.named_parameters():
@@ -2329,8 +2379,8 @@ class TransformerFFNBlock(torch.nn.Module):
     def forward(self, x, mask, mask_sum_hw, mask_sum:float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
-        x: NCHW
-        mask: N1HW
+        x: NCHW (or NC1S when inline registers are active)
+        mask: N1HW (or N11S when inline registers are active)
         mask_sum_hw: N111
         mask_sum: scalar
 
@@ -2719,6 +2769,7 @@ _BLOCK_KIND_FLAGS = {
     "attnropetab":                          (False, True),
     "ffnsg":                                (False, False),
     "ffng":                                 (False, False),
+    "bottlenest2transformerrope":           (False, False),
     "bottlenest2transformerropesg":         (False, False),
     "bottlenest2transformergabsg":          (True,  False),
     "bottlenest2transformerropegabsg":      (True,  False),
@@ -2979,6 +3030,18 @@ class Model(torch.nn.Module):
                     activation=self.activation,
                     use_swiglu=False,
                 ))
+            elif block_kind == "bottlenest2transformerrope":
+                self.blocks.append(NestedBottleneckTransformerBlock(
+                    name=block_name,
+                    internal_length=2,
+                    c_main=self.c_trunk,
+                    c_mid=self.c_mid,
+                    config=self.config,
+                    activation=self.activation,
+                    pos_len=pos_len,
+                    use_swiglu=False,
+                    use_rope=True,
+                ))
             elif block_kind == "bottlenest2transformerropesg":
                 self.blocks.append(NestedBottleneckTransformerBlock(
                     name=block_name,
@@ -3054,6 +3117,65 @@ class Model(torch.nn.Module):
             self.trunk_channel_gate_logits = torch.nn.ParameterList()
             for k in range(num_blocks):
                 self.trunk_channel_gate_logits.append(torch.nn.Parameter(torch.zeros(1, self.c_trunk, 1, 1)))
+
+        # Trunk residual backout: a parallel "backout" trunk accumulates alongside the
+        # main trunk using the same per-block (trunk_factor, residual_factor) coefficients,
+        # but with each residual's contribution additionally multiplied by a per-channel
+        # sigmoid gate. Later blocks (and the final trunk output) can subtract a per-channel
+        # sigmoid-gated amount of the backout trunk from the main trunk input to effectively
+        # "back out" the influence of earlier blocks.
+        self.use_trunk_residual_backout = config.get("use_trunk_residual_backout", False)
+        self.trunk_residual_backout_noreg = config.get("trunk_residual_backout_noreg", False)
+        if self.use_trunk_residual_backout:
+            num_blocks = len(self.blocks)
+            # Controls the amount that the initial embedding (channelwise scaled) forms
+            # the initial contents of the backout trunk.
+            self.backout_add_logit_embedding = torch.nn.Parameter(torch.zeros(1, self.c_trunk, 1, 1))
+            # One gate per block (except the last) controlling how much of each block's
+            # residual contributes to the backout trunk. The last block's residual is only
+            # consumed by the final output, so letting it contribute to a backout the final
+            # output could subtract would be incoherent; hence no entry for it.
+            self.backout_add_logits = torch.nn.ParameterList()
+            for k in range(num_blocks - 1):
+                self.backout_add_logits.append(torch.nn.Parameter(torch.zeros(1, self.c_trunk, 1, 1)))
+            # One gate per block after the first, controlling how much of the backout
+            # trunk is subtracted from the trunk before feeding to that block. Indexed
+            # shifted by one: backout_use_logits[i] is consumed by block i+1 (so block 1
+            # uses backout_use_logits[0]). The first block sees the raw embedding.
+            # Initialized to -2 so we start out only backing out a tiny bit
+            # (sigmoid(-2) ~= 0.12).
+            self.backout_use_logits = torch.nn.ParameterList()
+            for k in range(num_blocks - 1):
+                self.backout_use_logits.append(torch.nn.Parameter(torch.full((1, self.c_trunk, 1, 1), -2.0)))
+            # Controls how much of the backout trunk is subtracted from the trunk before
+            # the final trunk norm+act feeding into the heads. Same -2 init rationale.
+            self.backout_use_logit_final = torch.nn.Parameter(torch.full((1, self.c_trunk, 1, 1), -2.0))
+
+        self.num_rw_registers = config.get("attention_num_rw_registers", 0)
+        self.use_rw_registers = self.num_rw_registers > 0
+        self.inline_registers = config.get("inline_registers", False)
+        if self.use_rw_registers and self.inline_registers:
+            # Inline registers: registers are part of the trunk tensor (NC1S layout).
+            # They share the trunk channel dimension and participate in all layers.
+            # Learnable initial register contents: (1, c_trunk, 1, k) in NC1S format
+            self.rw_register_init = torch.nn.Parameter(
+                torch.randn(1, self.c_trunk, 1, self.num_rw_registers) * 0.25
+            )
+            # Learnable relative positions for RW registers (before tanh)
+            self.rw_register_rel_pos_x = torch.nn.Parameter(
+                torch.empty(self.num_rw_registers).uniform_(-0.5, 0.5)
+            )
+            self.rw_register_rel_pos_y = torch.nn.Parameter(
+                torch.empty(self.num_rw_registers).uniform_(-0.5, 0.5)
+            )
+            # Readout: project register state into the trunk just before the final norm.
+            # After splitting off registers from the NC1S trunk, mean-pool across registers
+            # and project back to trunk channels.
+            # norm -> project to c_trunk -> activate -> mean pool -> project to c_trunk
+            self.rw_reg_readout_norm = torch.nn.RMSNorm(self.c_trunk, eps=1e-6)
+            self.rw_reg_readout_proj1 = torch.nn.Linear(self.c_trunk, self.c_trunk, bias=False)
+            self.rw_reg_readout_act = act(self.activation, inplace=False)
+            self.rw_reg_readout_proj2 = torch.nn.Linear(self.c_trunk, self.c_trunk, bias=False)
 
         if self.trunk_final_rmsnorm:
             spatial = config.get("trunk_rmsnorm_spatial", False)
@@ -3133,6 +3255,10 @@ class Model(torch.nn.Module):
                 for block in self.blocks:
                     block.initialize(fixup_scale=1.0)
 
+            if self.use_rw_registers:
+                # Zero-init readout so registers start as no-ops
+                self.rw_reg_readout_proj2.weight.data.zero_()
+
             self.policy_head.initialize()
             self.value_head.initialize()
             if self.has_intermediate_head:
@@ -3173,6 +3299,21 @@ class Model(torch.nn.Module):
         if self.use_trunk_channel_gate:
             for gate_logit in self.trunk_channel_gate_logits:
                 reg_dict["normal_gamma"].append(gate_logit)
+        if self.use_trunk_residual_backout:
+            backout_reg = "noreg" if self.trunk_residual_backout_noreg else "normal_gamma"
+            reg_dict[backout_reg].append(self.backout_add_logit_embedding)
+            for logit in self.backout_add_logits:
+                reg_dict[backout_reg].append(logit)
+            for logit in self.backout_use_logits:
+                reg_dict[backout_reg].append(logit)
+            reg_dict[backout_reg].append(self.backout_use_logit_final)
+        if self.use_rw_registers:
+            reg_dict["noreg"].append(self.rw_register_init)
+            reg_dict["noreg"].append(self.rw_register_rel_pos_x)
+            reg_dict["noreg"].append(self.rw_register_rel_pos_y)
+            reg_dict["normal_gamma"].append(self.rw_reg_readout_norm.weight)
+            reg_dict["normal"].append(self.rw_reg_readout_proj1.weight)
+            reg_dict["normal"].append(self.rw_reg_readout_proj2.weight)
         self.norm_trunkfinal.add_reg_dict(reg_dict)
         self.policy_head.add_reg_dict(reg_dict)
         self.value_head.add_reg_dict(reg_dict)
@@ -3204,16 +3345,69 @@ class Model(torch.nn.Module):
             self.intermediate_policy_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
             self.intermediate_value_head.add_brenorm_clippage(upper_rclippage, lower_rclippage, dclippage)
 
+    def _trunk_residual_factors(self, block_idx):
+        """Return (trunk_factor, residual_factor) for combining trunk and residual at block_idx.
+
+        If trunk channel gating is enabled, these are per-channel (1, C, 1, 1) tensors,
+        otherwise both factors are the scalar 1.0 (plain residual addition).
+        """
+        if self.use_trunk_channel_gate:
+            gate_logit = 0.5 * self.trunk_channel_gate_logits[block_idx]
+            w = ((block_idx+2) / (block_idx+1)) / ((1.0 / (block_idx+1)) + torch.exp(-gate_logit))
+            trunk_factor = (1.0/(block_idx+1)) * ((block_idx+2) - w)
+            residual_factor = w
+            return trunk_factor, residual_factor
+        else:
+            return 1.0, 1.0
+
     def _channel_gated_add(self, trunk, residual, block_idx, mask, mask_sum_hw):
         """Add residual to trunk with per-channel gate.
 
         The gate logits are static (1, C, 1, 1) learned params initialized to zero.
         """
-        gate_logit = 0.5 * self.trunk_channel_gate_logits[block_idx]
-        w = ((block_idx+2) / (block_idx+1)) / ((1.0 / (block_idx+1)) + torch.exp(-gate_logit))
-        trunk_factor = (1.0/(block_idx+1)) * ((block_idx+2) - w)
-        residual_factor = w
+        trunk_factor, residual_factor = self._trunk_residual_factors(block_idx)
         return trunk_factor * trunk + residual_factor * residual
+
+    def _run_block_with_backout(self, block, out, backout, block_idx, is_first_block_of_trunk,
+                                mask, mask_sum_hw, mask_sum, extra_outputs, block_shared_data):
+        """Run a single trunk block, maintaining the parallel backout trunk.
+
+        Returns (new_out, new_backout).
+
+        For every block after the very first one, the block input is
+            block_in = out - sigmoid(backout_use_logits[block_idx - 1]) * backout
+        so later blocks can learn to subtract out the influence of earlier blocks.
+        The backout_use_logits list is shifted by one (no entry for the first block).
+
+        The backout trunk then accumulates with the same per-block (trunk_factor,
+        residual_factor) coefficients used for the main trunk, except each residual
+        contribution to the backout is additionally multiplied by
+        sigmoid(backout_add_logits[block_idx]). The last block does not contribute
+        to the backout (its residual is only consumed by the final output).
+        """
+        if is_first_block_of_trunk:
+            block_in = out
+        else:
+            block_in = out - torch.sigmoid(self.backout_use_logits[block_idx - 1]) * backout
+
+        residual = block(
+            block_in,
+            mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum,
+            extra_outputs=extra_outputs, block_shared_data=block_shared_data,
+        )
+        trunk_factor, residual_factor = self._trunk_residual_factors(block_idx)
+        new_out = trunk_factor * out + residual_factor * residual
+        is_last_block_of_trunk = (block_idx == len(self.blocks) - 1)
+        if is_last_block_of_trunk:
+            # Last block's residual is only seen by the final output; don't add it to backout.
+            new_backout = trunk_factor * backout
+        else:
+            backout_residual_gate = torch.sigmoid(self.backout_add_logits[block_idx])
+            new_backout = trunk_factor * backout + residual_factor * backout_residual_gate * residual
+        if extra_outputs is not None:
+            extra_outputs.report(f"trunk_after_block{block_idx}", new_out)
+            extra_outputs.report(f"backout_after_block{block_idx}", new_backout)
+        return new_out, new_backout
 
     # Returns a tuple of tuples of outputs
     # The outer tuple indexes different sets of heads, such as if the net also computes intermediate heads.
@@ -3232,6 +3426,11 @@ class Model(torch.nn.Module):
         mask = input_spatial[:, 0:1, :, :].contiguous()
         mask_sum_hw = torch.sum(mask,dim=(2,3),keepdim=True)
         mask_sum = torch.sum(mask)
+        # Save original mask/dims for restoring NCHW after trunk when using inline registers.
+        orig_mask = mask
+        orig_mask_sum_hw = mask_sum_hw
+        orig_mask_sum = mask_sum
+        _, _, orig_H, orig_W = mask.shape
 
         x_spatial = self.conv_spatial(input_spatial)
         x_global = self.linear_global(input_global).unsqueeze(-1).unsqueeze(-1)
@@ -3255,26 +3454,104 @@ class Model(torch.nn.Module):
         if self.tab_module is not None:
             tab_keys, tab_queries = self.tab_module(out, mask)
             block_shared_data[TAB_KQ] = TABKeyQueryData(keys=tab_keys, queries=tab_queries)
+        if self.use_rw_registers:
+            # Compute board geometry from mask for register tokens.
+            # mask: (B, 1, H, W)
+            B, _, H, W = mask.shape
+            col_idx = torch.arange(W, device=mask.device, dtype=mask.dtype).view(1, 1, 1, W)  # (1,1,1,W)
+            row_idx = torch.arange(H, device=mask.device, dtype=mask.dtype).view(1, 1, H, 1)  # (1,1,H,1)
+            inv_mask = 1.0 - mask
+            col_min = (col_idx * mask + W * inv_mask).amin(dim=(1, 2, 3), keepdim=False).unsqueeze(1)  # (B, 1)
+            col_max = (col_idx * mask).amax(dim=(1, 2, 3), keepdim=False).unsqueeze(1)  # (B, 1)
+            row_min = (row_idx * mask + H * inv_mask).amin(dim=(1, 2, 3), keepdim=False).unsqueeze(1)  # (B, 1)
+            row_max = (row_idx * mask).amax(dim=(1, 2, 3), keepdim=False).unsqueeze(1)  # (B, 1)
+            center_x = 0.5 * (col_min + col_max)  # (B, 1)
+            center_y = 0.5 * (row_min + row_max)  # (B, 1)
+            radius_x = 0.5 * (col_max - col_min).clamp(min=0.5)  # (B, 1)
+            radius_y = 0.5 * (row_max - row_min).clamp(min=0.5)  # (B, 1)
+
+            # Compute register positions (shared across all blocks).
+            rw_pos_x = center_x + 2.0 * radius_x * torch.tanh(self.rw_register_rel_pos_x.unsqueeze(0))  # (B, k)
+            rw_pos_y = center_y + 2.0 * radius_y * torch.tanh(self.rw_register_rel_pos_y.unsqueeze(0))  # (B, k)
+
+            if self.inline_registers:
+                # Inline registers: concatenate register embeddings to trunk tensor,
+                # converting from NCHW to NC1S layout.
+                # out is currently NCHW -> reshape to NC1(HW)
+                out = out.view(B, self.c_trunk, 1, H * W)
+                # Concatenate register init embeddings: (1, c_trunk, 1, k) -> broadcast to (B, c_trunk, 1, k)
+                reg_init = self.rw_register_init.expand(B, -1, -1, -1)
+                out = torch.cat([out, reg_init], dim=3)  # (B, c_trunk, 1, HW+k)
+
+                # Build augmented mask: N11S with register positions always valid (1.0)
+                mask_flat = mask.view(B, 1, 1, H * W)
+                reg_mask = torch.ones(B, 1, 1, self.num_rw_registers, device=mask.device, dtype=mask.dtype)
+                mask = torch.cat([mask_flat, reg_mask], dim=3)  # (B, 1, 1, HW+k)
+                mask_sum_hw = torch.sum(mask, dim=(2, 3), keepdim=True)  # (B, 1, 1, 1)
+                mask_sum = torch.sum(mask)
+
+                # Precompute s_x, s_y for all positions (board grid + register positions).
+                # Board positions: row-major flattened grid
+                board_idx = torch.arange(H * W, device=out.device)
+                board_pos_x = (board_idx % W).float()  # (HW,)
+                board_pos_y = (board_idx // W).float()  # (HW,)
+                # Expand to (B, HW) for consistency with register positions which are (B, k)
+                board_pos_x = board_pos_x.unsqueeze(0).expand(B, -1)
+                board_pos_y = board_pos_y.unsqueeze(0).expand(B, -1)
+                # Concatenate board and register positions
+                all_pos_x = torch.cat([board_pos_x, rw_pos_x], dim=1)  # (B, HW+k)
+                all_pos_y = torch.cat([board_pos_y, rw_pos_y], dim=1)  # (B, HW+k)
+
+                block_shared_data[REGISTER_STATE] = RegisterState(
+                    center_x=center_x, center_y=center_y,
+                    radius_x=radius_x, radius_y=radius_y,
+                    all_pos_x=all_pos_x,
+                    all_pos_y=all_pos_y,
+                )
+
+        if extra_outputs is not None:
+            extra_outputs.report("trunk_after_embedding", out)
+
+        # Initialize the parallel backout trunk if enabled.
+        if self.use_trunk_residual_backout:
+            backout = torch.sigmoid(self.backout_add_logit_embedding) * out
+            if extra_outputs is not None:
+                extra_outputs.report("backout_after_embedding", backout)
+        else:
+            backout = None
 
         if self.has_intermediate_head:
             count = 0
             for i, block in enumerate(self.blocks[:self.intermediate_head_blocks]):
-                residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
-                if self.use_trunk_channel_gate:
-                    out = self._channel_gated_add(out, residual, i, mask, mask_sum_hw)
+                if self.use_trunk_residual_backout:
+                    out, backout = self._run_block_with_backout(
+                        block, out, backout, i, is_first_block_of_trunk=(i == 0),
+                        mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum,
+                        extra_outputs=extra_outputs, block_shared_data=block_shared_data,
+                    )
                 else:
-                    out = out + residual
+                    residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
+                    if self.use_trunk_channel_gate:
+                        out = self._channel_gated_add(out, residual, i, mask, mask_sum_hw)
+                    else:
+                        out = out + residual
+                    if extra_outputs is not None:
+                        extra_outputs.report(f"trunk_after_block{i}", out)
                 count += 1
 
             iout = out
-            iout = self.norm_intermediate_trunkfinal(iout, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+            if self.inline_registers and self.use_rw_registers:
+                # Split off registers and restore NCHW for intermediate head
+                board_hw = orig_H * orig_W
+                iout = iout[:, :, :, :board_hw].view(iout.shape[0], self.c_trunk, orig_H, orig_W)
+            iout = self.norm_intermediate_trunkfinal(iout, mask=orig_mask, mask_sum_hw=orig_mask_sum_hw, mask_sum=orig_mask_sum)
             iout = self.act_intermediate_trunkfinal(iout)
             # Use fp32 for output heads to handle potentially large values
             with autocast("cuda", enabled=False):
                 iout_fp32 = iout.float()
-                mask_fp32 = mask.float()
-                mask_sum_hw_fp32 = mask_sum_hw.float()
-                mask_sum_fp32 = mask_sum.float() if isinstance(mask_sum, torch.Tensor) else mask_sum
+                mask_fp32 = orig_mask.float()
+                mask_sum_hw_fp32 = orig_mask_sum_hw.float()
+                mask_sum_fp32 = orig_mask_sum.float() if isinstance(orig_mask_sum, torch.Tensor) else orig_mask_sum
                 input_global_fp32 = input_global.float()
 
                 iout_policy = self.intermediate_policy_head(
@@ -3303,22 +3580,65 @@ class Model(torch.nn.Module):
                 )
 
             for i, block in enumerate(self.blocks[self.intermediate_head_blocks:], start=self.intermediate_head_blocks):
-                residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
-                if self.use_trunk_channel_gate:
-                    out = self._channel_gated_add(out, residual, i, mask, mask_sum_hw)
+                if self.use_trunk_residual_backout:
+                    out, backout = self._run_block_with_backout(
+                        block, out, backout, i, is_first_block_of_trunk=(i == 0),
+                        mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum,
+                        extra_outputs=extra_outputs, block_shared_data=block_shared_data,
+                    )
                 else:
-                    out = out + residual
+                    residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
+                    if self.use_trunk_channel_gate:
+                        out = self._channel_gated_add(out, residual, i, mask, mask_sum_hw)
+                    else:
+                        out = out + residual
+                    if extra_outputs is not None:
+                        extra_outputs.report(f"trunk_after_block{i}", out)
                 count += 1
 
         else:
             for i, block in enumerate(self.blocks):
-                residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
-                if self.use_trunk_channel_gate:
-                    out = self._channel_gated_add(out, residual, i, mask, mask_sum_hw)
+                if self.use_trunk_residual_backout:
+                    out, backout = self._run_block_with_backout(
+                        block, out, backout, i, is_first_block_of_trunk=(i == 0),
+                        mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum,
+                        extra_outputs=extra_outputs, block_shared_data=block_shared_data,
+                    )
                 else:
-                    out = out + residual
+                    residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs, block_shared_data=block_shared_data)
+                    if self.use_trunk_channel_gate:
+                        out = self._channel_gated_add(out, residual, i, mask, mask_sum_hw)
+                    else:
+                        out = out + residual
+                    if extra_outputs is not None:
+                        extra_outputs.report(f"trunk_after_block{i}", out)
 
-        out = self.norm_trunkfinal(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+        if self.use_trunk_residual_backout:
+            out = out - torch.sigmoid(self.backout_use_logit_final) * backout
+            if extra_outputs is not None:
+                extra_outputs.report("trunk_after_final_backout_sub", out)
+
+        # Inject RW register state into trunk before final norm
+        if self.use_rw_registers and self.inline_registers:
+            # Split off register positions from NC1S trunk.
+            # out: (B, c_trunk, 1, HW+k)
+            board_hw = orig_H * orig_W
+            out_board = out[:, :, :, :board_hw]   # (B, c_trunk, 1, HW)
+            out_regs = out[:, :, :, board_hw:]    # (B, c_trunk, 1, k)
+            # Readout: norm -> proj1 -> act -> mean pool -> proj2 -> add to board
+            # Reshape registers to (B, k, c_trunk) for RMSNorm and Linear
+            rw_state = out_regs.squeeze(2).permute(0, 2, 1)  # (B, k, c_trunk)
+            rw_readout = self.rw_reg_readout_norm(rw_state)
+            rw_readout = self.rw_reg_readout_proj1(rw_readout)  # (B, k, c_trunk)
+            rw_readout = self.rw_reg_readout_act(rw_readout)
+            rw_readout = rw_readout.mean(dim=1)  # (B, c_trunk) - mean pool across registers
+            rw_readout = self.rw_reg_readout_proj2(rw_readout)  # (B, c_trunk)
+            # Restore to NCHW and add readout
+            out = out_board.view(out.shape[0], self.c_trunk, orig_H, orig_W)
+            out = out + rw_readout.unsqueeze(-1).unsqueeze(-1)  # broadcast to NCHW
+
+        # Use original mask for final norm and heads (NCHW format)
+        out = self.norm_trunkfinal(out, mask=orig_mask, mask_sum_hw=orig_mask_sum_hw, mask_sum=orig_mask_sum)
         out = self.act_trunkfinal(out)
 
         if extra_outputs is not None:
@@ -3328,9 +3648,9 @@ class Model(torch.nn.Module):
         # Disable autocast for main output heads - compute in fp32
         with autocast("cuda", enabled=False):
             out = out.float()
-            mask_fp32 = mask.float()
-            mask_sum_hw_fp32 = mask_sum_hw.float()
-            mask_sum_fp32 = mask_sum.float() if isinstance(mask_sum, torch.Tensor) else mask_sum
+            mask_fp32 = orig_mask.float()
+            mask_sum_hw_fp32 = orig_mask_sum_hw.float()
+            mask_sum_fp32 = orig_mask_sum.float() if isinstance(orig_mask_sum, torch.Tensor) else orig_mask_sum
             input_global_fp32 = input_global.float()
 
             out_policy = self.policy_head(
