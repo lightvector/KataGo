@@ -700,6 +700,12 @@ static cl_mem constantReadOnlyBufferFloat(cl_context context, int numElts, float
     buf[i] = constant;
   return createReadOnlyBuffer(context,buf);
 }
+static cl_mem constantReadOnlyBufferHalf(cl_context context, int numElts, float constant) {
+  vector<half_t> buf(numElts);
+  for(int i = 0; i<numElts; i++)
+    buf[i] = half_float::half_cast<half_t>(constant);
+  return createReadOnlyBuffer(context,buf);
+}
 static cl_mem randomReadOnlyBufferFloat(const char* seed, cl_context context, int numElts, double scale, vector<float>& ret) {
   vector<float> buf(numElts);
   Rand rand(seed);
@@ -949,12 +955,13 @@ static bool testAllConfigs(
 
       double kernelsPerSecond = accums.weightCounted / accums.weightedTimeTaken;
       double errorProp = sqrt(squerr / (sqmag + 1e-30));
-      if(!isfinite(errorProp) || errorProp > 0.5)
+      double errorPropBreakThreshold = std::min(0.5, errorToleranceScale * 5.0);
+      if(!isfinite(errorProp) || errorProp > errorPropBreakThreshold)
         errorProp = 1.0;
       double errorPenaltyFactor = 1.0 - sqrt(errorProp / (errorProp + errorToleranceScale));
       if(errorProp > 1e-5)
         errorPenaltyFactor *= 0.90;
-      if(errorProp > 0.5)
+      if(errorProp > errorPropBreakThreshold)
         errorPenaltyFactor = 0.0;
 
       double score = kernelsPerSecond * errorPenaltyFactor;
@@ -1061,6 +1068,100 @@ static void cpuBatchedMatMul(
             }
           }
         }
+      }
+    }
+  }
+}
+
+// CPU reference implementation of global pooling with mask.
+// Matches gPoolChannelsNCHWMask kernel output: for each (n,c), produces 3 values:
+//   [mean, mean*(sqrt(maskSum)-14)*0.1, max_with_mask_penalty]
+static void cpuGPool(
+  const std::vector<float>& inputVec,
+  float* outBase,
+  int batchSize,
+  int numChannels,
+  int xySize,
+  float maskSum  // all positions valid, so maskSum = xySize
+) {
+  float sqrtMaskSum = sqrt(maskSum);
+  for(int n = 0; n < batchSize; n++) {
+    for(int c = 0; c < numChannels; c++) {
+      float sum = 0.0f;
+      float maxVal = -1.0f;
+      for(int xy = 0; xy < xySize; xy++) {
+        int idx = (n * numChannels + c) * xySize + xy;
+        float v = inputVec[idx];
+        sum += v;
+        // mask is 1.0 everywhere, so v + (1.0 - 1.0) = v
+        maxVal = std::max(maxVal, v);
+      }
+      float mean = sum / maskSum;
+      int outIdx = n * numChannels * 3 + c;
+      outBase[outIdx] = mean;
+      outBase[outIdx + numChannels] = mean * (sqrtMaskSum - 14.0f) * 0.1f;
+      outBase[outIdx + numChannels * 2] = maxVal;
+    }
+  }
+}
+
+// CPU reference implementation of scaled dot-product attention.
+// Matches the naive attention kernel exactly.
+// Q: (batchSize*numHeads, headDim, seqLen), K: (batchSize*numKVHeads, headDim, seqLen),
+// V: (batchSize*numKVHeads, vHeadDim, seqLen), output: (batchSize*numHeads, vHeadDim, seqLen)
+// mask: all 1.0 (all positions valid)
+static void cpuAttention(
+  const std::vector<float>& qVec,
+  const std::vector<float>& kVec,
+  const std::vector<float>& vVec,
+  float* outBase,
+  int batchSize,
+  int numHeads,
+  int numKVHeads,
+  int headDim,
+  int vHeadDim,
+  int seqLen,
+  float scale
+) {
+  for(int bh = 0; bh < batchSize * numHeads; bh++) {
+    int n = bh / numHeads;
+    int h = bh % numHeads;
+    int kvh = h / (numHeads / numKVHeads);
+    int kvBase = n * numKVHeads + kvh;
+
+    for(int qPos = 0; qPos < seqLen; qPos++) {
+      // Online softmax over key positions
+      float runningMax = -1e30f;
+      float runningSum = 0.0f;
+      std::vector<float> acc(vHeadDim, 0.0f);
+
+      for(int kPos = 0; kPos < seqLen; kPos++) {
+        float dot = 0.0f;
+        for(int d = 0; d < headDim; d++) {
+          float qVal = qVec[(bh * headDim + d) * seqLen + qPos];
+          float kVal = kVec[(kvBase * headDim + d) * seqLen + kPos];
+          dot += qVal * kVal;
+        }
+        dot *= scale;
+
+        float newMax = std::max(runningMax, dot);
+        float expOldMax = exp(runningMax - newMax);
+        float expCur = exp(dot - newMax);
+
+        for(int d = 0; d < vHeadDim; d++)
+          acc[d] *= expOldMax;
+        runningSum = runningSum * expOldMax + expCur;
+        runningMax = newMax;
+
+        for(int d = 0; d < vHeadDim; d++) {
+          float vVal = vVec[(kvBase * vHeadDim + d) * seqLen + kPos];
+          acc[d] += expCur * vVal;
+        }
+      }
+
+      float invSum = (runningSum > 0.0f) ? (1.0f / runningSum) : 0.0f;
+      for(int d = 0; d < vHeadDim; d++) {
+        outBase[(bh * vHeadDim + d) * seqLen + qPos] = acc[d] * invSum;
       }
     }
   }
@@ -2198,7 +2299,8 @@ static void tuneTransform(
 
   auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
     OpenCLTuneAccums accums;
-    // We just let the reference config GPU impl be values that all values are compared for error against rather than a CPU impl
+    // No CPU baseline - this tuner only varies workgroup parallelism sizes, so all configs
+    // produce identical numerical results. The first GPU config serves as the reference.
     if(computeOnCPU) {
       accums.bad = true;
       return accums;
@@ -2305,7 +2407,7 @@ static void tuneTransform(
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.005;
-  testAllConfigs(
+  bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
     currentConfig,
@@ -2318,6 +2420,8 @@ static void tuneTransform(
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
     bestKernelsPerSecond
   );
+  if(!suc)
+    throw StringError("Tuning winograd transform failed - could not find any working configuration");
 
   tunedConfig = currentConfig;
 }
@@ -2368,7 +2472,8 @@ static void tuneUntransform(
 
   auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
     OpenCLTuneAccums accums;
-    // We just let the reference config GPU impl be values that all values are compared for error against rather than a CPU impl
+    // No CPU baseline - this tuner only varies workgroup parallelism sizes, so all configs
+    // produce identical numerical results. The first GPU config serves as the reference.
     if(computeOnCPU) {
       accums.bad = true;
       return accums;
@@ -2475,7 +2580,7 @@ static void tuneUntransform(
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.005;
-  testAllConfigs(
+  bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
     currentConfig,
@@ -2488,6 +2593,8 @@ static void tuneUntransform(
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
     bestKernelsPerSecond
   );
+  if(!suc)
+    throw StringError("Tuning winograd untransform failed - could not find any working configuration");
 
   tunedConfig = currentConfig;
 }
@@ -2545,11 +2652,31 @@ static void tuneGPool(
 
   auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.gPool.desc(); };
 
+  int inputNumFloats = batchSize * nnXLen * nnYLen * numChannels;
+  int outputNumFloats = batchSize * numChannels * 3;
+  vector<float> gpoolInputVec;
+  // Pre-generate input so CPU baseline can use it
+  {
+    Rand rand("tuneGPoolInput");
+    gpoolInputVec.resize(inputNumFloats);
+    for(int i = 0; i < inputNumFloats; i++)
+      gpoolInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+
   auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
     OpenCLTuneAccums accums;
-    // We just let the reference config GPU impl be values that all values are compared for error against rather than a CPU impl
+
     if(computeOnCPU) {
-      accums.bad = true;
+      // GPool only varies parallelism parameters, so all configs produce identical results.
+      // CPU baseline provides an independent correctness check.
+      int xySize = nnXLen * nnYLen;
+      float maskSumVal = (float)xySize;
+      int numToRecord = 10;
+      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      // gPool tuner runs the same kernel repeatedly - CPU result is the same each time
+      for(int i = 0; i < numToRecord; i++) {
+        cpuGPool(gpoolInputVec, ret.data() + (outputNumFloats * i), batchSize, numChannels, xySize, maskSumVal);
+      }
       return accums;
     }
 
@@ -2565,9 +2692,6 @@ static void tuneGPool(
     cl_kernel kernel = clCreateKernel(program, "gPoolChannelsNCHWMask", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
-    int inputNumFloats = batchSize * nnXLen * nnYLen * numChannels;
-    int outputNumFloats = batchSize * numChannels * 3;
-
     cl_mem input;
     vector<float> inputVec;
     if(cfg.shouldUseFP16Storage)
@@ -2575,7 +2699,11 @@ static void tuneGPool(
     else
       input = randomReadOnlyBufferFloat("tuneGPoolInput", context, inputNumFloats, 1.0, inputVec);
 
-    cl_mem mask = constantReadOnlyBufferFloat(context, batchSize*nnXLen*nnYLen, 1.0f);
+    cl_mem mask;
+    if(cfg.shouldUseFP16Storage)
+      mask = constantReadOnlyBufferHalf(context, batchSize*nnXLen*nnYLen, 1.0f);
+    else
+      mask = constantReadOnlyBufferFloat(context, batchSize*nnXLen*nnYLen, 1.0f);
     cl_mem maskSum = constantReadOnlyBufferFloat(context, batchSize, (float)(nnXLen*nnYLen));
     cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
 
@@ -2624,7 +2752,7 @@ static void tuneGPool(
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.005;
-  testAllConfigs(
+  bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
     currentConfig,
@@ -2637,6 +2765,8 @@ static void tuneGPool(
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
     bestKernelsPerSecond
   );
+  if(!suc)
+    throw StringError("Tuning global pooling failed - could not find any working configuration");
 
   tunedConfig = currentConfig;
 }
@@ -2699,10 +2829,38 @@ static void tuneTransformerAttention(
 
   auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.transformer.desc(); };
 
+  int qSize = batchSize * numHeads * headDim * seqLen;
+  int kSize = batchSize * numKVHeads * headDim * seqLen;
+  int vSize = batchSize * numKVHeads * vHeadDim * seqLen;
+  int outSize = batchSize * numHeads * vHeadDim * seqLen;
+  int maskSize = batchSize * seqLen;
+  float scale = 1.0f / sqrtf((float)headDim);
+
+  // Pre-generate random input so CPU baseline uses the same data
+  vector<float> attnQVec, attnKVec, attnVVec;
+  {
+    auto genVec = [](const char* seed, int n, double sc, vector<float>& v) {
+      Rand r(seed);
+      v.resize(n);
+      for(int i = 0; i < n; i++) v[i] = (float)r.nextDouble(sc);
+    };
+    genVec("tuneAttnQ", qSize, 1.0, attnQVec);
+    genVec("tuneAttnK", kSize, 1.0, attnKVec);
+    genVec("tuneAttnV", vSize, 1.0, attnVVec);
+  }
+
   auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
     OpenCLTuneAccums accums;
+
+    const int reps = 12;
+    const int numToRecord = 6;
+
     if(computeOnCPU) {
-      accums.bad = true;
+      ret.resize(outSize * numToRecord, 0.0f);
+      // Compute once, replicate for all recorded slots (same input each time)
+      cpuAttention(attnQVec, attnKVec, attnVVec, ret.data(), batchSize, numHeads, numKVHeads, headDim, vHeadDim, seqLen, scale);
+      for(int i = 1; i < numToRecord; i++)
+        std::copy(ret.begin(), ret.begin() + outSize, ret.begin() + outSize * i);
       return accums;
     }
 
@@ -2734,13 +2892,6 @@ static void tuneTransformerAttention(
     cl_kernel kernel = clCreateKernel(program, kernelName.c_str(), &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseProgram(program); return accums; }
 
-    // Allocate buffers: Q, K, V, output, mask
-    int qSize = batchSize * numHeads * headDim * seqLen;
-    int kSize = batchSize * numKVHeads * headDim * seqLen;
-    int vSize = batchSize * numKVHeads * vHeadDim * seqLen;
-    int outSize = batchSize * numHeads * vHeadDim * seqLen;
-    int maskSize = batchSize * seqLen;
-
     vector<float> qVec, kVec, vVec;
     cl_mem qBuf, kBuf, vBuf;
     if(cfg.shouldUseFP16Storage) {
@@ -2752,13 +2903,16 @@ static void tuneTransformerAttention(
       kBuf = randomReadOnlyBufferFloat("tuneAttnK", context, kSize, 1.0, kVec);
       vBuf = randomReadOnlyBufferFloat("tuneAttnV", context, vSize, 1.0, vVec);
     }
-    cl_mem maskBuf = constantReadOnlyBufferFloat(context, maskSize, 1.0f);
-    cl_mem outBuf = createReadWriteBufferFloatZeros(context, outSize);
+    cl_mem maskBuf;
+    cl_mem outBuf;
+    if(cfg.shouldUseFP16Storage) {
+      maskBuf = constantReadOnlyBufferHalf(context, maskSize, 1.0f);
+      outBuf = createReadWriteBufferHalfZeros(context, outSize);
+    } else {
+      maskBuf = constantReadOnlyBufferFloat(context, maskSize, 1.0f);
+      outBuf = createReadWriteBufferFloatZeros(context, outSize);
+    }
 
-    float scale = 1.0f / sqrtf((float)headDim);
-
-    const int reps = 12;
-    const int numToRecord = 6;
     ret.resize(outSize * numToRecord, 0.0f);
 
     for(int i = 0; i < reps; i++) {
@@ -2799,7 +2953,7 @@ static void tuneTransformerAttention(
       if(accums.bad)
         break;
       if(i < numToRecord)
-        blockingReadBuffer(commandQueue, outBuf, outSize, ret.data() + (outSize * i));
+        blockingReadBuffer(commandQueue, outBuf, outSize, ret.data() + (outSize * i), cfg.shouldUseFP16Storage);
     }
 
     if(accums.bad)
@@ -2818,8 +2972,8 @@ static void tuneTransformerAttention(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.05;
-  testAllConfigs(
+  double errorToleranceScale = 0.005;
+  bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
     currentConfig,
@@ -2832,6 +2986,8 @@ static void tuneTransformerAttention(
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
     bestKernelsPerSecond
   );
+  if(!suc)
+    throw StringError("Tuning transformer attention failed - could not find any working configuration");
 
   tunedConfig = currentConfig;
 }
@@ -3491,7 +3647,30 @@ string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLe
 }
 
 string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLen, const OpenCLTuner::ModelInfoForTuning& modelInfo) {
-  return defaultFileName(gpuName, nnXLen, nnYLen, modelInfo.trunkNumChannels, modelInfo.modelVersion);
+  // Include transformer head dim in the key so that convnets (headDim=0) and transformers
+  // (headDim>0) don't share tune files, and different transformer architectures are
+  // distinguished. midNumChannels differentiates NBT (trunk != mid) from plain transformers.
+  string gpuNameForFile;
+  for(int i = 0; i<gpuName.length(); i++) {
+    char c = gpuName[i];
+    if(contains("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", c))
+      gpuNameForFile += c;
+  }
+  if(modelInfo.transformerHeadDim > 0) {
+    return Global::strprintf(
+      "tune%d_gpu%s_x%d_y%d_c%d_m%d_h%d_mv%d.txt",
+      TUNER_VERSION, gpuNameForFile.c_str(), nnXLen, nnYLen,
+      modelInfo.trunkNumChannels, modelInfo.midNumChannels,
+      modelInfo.transformerHeadDim, modelInfo.modelVersion
+    );
+  }
+  else {
+    return Global::strprintf(
+      "tune%d_gpu%s_x%d_y%d_c%d_mv%d.txt",
+      TUNER_VERSION, gpuNameForFile.c_str(), nnXLen, nnYLen,
+      modelInfo.trunkNumChannels, modelInfo.modelVersion
+    );
+  }
 }
 
 static OpenCLTuneParams loadFromTunerFile(const string& fileName, Logger* logger) {

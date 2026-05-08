@@ -433,11 +433,12 @@ struct ComputeContext {
             logger->write("Warning: No FP16 support found at all on this device during tuning, but useFP16 is true, trying fp16 storage");
           useFP16Storage = true;
         }
-        useFP16Storage = tuneParams.canUseFP16Storage;
-        // Only use FP16 compute if not using tensor cores
-        useFP16Compute = tuneParams.canUseFP16Storage && !tuneParams.canUseFP16TensorCores;
-        useFP16TensorCores = tuneParams.canUseFP16TensorCores;
-        useFP16TensorCoresFor1x1 = tuneParams.canUseFP16TensorCoresFor1x1;
+        else {
+          useFP16Storage = tuneParams.canUseFP16Storage;
+          useFP16Compute = tuneParams.canUseFP16Compute && (tuneParams.shouldUseFP16Compute || (tuneParams.canUseFP16Storage && !tuneParams.canUseFP16TensorCores));
+          useFP16TensorCores = tuneParams.canUseFP16TensorCores;
+          useFP16TensorCoresFor1x1 = tuneParams.canUseFP16TensorCoresFor1x1;
+        }
       }
       else if(useFP16Mode == enabled_t::Auto) {
         useFP16Storage = tuneParams.shouldUseFP16Storage;
