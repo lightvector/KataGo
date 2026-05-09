@@ -1044,6 +1044,10 @@ OpenCLTuner::ModelInfoForTuning OpenCLTuner::ModelInfoForTuning::ofDesc(const Mo
   return modelInfo;
 }
 
+// Batch element b is located at b * inputStride for inputVec and b * filterStride for filterVec and b * outputStride for writing to outBase.
+// Each batch element in the input is a subtensor of shape in row-major (e.g. default numpy) convention [kSize, mSize]
+// Each batch element in the filter is a subtensor of shape in row-major (e.g. default numpy) convention [kSize, nSize]
+// The output will write subtensor of shape [nSize, mSize]
 static void cpuBatchedMatMul(
   const std::vector<float>& inputVec,
   const std::vector<float>& filterVec,
@@ -1075,7 +1079,9 @@ static void cpuBatchedMatMul(
 
 // CPU reference implementation of global pooling with mask.
 // Matches gPoolChannelsNCHWMask kernel output: for each (n,c), produces 3 values:
-//   [mean, mean*(sqrt(maskSum)-14)*0.1, max_with_mask_penalty]
+// [mean, mean*(sqrt(maskSum)-14)*0.1, max_with_mask_penalty]
+// Input shape in row-major (e.g. default numpy) convention: [batchSize, numChannels, xySize]
+// Output shape in row-major (e.g. default numpy) convention: [batchSize, 3, numChannels]
 static void cpuGPool(
   const std::vector<float>& inputVec,
   float* outBase,
@@ -1107,8 +1113,11 @@ static void cpuGPool(
 
 // CPU reference implementation of scaled dot-product attention.
 // Matches the naive attention kernel exactly.
-// Q: (batchSize*numHeads, headDim, seqLen), K: (batchSize*numKVHeads, headDim, seqLen),
-// V: (batchSize*numKVHeads, vHeadDim, seqLen), output: (batchSize*numHeads, vHeadDim, seqLen)
+// Shapes in row-major (e.g. default numpy) convention:
+// Q: [batchSize*numHeads, headDim, seqLen]
+// K: [batchSize*numKVHeads, headDim, seqLen],
+// V: [batchSize*numKVHeads, vHeadDim, seqLen],
+// output: [batchSize*numHeads, vHeadDim, seqLen]
 // mask: all 1.0 (all positions valid)
 static void cpuAttention(
   const std::vector<float>& qVec,
@@ -1265,30 +1274,33 @@ static void tuneXGemmDirect(
     maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
     maxChannels = std::max(modelInfo.transformerFFNChannels,maxChannels);
 
-    int inputNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
-    int outputNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
-    int filterNumFloats = maxChannels * maxChannels;
+    int inputNumFloatsUpperBound = batchSize*nnXLen*nnYLen*maxChannels;
+    int outputNumFloatsUpperBound = batchSize*nnXLen*nnYLen*maxChannels;
+    int filterNumFloatsUpperBound = maxChannels * maxChannels;
     vector<float> inputVec;
     vector<float> filterVec;
-    cl_mem input = randomReadOnlyBufferFloat("tuneXGemmDirectInput", context, inputNumFloats, 1.0, inputVec);
-    cl_mem filter = randomReadOnlyBufferFloat("tuneXGemmDirectFilter", context, filterNumFloats, 1.0 / sqrt(maxChannels), filterVec);
-    cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
+    cl_mem input = randomReadOnlyBufferFloat("tuneXGemmDirectInput", context, inputNumFloatsUpperBound, 1.0, inputVec);
+    cl_mem filter = randomReadOnlyBufferFloat("tuneXGemmDirectFilter", context, filterNumFloatsUpperBound, 1.0 / sqrt(maxChannels), filterVec);
+    cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloatsUpperBound);
 
     // If this is a transformer model, include transformer-relevant matmul sizes in the tuning
     bool hasTransformer = modelInfo.transformerHeadDim > 0;
-    int transformerMidC = modelInfo.midNumChannels; // input to Q/K/V projections
     int transformerQKVC = modelInfo.transformerNumHeads * modelInfo.transformerHeadDim; // output of Q projection
     int transformerFFNC = modelInfo.transformerFFNChannels;
 
     const int reps = hasTransformer ? 24 : 18;
     const int numToRecord = hasTransformer ? 8 : 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
       case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
@@ -1296,11 +1308,15 @@ static void tuneXGemmDirect(
       case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
       case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
       // Transformer-specific sizes (only used when hasTransformer)
-      case 6: inChannels = transformerMidC; outChannels = transformerQKVC; weight = hasTransformer ? 1.0 : 0; break;
-      case 7: inChannels = transformerMidC; outChannels = transformerFFNC; weight = hasTransformer ? 1.0 : 0; break;
+      case 6: inChannels = modelInfo.midNumChannels; outChannels = transformerQKVC; weight = hasTransformer ? 1.0 : 0; break;
+      case 7: inChannels = modelInfo.midNumChannels; outChannels = transformerFFNC; weight = hasTransformer ? 1.0 : 0; break;
       default: ASSERT_UNREACHABLE; break;
       }
 
+      // From here set up and call kernel consistent with shapes:
+      // Input shape: [batchSize, inChannels, nnXLen*nnYLen]
+      // Filter shape: [inChannels, outChannels]
+      // Output shape: [batchSize, outChannels, nnXLen*nnYLen]
       int filterStride = 0; //Reuse same filter for all matrices in batch
       int inputStride = nnXLen*nnYLen * inChannels;
       int outputStride = nnXLen*nnYLen * outChannels;
@@ -1308,11 +1324,8 @@ static void tuneXGemmDirect(
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
-        //Replicating the way that parts outside the normal output are repeatedly written to the same buffer when outChannels is smaller.
-        if(i > 0)
-          std::copy(ret.begin()+(outputNumFloats*(i-1)), ret.begin()+(outputNumFloats*i), ret.begin()+(outputNumFloats*i));
-        cpuBatchedMatMul(inputVec,filterVec,outBase,batchSize,nnXLen*nnYLen,outChannels,inChannels,inputStride,filterStride,outputStride);
+        cpuBatchedMatMul(inputVec,filterVec,retBase,batchSize,nnXLen*nnYLen,outChannels,inChannels,inputStride,filterStride,outputStride);
+        retBase += batchSize * outChannels * nnXLen*nnYLen;
         continue;
       }
 
@@ -1331,13 +1344,13 @@ static void tuneXGemmDirect(
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, output, batchSize * outChannels * nnXLen*nnYLen, retBase);
+        retBase += batchSize * outChannels * nnXLen*nnYLen;
+      }
+    }
 
     clReleaseMemObject(input);
     clReleaseMemObject(filter);
@@ -1345,6 +1358,9 @@ static void tuneXGemmDirect(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -1497,9 +1513,11 @@ static bool tuneXGemm(
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm.NWG);
     int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm.KWG);
 
-    int outputNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
+    int outputNumFloatsUpperBound = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     vector<float> inputVec;
     vector<float> filterVec;
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
     cl_mem input;
     cl_mem filter;
     cl_mem output;
@@ -1508,25 +1526,27 @@ static bool tuneXGemm(
         "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0, inputVec);
       filter = randomReadOnly3dPaddedBufferHalf(
         "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
-      output = createReadWriteBufferHalfZeros(context, outputNumFloats);
+      output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
     }
     else {
       input = randomReadOnly3dPaddedBufferFloat(
         "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0, inputVec);
       filter = randomReadOnly3dPaddedBufferFloat(
         "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
-      output = createReadWriteBufferFloatZeros(context, outputNumFloats);
+      output = createReadWriteBufferFloatZeros(context, outputNumFloatsUpperBound);
     }
 
     const int reps = 18;
     const int numToRecord = 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
       case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
@@ -1536,17 +1556,27 @@ static bool tuneXGemm(
       default: ASSERT_UNREACHABLE; break;
       }
 
+      // From here set up and call kernel consistent with shapes (in Winograd tile space):
+      // Input shape: [inTileXYSize, inChannelsPadded, numTilesTotalPadded]
+      // Filter shape: [inTileXYSize, outChannelsPadded, inChannelsPadded]
+      // Output shape: [inTileXYSize, outChannelsPadded, numTilesTotalPadded]
+      // Batched over the inTileXYSize dimension.
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.xGemm.NWG);
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.xGemm.KWG);
 
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
+        // Compute into a temporary padded buffer and then compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
         cpuBatchedMatMul(
-          inputVec,filterVec,outBase,inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
+          inputVec,filterVec,padded.data(),inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
           numTilesTotalPadded*inChannelsPadded,outChannelsPadded*inChannelsPadded,numTilesTotalPadded*outChannelsPadded
         );
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
         continue;
       }
 
@@ -1563,25 +1593,17 @@ static bool tuneXGemm(
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i), useFP16Storage);
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
-
-    //Compact ret down to only what we were supposed to get, without padding
-    {
-      int i = 0;
-      for(int n = 0; n<inTileXYSize; n++) {
-        for(int y = 0; y<maxChannels; y++) {
-          for(int x = 0; x<numTilesTotal; x++) {
-            ret[i++] = ret[x + numTilesTotalPadded * (y + maxOutChannelsPadded * n)];
-          }
-        }
+      if(i < numToRecord) {
+        // Read back the padded output and compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
+        blockingReadBuffer(commandQueue, output, inTileXYSize * outChannelsPadded * numTilesTotalPadded, padded.data(), useFP16Storage);
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
       }
-      ret.resize(inTileXYSize * maxChannels * numTilesTotal);
     }
 
     clReleaseMemObject(input);
@@ -1590,6 +1612,9 @@ static bool tuneXGemm(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -1739,24 +1764,28 @@ static bool tuneXGemm16(
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm16.NWG);
     int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm16.KWG);
 
-    int outputNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
+    int outputNumFloatsUpperBound = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     vector<float> inputVec;
     vector<float> filterVec;
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
       "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0, inputVec);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
-    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloats);
+    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
 
     const int reps = 18;
     const int numToRecord = 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
       case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
@@ -1766,17 +1795,27 @@ static bool tuneXGemm16(
       default: ASSERT_UNREACHABLE; break;
       }
 
+      // From here set up and call kernel consistent with shapes (in Winograd tile space):
+      // Input shape: [inTileXYSize, inChannelsPadded, numTilesTotalPadded]
+      // Filter shape: [inTileXYSize, outChannelsPadded, inChannelsPadded]
+      // Output shape: [inTileXYSize, outChannelsPadded, numTilesTotalPadded]
+      // Batched over the inTileXYSize dimension.
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.xGemm16.NWG);
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.xGemm16.KWG);
 
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
+        // Compute into a temporary padded buffer and then compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
         cpuBatchedMatMul(
-          inputVec,filterVec,outBase,inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
+          inputVec,filterVec,padded.data(),inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
           numTilesTotalPadded*inChannelsPadded,outChannelsPadded*inChannelsPadded,numTilesTotalPadded*outChannelsPadded
         );
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
         continue;
       }
 
@@ -1793,25 +1832,17 @@ static bool tuneXGemm16(
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
-
-    //Compact ret down to only what we were supposed to get, without padding
-    {
-      int i = 0;
-      for(int n = 0; n<inTileXYSize; n++) {
-        for(int y = 0; y<maxChannels; y++) {
-          for(int x = 0; x<numTilesTotal; x++) {
-            ret[i++] = ret[x + numTilesTotalPadded * (y + maxOutChannelsPadded * n)];
-          }
-        }
+      if(i < numToRecord) {
+        // Read back the padded output and compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
+        blockingReadBufferHalfToFloat(commandQueue, output, inTileXYSize * outChannelsPadded * numTilesTotalPadded, padded.data());
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
       }
-      ret.resize(inTileXYSize * maxChannels * numTilesTotal);
     }
 
     clReleaseMemObject(input);
@@ -1820,6 +1851,9 @@ static bool tuneXGemm16(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -1951,24 +1985,28 @@ static bool tuneHGemmWmma(
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.hGemmWmma.NWG);
     int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.hGemmWmma.KWG);
 
-    int outputNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
+    int outputNumFloatsUpperBound = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     vector<float> inputVec;
     vector<float> filterVec;
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0, inputVec);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
-    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloats);
+    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
 
     const int reps = 18;
     const int numToRecord = 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
       case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
@@ -1978,17 +2016,27 @@ static bool tuneHGemmWmma(
       default: ASSERT_UNREACHABLE; break;
       }
 
+      // From here set up and call kernel consistent with shapes (in Winograd tile space):
+      // Input shape: [inTileXYSize, inChannelsPadded, numTilesTotalPadded]
+      // Filter shape: [inTileXYSize, outChannelsPadded, inChannelsPadded]
+      // Output shape: [inTileXYSize, outChannelsPadded, numTilesTotalPadded]
+      // Batched over the inTileXYSize dimension.
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.hGemmWmma.NWG);
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.hGemmWmma.KWG);
 
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
+        // Compute into a temporary padded buffer and then compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
         cpuBatchedMatMul(
-          inputVec,filterVec,outBase,inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
+          inputVec,filterVec,padded.data(),inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
           numTilesTotalPadded*inChannelsPadded,outChannelsPadded*inChannelsPadded,numTilesTotalPadded*outChannelsPadded
         );
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
         continue;
       }
 
@@ -2005,25 +2053,17 @@ static bool tuneHGemmWmma(
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
-
-    //Compact ret down to only what we were supposed to get, without padding
-    {
-      int i = 0;
-      for(int n = 0; n<inTileXYSize; n++) {
-        for(int y = 0; y<maxChannels; y++) {
-          for(int x = 0; x<numTilesTotal; x++) {
-            ret[i++] = ret[x + numTilesTotalPadded * (y + maxOutChannelsPadded * n)];
-          }
-        }
+      if(i < numToRecord) {
+        // Read back the padded output and compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
+        blockingReadBufferHalfToFloat(commandQueue, output, inTileXYSize * outChannelsPadded * numTilesTotalPadded, padded.data());
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
       }
-      ret.resize(inTileXYSize * maxChannels * numTilesTotal);
     }
 
     clReleaseMemObject(input);
@@ -2032,6 +2072,9 @@ static bool tuneHGemmWmma(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -2149,24 +2192,28 @@ static bool tuneHGemmWmmaNCHW(
 
     maxChannels = roundUpToMultipleInt(maxChannels,cfg.hGemmWmmaNCHW.getRequiredCDivisor());
 
-    int outputNumFloats = batchSize * maxChannels * nnXLen * nnYLen;
+    int outputNumFloatsUpperBound = batchSize * maxChannels * nnXLen * nnYLen;
     vector<float> inputVec;
     vector<float> filterVec;
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Input", context, batchSize, maxChannels, maxChannels, nnXLen*nnYLen, nnXLen*nnYLen, 1.0, inputVec);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Filter", context, batchSize, maxChannels, maxChannels, maxChannels, maxChannels, 1.0 / sqrt(maxChannels), filterVec);
-    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloats);
+    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
 
     const int reps = 18;
     const int numToRecord = 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       int inChannels;
       int outChannels;
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
       case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
@@ -2176,17 +2223,26 @@ static bool tuneHGemmWmmaNCHW(
       default: ASSERT_UNREACHABLE; break;
       }
 
+      // From here set up and call kernel consistent with shapes:
+      // Input shape: [batchSize, inChannelsPadded, nnXLen*nnYLen]
+      // Filter shape: [inChannelsPadded, outChannelsPadded]
+      // Output shape: [batchSize, outChannelsPadded, nnXLen*nnYLen]
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.hGemmWmmaNCHW.getRequiredCDivisor());
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.hGemmWmmaNCHW.getRequiredCDivisor());
 
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
+        // Compute into a temporary padded buffer and then compact out the padding.
+        vector<float> padded(batchSize * outChannelsPadded * nnXLen*nnYLen, 0.0f);
         cpuBatchedMatMul(
-          inputVec,filterVec,outBase,batchSize,nnXLen*nnYLen,outChannelsPadded,inChannelsPadded,
+          inputVec,filterVec,padded.data(),batchSize,nnXLen*nnYLen,outChannelsPadded,inChannelsPadded,
           nnXLen*nnYLen*inChannelsPadded,0,nnXLen*nnYLen*outChannelsPadded
         );
+        for(int n = 0; n<batchSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<nnXLen*nnYLen; x++)
+              *(retBase++) = padded[x + nnXLen*nnYLen * (y + outChannelsPadded * n)];
         continue;
       }
 
@@ -2202,25 +2258,17 @@ static bool tuneHGemmWmmaNCHW(
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
-
-    //Compact ret down to only what we were supposed to get, without padding
-    {
-      int i = 0;
-      for(int n = 0; n<batchSize; n++) {
-        for(int y = 0; y<maxChannels; y++) {
-          for(int x = 0; x<nnXLen*nnYLen; x++) {
-            ret[i++] = ret[x + nnXLen*nnYLen * (y + maxChannels * n)];
-          }
-        }
+      if(i < numToRecord) {
+        // Read back the padded output and compact out the padding.
+        vector<float> padded(batchSize * outChannelsPadded * nnXLen*nnYLen, 0.0f);
+        blockingReadBufferHalfToFloat(commandQueue, output, batchSize * outChannelsPadded * nnXLen*nnYLen, padded.data());
+        for(int n = 0; n<batchSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<nnXLen*nnYLen; x++)
+              *(retBase++) = padded[x + nnXLen*nnYLen * (y + outChannelsPadded * n)];
       }
-      ret.resize(batchSize * maxChannels * nnXLen*nnYLen);
     }
 
     clReleaseMemObject(input);
@@ -2229,6 +2277,9 @@ static bool tuneHGemmWmmaNCHW(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -2336,6 +2387,11 @@ static void tuneTransform(
     //int nPaddingMult = cfg.getXGemmNPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
     int kPaddingMult = cfg.getXGemmKPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
 
+    // Input is unstructured (i.e. shapeless), simply filled with as much data as the largest rep
+    // could need and different reps may slice it differently.
+    // From here set up and call kernel consistent with shapes:
+    // Input shape: [batchSize, inChannels, nnYLen, nnXLen] (NCHW spatial)
+    // Output shape: [inTileXSize*inTileYSize, inChannelsPadded, numTilesTotalPadded] (Winograd tile space)
     int inputNumFloats = batchSize * nnXLen * nnYLen * maxChannels;
     int outputNumFloats = roundUpToMultipleInt(numTilesTotal,mPaddingMult) * roundUpToMultipleInt(maxChannels,kPaddingMult) * inTileXSize * inTileYSize;
 
@@ -2353,12 +2409,14 @@ static void tuneTransform(
 
     const int reps = 20;
     const int numToRecord = 10;
+    ret.clear();
     ret.resize(outputNumFloats*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       int inChannels;
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; weight = 1; break;
       case 2: inChannels = modelInfo.midNumChannels; weight = 1; break;
@@ -2388,18 +2446,21 @@ static void tuneTransform(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i), cfg.shouldUseFP16Storage);
-    }
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, output, outputNumFloats, retBase, cfg.shouldUseFP16Storage);
+        retBase += outputNumFloats;
+      }
+    }
 
     clReleaseMemObject(input);
     clReleaseMemObject(output);
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -2509,6 +2570,11 @@ static void tuneUntransform(
     int nPaddingMult = cfg.getXGemmNPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
     //int kPaddingMult = cfg.getXGemmKPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
 
+    // Input is unstructured (i.e. shapeless), simply filled with as much data as the largest rep
+    // could need and different reps may slice it differently.
+    // From here set up and call kernel consistent with shapes:
+    // Input shape: [inTileXSize*inTileYSize, outChannelsPadded, numTilesTotalPadded] (Winograd tile space)
+    // Output shape: [batchSize, outChannels, nnYLen, nnXLen] (NCHW spatial)
     int inputNumFloats = roundUpToMultipleInt(numTilesTotal,mPaddingMult) * roundUpToMultipleInt(maxChannels,nPaddingMult) * inTileXSize * inTileYSize;
     int outputNumFloats = batchSize * nnXLen * nnYLen * maxChannels;
 
@@ -2526,12 +2592,14 @@ static void tuneUntransform(
 
     const int reps = 20;
     const int numToRecord = 10;
+    ret.clear();
     ret.resize(outputNumFloats*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       int outChannels;
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: outChannels = modelInfo.trunkNumChannels; weight = 0; break;
       case 1: outChannels = modelInfo.trunkNumChannels; weight = 1; break;
       case 2: outChannels = modelInfo.midNumChannels; weight = 1; break;
@@ -2561,18 +2629,21 @@ static void tuneUntransform(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i), cfg.shouldUseFP16Storage);
-    }
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, output, outputNumFloats, retBase, cfg.shouldUseFP16Storage);
+        retBase += outputNumFloats;
+      }
+    }
 
     clReleaseMemObject(input);
     clReleaseMemObject(output);
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -2652,6 +2723,10 @@ static void tuneGPool(
 
   auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.gPool.desc(); };
 
+  // From here set up and call kernel consistent with shapes:
+  // Input shape: [batchSize, numChannels, nnYLen*nnXLen] (NCHW spatial)
+  // Mask shape: [batchSize, nnYLen*nnXLen] (all 1.0 for tuning)
+  // Output shape: [batchSize, 3, numChannels]
   int inputNumFloats = batchSize * nnXLen * nnYLen * numChannels;
   int outputNumFloats = batchSize * numChannels * 3;
   vector<float> gpoolInputVec;
@@ -2672,10 +2747,13 @@ static void tuneGPool(
       int xySize = nnXLen * nnYLen;
       float maskSumVal = (float)xySize;
       int numToRecord = 10;
+      ret.clear();
       ret.resize(outputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
       // gPool tuner runs the same kernel repeatedly - CPU result is the same each time
       for(int i = 0; i < numToRecord; i++) {
-        cpuGPool(gpoolInputVec, ret.data() + (outputNumFloats * i), batchSize, numChannels, xySize, maskSumVal);
+        cpuGPool(gpoolInputVec, retBase, batchSize, numChannels, xySize, maskSumVal);
+        retBase += outputNumFloats;
       }
       return accums;
     }
@@ -2709,11 +2787,13 @@ static void tuneGPool(
 
     const int reps = 20;
     const int numToRecord = 10;
+    ret.clear();
     ret.resize(outputNumFloats*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: weight = 0; break;
       default: weight = 1; break;
       }
@@ -2731,12 +2811,12 @@ static void tuneGPool(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, output, outputNumFloats, retBase);
+        retBase += outputNumFloats;
+      }
+    }
 
     clReleaseMemObject(input);
     clReleaseMemObject(mask);
@@ -2745,6 +2825,9 @@ static void tuneGPool(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -2829,6 +2912,12 @@ static void tuneTransformerAttention(
 
   auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.transformer.desc(); };
 
+  // From here set up and call kernel consistent with shapes:
+  // Q shape: [batchSize*numHeads, headDim, seqLen]
+  // K shape: [batchSize*numKVHeads, headDim, seqLen]
+  // V shape: [batchSize*numKVHeads, vHeadDim, seqLen]
+  // Mask shape: [batchSize, seqLen] (all 1.0 for tuning)
+  // Output shape: [batchSize*numHeads, vHeadDim, seqLen]
   int qSize = batchSize * numHeads * headDim * seqLen;
   int kSize = batchSize * numKVHeads * headDim * seqLen;
   int vSize = batchSize * numKVHeads * vHeadDim * seqLen;
@@ -2856,11 +2945,16 @@ static void tuneTransformerAttention(
     const int numToRecord = 6;
 
     if(computeOnCPU) {
+      ret.clear();
       ret.resize(outSize * numToRecord, 0.0f);
+      float* retBase = ret.data();
       // Compute once, replicate for all recorded slots (same input each time)
-      cpuAttention(attnQVec, attnKVec, attnVVec, ret.data(), batchSize, numHeads, numKVHeads, headDim, vHeadDim, seqLen, scale);
-      for(int i = 1; i < numToRecord; i++)
-        std::copy(ret.begin(), ret.begin() + outSize, ret.begin() + outSize * i);
+      cpuAttention(attnQVec, attnKVec, attnVVec, retBase, batchSize, numHeads, numKVHeads, headDim, vHeadDim, seqLen, scale);
+      retBase += outSize;
+      for(int i = 1; i < numToRecord; i++) {
+        std::copy(ret.begin(), ret.begin() + outSize, retBase);
+        retBase += outSize;
+      }
       return accums;
     }
 
@@ -2913,12 +3007,15 @@ static void tuneTransformerAttention(
       outBuf = createReadWriteBufferFloatZeros(context, outSize);
     }
 
+    ret.clear();
     ret.resize(outSize * numToRecord, 0.0f);
+    float* retBase = ret.data();
 
     for(int i = 0; i < reps; i++) {
       double weight;
       switch(i % numToRecord) {
-      case 0: weight = 0; break;  // warmup
+      // Weight 0 on first kernel call to warm up
+      case 0: weight = 0; break;
       default: weight = 1; break;
       }
 
@@ -2952,12 +3049,12 @@ static void tuneTransformerAttention(
       accums.countResultAndFreeEvent(err, event, weight);
       if(accums.bad)
         break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, outBuf, outSize, ret.data() + (outSize * i), cfg.shouldUseFP16Storage);
-    }
 
-    if(accums.bad)
-      ret.assign(outSize * numToRecord, 0.0);
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, outBuf, outSize, retBase, cfg.shouldUseFP16Storage);
+        retBase += outSize;
+      }
+    }
 
     clReleaseMemObject(qBuf);
     clReleaseMemObject(kBuf);
@@ -2966,6 +3063,9 @@ static void tuneTransformerAttention(
     clReleaseMemObject(outBuf);
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };

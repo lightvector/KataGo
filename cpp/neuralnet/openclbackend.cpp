@@ -2468,37 +2468,42 @@ struct TransformerAttentionBlock {
       clSetKernelArg(ropeKernel, 7, sizeof(int), (const void *)&ropeNumPairs);
       clSetKernelArg(ropeKernel, 8, sizeof(int), (const void *)&learnableInt);
 
-      cl_int err;
-      size_t globalSizes[3] = {
-        powerOf2ify((size_t)seqLen),
-        powerOf2ify((size_t)ropeNumPairs),
-        powerOf2ify((size_t)(batchSize * numHeads))
-      };
       size_t* localSizes = NULL;
-      MAYBE_EVENT;
-      err = clEnqueueNDRangeKernel(
-        handle->commandQueue, ropeKernel, 3, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
-      );
-      CHECK_ERR(err);
-      MAYBE_PROFILE("RoPE_Q");
-      MAYBE_FREE_EVENT;
+      {
+        cl_int err;
+        size_t globalSizes[3] = {
+          powerOf2ify((size_t)seqLen),
+          powerOf2ify((size_t)ropeNumPairs),
+          powerOf2ify((size_t)(batchSize * numHeads))
+        };
+        MAYBE_EVENT;
+        err = clEnqueueNDRangeKernel(
+          handle->commandQueue, ropeKernel, 3, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("RoPE_Q");
+        MAYBE_FREE_EVENT;
+      }
 
       // Apply to K
       clSetKernelArg(ropeKernel, 0, sizeof(cl_mem), (const void *)&kBuf.buf);
       clSetKernelArg(ropeKernel, 4, sizeof(int), (const void *)&numKVHeads);
 
-      size_t globalSizesK[3] = {
-        powerOf2ify((size_t)seqLen),
-        powerOf2ify((size_t)ropeNumPairs),
-        powerOf2ify((size_t)(batchSize * numKVHeads))
-      };
-      MAYBE_EVENT;
-      err = clEnqueueNDRangeKernel(
-        handle->commandQueue, ropeKernel, 3, NULL, globalSizesK, localSizes, 0, NULL, MAYBE_EVENTREF
-      );
-      CHECK_ERR(err);
-      MAYBE_PROFILE("RoPE_K");
-      MAYBE_FREE_EVENT;
+      {
+        cl_int err;
+        size_t globalSizesK[3] = {
+          powerOf2ify((size_t)seqLen),
+          powerOf2ify((size_t)ropeNumPairs),
+          powerOf2ify((size_t)(batchSize * numKVHeads))
+        };
+        MAYBE_EVENT;
+        err = clEnqueueNDRangeKernel(
+          handle->commandQueue, ropeKernel, 3, NULL, globalSizesK, localSizes, 0, NULL, MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("RoPE_K");
+        MAYBE_FREE_EVENT;
+      }
     }
 
     // Step 4: Scaled dot product attention
