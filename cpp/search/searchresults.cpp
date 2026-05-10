@@ -2254,9 +2254,7 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
   double scoreMeanSqSum = 0.0;
   double leadSum = 0.0;
   double utilitySum = 0.0;
-  double utilitySqSum = 0.0;
   double weightSum = 0.0;
-  double weightSqSum = 0.0;
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchChildPointer& childPointer = children[i];
     const SearchNode* child = childPointer.getIfAllocated();
@@ -2268,15 +2266,12 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
     if(stats.visits <= 0 || stats.weightSum <= 0.0 || edgeVisits <= 0)
       continue;
     double weight = playSelectionValues[i];
-    double weightScaling = weight / stats.weightSum;
     winLossValueSum += weight * stats.winLossValueAvg;
     noResultValueSum += weight * stats.noResultValueAvg;
     scoreMeanSum += weight * stats.scoreMeanAvg;
     scoreMeanSqSum += weight * stats.scoreMeanSqAvg;
     leadSum += weight * stats.leadAvg;
     utilitySum += weight * stats.utilityAvg;
-    utilitySqSum += weight * stats.utilitySqAvg;
-    weightSqSum += weightScaling * weightScaling * stats.weightSqSum;
     weightSum += weight;
   }
 
@@ -2303,8 +2298,6 @@ bool Search::getPrunedNodeValues(const SearchNode* nodePtr, ReportedSearchValues
     scoreMeanSqSum += scoreMeanSq * weight;
     leadSum += lead * weight;
     utilitySum += utility * weight;
-    utilitySqSum += utility * utility * weight;
-    weightSqSum += weight * weight;
     weightSum += weight;
   }
   values = ReportedSearchValues(

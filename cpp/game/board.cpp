@@ -2306,7 +2306,7 @@ void Board::checkConsistency() const {
   };
 
   Hash128 tmp_pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
-  int emptyCount = 0;
+  // int emptyCount = 0;
   for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
     int x = Location::getX(loc,x_size);
     int y = Location::getY(loc,x_size);
@@ -2327,7 +2327,7 @@ void Board::checkConsistency() const {
       else if(colors[loc] == C_EMPTY) {
         // if(!empty_list.contains(loc))
         //   throw StringError(errLabel + "Empty list doesn't contain empty location");
-        emptyCount += 1;
+        // emptyCount += 1;
       }
       else
         throw StringError(errLabel + "Non-(black,white,empty) value within board legal area");
