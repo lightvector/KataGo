@@ -1097,6 +1097,60 @@ static void cpuBatchedMatMul(
   }
 }
 
+// Describes one test case for matmul tuning: a (inChannels, outChannels) pair with a weight.
+struct GemmTuneCase {
+  int inChannels;
+  int outChannels;
+  double weight;
+};
+
+// Build the list of test cases for matmul tuning based on model info.
+// If includeTransformerCases is true and the model has transformer blocks, includes
+// additional cases for Q/K/V projection and FFN channel sizes.
+static vector<GemmTuneCase> getGemmTuneCases(
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool includeTransformerCases,
+  bool use3x3 = false
+) {
+  // Compute max conv channels for a "worst case" square matmul test case
+  int maxConvChannels = use3x3 ? modelInfo.maxConvChannels3x3 : modelInfo.maxConvChannels1x1;
+  maxConvChannels = std::max(modelInfo.trunkNumChannels, maxConvChannels);
+  maxConvChannels = std::max(modelInfo.midNumChannels, maxConvChannels);
+  maxConvChannels = std::max(modelInfo.regularNumChannels, maxConvChannels);
+  maxConvChannels = std::max(modelInfo.gpoolNumChannels, maxConvChannels);
+
+  vector<GemmTuneCase> cases;
+  // Warmup case (weight 0)
+  cases.push_back({modelInfo.trunkNumChannels, modelInfo.midNumChannels, 0});
+  // Standard conv cases
+  cases.push_back({modelInfo.trunkNumChannels, modelInfo.midNumChannels, 1});
+  cases.push_back({modelInfo.midNumChannels, modelInfo.trunkNumChannels, 1});
+  cases.push_back({modelInfo.trunkNumChannels, modelInfo.regularNumChannels, 0.2});
+  cases.push_back({modelInfo.trunkNumChannels, modelInfo.gpoolNumChannels, 0.2});
+  cases.push_back({maxConvChannels, maxConvChannels, 1});
+  // Transformer projection cases
+  if(includeTransformerCases && modelInfo.transformerNumHeads > 0) {
+    int transformerQKC = modelInfo.transformerNumHeads * modelInfo.transformerHeadDim;
+    int transformerVC = modelInfo.transformerNumKVHeads * modelInfo.transformerVHeadDim;
+    int transformerFFNC = modelInfo.transformerFFNChannels;
+    cases.push_back({modelInfo.midNumChannels, transformerQKC, 1.0});
+    cases.push_back({transformerVC, modelInfo.midNumChannels, 1.0});
+    cases.push_back({modelInfo.midNumChannels, transformerFFNC, 1.0});
+    cases.push_back({transformerFFNC, modelInfo.midNumChannels, 1.0});
+  }
+  return cases;
+}
+
+// Compute the max channel size across all tune cases.
+static int getMaxChannelsFromTuneCases(const vector<GemmTuneCase>& tuneCases) {
+  int maxChannels = 0;
+  for(const auto& tc : tuneCases) {
+    maxChannels = std::max(maxChannels, tc.inChannels);
+    maxChannels = std::max(maxChannels, tc.outChannels);
+  }
+  return maxChannels;
+}
+
 // CPU reference implementation of global pooling with mask.
 // Matches gPoolChannelsNCHWMask kernel output: for each (n,c), produces 3 values:
 // [mean, mean*(sqrt(maskSum)-14)*0.1, max_with_mask_penalty]
@@ -1287,12 +1341,9 @@ static void tuneXGemmDirect(
     cl_kernel kernel = clCreateKernel(program, "XgemmDirectStridedBatchedNN", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
-    int maxChannels = modelInfo.maxConvChannels1x1;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.transformerFFNChannels,maxChannels);
+    bool includeTransformerCases = true; // xGemmDirect is used for transformer projections
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases);
+    int maxChannels = getMaxChannelsFromTuneCases(tuneCases);
 
     int inputNumFloatsUpperBound = batchSize*nnXLen*nnYLen*maxChannels;
     int outputNumFloatsUpperBound = batchSize*nnXLen*nnYLen*maxChannels;
@@ -1304,34 +1355,16 @@ static void tuneXGemmDirect(
     cl_mem input = randomReadOnlyBufferFloat("tuneXGemmDirectInput", context, inputNumFloatsUpperBound, 1.0, inputVec);
     cl_mem filter = randomReadOnlyBufferFloat("tuneXGemmDirectFilter", context, filterNumFloatsUpperBound, 1.0 / sqrt(maxChannels), filterVec);
     cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloatsUpperBound);
-
-    // If this is a transformer model, include transformer-relevant matmul sizes in the tuning
-    bool hasTransformer = modelInfo.transformerHeadDim > 0;
-    int transformerQKVC = modelInfo.transformerNumHeads * modelInfo.transformerHeadDim; // output of Q projection
-    int transformerFFNC = modelInfo.transformerFFNChannels;
-
-    const int reps = hasTransformer ? 24 : 18;
-    const int numToRecord = hasTransformer ? 8 : 6;
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
     ret.clear();
     ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
     float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-      // Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      // Transformer-specific sizes (only used when hasTransformer)
-      case 6: inChannels = modelInfo.midNumChannels; outChannels = transformerQKVC; weight = hasTransformer ? 1.0 : 0; break;
-      case 7: inChannels = modelInfo.midNumChannels; outChannels = transformerFFNC; weight = hasTransformer ? 1.0 : 0; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
       // From here set up and call kernel consistent with shapes:
       // Input shape: [batchSize, inChannels, nnXLen*nnYLen]
@@ -1523,11 +1556,9 @@ static bool tuneXGemm(
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
     int inTileXYSize = inTileXSize * inTileYSize;
 
-    int maxChannels = modelInfo.maxConvChannels3x3;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+    bool includeTransformerCases = false; // xGemm is for 3x3 convs
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases, /*use3x3=*/true);
+    int maxChannels = getMaxChannelsFromTuneCases(tuneCases);
 
     int numTilesTotalPadded = roundUpToMultipleInt(numTilesTotal,cfg.xGemm.MWG);
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm.NWG);
@@ -1555,26 +1586,16 @@ static bool tuneXGemm(
         "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
       output = createReadWriteBufferFloatZeros(context, outputNumFloatsUpperBound);
     }
-
-    const int reps = 18;
-    const int numToRecord = 6;
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
     ret.clear();
     ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
     float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-      // Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
       // From here set up and call kernel consistent with shapes (in Winograd tile space):
       // Input shape: [inTileXYSize, inChannelsPadded, numTilesTotalPadded]
@@ -1774,11 +1795,9 @@ static bool tuneXGemm16(
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
     int inTileXYSize = inTileXSize * inTileYSize;
 
-    int maxChannels = modelInfo.maxConvChannels3x3;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+    bool includeTransformerCases = false; // xGemm16 is for 3x3 convs
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases, /*use3x3=*/true);
+    int maxChannels = getMaxChannelsFromTuneCases(tuneCases);
 
     int numTilesTotalPadded = roundUpToMultipleInt(numTilesTotal,cfg.xGemm16.MWG);
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm16.NWG);
@@ -1794,32 +1813,17 @@ static bool tuneXGemm16(
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
     cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
-
-    const int reps = 18;
-    const int numToRecord = 6;
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
     ret.clear();
     ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
     float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-      // Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
-      // From here set up and call kernel consistent with shapes (in Winograd tile space):
-      // Input shape: [inTileXYSize, inChannelsPadded, numTilesTotalPadded]
-      // Filter shape: [inTileXYSize, outChannelsPadded, inChannelsPadded]
-      // Output shape: [inTileXYSize, outChannelsPadded, numTilesTotalPadded]
-      // Batched over the inTileXYSize dimension.
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.xGemm16.NWG);
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.xGemm16.KWG);
 
@@ -1995,11 +1999,9 @@ static bool tuneHGemmWmma(
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
     int inTileXYSize = inTileXSize * inTileYSize;
 
-    int maxChannels = modelInfo.maxConvChannels3x3;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+    bool includeTransformerCases = false; // hGemmWmma batched is for 3x3 convs
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases, /*use3x3=*/true);
+    int maxChannels = getMaxChannelsFromTuneCases(tuneCases);
 
     int numTilesTotalPadded = roundUpToMultipleInt(numTilesTotal,cfg.hGemmWmma.MWG);
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.hGemmWmma.NWG);
@@ -2015,26 +2017,16 @@ static bool tuneHGemmWmma(
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
     cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
-
-    const int reps = 18;
-    const int numToRecord = 6;
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
     ret.clear();
     ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
     float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-      // Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
       // From here set up and call kernel consistent with shapes (in Winograd tile space):
       // Input shape: [inTileXYSize, inChannelsPadded, numTilesTotalPadded]
@@ -2206,13 +2198,9 @@ static bool tuneHGemmWmmaNCHW(
     cl_kernel padKernel = clCreateKernel(program, "padHalfInputNCHW", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
-    int maxChannels = modelInfo.maxConvChannels1x1;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
-
-    maxChannels = roundUpToMultipleInt(maxChannels,cfg.hGemmWmmaNCHW.getRequiredCDivisor());
+    bool includeTransformerCases = true; // hGemmWmmaNCHW is used for transformer projections
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases);
+    int maxChannels = roundUpToMultipleInt(getMaxChannelsFromTuneCases(tuneCases), cfg.hGemmWmmaNCHW.getRequiredCDivisor());
 
     int hwSize = nnXLen * nnYLen;
     int hwSizePadded = roundUpToMultipleInt(hwSize, cfg.hGemmWmmaNCHW.MWG);
@@ -2228,26 +2216,16 @@ static bool tuneHGemmWmmaNCHW(
       "tuneHGemmWmma3x3Filter", context, batchSize, maxChannels, maxChannels, maxChannels, maxChannels, 1.0 / sqrt(maxChannels), filterVec);
     cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
     cl_mem paddedInput = createReadWriteBufferHalfZeros(context, paddedInputSize);
-
-    const int reps = 18;
-    const int numToRecord = 6;
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
     ret.clear();
     ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
     float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-      // Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
       // From here set up and call kernel consistent with shapes:
       // Input shape: [batchSize, inChannelsPadded, nnXLen*nnYLen]
