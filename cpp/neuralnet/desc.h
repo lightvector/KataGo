@@ -273,9 +273,10 @@ struct TransformerAttentionDesc {
 
   // Compute cos/sin tables for RoPE given board dimensions.
   // Output tables are indexed as:
-  //   Learnable: (numKVHeads, numPairs, nnXLen*nnYLen) flattened
-  //   Fixed:     (numPairs, nnXLen*nnYLen) flattened
-  void computeRopeCosSin(int nnXLen, int nnYLen, std::vector<float>& cosTable, std::vector<float>& sinTable) const;
+  //   Learnable: (numKVHeads, numPairs, paddedNNXYLen) flattened
+  //   Fixed:     (numPairs, paddedNNXYLen) flattened
+  // paddedNNXYLen >= nnXLen*nnYLen and may include padding positions (filled with 0).
+  void computeRopeCosSin(int nnXLen, int nnYLen, int paddedNNXYLen, std::vector<float>& cosTable, std::vector<float>& sinTable) const;
 };
 
 struct TransformerFFNDesc {

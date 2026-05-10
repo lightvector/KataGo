@@ -54,9 +54,10 @@ R"%%(
   #define VWN 1
 #endif
 
-// SA is not used - A is loaded directly from a pre-padded global buffer.
-// The input is padded from hwSize to hwSizePadded (a multiple of MWG) by a separate
-// kernel before this one runs. This avoids both:
+// SA is not used - A is loaded directly from global buffer.
+// The input hwSize must be a multiple of MWARP (and at least 16) for WMMA .global load alignment.
+// The dispatch covers roundUp(hwSize, MWG) positions; out-of-bounds fragments are skipped.
+// This avoids both:
 // 1) NVIDIA OpenCL compiler bug: __local ptrs passed to PTX .shared WMMA loads return zeros
 // 2) WMMA .global loads requiring stride to be a multiple of 16 (in f16 elements)
 

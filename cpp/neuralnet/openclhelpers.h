@@ -141,15 +141,6 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
-  cl_int doPadHalfInputNCHW(
-    cl_kernel padKernel,
-    cl_command_queue commandQueue,
-    const OpenCLTuneParams& tuneParams,
-    int batchSize, int cSize, int hwSize, int hwSizePadded,
-    cl_mem src, cl_mem dst,
-    cl_event* eventBuf
-  );
-
   cl_int doHGemmWmma_NCHW_ICOC(
     cl_kernel kernel,
     cl_command_queue commandQueue,
@@ -195,7 +186,7 @@ namespace OpenCLHelpers {
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
     cl_mem input, cl_mem convWorkspace,
-    int nnXLen, int nnYLen,
+    int nnXLen, int nnYLen, int xyStride,
     int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
     int inChannels, int inChannelsPadMultiple,
     int convSize,
@@ -208,7 +199,7 @@ namespace OpenCLHelpers {
     const OpenCLTuneParams& tuneParams,
     cl_mem input, cl_mem convWorkspace,
     cl_mem scaleBuf, cl_mem biasBuf, cl_mem mask,
-    int nnXLen, int nnYLen,
+    int nnXLen, int nnYLen, int xyStride,
     int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
     int inChannels, int inChannelsPadMultiple,
     int convSize,
@@ -220,7 +211,7 @@ namespace OpenCLHelpers {
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
     cl_mem convWorkspace2, cl_mem output,
-    int nnXLen, int nnYLen,
+    int nnXLen, int nnYLen, int xyStride,
     int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
     int outChannels, int outChannelsPadMultiple,
     int convSize,
@@ -252,8 +243,7 @@ namespace OpenCLHelpers {
     cl_mem mask,
     cl_mem maskSum,
     int batchSize,
-    int nnXLen,
-    int nnYLen,
+    int nnXYLen,
     cl_event* eventBuf
   );
 

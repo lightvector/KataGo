@@ -373,7 +373,8 @@ bool OpenCLParams::HGemmWmmaNCHWParams::isValid() const {
   if(!isMultipleOf(KWG,16)) return false;
   if(!isMultipleOf(getRequiredCDivisor(),NWG)) return false;
   if(!isMultipleOf(getRequiredCDivisor(),KWG)) return false;
-  if(!((MWARP == 8 && NWARP == 32) || (MWARP == 16 && NWARP == 16) || (MWARP == 32 && NWARP == 8))) return false;
+  if(MWARP > MAX_MWARP) return false;
+  if(!((MWARP == 8 && NWARP == 32) || (MWARP == 16 && NWARP == 16))) return false;
 
   const int WARP_SIZE = 32;
   if(MWAVE/MWARP * WARP_SIZE * NWAVE/NWARP > 1024) return false;
@@ -632,18 +633,28 @@ bool OpenCLParams::AddChannelBiasesNCHWParams::isValid() const {
 }
 
 bool OpenCLTuneParams::isValid() const {
-  return
-    xGemmDirect.isValid() &&
-    xGemm.isValid() &&
-    xGemm16.isValid() &&
-    hGemmWmma.isValid() &&
-    hGemmWmmaNCHW.isValid() &&
-    conv3x3.isValid() &&
-    conv5x5.isValid() &&
-    gPool.isValid() &&
-    transformer.isValid() &&
-    addPointWise.isValid() &&
-    addChannelBiasesNCHW.isValid();
+  if(!xGemmDirect.isValid()) return false;
+  if(!xGemm.isValid()) return false;
+  if(!xGemm16.isValid()) return false;
+  if(!hGemmWmma.isValid()) return false;
+  if(!hGemmWmmaNCHW.isValid()) return false;
+  if(!conv3x3.isValid()) return false;
+  if(!conv5x5.isValid()) return false;
+  if(!gPool.isValid()) return false;
+  if(!transformer.isValid()) return false;
+  if(!addPointWise.isValid()) return false;
+  if(!addChannelBiasesNCHW.isValid()) return false;
+
+  // "should" implies "can"
+  if(shouldUseFP16Storage && !canUseFP16Storage) return false;
+  if(shouldUseFP16Compute && !canUseFP16Compute) return false;
+  if(shouldUseFP16TensorCores && !canUseFP16TensorCores) return false;
+  if(shouldUseFP16TensorCoresFor1x1 && !canUseFP16TensorCoresFor1x1) return false;
+  // Tensor cores (batched or 1x1) require FP16 storage
+  if(canUseFP16TensorCores && !canUseFP16Storage) return false;
+  if(canUseFP16TensorCoresFor1x1 && !canUseFP16Storage) return false;
+
+  return true;
 }
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
@@ -678,6 +689,14 @@ int OpenCLTuneParams::getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16
     return xGemm16.KWG;
   }
   return xGemm.KWG;
+}
+
+int OpenCLTuneParams::getPaddedNNXYLen(int nnXLen, int nnYLen, bool usingFP16TensorCoresFor1x1) const {
+  if(usingFP16TensorCoresFor1x1) {
+    int spatialAlignment = std::max(16, (int)hGemmWmmaNCHW.MWARP);
+    return roundUpToMultipleInt(nnXLen * nnYLen, spatialAlignment);
+  }
+  return nnXLen * nnYLen;
 }
 
 
@@ -1401,8 +1420,11 @@ static void tuneXGemmDirect(
     vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases);
     int maxChannels = getMaxChannelsFromTuneCases(tuneCases);
 
-    int inputNumFloatsUpperBound = batchSize*nnXLen*nnYLen*maxChannels;
-    int outputNumFloatsUpperBound = batchSize*nnXLen*nnYLen*maxChannels;
+    // xGemmDirect is tuned before tensor core usage is determined, and most spatial uses of
+    // this kernel are superseded if tensor cores are enabled for 1x1. Use unpadded size.
+    int paddedNNXYLen = nnXLen * nnYLen;
+    int inputNumFloatsUpperBound = batchSize*paddedNNXYLen*maxChannels;
+    int outputNumFloatsUpperBound = batchSize*paddedNNXYLen*maxChannels;
     int filterNumFloatsUpperBound = maxChannels * maxChannels;
     vector<float> inputVec;
     vector<float> filterVec;
@@ -1423,18 +1445,18 @@ static void tuneXGemmDirect(
       double weight = tc.weight;
 
       // From here set up and call kernel consistent with shapes:
-      // Input shape: [batchSize, inChannels, nnXLen*nnYLen]
+      // Input shape: [batchSize, inChannels, paddedNNXYLen]
       // Filter shape: [inChannels, outChannels]
-      // Output shape: [batchSize, outChannels, nnXLen*nnYLen]
+      // Output shape: [batchSize, outChannels, paddedNNXYLen]
       int filterStride = 0; //Reuse same filter for all matrices in batch
-      int inputStride = nnXLen*nnYLen * inChannels;
-      int outputStride = nnXLen*nnYLen * outChannels;
+      int inputStride = paddedNNXYLen * inChannels;
+      int outputStride = paddedNNXYLen * outChannels;
 
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        cpuBatchedMatMul(inputVec,filterVec,retBase,batchSize,nnXLen*nnYLen,outChannels,inChannels,inputStride,filterStride,outputStride);
-        retBase += batchSize * outChannels * nnXLen*nnYLen;
+        cpuBatchedMatMul(inputVec,filterVec,retBase,batchSize,paddedNNXYLen,outChannels,inChannels,inputStride,filterStride,outputStride);
+        retBase += batchSize * outChannels * paddedNNXYLen;
         continue;
       }
 
@@ -1443,7 +1465,7 @@ static void tuneXGemmDirect(
         kernel,
         commandQueue,
         cfg,
-        nnXLen*nnYLen, outChannels, inChannels,
+        paddedNNXYLen, outChannels, inChannels,
         inputStride, filterStride, outputStride,
         input, filter, output,
         batchSize,
@@ -1456,8 +1478,8 @@ static void tuneXGemmDirect(
         break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
       if(i < numToRecord) {
-        blockingReadBuffer(commandQueue, output, batchSize * outChannels * nnXLen*nnYLen, retBase);
-        retBase += batchSize * outChannels * nnXLen*nnYLen;
+        blockingReadBuffer(commandQueue, output, batchSize * outChannels * paddedNNXYLen, retBase);
+        retBase += batchSize * outChannels * paddedNNXYLen;
       }
     }
 
@@ -2197,8 +2219,8 @@ static bool tuneHGemmWmmaNCHW(
     addConfigs(configs,SETTER(hGemmWmmaNCHW.KWG),{16,32,64});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.MWAVE),{8,16,32,64});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.NWAVE),{8,16,32});
-    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16,32});
-    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{16,32});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWM),{1,2,4,8});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWN),{2,4,8});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.SB),{0,1});
@@ -2210,8 +2232,8 @@ static bool tuneHGemmWmmaNCHW(
     addConfigs(configs,SETTER(hGemmWmmaNCHW.KWG),{16,32,64});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.MWAVE),{8,16,32,64});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.NWAVE),{8,16,32});
-    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16,32});
-    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{16,32});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWM),{1,2,4});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWN),{2,4});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.SB),{0,1});
@@ -2251,17 +2273,15 @@ static bool tuneHGemmWmmaNCHW(
     if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
     cl_kernel kernel = clCreateKernel(program, "hgemmWmmaNCHW", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
-    cl_kernel padKernel = clCreateKernel(program, "padHalfInputNCHW", &err);
-    if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
     bool includeTransformerCases = true; // hGemmWmmaNCHW is used for transformer projections
     vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases);
     int maxChannels = roundUpToMultipleInt(getMaxChannelsFromTuneCases(tuneCases), cfg.hGemmWmmaNCHW.getRequiredCDivisor());
 
-    int hwSize = nnXLen * nnYLen;
-    int hwSizePadded = roundUpToMultipleInt(hwSize, cfg.hGemmWmmaNCHW.MWG);
+    // Use paddedNNXYLen matching what the real code does.
+    // Use MAX_MWARP so the buffer works for all MWARP values the tuner will try.
+    int hwSize = roundUpToMultipleInt(nnXLen * nnYLen, std::max(16, OpenCLParams::HGemmWmmaNCHWParams::MAX_MWARP));
     int outputNumFloatsUpperBound = batchSize * maxChannels * hwSize;
-    int paddedInputSize = batchSize * maxChannels * hwSizePadded;
     vector<float> inputVec;
     vector<float> filterVec;
     // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
@@ -2271,7 +2291,6 @@ static bool tuneHGemmWmmaNCHW(
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Filter", context, batchSize, maxChannels, maxChannels, maxChannels, maxChannels, 1.0 / sqrt(maxChannels), filterVec);
     cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
-    cl_mem paddedInput = createReadWriteBufferHalfZeros(context, paddedInputSize);
     const int numToRecord = (int)tuneCases.size();
     const int reps = numToRecord * 3;
     ret.clear();
@@ -2284,9 +2303,9 @@ static bool tuneHGemmWmmaNCHW(
       double weight = tc.weight;
 
       // From here set up and call kernel consistent with shapes:
-      // Input shape: [batchSize, inChannelsPadded, nnXLen*nnYLen]
+      // Input shape: [batchSize, inChannelsPadded, hwSize] where hwSize is already padded
       // Filter shape: [inChannelsPadded, outChannelsPadded]
-      // Output shape: [batchSize, outChannelsPadded, nnXLen*nnYLen]
+      // Output shape: [batchSize, outChannelsPadded, hwSize]
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.hGemmWmmaNCHW.getRequiredCDivisor());
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.hGemmWmmaNCHW.getRequiredCDivisor());
 
@@ -2294,41 +2313,26 @@ static bool tuneHGemmWmmaNCHW(
         if(i >= numToRecord)
           continue;
         // Compute into a temporary padded buffer and then compact out the padding.
-        vector<float> padded(batchSize * outChannelsPadded * nnXLen*nnYLen, 0.0f);
+        vector<float> padded(batchSize * outChannelsPadded * hwSize, 0.0f);
         cpuBatchedMatMul(
-          inputVec,filterVec,padded.data(),batchSize,nnXLen*nnYLen,outChannelsPadded,inChannelsPadded,
-          nnXLen*nnYLen*inChannelsPadded,0,nnXLen*nnYLen*outChannelsPadded
+          inputVec,filterVec,padded.data(),batchSize,hwSize,outChannelsPadded,inChannelsPadded,
+          hwSize*inChannelsPadded,0,hwSize*outChannelsPadded
         );
         for(int n = 0; n<batchSize; n++)
           for(int y = 0; y<outChannels; y++)
-            for(int x = 0; x<nnXLen*nnYLen; x++)
-              *(retBase++) = padded[x + nnXLen*nnYLen * (y + outChannelsPadded * n)];
+            for(int x = 0; x<hwSize; x++)
+              *(retBase++) = padded[x + hwSize * (y + outChannelsPadded * n)];
         continue;
       }
 
-      // Pad input: [batchSize, inChannelsPadded, hwSize] -> [batchSize, inChannelsPadded, hwSizePadded]
-      cl_event padEvent;
-      err = doPadHalfInputNCHW(
-        padKernel,
-        commandQueue,
-        cfg,
-        batchSize, inChannelsPadded, hwSize, hwSizePadded,
-        input, paddedInput,
-        &padEvent
-      );
-      accums.countResultAndFreeEvent(err,padEvent,weight);
-      accums.weightCounted -= weight; // Count pad time but not as a separate operation
-      if(accums.bad)
-        break;
-
-      // WMMA matmul on padded input
+      // WMMA matmul on pre-padded input (no separate pad step needed)
       cl_event event;
       err = doHGemmWmma_NCHW_ICOC(
         kernel,
         commandQueue,
         cfg,
         batchSize, inChannelsPadded, hwSize, outChannelsPadded,
-        paddedInput, filter, output,
+        input, filter, output,
         &event
       );
 
@@ -2337,23 +2341,21 @@ static bool tuneHGemmWmmaNCHW(
         break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
       if(i < numToRecord) {
-        // Read back the padded output and compact out the padding.
-        vector<float> padded(batchSize * outChannelsPadded * nnXLen*nnYLen, 0.0f);
-        blockingReadBufferHalfToFloat(commandQueue, output, batchSize * outChannelsPadded * nnXLen*nnYLen, padded.data());
+        // Read back the output.
+        vector<float> padded(batchSize * outChannelsPadded * hwSize, 0.0f);
+        blockingReadBufferHalfToFloat(commandQueue, output, batchSize * outChannelsPadded * hwSize, padded.data());
         for(int n = 0; n<batchSize; n++)
           for(int y = 0; y<outChannels; y++)
-            for(int x = 0; x<nnXLen*nnYLen; x++)
-              *(retBase++) = padded[x + nnXLen*nnYLen * (y + outChannelsPadded * n)];
+            for(int x = 0; x<hwSize; x++)
+              *(retBase++) = padded[x + hwSize * (y + outChannelsPadded * n)];
       }
     }
 
     clReleaseMemObject(input);
     clReleaseMemObject(filter);
     clReleaseMemObject(output);
-    clReleaseMemObject(paddedInput);
 
     clReleaseKernel(kernel);
-    clReleaseKernel(padKernel);
     clReleaseProgram(program);
 
     size_t finalRetSize = retBase - ret.data();
@@ -2366,7 +2368,6 @@ static bool tuneHGemmWmmaNCHW(
   bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.002;
 
-  // Pass 1: Tune WMMA kernel params (with whatever current pad params were passed in)
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -2377,39 +2378,6 @@ static bool tuneHGemmWmmaNCHW(
     verboseTuner,
     errorToleranceScale,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
-    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
-    bestKernelsPerSecond
-  );
-  if(!suc) {
-    return false;
-  }
-
-  // Pass 2: Tune pad kernel params using best WMMA params from pass 1
-  out << "Tuning pad kernel params for hGemmWmmaNCHW" << endl;
-  vector<OpenCLTuneParams> padConfigs;
-  padConfigs.push_back(currentConfig);
-  addConfigs(padConfigs,SETTER(hGemmWmmaNCHW.PAD_ELTS_PER_THREAD),{1,2,4});
-  addConfigs(padConfigs,SETTER(hGemmWmmaNCHW.PAD_ROWS_PER_THREAD),{1,2,4,8,16});
-  filterConfigs(padConfigs,ISVALID(hGemmWmmaNCHW));
-
-  shuffleConfigs(padConfigs);
-
-  OpenCLTuneParams padReferenceConfig = currentConfig;
-  padReferenceConfig.hGemmWmmaNCHW.PAD_ELTS_PER_THREAD = untunedConfig.hGemmWmmaNCHW.PAD_ELTS_PER_THREAD;
-  padReferenceConfig.hGemmWmmaNCHW.PAD_ROWS_PER_THREAD = untunedConfig.hGemmWmmaNCHW.PAD_ROWS_PER_THREAD;
-
-  auto getPadDesc = [](const OpenCLTuneParams& cfg) { return cfg.hGemmWmmaNCHW.padDesc(); };
-
-  suc = testAllConfigs(
-    stopOnReferenceImplFail,
-    padConfigs,
-    currentConfig,
-    padReferenceConfig,
-    out,
-    verboseErrors,
-    verboseTuner,
-    errorToleranceScale,
-    std::function<string(const OpenCLTuneParams& cfg)>(getPadDesc),
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
     bestKernelsPerSecond
   );
@@ -2505,7 +2473,8 @@ static void tuneTransform(
     // From here set up and call kernel consistent with shapes:
     // Input shape: [batchSize, inChannels, nnYLen, nnXLen] (NCHW spatial)
     // Output shape: [inTileXSize*inTileYSize, inChannelsPadded, numTilesTotalPadded] (Winograd tile space)
-    int inputNumFloats = batchSize * nnXLen * nnYLen * maxChannels;
+    int paddedNNXYLen = cfg.getPaddedNNXYLen(nnXLen, nnYLen, cfg.canUseFP16TensorCoresFor1x1);
+    int inputNumFloats = batchSize * paddedNNXYLen * maxChannels;
     int outputNumFloats = roundUpToMultipleInt(numTilesTotal,mPaddingMult) * roundUpToMultipleInt(maxChannels,kPaddingMult) * inTileXSize * inTileYSize;
 
     cl_mem input;
@@ -2549,7 +2518,7 @@ static void tuneTransform(
         commandQueue,
         cfg,
         input,output,
-        nnXLen,nnYLen,
+        nnXLen,nnYLen,paddedNNXYLen,
         batchSize,numTilesX,numTilesY,mPaddingMult,
         inChannels,kPaddingMult,
         convSize,
@@ -2688,8 +2657,9 @@ static void tuneUntransform(
     // From here set up and call kernel consistent with shapes:
     // Input shape: [inTileXSize*inTileYSize, outChannelsPadded, numTilesTotalPadded] (Winograd tile space)
     // Output shape: [batchSize, outChannels, nnYLen, nnXLen] (NCHW spatial)
+    int paddedNNXYLen = cfg.getPaddedNNXYLen(nnXLen, nnYLen, cfg.canUseFP16TensorCoresFor1x1);
     int inputNumFloats = roundUpToMultipleInt(numTilesTotal,mPaddingMult) * roundUpToMultipleInt(maxChannels,nPaddingMult) * inTileXSize * inTileYSize;
-    int outputNumFloats = batchSize * nnXLen * nnYLen * maxChannels;
+    int outputNumFloats = batchSize * paddedNNXYLen * maxChannels;
 
     cl_mem input;
     cl_mem output;
@@ -2732,7 +2702,7 @@ static void tuneUntransform(
         commandQueue,
         cfg,
         input,output,
-        nnXLen,nnYLen,
+        nnXLen,nnYLen,paddedNNXYLen,
         batchSize,numTilesX,numTilesY,mPaddingMult,
         outChannels,nPaddingMult,
         convSize,
@@ -2840,7 +2810,8 @@ static void tuneGPool(
   // Input shape: [batchSize, numChannels, nnYLen*nnXLen] (NCHW spatial)
   // Mask shape: [batchSize, nnYLen*nnXLen] (all 1.0 for tuning)
   // Output shape: [batchSize, 3, numChannels]
-  int inputNumFloats = batchSize * nnXLen * nnYLen * numChannels;
+  int paddedNNXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+  int inputNumFloats = batchSize * paddedNNXYLen * numChannels;
   int outputNumFloats = batchSize * numChannels * 3;
   vector<float> gpoolInputVec;
   // Pre-generate input so CPU baseline can use it
@@ -2857,7 +2828,7 @@ static void tuneGPool(
     if(computeOnCPU) {
       // GPool only varies parallelism parameters, so all configs produce identical results.
       // CPU baseline provides an independent correctness check.
-      int xySize = nnXLen * nnYLen;
+      int xySize = paddedNNXYLen;
       float maskSumVal = (float)xySize;
       int numToRecord = 10;
       ret.clear();
@@ -2892,10 +2863,10 @@ static void tuneGPool(
 
     cl_mem mask;
     if(cfg.shouldUseFP16Storage)
-      mask = constantReadOnlyBufferHalf(context, batchSize*nnXLen*nnYLen, 1.0f);
+      mask = constantReadOnlyBufferHalf(context, batchSize*paddedNNXYLen, 1.0f);
     else
-      mask = constantReadOnlyBufferFloat(context, batchSize*nnXLen*nnYLen, 1.0f);
-    cl_mem maskSum = constantReadOnlyBufferFloat(context, batchSize, (float)(nnXLen*nnYLen));
+      mask = constantReadOnlyBufferFloat(context, batchSize*paddedNNXYLen, 1.0f);
+    cl_mem maskSum = constantReadOnlyBufferFloat(context, batchSize, (float)(paddedNNXYLen));
     cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
 
     const int reps = 20;
@@ -2916,7 +2887,7 @@ static void tuneGPool(
         kernel,
         commandQueue,
         cfg,
-        batchSize, numChannels, nnXLen*nnYLen,
+        batchSize, numChannels, paddedNNXYLen,
         input,output,mask,maskSum,
         &event
       );
@@ -2997,7 +2968,7 @@ static void tuneTransformerAttention(
   int vHeadDim = modelInfo.transformerVHeadDim;
   int numHeads = modelInfo.transformerNumHeads;
   int numKVHeads = modelInfo.transformerNumKVHeads;
-  int seqLen = nnXLen * nnYLen;
+  int seqLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
 
   vector<OpenCLTuneParams> configs;
   configs.push_back(currentConfig);
@@ -3246,7 +3217,8 @@ static void tuneAddPointWise(
   auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.addPointWise.desc(); };
 
   int numChannels = modelInfo.trunkNumChannels;
-  int totalSize = batchSize * numChannels * nnXLen * nnYLen;
+  int paddedNNXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+  int totalSize = batchSize * numChannels * paddedNNXYLen;
   int outputNumFloats = totalSize;
   vector<float> accumInputVec;
   vector<float> valueInputVec;
@@ -3434,7 +3406,7 @@ static void tuneAddChannelBiasesNCHW(
   auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.addChannelBiasesNCHW.desc(); };
 
   int numChannels = modelInfo.trunkNumChannels;
-  int nnXYLen = nnXLen * nnYLen;
+  int nnXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
   int ncSize = batchSize * numChannels;
   int accumSize = ncSize * nnXYLen;
   int outputNumFloats = accumSize;

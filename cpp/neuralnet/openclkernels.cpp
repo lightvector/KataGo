@@ -115,7 +115,8 @@ __kernel void conv2dNCHW(
   int ocSize,
   int icSize,
   int filterXRadius,
-  int filterYRadius
+  int filterYRadius,
+  int xyStride // Stride between spatial planes (may be > xSize*ySize due to padding)
 ) {
   const int xBase = get_group_id(0) * TILE_XSIZE;
   const int yBase = get_group_id(1) * TILE_YSIZE;
@@ -130,17 +131,15 @@ __kernel void conv2dNCHW(
   const int inputTileXSize = TILE_XSIZE + filterXRadius * 2;
   const int inputTileYSize = TILE_YSIZE + filterYRadius * 2;
 
-  const int xySize = xSize * ySize;
-
   const int fxSize = (2 * filterXRadius + 1);
   const int fySize = (2 * filterYRadius + 1);
 
-#define INPUT(_n,_ic,_y,_x) LOAD(input,((_n) * icSize + (_ic)) * xySize + (_y) * xSize + (_x))
+#define INPUT(_n,_ic,_y,_x) LOAD(input,((_n) * icSize + (_ic)) * xyStride + (_y) * xSize + (_x))
 #define INPUTTILE(_ic,_ity,_itx) inputTile[((_ic) * inputTileYSize + (_ity)) * inputTileXSize + (_itx)]
 
 #define FILTER(_oc,_ic,_y,_x) LOAD(filter,(((_oc) * icSize + (_ic)) * fySize + (_y)) * fxSize + (_x))
 
-#define WRITEOUTPUT(_n,_oc,_y,_x,_value) STORE(output,((_n) * ocSize + (_oc)) * xySize + (_y) * xSize + (_x),_value)
+#define WRITEOUTPUT(_n,_oc,_y,_x,_value) STORE(output,((_n) * ocSize + (_oc)) * xyStride + (_y) * xSize + (_x),_value)
 #define OUTPUTTILE(_oty,_otx) outputTile[(_oty) * TILE_XSIZE + (_otx)]
 
   for(int n = 0; n < nSize; n++) {
@@ -240,7 +239,8 @@ __kernel void transform(
   int numTilesY,
   int icSize,
   int icSizePadded,
-  int ntxtySizePadded
+  int ntxtySizePadded,
+  int xyStride // Stride between spatial planes (may be > xSize*ySize due to padding)
 ) {
   int id0 = get_global_id(0);
   const int ntxty = id0;
@@ -251,9 +251,8 @@ __kernel void transform(
   const int n = id0;
   const int ic = get_global_id(1);
   const int nic = n * icSize + ic;
-  const int xySize = xSize * ySize;
 
-#define INPUT(_nic,_xy) LOAD(input,((_nic) * xySize) + (_xy))
+#define INPUT(_nic,_xy) LOAD(input,((_nic) * xyStride) + (_xy))
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
 
   __private real wTile[INTILE_XSIZE * INTILE_YSIZE];
@@ -428,7 +427,8 @@ __kernel void bnActTransform(
   int numTilesY,
   int icSize,
   int icSizePadded,
-  int ntxtySizePadded
+  int ntxtySizePadded,
+  int xyStride // Stride between spatial planes (may be > xSize*ySize due to padding)
 ) {
   int id0 = get_global_id(0);
   const int ntxty = id0;
@@ -439,9 +439,8 @@ __kernel void bnActTransform(
   const int n = id0;
   const int ic = get_global_id(1);
   const int nic = n * icSize + ic;
-  const int xySize = xSize * ySize;
 
-#define INPUT(_nic,_xy) LOAD(input,((_nic) * xySize) + (_xy))
+#define INPUT(_nic,_xy) LOAD(input,((_nic) * xyStride) + (_xy))
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
 
   __private real wTile[INTILE_XSIZE * INTILE_YSIZE];
@@ -455,18 +454,18 @@ __kernel void bnActTransform(
       if(y >= 0 && y < ySize && x >= 0 && x < xSize && n < nSize && ic < icSize) {
         int xy = y * xSize + x;
 #if ACTIVATION == 0
-        value = (INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic)) * LOAD(mask, n * xySize + xy);
+        value = (INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic)) * LOAD(mask, n * xyStride + xy);
 #elif ACTIVATION == 1
-        value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xySize + xy);
+        value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xyStride + xy);
 #elif ACTIVATION == 2
         float a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
-        value = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a)) * LOAD(mask, n * xySize + xy);
+        value = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a)) * LOAD(mask, n * xyStride + xy);
 #elif ACTIVATION == 12
         float a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
-        value = floatToReal(a < (LOG1PEXPTHRESHOLD*0.125f) ? a * tanh(log1p(exp(a*8.0f))) : a) * LOAD(mask, n * xySize + xy);
+        value = floatToReal(a < (LOG1PEXPTHRESHOLD*0.125f) ? a * tanh(log1p(exp(a*8.0f))) : a) * LOAD(mask, n * xyStride + xy);
 #elif ACTIVATION == 3
         float a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
-        value = floatToReal(a / (1.0f + exp(-a))) * LOAD(mask, n * xySize + xy);
+        value = floatToReal(a / (1.0f + exp(-a))) * LOAD(mask, n * xyStride + xy);
 #endif
       }
       WTILE(subY,subX) = value;
@@ -623,7 +622,8 @@ __kernel void untransform(
   int numTilesY,
   int ocSize,
   int ocSizePadded,
-  int ntxtySizePadded
+  int ntxtySizePadded,
+  int xyStride // Stride between spatial planes (may be > xSize*ySize due to padding)
 ) {
   const int tileX = get_global_id(0);
   const int tileY = get_global_id(1);
@@ -635,7 +635,7 @@ __kernel void untransform(
 
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
 #define TRANS(_suby,_subx,_oc,_ntile) LOAD(transformed,(((_suby) * INTILE_XSIZE + (_subx))*ocSizePadded + (_oc)) * ntxtySizePadded + (_ntile))
-#define WRITEOUTPUT(_noc,_y,_x,_value) STORE(output,((_noc) * ySize + (_y)) * xSize + (_x),_value)
+#define WRITEOUTPUT(_noc,_y,_x,_value) STORE(output,(_noc) * xyStride + (_y) * xSize + (_x),_value)
 
   __private real wTile[INTILE_XSIZE * INTILE_YSIZE];
 

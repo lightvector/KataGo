@@ -72,6 +72,11 @@ namespace OpenCLParams {
   };
 
   struct HGemmWmmaNCHWParams {
+    // Maximum MWARP allowed for NCHW WMMA. Spatial padding (paddedNNXYLen) must be aligned
+    // to MWARP so that WMMA fragments don't straddle the boundary. Keeping this small
+    // minimizes wasted padding. Buffer overallocation also uses this as an upper bound.
+    static constexpr int MAX_MWARP = 16;
+
     int MWG = 16;
     int NWG = 16;
     int KWG = 16;
@@ -83,9 +88,9 @@ namespace OpenCLParams {
     int VWN = 2;
     int SB = 0;
 
-    // Pad kernel parameters
-    int PAD_ELTS_PER_THREAD = 1;  // hw elements per thread (1,2,4)
-    int PAD_ROWS_PER_THREAD = 1;  // channel*batch rows per thread (1,2,4,8,16)
+    // Pad kernel parameters (legacy, no longer tuned but kept for tune file compatibility)
+    int PAD_ELTS_PER_THREAD = 1;
+    int PAD_ROWS_PER_THREAD = 1;
 
     std::string desc() const;
     std::string compileOptions() const;
@@ -214,6 +219,10 @@ struct OpenCLTuneParams {
   int getXGemmMPaddingMult(bool usingFP16Compute, bool usingFP16TensorCores) const;
   int getXGemmNPaddingMult(bool usingFP16Compute, bool usingFP16TensorCores) const;
   int getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16TensorCores) const;
+
+  // Compute the padded spatial dimension for NCHW layout. When using WMMA for 1x1 convolutions,
+  // rounds up to MWARP alignment (at least 16) so WMMA loads don't straddle spatial boundaries.
+  int getPaddedNNXYLen(int nnXLen, int nnYLen, bool usingFP16TensorCoresFor1x1) const;
 
   static void save(const std::string& filename, const OpenCLTuneParams& config);
   static OpenCLTuneParams load(const std::string& filename);

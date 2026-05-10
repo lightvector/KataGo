@@ -545,6 +545,10 @@ struct ComputeHandleInternal {
   cl_device_id deviceId;
   OpenCLTuneParams tuneParams;
 
+  int nnXLen;
+  int nnYLen;
+  int paddedNNXYLen; // nnXLen*nnYLen rounded up for spatial alignment
+
   bool usingFP16Storage;
   bool usingFP16Compute;
   bool usingFP16TensorCores;
@@ -587,7 +591,6 @@ struct ComputeHandleInternal {
   CLKernel xgemmDirectStridedBatchedNNKernel;
   CLKernel xgemmBatchedNNKernel;
   CLKernel hgemmWmmaNCHWKernel;
-  CLKernel padHalfInputNCHWKernel;
 
   // Shared transformer attention kernel set (lazily created)
   TransformerAttentionKernelSet* attnKernelSet;
@@ -611,6 +614,9 @@ struct ComputeHandleInternal {
     testAssert(progs != NULL);
     tuneParams = progs->tuneParams;
 
+    nnXLen = ctx->nnXLen;
+    nnYLen = ctx->nnYLen;
+
     if(inputsUseNHWC != false)
       throw StringError("OpenCL backend: inputsUseNHWC = false required, other configurations not supported");
     if(useNHWC != false)
@@ -620,6 +626,8 @@ struct ComputeHandleInternal {
     usingFP16Compute = progs->usingFP16Compute;
     usingFP16TensorCores = progs->usingFP16TensorCores;
     usingFP16TensorCoresFor1x1 = progs->usingFP16TensorCoresFor1x1;
+
+    paddedNNXYLen = tuneParams.getPaddedNNXYLen(nnXLen, nnYLen, usingFP16TensorCoresFor1x1);
 
     cl_int err;
     conv2dNCHWKernel = clCreateKernel(progs->conv2dNCHWProgram, "conv2dNCHW", &err);
@@ -701,8 +709,6 @@ struct ComputeHandleInternal {
       xgemmBatchedNNKernel = clCreateKernel(progs->xgemmProgram, "XgemmBatched", &err);
     if(usingFP16TensorCoresFor1x1) {
       hgemmWmmaNCHWKernel = clCreateKernel(progs->hgemmWmmaNCHWProgram, "hgemmWmmaNCHW", &err);
-      CHECK_ERR(err);
-      padHalfInputNCHWKernel = clCreateKernel(progs->hgemmWmmaNCHWProgram, "padHalfInputNCHW", &err);
     }
     CHECK_ERR(err);
   }
@@ -850,35 +856,25 @@ static void debugPrint2D(const string& name, ComputeHandleInternal* handle, cl_m
   cout << "=========================================================" << endl;
 }
 
-static void debugPrint4D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize, int nnXLen, int nnYLen, bool useNHWC) {
+// Print spatial NCHW tensor. Buffer has paddedNNXYLen stride per channel; only the valid nnYLen*nnXLen region is printed.
+static void debugPrint3D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize) {
+  int paddedNNXYLen = handle->paddedNNXYLen;
+  int nnXLen = handle->nnXLen;
+  int nnYLen = handle->nnYLen;
   vector<float> values;
-  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize * nnXLen * nnYLen, values);
+  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize * paddedNNXYLen, values);
   cout << "=========================================================" << endl;
   cout << name << endl;
-  int i = 0;
   for(int n = 0; n<batchSize; n++) {
     cout << "-(n=" << n << ")--------------------" << endl;
-    if(useNHWC) {
+    for(int c = 0; c<cSize; c++) {
+      cout << "(c=" << c << ")" << endl;
       for(int y = 0; y<nnYLen; y++) {
-        cout << "(y=" << y << ")" << endl;
-        for(int x = 0; x<nnXLen; x++) {
-          for(int c = 0; c<cSize; c++)
-            cout << values[i++] << " ";
-          cout << endl;
-        }
+        for(int x = 0; x<nnXLen; x++)
+          cout << values[(n * cSize + c) * paddedNNXYLen + y * nnXLen + x] << " ";
         cout << endl;
       }
-    }
-    else {
-      for(int c = 0; c<cSize; c++) {
-        cout << "(c=" << c << ")" << endl;
-        for(int y = 0; y<nnYLen; y++) {
-          for(int x = 0; x<nnXLen; x++)
-            cout << values[i++] << " ";
-          cout << endl;
-        }
-        cout << endl;
-      }
+      cout << endl;
     }
   }
   cout << "=========================================================" << endl;
@@ -901,10 +897,10 @@ struct ScratchBuffers {
   ScratchBuffers(const ScratchBuffers&) = delete;
   ScratchBuffers& operator=(const ScratchBuffers&) = delete;
 
-  ScratchBuffers(ComputeHandleInternal* handle_, int maxBatchSize, int nnXLen, int nnYLen)
-    : batchXYFloatBytes((size_t)maxBatchSize * nnXLen * nnYLen * sizeof(float)),
+  ScratchBuffers(ComputeHandleInternal* handle_, int maxBatchSize)
+    : batchXYFloatBytes((size_t)maxBatchSize * handle_->paddedNNXYLen * sizeof(float)),
       batchFloatBytes((size_t)maxBatchSize * sizeof(float)),
-      batchXYBytes((size_t)maxBatchSize * nnXLen * nnYLen * (handle_->usingFP16Storage ? sizeof(half_t) : sizeof(float))),
+      batchXYBytes((size_t)maxBatchSize * handle_->paddedNNXYLen * (handle_->usingFP16Storage ? sizeof(half_t) : sizeof(float))),
       batchBytes((size_t)maxBatchSize * (handle_->usingFP16Storage ? sizeof(half_t) : sizeof(float))),
       handle(handle_)
   {
@@ -960,9 +956,7 @@ struct BatchNormLayer {
   const float epsilon;
   const int activation;
 
-  const int nnXLen;
-  const int nnYLen;
-  const int nnXYLen;
+  const int paddedNNXYLen;
   cl_mem mergedScaleBuf;
   cl_mem mergedBiasBuf;
 
@@ -973,17 +967,13 @@ struct BatchNormLayer {
     ComputeHandleInternal* handle,
     const BatchNormLayerDesc* desc,
     const ActivationLayerDesc* actDesc,
-    int nnX,
-    int nnY,
     bool useFP16
   ) :
     name(desc->name),
     numChannels(desc->numChannels),
     epsilon(desc->epsilon),
     activation(actDesc->activation),
-    nnXLen(nnX),
-    nnYLen(nnY),
-    nnXYLen(nnX * nnY)
+    paddedNNXYLen(handle->paddedNNXYLen)
   {
     testAssert(desc->mean.size() == numChannels);
     testAssert(desc->variance.size() == numChannels);
@@ -997,7 +987,7 @@ struct BatchNormLayer {
     mergedScaleBuf = createReadOnlyBuffer(handle,mergedScale,useFP16);
     mergedBiasBuf = createReadOnlyBuffer(handle,mergedBias,useFP16);
 
-    globalSizes[0] = powerOf2ify(nnXLen * nnYLen);
+    globalSizes[0] = powerOf2ify(paddedNNXYLen);
     globalSizes[1] = powerOf2ify(numChannels);
   }
 
@@ -1030,7 +1020,7 @@ struct BatchNormLayer {
     clSetKernelArg(kernel, 4, sizeof(cl_mem), (const void *)&mask);
     clSetKernelArg(kernel, 5, sizeof(int), (const void *)&batchSize);
     clSetKernelArg(kernel, 6, sizeof(int), (const void *)&numChannels);
-    clSetKernelArg(kernel, 7, sizeof(int), (const void *)&nnXYLen);
+    clSetKernelArg(kernel, 7, sizeof(int), (const void *)&paddedNNXYLen);
 
     cl_int err;
     size_t* localSizes = NULL; //TODO actually pick these with tuning? Or fuse with conv untransform?
@@ -1063,6 +1053,7 @@ struct ConvLayer {
 
   const int nnXLen;
   const int nnYLen;
+  const int paddedNNXYLen;
 
   bool usingHGemmWmmaNHCW; // For 1x1 convs
 
@@ -1092,7 +1083,8 @@ struct ConvLayer {
     dilationY(desc->dilationY),
     dilationX(desc->dilationX),
     nnXLen(nnX),
-    nnYLen(nnY)
+    nnYLen(nnY),
+    paddedNNXYLen(handle->paddedNNXYLen)
   {
     testAssert(convXSize % 2 == 1);
     testAssert(convYSize % 2 == 1);
@@ -1245,13 +1237,7 @@ struct ConvLayer {
       numTilesTotalPadded * inChannelsPadded * inTileXYSize,
       numTilesTotalPadded * outChannelsPadded * inTileXYSize
     );
-    // Padded input buffer for 1x1 WMMA convolutions
-    if(usingHGemmWmmaNHCW) {
-      int MWG = handle->tuneParams.hGemmWmmaNCHW.MWG;
-      int hwSizePadded = roundUpToMultipleInt(nnXLen * nnYLen, MWG);
-      size_t paddedElts = (size_t)maxBatchSize * inChannels * hwSizePadded;
-      elts = ConvWorkspaceEltsNeeded::getMax(elts, ConvWorkspaceEltsNeeded(paddedElts, 0));
-    }
+    // No separate pad buffer needed for WMMA 1x1 - input is pre-padded to paddedNNXYLen
     return elts;
   }
 
@@ -1259,15 +1245,15 @@ struct ConvLayer {
     if(convXSize == 1 && convYSize == 1) {
       if(!usingHGemmWmmaNHCW) {
         int filterStride = 0; //Reuse same filter for all matrices in batch
-        int inputStride = nnXLen*nnYLen * inChannels;
-        int outputStride = nnXLen*nnYLen * outChannels;
+        int inputStride = paddedNNXYLen * inChannels;
+        int outputStride = paddedNNXYLen * outChannels;
         cl_int err;
         MAYBE_EVENT;
         err = doStridedBatchedXGemmDirect_KM_KN_NM(
           handle->xgemmDirectStridedBatchedNNKernel,
           handle->commandQueue,
           handle->tuneParams,
-          nnXLen*nnYLen, outChannels, inChannels,
+          paddedNNXYLen, outChannels, inChannels,
           inputStride, filterStride, outputStride,
           input, filter, output,
           batchSize,
@@ -1278,39 +1264,20 @@ struct ConvLayer {
         MAYBE_FREE_EVENT;
       }
       else {
-        int hwSizePadded = roundUpToMultipleInt(nnXLen*nnYLen, handle->tuneParams.hGemmWmmaNCHW.MWG);
-        // Pad input: [batchSize, inChannels, hwSize] -> [batchSize, inChannels, hwSizePadded]
-        {
-          cl_int err;
-          MAYBE_EVENT;
-          err = doPadHalfInputNCHW(
-            handle->padHalfInputNCHWKernel,
-            handle->commandQueue,
-            handle->tuneParams,
-            batchSize, inChannels, nnXLen*nnYLen, hwSizePadded,
-            input, convWorkspace,
-            MAYBE_EVENTREF
-          );
-          CHECK_ERR(err);
-          MAYBE_PROFILE("PadNCHW");
-          MAYBE_FREE_EVENT;
-        }
-        // WMMA matmul on padded input
-        {
-          cl_int err;
-          MAYBE_EVENT;
-          err = doHGemmWmma_NCHW_ICOC(
-            handle->hgemmWmmaNCHWKernel,
-            handle->commandQueue,
-            handle->tuneParams,
-            batchSize, inChannels, nnXLen*nnYLen, outChannels,
-            convWorkspace, filter, output,
-            MAYBE_EVENTREF
-          );
-          CHECK_ERR(err);
-          MAYBE_PROFILE("HGEMM1x1");
-          MAYBE_FREE_EVENT;
-        }
+        // Input is already padded to paddedNNXYLen which satisfies WMMA alignment
+        cl_int err;
+        MAYBE_EVENT;
+        err = doHGemmWmma_NCHW_ICOC(
+          handle->hgemmWmmaNCHWKernel,
+          handle->commandQueue,
+          handle->tuneParams,
+          batchSize, inChannels, paddedNNXYLen, outChannels,
+          input, filter, output,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("HGEMM1x1");
+        MAYBE_FREE_EVENT;
       }
     }
     else if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
@@ -1325,7 +1292,7 @@ struct ConvLayer {
           handle->commandQueue,
           handle->tuneParams,
           input,convWorkspace,
-          nnXLen,nnYLen,
+          nnXLen,nnYLen,paddedNNXYLen,
           batchSize,numTilesX,numTilesY,handle->getXGemmMPaddingMult(), //M in gemm
           inChannels,handle->getXGemmKPaddingMult(),                    //K in gemm
           convXSize,
@@ -1382,7 +1349,7 @@ struct ConvLayer {
           handle->commandQueue,
           handle->tuneParams,
           convWorkspace2,output,
-          nnXLen,nnYLen,
+          nnXLen,nnYLen,paddedNNXYLen,
           batchSize,numTilesX,numTilesY,handle->getXGemmMPaddingMult(), //M in gemm
           outChannels,handle->getXGemmNPaddingMult(),                   //N in gemm
           convXSize,
@@ -1417,6 +1384,7 @@ struct ConvLayer {
       clSetKernelArg(kernel, 9, sizeof(int), (const void *)&inChannels);
       clSetKernelArg(kernel, 10, sizeof(int), (const void *)&convXRadius);
       clSetKernelArg(kernel, 11, sizeof(int), (const void *)&convYRadius);
+      clSetKernelArg(kernel, 12, sizeof(int), (const void *)&paddedNNXYLen);
 
       static const int workPerThreadX = 1;
       static const int workPerThreadY = 1;
@@ -1491,7 +1459,7 @@ struct ConvLayer {
           bnLayer->mergedScaleBuf,
           bnLayer->mergedBiasBuf,
           mask,
-          nnXLen,nnYLen,
+          nnXLen,nnYLen,paddedNNXYLen,
           batchSize,numTilesX,numTilesY,handle->getXGemmMPaddingMult(), //M in gemm
           inChannels,handle->getXGemmKPaddingMult(),                    //K in gemm
           convXSize,
@@ -1548,7 +1516,7 @@ struct ConvLayer {
           handle->commandQueue,
           handle->tuneParams,
           convWorkspace2,output,
-          nnXLen,nnYLen,
+          nnXLen,nnYLen,paddedNNXYLen,
           batchSize,numTilesX,numTilesY,handle->getXGemmMPaddingMult(), //M in gemm
           outChannels,handle->getXGemmNPaddingMult(),                   //N in gemm
           convXSize,
@@ -1718,7 +1686,7 @@ struct NormActConv {
     int nnY,
     bool useFP16
   ) :
-    norm(handle,normDesc,actDesc,nnX,nnY,useFP16),
+    norm(handle,normDesc,actDesc,useFP16),
     conv(handle,convDesc,nnX,nnY,useFP16),
     inChannels(norm.numChannels),
     outChannels(conv.outChannels)
@@ -1764,8 +1732,7 @@ struct ResidualBlock {
   const string name;
   const NormActConv normActConv1;
   const NormActConv normActConv2;
-  const int nnXLen;
-  const int nnYLen;
+  const int paddedNNXYLen;
 
   ResidualBlock(
     ComputeHandleInternal* handle,
@@ -1777,8 +1744,7 @@ struct ResidualBlock {
     name(desc->name),
     normActConv1(handle,&desc->preBN,&desc->preActivation,&desc->regularConv,nnX,nnY,useFP16),
     normActConv2(handle,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16),
-    nnXLen(nnX),
-    nnYLen(nnY)
+    paddedNNXYLen(handle->paddedNNXYLen)
   {
   }
 
@@ -1805,7 +1771,7 @@ struct ResidualBlock {
     SizedBuf<cl_mem> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
     normActConv1.apply(handle,batchSize,trunk,trunkScratch,mid.buf,mask,convWorkspace,convWorkspace2);
     normActConv2.apply(handle,batchSize,mid.buf,mid.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
-    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * nnYLen * nnXLen);
+    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * paddedNNXYLen);
   }
 
   ResidualBlock() = delete;
@@ -1825,9 +1791,7 @@ struct GlobalPoolingResidualBlock {
   const MatMulLayer gpoolToBiasMul;
   const NormActConv normActConv2;
 
-  const int nnXLen;
-  const int nnYLen;
-  const int nnXYLen;
+  const int paddedNNXYLen;
   const int regularChannels;
   const int gpoolChannels;
 
@@ -1839,15 +1803,13 @@ struct GlobalPoolingResidualBlock {
     bool useFP16
   ) :
     name(desc->name),
-    preBN(handle,&desc->preBN,&desc->preActivation,nnX,nnY,useFP16),
+    preBN(handle,&desc->preBN,&desc->preActivation,useFP16),
     regularConv(handle,&desc->regularConv,nnX,nnY,useFP16),
     gpoolConv(handle,&desc->gpoolConv,nnX,nnY,useFP16),
-    gpoolBN(handle,&desc->gpoolBN,&desc->gpoolActivation,nnX,nnY,useFP16),
+    gpoolBN(handle,&desc->gpoolBN,&desc->gpoolActivation,useFP16),
     gpoolToBiasMul(handle,&desc->gpoolToBiasMul),
     normActConv2(handle,&desc->midBN,&desc->midActivation,&desc->finalConv,nnX,nnY,useFP16),
-    nnXLen(nnX),
-    nnYLen(nnY),
-    nnXYLen(nnX*nnY),
+    paddedNNXYLen(handle->paddedNNXYLen),
     regularChannels(desc->regularConv.outChannels),
     gpoolChannels(desc->gpoolConv.outChannels)
   {
@@ -1885,10 +1847,10 @@ struct GlobalPoolingResidualBlock {
     gpoolConv.apply(handle,batchSize,trunkScratch,gpoolOut.buf,convWorkspace,convWorkspace2);
     gpoolBN.apply(handle,batchSize,gpoolOut.buf,gpoolOut.buf,mask);
 
-    performGPoolMask(handle, batchSize, gpoolChannels, nnXYLen, gpoolOut.buf, gpoolConcat.buf, mask, maskSum);
+    performGPoolMask(handle, batchSize, gpoolChannels, paddedNNXYLen, gpoolOut.buf, gpoolConcat.buf, mask, maskSum);
 
     gpoolToBiasMul.apply(handle,batchSize,gpoolConcat.buf,gpoolBias.buf);
-    addChannelBiases(handle, regularOut.buf, gpoolBias.buf, batchSize * regularChannels, nnXYLen);
+    addChannelBiases(handle, regularOut.buf, gpoolBias.buf, batchSize * regularChannels, paddedNNXYLen);
 
     // vector<float> tmp(batchSize*regularChannels);
     // clEnqueueReadBuffer(handle->commandQueue, gpoolBias, CL_TRUE, 0, byteSizeofVectorContents(tmp), tmp.data(), 0, NULL, NULL);
@@ -1897,7 +1859,7 @@ struct GlobalPoolingResidualBlock {
     //   cout << tmp[i] << endl;
 
     normActConv2.apply(handle,batchSize,regularOut.buf,regularOut.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
-    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * nnYLen * nnXLen);
+    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * paddedNNXYLen);
   }
 
   GlobalPoolingResidualBlock() = delete;
@@ -1953,8 +1915,7 @@ struct NestedBottleneckResidualBlock {
   const NormActConv normActConv1;
   const BlockStack blocks;
   const NormActConv normActConv2;
-  const int nnXLen;
-  const int nnYLen;
+  const int paddedNNXYLen;
 
   NestedBottleneckResidualBlock(
     ComputeHandleInternal* handle,
@@ -1967,8 +1928,7 @@ struct NestedBottleneckResidualBlock {
     normActConv1(handle,&desc->preBN,&desc->preActivation,&desc->preConv,nnX,nnY,useFP16),
     blocks(handle,desc->blocks,desc->numBlocks,desc->preConv.outChannels,nnX,nnY,useFP16),
     normActConv2(handle,&desc->postBN,&desc->postActivation,&desc->postConv,nnX,nnY,useFP16),
-    nnXLen(nnX),
-    nnYLen(nnY)
+    paddedNNXYLen(handle->paddedNNXYLen)
   {
   }
 
@@ -2001,7 +1961,7 @@ struct NestedBottleneckResidualBlock {
     normActConv1.apply(handle,batchSize,trunk,trunkScratch,mid.buf,mask,convWorkspace,convWorkspace2);
     blocks.apply(handle,scratch,batchSize,mid.buf,midScratch.buf,mask,maskSum,convWorkspace,convWorkspace2);
     normActConv2.apply(handle,batchSize,mid.buf,mid.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
-    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * nnYLen * nnXLen);
+    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * paddedNNXYLen);
   }
 
   NestedBottleneckResidualBlock() = delete;
@@ -2015,20 +1975,16 @@ struct NestedBottleneckResidualBlock {
 struct TransformerRMSNormLayer {
   const string name;
   const int numChannels;
-  const int nnXLen;
-  const int nnYLen;
+  const int paddedNNXYLen;
   cl_mem weightBuf;
 
   TransformerRMSNormLayer(
     ComputeHandleInternal* handle,
-    const TransformerRMSNormDesc* desc,
-    int nnX,
-    int nnY
+    const TransformerRMSNormDesc* desc
   ) :
     name(desc->name),
     numChannels(desc->numChannels),
-    nnXLen(nnX),
-    nnYLen(nnY)
+    paddedNNXYLen(handle->paddedNNXYLen)
   {
     testAssert(desc->weight.size() == numChannels);
     vector<float> weight = desc->weight;
@@ -2042,7 +1998,6 @@ struct TransformerRMSNormLayer {
 
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask) const {
     cl_kernel kernel = handle->transformerRMSNormKernel;
-    int nnXYLen = nnXLen * nnYLen;
 
     clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
@@ -2050,11 +2005,11 @@ struct TransformerRMSNormLayer {
     clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mask);
     clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
     clSetKernelArg(kernel, 5, sizeof(int), (const void *)&numChannels);
-    clSetKernelArg(kernel, 6, sizeof(int), (const void *)&nnXYLen);
+    clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
 
     cl_int err;
     static constexpr int nKernelDims = 2;
-    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)(nnXYLen)), powerOf2ify((size_t)batchSize)};
+    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)(paddedNNXYLen)), powerOf2ify((size_t)batchSize)};
     size_t* localSizes = NULL;
     MAYBE_EVENT;
     err = clEnqueueNDRangeKernel(
@@ -2076,8 +2031,7 @@ struct RMSNormLayer {
   const string name;
   const int numChannels;
   const bool spatial;
-  const int nnXLen;
-  const int nnYLen;
+  const int paddedNNXYLen;
   const int activation;
   cl_mem gammaBuf;
   cl_mem betaBuf;
@@ -2087,15 +2041,12 @@ struct RMSNormLayer {
   RMSNormLayer(
     ComputeHandleInternal* handle,
     const RMSNormLayerDesc* desc,
-    int nnX,
-    int nnY,
     int activation_
   ) :
     name(desc->name),
     numChannels(desc->numChannels),
     spatial(desc->spatial),
-    nnXLen(nnX),
-    nnYLen(nnY),
+    paddedNNXYLen(handle->paddedNNXYLen),
     activation(activation_),
     actOnesBuf(NULL),
     actZerosBuf(NULL)
@@ -2127,8 +2078,6 @@ struct RMSNormLayer {
   }
 
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask, cl_mem maskSum) const {
-    int nnXYLen = nnXLen * nnYLen;
-
     if(!spatial) {
       // Non-spatial per-channel RMSNorm: normalize per position across channels, then apply gamma+beta.
       cl_kernel kernel = handle->transformerRMSNormKernel;
@@ -2138,11 +2087,11 @@ struct RMSNormLayer {
       clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mask);
       clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
       clSetKernelArg(kernel, 5, sizeof(int), (const void *)&numChannels);
-      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&nnXYLen);
+      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
 
       cl_int err;
       static constexpr int nKernelDims = 2;
-      size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)(nnXYLen)), powerOf2ify((size_t)batchSize)};
+      size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)(paddedNNXYLen)), powerOf2ify((size_t)batchSize)};
       size_t* localSizes = NULL;
       MAYBE_EVENT;
       err = clEnqueueNDRangeKernel(
@@ -2153,7 +2102,7 @@ struct RMSNormLayer {
       MAYBE_FREE_EVENT;
 
       // Add beta bias
-      addChannelBiases(handle, output, betaBuf, batchSize * numChannels, nnXYLen);
+      addChannelBiases(handle, output, betaBuf, batchSize * numChannels, paddedNNXYLen);
     }
     else {
       // Spatial RMSNorm: single RMS across all channels and spatial positions per sample.
@@ -2166,7 +2115,7 @@ struct RMSNormLayer {
       clSetKernelArg(kernel, 5, sizeof(cl_mem), (const void *)&maskSum);
       clSetKernelArg(kernel, 6, sizeof(int), (const void *)&batchSize);
       clSetKernelArg(kernel, 7, sizeof(int), (const void *)&numChannels);
-      clSetKernelArg(kernel, 8, sizeof(int), (const void *)&nnXYLen);
+      clSetKernelArg(kernel, 8, sizeof(int), (const void *)&paddedNNXYLen);
 
       cl_int err;
       static constexpr int nKernelDims = 2;
@@ -2192,10 +2141,10 @@ struct RMSNormLayer {
       clSetKernelArg(actKernel, 4, sizeof(cl_mem), (const void *)&mask);
       clSetKernelArg(actKernel, 5, sizeof(int), (const void *)&batchSize);
       clSetKernelArg(actKernel, 6, sizeof(int), (const void *)&numChannels);
-      clSetKernelArg(actKernel, 7, sizeof(int), (const void *)&nnXYLen);
+      clSetKernelArg(actKernel, 7, sizeof(int), (const void *)&paddedNNXYLen);
 
       cl_int err;
-      size_t actGlobalSizes[2] = {powerOf2ify((size_t)nnXYLen), powerOf2ify((size_t)numChannels)};
+      size_t actGlobalSizes[2] = {powerOf2ify((size_t)paddedNNXYLen), powerOf2ify((size_t)numChannels)};
       size_t* actLocalSizes = NULL;
       MAYBE_EVENT;
       err = clEnqueueNDRangeKernel(handle->commandQueue, actKernel, 2, NULL, actGlobalSizes, actLocalSizes, 0, NULL, MAYBE_EVENTREF);
@@ -2216,23 +2165,19 @@ struct TransformerMatMulLayer {
   const string name;
   const int inChannels;
   const int outChannels;
-  const int nnXLen;
-  const int nnYLen;
+  const int paddedNNXYLen;
   bool usingHGemmWmmaNHCW;
 
   cl_mem filter;
 
   TransformerMatMulLayer(
     ComputeHandleInternal* handle,
-    const MatMulLayerDesc* desc,
-    int nnX,
-    int nnY
+    const MatMulLayerDesc* desc
   ) :
     name(desc->name),
     inChannels(desc->inChannels),
     outChannels(desc->outChannels),
-    nnXLen(nnX),
-    nnYLen(nnY),
+    paddedNNXYLen(handle->paddedNNXYLen),
     usingHGemmWmmaNHCW(false)
   {
     testAssert(desc->weights.size() == (size_t)(inChannels * outChannels));
@@ -2260,15 +2205,15 @@ struct TransformerMatMulLayer {
     if(!usingHGemmWmmaNHCW) {
       (void)convWorkspace;
       int filterStride = 0; // Reuse same filter for all batch elements
-      int inputStride = nnXLen * nnYLen * inChannels;
-      int outputStride = nnXLen * nnYLen * outChannels;
+      int inputStride = paddedNNXYLen * inChannels;
+      int outputStride = paddedNNXYLen * outChannels;
       cl_int err;
       MAYBE_EVENT;
       err = doStridedBatchedXGemmDirect_KM_KN_NM(
         handle->xgemmDirectStridedBatchedNNKernel,
         handle->commandQueue,
         handle->tuneParams,
-        nnXLen * nnYLen, outChannels, inChannels,
+        paddedNNXYLen, outChannels, inChannels,
         inputStride, filterStride, outputStride,
         input, filter, output,
         batchSize,
@@ -2279,48 +2224,29 @@ struct TransformerMatMulLayer {
       MAYBE_FREE_EVENT;
     }
     else {
-      int hwSizePadded = roundUpToMultipleInt(nnXLen * nnYLen, handle->tuneParams.hGemmWmmaNCHW.MWG);
-      {
-        cl_int err;
-        MAYBE_EVENT;
-        err = doPadHalfInputNCHW(
-          handle->padHalfInputNCHWKernel,
-          handle->commandQueue,
-          handle->tuneParams,
-          batchSize, inChannels, nnXLen * nnYLen, hwSizePadded,
-          input, convWorkspace,
-          MAYBE_EVENTREF
-        );
-        CHECK_ERR(err);
-        MAYBE_PROFILE("TransformerPadNCHW");
-        MAYBE_FREE_EVENT;
-      }
-      {
-        cl_int err;
-        MAYBE_EVENT;
-        err = doHGemmWmma_NCHW_ICOC(
-          handle->hgemmWmmaNCHWKernel,
-          handle->commandQueue,
-          handle->tuneParams,
-          batchSize, inChannels, nnXLen * nnYLen, outChannels,
-          convWorkspace, filter, output,
-          MAYBE_EVENTREF
-        );
-        CHECK_ERR(err);
-        MAYBE_PROFILE("TransformerMatMulHGemm");
-        MAYBE_FREE_EVENT;
-      }
+      // Input is already padded to paddedNNXYLen which satisfies WMMA alignment
+      (void)convWorkspace;
+      cl_int err;
+      MAYBE_EVENT;
+      err = doHGemmWmma_NCHW_ICOC(
+        handle->hgemmWmmaNCHWKernel,
+        handle->commandQueue,
+        handle->tuneParams,
+        batchSize, inChannels, paddedNNXYLen, outChannels,
+        input, filter, output,
+        MAYBE_EVENTREF
+      );
+      CHECK_ERR(err);
+      MAYBE_PROFILE("TransformerMatMulHGemm");
+      MAYBE_FREE_EVENT;
     }
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
-    if(!usingHGemmWmmaNHCW)
-      return ConvWorkspaceEltsNeeded();
-    // Padded input buffer for WMMA loads
-    int MWG = handle->tuneParams.hGemmWmmaNCHW.MWG;
-    int hwSizePadded = roundUpToMultipleInt(nnXLen * nnYLen, MWG);
-    size_t paddedElts = (size_t)maxBatchSize * inChannels * hwSizePadded;
-    return ConvWorkspaceEltsNeeded(paddedElts, 0);
+    // No separate pad buffer needed - input is pre-padded to paddedNNXYLen
+    (void)handle;
+    (void)maxBatchSize;
+    return ConvWorkspaceEltsNeeded();
   }
 
   TransformerMatMulLayer() = delete;
@@ -2426,6 +2352,7 @@ struct TransformerAttentionBlock {
 
   const int nnXLen;
   const int nnYLen;
+  const int paddedNNXYLen;
 
   const int inChannels;  // = numHeads * qHeadDim (or whatever c_main is)
 
@@ -2458,12 +2385,13 @@ struct TransformerAttentionBlock {
     learnableRope(desc->learnableRope),
     nnXLen(nnX),
     nnYLen(nnY),
+    paddedNNXYLen(handle->paddedNNXYLen),
     inChannels(desc->qProj.inChannels),
-    preLN(handle, &desc->preLN, nnX, nnY),
-    qProj(handle, &desc->qProj, nnX, nnY),
-    kProj(handle, &desc->kProj, nnX, nnY),
-    vProj(handle, &desc->vProj, nnX, nnY),
-    outProj(handle, &desc->outProj, nnX, nnY),
+    preLN(handle, &desc->preLN),
+    qProj(handle, &desc->qProj),
+    kProj(handle, &desc->kProj),
+    vProj(handle, &desc->vProj),
+    outProj(handle, &desc->outProj),
     ropeCosTable(NULL),
     ropeSinTable(NULL),
     ropeNumPairs(0),
@@ -2475,7 +2403,7 @@ struct TransformerAttentionBlock {
 
       vector<float> cosTableData;
       vector<float> sinTableData;
-      desc->computeRopeCosSin(nnXLen, nnYLen, cosTableData, sinTableData);
+      desc->computeRopeCosSin(nnXLen, nnYLen, paddedNNXYLen, cosTableData, sinTableData);
 
       bool useFP16 = false;
       ropeCosTable = createReadOnlyBuffer(handle, cosTableData, useFP16);
@@ -2501,8 +2429,7 @@ struct TransformerAttentionBlock {
     cl_mem convWorkspace
   ) const {
     (void)maskSum;
-    int nnXYLen = nnXLen * nnYLen;
-    int seqLen = nnXYLen;
+    int seqLen = paddedNNXYLen;
     int qTotalDim = numHeads * qHeadDim;
     int kTotalDim = numKVHeads * qHeadDim;
     int vTotalDim = numKVHeads * vHeadDim;
@@ -2628,7 +2555,7 @@ struct TransformerAttentionBlock {
     outProj.apply(handle, batchSize, attnOut.buf, trunkScratch, mask, convWorkspace);
 
     // Step 6: Add residual: trunk += trunkScratch
-    addPointWise(handle, trunk, trunkScratch, batchSize * inChannels * nnXYLen);
+    addPointWise(handle, trunk, trunkScratch, batchSize * inChannels * paddedNNXYLen);
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
@@ -2653,8 +2580,7 @@ struct TransformerFFNBlock {
   const int ffnChannels;
   const bool useSwiGLU;
 
-  const int nnXLen;
-  const int nnYLen;
+  const int paddedNNXYLen;
 
   const TransformerRMSNormLayer preLN;
   const TransformerMatMulLayer linear1;
@@ -2663,22 +2589,19 @@ struct TransformerFFNBlock {
 
   TransformerFFNBlock(
     ComputeHandleInternal* handle,
-    const TransformerFFNDesc* desc,
-    int nnX,
-    int nnY
+    const TransformerFFNDesc* desc
   ) :
     name(desc->name),
     numChannels(desc->numChannels),
     ffnChannels(desc->ffnChannels),
     useSwiGLU(desc->useSwiGLU),
-    nnXLen(nnX),
-    nnYLen(nnY),
-    preLN(handle, &desc->preLN, nnX, nnY),
-    linear1(handle, &desc->linear1, nnX, nnY),
-    linear2(handle, &desc->linear2, nnX, nnY)
+    paddedNNXYLen(handle->paddedNNXYLen),
+    preLN(handle, &desc->preLN),
+    linear1(handle, &desc->linear1),
+    linear2(handle, &desc->linear2)
   {
     if(useSwiGLU) {
-      linearGate = std::make_unique<TransformerMatMulLayer>(handle, &desc->linearGate, nnX, nnY);
+      linearGate = std::make_unique<TransformerMatMulLayer>(handle, &desc->linearGate);
     }
   }
 
@@ -2696,7 +2619,6 @@ struct TransformerFFNBlock {
     cl_mem convWorkspace
   ) const {
     (void)maskSum;
-    int nnXYLen = nnXLen * nnYLen;
 
     // Step 1: RMSNorm
     preLN.apply(handle, batchSize, trunk, trunkScratch, mask);
@@ -2718,12 +2640,12 @@ struct TransformerFFNBlock {
       clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mask);
       clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
       clSetKernelArg(kernel, 5, sizeof(int), (const void *)&ffnChannels);
-      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&nnXYLen);
+      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
 
       cl_int err;
       static constexpr int nKernelDims = 2;
       size_t globalSizes[nKernelDims] = {
-        powerOf2ify((size_t)nnXYLen),
+        powerOf2ify((size_t)paddedNNXYLen),
         powerOf2ify((size_t)ffnChannels)
       };
       size_t* localSizes = NULL;
@@ -2745,7 +2667,7 @@ struct TransformerFFNBlock {
     linear2.apply(handle, batchSize, ffnBuf.buf, trunkScratch, mask, convWorkspace);
 
     // Step 5: Add residual
-    addPointWise(handle, trunk, trunkScratch, batchSize * numChannels * nnXYLen);
+    addPointWise(handle, trunk, trunkScratch, batchSize * numChannels * paddedNNXYLen);
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
@@ -2830,7 +2752,7 @@ BlockStack::BlockStack(
     else if(descBlocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
       TransformerFFNDesc* blockDesc = (TransformerFFNDesc*)descBlocks[i].second.get();
       unique_ptr_void blockPtr = make_unique_void(
-        new TransformerFFNBlock(handle, blockDesc, nnXLen, nnYLen)
+        new TransformerFFNBlock(handle, blockDesc)
       );
       blocks.emplace_back(TRANSFORMER_FFN_BLOCK_KIND, std::move(blockPtr));
     }
@@ -2887,8 +2809,7 @@ void BlockStack::apply(
 ) const {
   for(int i = 0; i<blocks.size(); i++) {
 #ifdef DEBUG_INTERMEDIATE_VALUES
-    bool usingNHWC = false;
-    debugPrint4D(string("Blockstack before block " + Global::intToString(i)), handle, trunkScratch, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+    debugPrint3D(string("Blockstack before block " + Global::intToString(i)), handle, trunkScratch, batchSize, trunkNumChannels);
 #endif
 
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -3010,6 +2931,7 @@ struct Trunk {
 
   const int nnXLen;
   const int nnYLen;
+  const int paddedNNXYLen;
 
   std::unique_ptr<ConvLayer> initialConv;
   std::unique_ptr<MatMulLayer> initialMatMul;
@@ -3039,6 +2961,7 @@ struct Trunk {
     trunkNormKind(desc->trunkNormKind),
     nnXLen(nnX),
     nnYLen(nnY),
+    paddedNNXYLen(handle->paddedNNXYLen),
     blocks(handle,desc->blocks,desc->numBlocks,desc->trunkNumChannels,nnX,nnY,useFP16)
   {
     checkBufferSize(maxBatchSize,nnXLen,nnYLen,trunkNumChannels);
@@ -3053,10 +2976,10 @@ struct Trunk {
       testAssert(sgfMetadataEncoder->mul3.outChannels == initialMatMul->outChannels);
     }
     if(desc->trunkNormKind == TRUNK_NORM_KIND_STANDARD) {
-      trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16);
+      trunkTipBN = std::make_unique<BatchNormLayer>(handle,&desc->trunkTipBN,&desc->trunkTipActivation,useFP16);
     }
     else {
-      trunkTipRMSNorm = std::make_unique<RMSNormLayer>(handle,&desc->trunkTipRMSNorm,nnXLen,nnYLen,desc->trunkTipActivation.activation);
+      trunkTipRMSNorm = std::make_unique<RMSNormLayer>(handle,&desc->trunkTipRMSNorm,desc->trunkTipActivation.activation);
     }
   }
 
@@ -3089,22 +3012,21 @@ struct Trunk {
     initialConv->apply(handle,batchSize,input,trunk,convWorkspace,convWorkspace2);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    bool usingNHWC = false;
-    debugPrint4D(string("Initial bin features"), handle, input, batchSize, initialConv->inChannels, nnXLen, nnYLen, usingNHWC);
-    debugPrint4D(string("After initial conv"), handle, trunk, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+    debugPrint3D(string("Initial bin features"), handle, input, batchSize, initialConv->inChannels);
+    debugPrint3D(string("After initial conv"), handle, trunk, batchSize, trunkNumChannels);
     #endif
 
     //Feed the matmul into trunkScratch, which will certainly be a big enough buffer
     initialMatMul->apply(handle,batchSize,inputGlobal,trunkScratch.buf);
     //Then accumulate it into trunk, broadcasting during the process
-    addChannelBiases(handle, trunk, trunkScratch.buf, batchSize * trunkNumChannels, nnXLen*nnYLen);
+    addChannelBiases(handle, trunk, trunkScratch.buf, batchSize * trunkNumChannels, paddedNNXYLen);
 
     if(sgfMetadataEncoder != nullptr) {
       testAssert(inputMeta != NULL);
       //Feed the result into trunkScratch
       sgfMetadataEncoder->apply(handle,scratch,batchSize,inputMeta,trunkScratch.buf);
       //Then accumulate it into trunk, broadcasting during the process
-      addChannelBiases(handle, trunk, trunkScratch.buf, batchSize * trunkNumChannels, nnXLen*nnYLen);
+      addChannelBiases(handle, trunk, trunkScratch.buf, batchSize * trunkNumChannels, paddedNNXYLen);
     }
     else {
       testAssert(inputMeta == NULL);
@@ -3121,8 +3043,7 @@ struct Trunk {
     }
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    bool usingNHWC = false;
-    debugPrint4D(string("Trunk tip"), handle, trunk, batchSize, trunkNumChannels, nnXLen, nnYLen, usingNHWC);
+    debugPrint3D(string("Trunk tip"), handle, trunk, batchSize, trunkNumChannels);
     #endif
   }
 
@@ -3135,6 +3056,7 @@ struct PolicyHead {
   const int modelVersion;
   const int nnXLen;
   const int nnYLen;
+  const int paddedNNXYLen;
   const int p1Channels;
   const int g1Channels;
   const int p2Channels;
@@ -3164,15 +3086,16 @@ struct PolicyHead {
     modelVersion(desc->modelVersion),
     nnXLen(nnX),
     nnYLen(nnY),
+    paddedNNXYLen(handle->paddedNNXYLen),
     p1Channels(desc->p1Conv.outChannels),
     g1Channels(desc->g1Conv.outChannels),
     p2Channels(desc->p2Conv.outChannels)
   {
     p1Conv = std::make_unique<ConvLayer>(handle,&desc->p1Conv,nnXLen,nnYLen,useFP16);
     g1Conv = std::make_unique<ConvLayer>(handle,&desc->g1Conv,nnXLen,nnYLen,useFP16);
-    g1BN = std::make_unique<BatchNormLayer>(handle,&desc->g1BN,&desc->g1Activation,nnXLen,nnYLen,useFP16);
+    g1BN = std::make_unique<BatchNormLayer>(handle,&desc->g1BN,&desc->g1Activation,useFP16);
     gpoolToBiasMul = std::make_unique<MatMulLayer>(handle,&desc->gpoolToBiasMul);
-    p1BN = std::make_unique<BatchNormLayer>(handle,&desc->p1BN,&desc->p1Activation,nnXLen,nnYLen,useFP16);
+    p1BN = std::make_unique<BatchNormLayer>(handle,&desc->p1BN,&desc->p1Activation,useFP16);
     p2Conv = std::make_unique<ConvLayer>(handle,&desc->p2Conv,nnXLen,nnYLen,useFP16);
     gpoolToPassMul = std::make_unique<MatMulLayer>(handle,&desc->gpoolToPassMul);
     gpoolToPassBias = std::make_unique<MatBiasLayer>(handle,&desc->gpoolToPassBias,desc->passActivation.activation);
@@ -3213,19 +3136,18 @@ struct PolicyHead {
     g1Conv->apply(handle,batchSize,trunk,gpoolOut.buf,convWorkspace,convWorkspace2);
     g1BN->apply(handle,batchSize,gpoolOut.buf,gpoolOut.buf,mask);
 
-    performGPoolMask(handle, batchSize, g1Channels, nnXLen*nnYLen, gpoolOut.buf, gpoolConcat.buf, mask, maskSum);
+    performGPoolMask(handle, batchSize, g1Channels, paddedNNXYLen, gpoolOut.buf, gpoolConcat.buf, mask, maskSum);
 
     gpoolToBiasMul->apply(handle,batchSize,gpoolConcat.buf,gpoolBias.buf);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    bool usingNHWC = false;
-    debugPrint4D(string("p1 pre-gpool-sum"), handle, p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC);
-    debugPrint4D(string("g1 pre-gpool"), handle, gpoolOut.buf, batchSize, g1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint3D(string("p1 pre-gpool-sum"), handle, p1Out.buf, batchSize, p1Channels);
+    debugPrint3D(string("g1 pre-gpool"), handle, gpoolOut.buf, batchSize, g1Channels);
     debugPrint2D(string("g1 pooled"), handle, gpoolConcat.buf, batchSize, g1Channels*3);
     debugPrint2D(string("g1 biases"), handle, gpoolBias.buf, batchSize, p1Channels);
     #endif
 
-    addChannelBiases(handle, p1Out.buf, gpoolBias.buf, batchSize * p1Channels, nnXLen*nnYLen);
+    addChannelBiases(handle, p1Out.buf, gpoolBias.buf, batchSize * p1Channels, paddedNNXYLen);
 
     p1BN->apply(handle,batchSize,p1Out.buf,p1Out.buf,mask);
 
@@ -3240,8 +3162,8 @@ struct PolicyHead {
     }
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint4D(string("p1 after-gpool-sum"), handle, p1Out.buf, batchSize, p1Channels, nnXLen, nnYLen, usingNHWC);
-    debugPrint4D(string("p2"), handle, policy, batchSize, p2Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint3D(string("p1 after-gpool-sum"), handle, p1Out.buf, batchSize, p1Channels);
+    debugPrint3D(string("p2"), handle, policy, batchSize, p2Channels);
     debugPrint2D(string("p2pass"), handle, policyPass, batchSize, 1);
     #endif
   }
@@ -3255,6 +3177,7 @@ struct ValueHead {
   int modelVersion;
   int nnXLen;
   int nnYLen;
+  int paddedNNXYLen;
   int v1Channels;
   int v2Channels;
   int valueChannels;
@@ -3286,6 +3209,7 @@ struct ValueHead {
     modelVersion = desc->modelVersion;
     nnXLen = nnX;
     nnYLen = nnY;
+    paddedNNXYLen = handle->paddedNNXYLen;
     v1Channels = desc->v1Conv.outChannels;
     v2Channels = desc->v2Mul.outChannels;
     valueChannels = desc->v3Mul.outChannels;
@@ -3293,7 +3217,7 @@ struct ValueHead {
     ownershipChannels = desc->vOwnershipConv.outChannels;
 
     v1Conv = std::make_unique<ConvLayer>(handle,&desc->v1Conv,nnXLen,nnYLen,useFP16);
-    v1BN = std::make_unique<BatchNormLayer>(handle,&desc->v1BN,&desc->v1Activation,nnXLen,nnYLen,useFP16);
+    v1BN = std::make_unique<BatchNormLayer>(handle,&desc->v1BN,&desc->v1Activation,useFP16);
     v2Mul = std::make_unique<MatMulLayer>(handle,&desc->v2Mul);
     v2Bias = std::make_unique<MatBiasLayer>(handle,&desc->v2Bias,desc->v2Activation.activation);
     v3Mul = std::make_unique<MatMulLayer>(handle,&desc->v3Mul);
@@ -3333,7 +3257,7 @@ struct ValueHead {
     v1Conv->apply(handle,batchSize,trunk,v1Out.buf,convWorkspace,convWorkspace2);
     v1BN->apply(handle,batchSize,v1Out.buf,v1Out.buf,mask);
 
-    performValueHeadPool(handle, batchSize, v1Channels, nnXLen*nnYLen, v1Out.buf, v1Mean.buf, maskSum);
+    performValueHeadPool(handle, batchSize, v1Channels, paddedNNXYLen, v1Out.buf, v1Mean.buf, maskSum);
 
     v2Mul->apply(handle,batchSize,v1Mean.buf,v2Out.buf);
     v2Bias->apply(handle,batchSize,v2Out.buf);
@@ -3344,8 +3268,7 @@ struct ValueHead {
     sv3Bias->apply(handle,batchSize,scoreValue);
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
-    bool usingNHWC = false;
-    debugPrint4D(string("v1"), handle, v1Out.buf, batchSize, v1Channels, nnXLen, nnYLen, usingNHWC);
+    debugPrint3D(string("v1"), handle, v1Out.buf, batchSize, v1Channels);
     debugPrint2D(string("v1 pooled"), handle, v1Mean.buf, batchSize, v1Channels);
     debugPrint2D(string("v2"), handle, v2Out.buf, batchSize, v1Channels);
     #endif
@@ -3362,8 +3285,7 @@ static void computeMaskSums(
   cl_mem mask,
   cl_mem maskSum,
   int batchSize,
-  int nnXLen,
-  int nnYLen
+  int paddedNNXYLen
 ) {
   cl_int err;
   MAYBE_EVENT;
@@ -3374,8 +3296,7 @@ static void computeMaskSums(
     mask,
     maskSum,
     batchSize,
-    nnXLen,
-    nnYLen,
+    paddedNNXYLen,
     MAYBE_EVENTREF
   );
   CHECK_ERR(err);
@@ -3392,6 +3313,7 @@ struct Model {
   int maxBatchSize;
   int nnXLen;
   int nnYLen;
+  int paddedNNXYLen;
   int numInputChannels;
   int numInputGlobalChannels;
   int numInputMetaChannels;
@@ -3421,6 +3343,7 @@ struct Model {
 
     nnXLen = nnX;
     nnYLen = nnY;
+    paddedNNXYLen = handle->paddedNNXYLen;
     if(nnXLen > NNPos::MAX_BOARD_LEN)
       throw StringError(Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)",
         nnXLen, NNPos::MAX_BOARD_LEN
@@ -3507,16 +3430,15 @@ struct Model {
 
     {
       cl_kernel kernel = handle->extractChannel0NCHWKernel;
-      int nnXYLen = nnXLen * nnYLen;
       clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
       clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&mask);
       clSetKernelArg(kernel, 2, sizeof(int), (const void *)&batchSize);
       clSetKernelArg(kernel, 3, sizeof(int), (const void *)&numInputChannels);
-      clSetKernelArg(kernel, 4, sizeof(int), (const void *)&nnXYLen);
+      clSetKernelArg(kernel, 4, sizeof(int), (const void *)&paddedNNXYLen);
 
       cl_int err;
       static constexpr int nKernelDims = 2;
-      size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)nnXYLen), powerOf2ify((size_t)batchSize)};
+      size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)paddedNNXYLen), powerOf2ify((size_t)batchSize)};
       size_t* localSizes = NULL;
       MAYBE_EVENT;
       err = clEnqueueNDRangeKernel(
@@ -3527,7 +3449,7 @@ struct Model {
       MAYBE_FREE_EVENT;
     }
 
-    computeMaskSums(handle,mask,maskSum,batchSize,nnXLen,nnYLen);
+    computeMaskSums(handle,mask,maskSum,batchSize,paddedNNXYLen);
 
     trunk->apply(
       handle,
@@ -3606,7 +3528,7 @@ struct Buffers {
   Buffers& operator=(const Buffers&) = delete;
 
   Buffers(ComputeHandleInternal* handle, const Model& m) {
-    size_t batchXYElts = (size_t)m.maxBatchSize * m.nnXLen * m.nnYLen;
+    size_t batchXYElts = (size_t)m.maxBatchSize * m.paddedNNXYLen;
     size_t batchElts = (size_t)m.maxBatchSize;
 
     bool useFP16 = handle->usingFP16Storage;
@@ -3705,7 +3627,7 @@ struct ComputeHandle {
     bool useNHWC = context->usingNHWCMode == enabled_t::True ? true : false;
     handle = std::make_unique<ComputeHandleInternal>(context, gpuIdx, inputsUseNHWC, useNHWC);
     model = std::make_unique<Model>(handle.get(), &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen);
-    scratch = std::make_unique<ScratchBuffers>(handle.get(), maxBatchSize, nnXLen, nnYLen);
+    scratch = std::make_unique<ScratchBuffers>(handle.get(), maxBatchSize);
     buffers = std::make_unique<Buffers>(handle.get(), *model);
   }
 
@@ -3845,7 +3767,9 @@ struct InputBuffers {
     ownershipResultBufferElts = (size_t)maxBatchSize * nnXLen * nnYLen * m.numOwnershipChannels;
 
     userInputBuffer = new float[(size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen];
-    userInputBufferHalf = new half_t[(size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen];
+    // Allocate half buffer large enough for padded spatial dimensions (paddedNNXYLen may be larger than nnXLen*nnYLen)
+    int maxPaddedNNXYLen = roundUpToMultipleInt(nnXLen * nnYLen, OpenCLParams::HGemmWmmaNCHWParams::MAX_MWARP);
+    userInputBufferHalf = new half_t[(size_t)m.numInputChannels * maxBatchSize * maxPaddedNNXYLen];
     userInputGlobalBuffer = new float[(size_t)m.numInputGlobalChannels * maxBatchSize];
     if(m.numInputMetaChannels > 0)
       userInputMetaBuffer = new float[(size_t)m.numInputMetaChannels * maxBatchSize];
@@ -3854,12 +3778,12 @@ struct InputBuffers {
 
     policyPassResults = new float[(size_t)maxBatchSize * m.numPolicyChannels];
     policyResults = new float[(size_t)maxBatchSize * m.numPolicyChannels * nnXLen * nnYLen];
-    policyResultsHalf = new half_t[(size_t)maxBatchSize * m.numPolicyChannels * nnXLen * nnYLen];
+    policyResultsHalf = new half_t[(size_t)maxBatchSize * m.numPolicyChannels * maxPaddedNNXYLen];
     valueResults = new float[(size_t)maxBatchSize * m.numValueChannels];
 
     scoreValueResults = new float[(size_t)maxBatchSize * m.numScoreValueChannels];
     ownershipResults = new float[(size_t)maxBatchSize * nnXLen * nnYLen * m.numOwnershipChannels];
-    ownershipResultsHalf = new half_t[(size_t)maxBatchSize * nnXLen * nnYLen * m.numOwnershipChannels];
+    ownershipResultsHalf = new half_t[(size_t)maxBatchSize * maxPaddedNNXYLen * m.numOwnershipChannels];
   }
 
   ~InputBuffers() {
@@ -3904,13 +3828,15 @@ void NeuralNet::getOutput(
   const int batchSize = numBatchEltsFilled;
   const int nnXLen = gpuHandle->nnXLen;
   const int nnYLen = gpuHandle->nnYLen;
+  const int paddedNNXYLen = gpuHandle->handle->paddedNNXYLen;
+  const int nnXYLen = nnXLen * nnYLen;
   const int modelVersion = gpuHandle->model->modelVersion;
 
   const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
   const int numMetaFeatures = inputBuffers->singleInputMetaElts;
   assert(numSpatialFeatures == gpuHandle->model->numInputChannels);
-  assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
+  assert(numSpatialFeatures * nnXYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
   const int numPolicyChannels = gpuHandle->model->numPolicyChannels;
 
@@ -3937,34 +3863,44 @@ void NeuralNet::getOutput(
 
   Buffers* buffers = gpuHandle->buffers.get();
 
-  assert(inputBuffers->userInputBufferElts == buffers->inputElts);
   assert(inputBuffers->userInputGlobalBufferElts == buffers->inputGlobalElts);
   assert(inputBuffers->userInputMetaBufferElts == buffers->inputMetaElts);
-  assert(inputBuffers->policyResultBufferElts == buffers->policyElts);
   assert(inputBuffers->valueResultBufferElts == buffers->valueElts);
   assert(inputBuffers->singlePolicyPassResultElts == numPolicyChannels);
-  assert(inputBuffers->singlePolicyResultElts == numPolicyChannels * nnXLen * nnYLen);
+  assert(inputBuffers->singlePolicyResultElts == numPolicyChannels * nnXYLen);
   assert(inputBuffers->singlePolicyResultElts + inputBuffers->singlePolicyPassResultElts == gpuHandle->policySize * numPolicyChannels);
   assert(inputBuffers->scoreValueResultBufferElts == buffers->scoreValueElts);
-  assert(inputBuffers->ownershipResultBufferElts == buffers->ownershipElts);
-  assert(inputBuffers->singleOwnershipResultElts == nnXLen*nnYLen);
+  assert(inputBuffers->singleOwnershipResultElts == nnXYLen);
 
   ComputeHandleInternal* handle = gpuHandle->handle.get();
   bool useFP16Storage = gpuHandle->handle->usingFP16Storage;
 
   cl_int err;
 
+  // Upload input to GPU, padding from nnXYLen to paddedNNXYLen per channel
   if(useFP16Storage) {
-    size_t numElts = inputBuffers->singleInputElts * batchSize;
-    for(size_t i = 0; i<numElts; i++)
-      inputBuffers->userInputBufferHalf[i] = half_float::half_cast<half_t>(inputBuffers->userInputBuffer[i]);
+    size_t paddedInputElts = (size_t)numSpatialFeatures * paddedNNXYLen * batchSize;
+    size_t totalChannels = (size_t)numSpatialFeatures * batchSize;
+    // Convert float to half with padding
+    if(paddedNNXYLen == nnXYLen) {
+      for(size_t i = 0; i < totalChannels * nnXYLen; i++)
+        inputBuffers->userInputBufferHalf[i] = half_float::half_cast<half_t>(inputBuffers->userInputBuffer[i]);
+    }
+    else {
+      for(size_t c = 0; c < totalChannels; c++) {
+        for(int xy = 0; xy < nnXYLen; xy++)
+          inputBuffers->userInputBufferHalf[c * paddedNNXYLen + xy] = half_float::half_cast<half_t>(inputBuffers->userInputBuffer[c * nnXYLen + xy]);
+        for(int xy = nnXYLen; xy < paddedNNXYLen; xy++)
+          inputBuffers->userInputBufferHalf[c * paddedNNXYLen + xy] = half_float::half_cast<half_t>(0.0f);
+      }
+    }
 
     err = clEnqueueWriteBuffer(
       handle->commandQueue,
       buffers->input,
       CL_FALSE,
       0,
-      inputBuffers->singleInputElts * sizeof(half_t) * batchSize,
+      paddedInputElts * sizeof(half_t),
       inputBuffers->userInputBufferHalf,
       0,
       NULL,
@@ -3973,18 +3909,25 @@ void NeuralNet::getOutput(
     CHECK_ERR(err);
   }
   else {
-    err = clEnqueueWriteBuffer(
-      handle->commandQueue,
-      buffers->input,
-      CL_FALSE,
-      0,
-      inputBuffers->singleInputElts * sizeof(float) * batchSize,
-      inputBuffers->userInputBuffer,
-      0,
-      NULL,
-      NULL
-    );
-    CHECK_ERR(err);
+    if(paddedNNXYLen == nnXYLen) {
+      err = clEnqueueWriteBuffer(
+        handle->commandQueue,
+        buffers->input,
+        CL_FALSE,
+        0,
+        inputBuffers->singleInputElts * sizeof(float) * batchSize,
+        inputBuffers->userInputBuffer,
+        0,
+        NULL,
+        NULL
+      );
+      CHECK_ERR(err);
+    }
+    else {
+      // Padding only happens when usingFP16TensorCoresFor1x1, which implies useFP16Storage,
+      // so we should never reach here with paddedNNXYLen != nnXYLen.
+      ASSERT_UNREACHABLE;
+    }
   }
 
   err = clEnqueueWriteBuffer(
@@ -4046,23 +3989,40 @@ void NeuralNet::getOutput(
     inputBuffers->singlePolicyPassResultElts*sizeof(float)*batchSize, inputBuffers->policyPassResults, 0, NULL, NULL
   );
   CHECK_ERR(err);
+
+  // Read back policy (spatial) - GPU buffer is padded, need to unpad
+  size_t paddedPolicyElts = (size_t)numPolicyChannels * paddedNNXYLen * batchSize;
   if(useFP16Storage) {
     err = clEnqueueReadBuffer(
       handle->commandQueue, buffers->policy, blocking, 0,
-      inputBuffers->singlePolicyResultElts*sizeof(half_t)*batchSize, inputBuffers->policyResultsHalf, 0, NULL, NULL
+      paddedPolicyElts * sizeof(half_t), inputBuffers->policyResultsHalf, 0, NULL, NULL
     );
     CHECK_ERR(err);
-    size_t numElts = inputBuffers->singlePolicyResultElts * batchSize;
-    for(size_t i = 0; i<numElts; i++)
-      inputBuffers->policyResults[i] = inputBuffers->policyResultsHalf[i];
+    // Convert half to float, unpadding from paddedNNXYLen to nnXYLen
+    size_t totalChannels = (size_t)numPolicyChannels * batchSize;
+    if(paddedNNXYLen == nnXYLen) {
+      for(size_t i = 0; i < totalChannels * nnXYLen; i++)
+        inputBuffers->policyResults[i] = inputBuffers->policyResultsHalf[i];
+    }
+    else {
+      for(size_t c = 0; c < totalChannels; c++)
+        for(int xy = 0; xy < nnXYLen; xy++)
+          inputBuffers->policyResults[c * nnXYLen + xy] = inputBuffers->policyResultsHalf[c * paddedNNXYLen + xy];
+    }
   }
   else {
-    err = clEnqueueReadBuffer(
-      handle->commandQueue, buffers->policy, blocking, 0,
-      inputBuffers->singlePolicyResultElts*sizeof(float)*batchSize, inputBuffers->policyResults, 0, NULL, NULL
-    );
-    CHECK_ERR(err);
+    if(paddedNNXYLen == nnXYLen) {
+      err = clEnqueueReadBuffer(
+        handle->commandQueue, buffers->policy, blocking, 0,
+        inputBuffers->singlePolicyResultElts*sizeof(float)*batchSize, inputBuffers->policyResults, 0, NULL, NULL
+      );
+      CHECK_ERR(err);
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
   }
+
   err = clEnqueueReadBuffer(
     handle->commandQueue, buffers->value, blocking, 0,
     inputBuffers->singleValueResultElts*sizeof(float)*batchSize, inputBuffers->valueResults, 0, NULL, NULL
@@ -4073,22 +4033,37 @@ void NeuralNet::getOutput(
     inputBuffers->singleScoreValueResultElts*sizeof(float)*batchSize, inputBuffers->scoreValueResults, 0, NULL, NULL
   );
   CHECK_ERR(err);
+
+  // Read back ownership (spatial) - GPU buffer is padded, need to unpad
+  size_t paddedOwnershipElts = (size_t)gpuHandle->model->numOwnershipChannels * paddedNNXYLen * batchSize;
   if(useFP16Storage) {
     err = clEnqueueReadBuffer(
       handle->commandQueue, buffers->ownership, blocking, 0,
-      inputBuffers->singleOwnershipResultElts*sizeof(half_t)*batchSize, inputBuffers->ownershipResultsHalf, 0, NULL, NULL
+      paddedOwnershipElts * sizeof(half_t), inputBuffers->ownershipResultsHalf, 0, NULL, NULL
     );
     CHECK_ERR(err);
-    size_t numElts = inputBuffers->singleOwnershipResultElts * batchSize;
-    for(size_t i = 0; i<numElts; i++)
-      inputBuffers->ownershipResults[i] = inputBuffers->ownershipResultsHalf[i];
+    size_t totalChannels = (size_t)gpuHandle->model->numOwnershipChannels * batchSize;
+    if(paddedNNXYLen == nnXYLen) {
+      for(size_t i = 0; i < totalChannels * nnXYLen; i++)
+        inputBuffers->ownershipResults[i] = inputBuffers->ownershipResultsHalf[i];
+    }
+    else {
+      for(size_t c = 0; c < totalChannels; c++)
+        for(int xy = 0; xy < nnXYLen; xy++)
+          inputBuffers->ownershipResults[c * nnXYLen + xy] = inputBuffers->ownershipResultsHalf[c * paddedNNXYLen + xy];
+    }
   }
   else {
-    err = clEnqueueReadBuffer(
-      handle->commandQueue, buffers->ownership, blocking, 0,
-      inputBuffers->singleOwnershipResultElts*sizeof(float)*batchSize, inputBuffers->ownershipResults, 0, NULL, NULL
-    );
-    CHECK_ERR(err);
+    if(paddedNNXYLen == nnXYLen) {
+      err = clEnqueueReadBuffer(
+        handle->commandQueue, buffers->ownership, blocking, 0,
+        inputBuffers->singleOwnershipResultElts*sizeof(float)*batchSize, inputBuffers->ownershipResults, 0, NULL, NULL
+      );
+      CHECK_ERR(err);
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
   }
 
   #ifdef PROFILE_KERNELS
@@ -4293,7 +4268,7 @@ bool NeuralNet::testEvaluateBatchNorm(
   ActivationLayerDesc actDesc;
   actDesc.activation = ACTIVATION_IDENTITY;
 
-  BatchNormLayer* layer = new BatchNormLayer(handle, desc, &actDesc, nnXLen, nnYLen, useFP16);
+  BatchNormLayer* layer = new BatchNormLayer(handle, desc, &actDesc, useFP16);
 
   size_t numInputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
   size_t numOutputFloats = (size_t)batchSize * nnXLen * nnYLen * desc->numChannels;
@@ -4352,7 +4327,7 @@ bool NeuralNet::testEvaluateResidualBlock(
     throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
   outputBuffer.resize(numTrunkFloats);
 
-  ScratchBuffers* scratch = new ScratchBuffers(handle, batchSize, nnXLen, nnYLen);
+  ScratchBuffers* scratch = new ScratchBuffers(handle, batchSize);
 
   vector<float> inputTmp = inputBuffer;
   vector<float> maskTmp = maskBuffer;
@@ -4413,7 +4388,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
     throw StringError("testEvaluateResidualBlock: unexpected mask buffer size");
   outputBuffer.resize(numTrunkFloats);
 
-  ScratchBuffers* scratch = new ScratchBuffers(handle, batchSize, nnXLen, nnYLen);
+  ScratchBuffers* scratch = new ScratchBuffers(handle, batchSize);
 
   vector<float> inputTmp = inputBuffer;
   vector<float> maskTmp = maskBuffer;
@@ -4426,7 +4401,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   cl_mem convWorkspace = createReadWriteBuffer(handle, convWorkspaceElts.size1, useFP16);
   cl_mem convWorkspace2 = createReadWriteBuffer(handle, convWorkspaceElts.size2, useFP16);
 
-  computeMaskSums(handle,mask,maskSum,batchSize,nnXLen,nnYLen);
+  computeMaskSums(handle,mask,maskSum,batchSize,handle->paddedNNXYLen);
 
   layer->apply(
     handle,

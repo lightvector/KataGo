@@ -1087,12 +1087,11 @@ TransformerAttentionDesc& TransformerAttentionDesc::operator=(TransformerAttenti
   return *this;
 }
 
-void TransformerAttentionDesc::computeRopeCosSin(int nnXLen, int nnYLen, std::vector<float>& cosTable, std::vector<float>& sinTable) const {
+void TransformerAttentionDesc::computeRopeCosSin(int nnXLen, int nnYLen, int paddedNNXYLen, std::vector<float>& cosTable, std::vector<float>& sinTable) const {
   if(!useRope)
     throw StringError("TransformerAttentionDesc::computeRopeCosSin called but useRope is false");
 
   int numPairs = qHeadDim / 2;
-  int nnXYLen = nnXLen * nnYLen;
 
   if(learnableRope) {
     // Precompute from learnable frequencies: ropeFreqs is (numKVHeads, numPairs, 2) flattened
@@ -1101,8 +1100,8 @@ void TransformerAttentionDesc::computeRopeCosSin(int nnXLen, int nnYLen, std::ve
     testAssert(ropeNumPairs == numPairs);
     testAssert(ropeFreqs.size() == (size_t)(numKVHeads * numPairs * 2));
 
-    cosTable.resize(numKVHeads * numPairs * nnXYLen);
-    sinTable.resize(numKVHeads * numPairs * nnXYLen);
+    cosTable.resize(numKVHeads * numPairs * paddedNNXYLen, 0.0f);
+    sinTable.resize(numKVHeads * numPairs * paddedNNXYLen, 0.0f);
 
     for(int h = 0; h < numKVHeads; h++) {
       for(int p = 0; p < numPairs; p++) {
@@ -1112,7 +1111,7 @@ void TransformerAttentionDesc::computeRopeCosSin(int nnXLen, int nnYLen, std::ve
           for(int x = 0; x < nnXLen; x++) {
             int xy = y * nnXLen + x;
             float angle = (float)x * freqX + (float)y * freqY;
-            int idx = (h * numPairs + p) * nnXYLen + xy;
+            int idx = (h * numPairs + p) * paddedNNXYLen + xy;
             cosTable[idx] = cosf(angle);
             sinTable[idx] = sinf(angle);
           }
@@ -1128,8 +1127,8 @@ void TransformerAttentionDesc::computeRopeCosSin(int nnXLen, int nnYLen, std::ve
     int numPairsPerDim = numPairs / 2;
     int dimHalf = qHeadDim / 2;
 
-    cosTable.resize(numPairs * nnXYLen);
-    sinTable.resize(numPairs * nnXYLen);
+    cosTable.resize(numPairs * paddedNNXYLen, 0.0f);
+    sinTable.resize(numPairs * paddedNNXYLen, 0.0f);
 
     for(int p = 0; p < numPairs; p++) {
       for(int y = 0; y < nnYLen; y++) {
@@ -1144,7 +1143,7 @@ void TransformerAttentionDesc::computeRopeCosSin(int nnXLen, int nnYLen, std::ve
             float freq = 1.0f / powf(ropeTheta, (float)(2 * pAdj) / (float)dimHalf);
             angle = (float)x * freq;
           }
-          int idx = p * nnXYLen + xy;
+          int idx = p * paddedNNXYLen + xy;
           cosTable[idx] = cosf(angle);
           sinTable[idx] = sinf(angle);
         }
