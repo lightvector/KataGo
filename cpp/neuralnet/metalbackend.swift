@@ -295,37 +295,42 @@ public class CoreMLComputeHandle {
         scoreValue: UnsafeMutablePointer<Float32>,
         ownership: UnsafeMutablePointer<Float32>
     ) {
+        // Fail loud if any expected output is missing from the prediction.
+        // Silently skipping would leave the caller's buffer uninitialized and
+        // search would consume garbage policy/value/ownership data.
+        func requireOutput(_ name: String) -> MLMultiArray {
+            guard let array = prediction.featureValue(for: name)?.multiArrayValue else {
+                fatalError("Metal backend: CoreML prediction missing expected output: \(name)")
+            }
+            return array
+        }
+
         // Extract policy output (1, policyChannels, H, W)
         // Must use stride-aware copy as Core ML may return non-contiguous arrays
-        if let policyArray = prediction.featureValue(for: IONames.policyOutput)?.multiArrayValue {
-            let policyOffset = batchIndex * Int(nnXLen) * Int(nnYLen) * numPolicyChannels
-            copyMultiArray(policyArray, to: policy, destOffset: policyOffset)
-        }
+        let policyArray = requireOutput(IONames.policyOutput)
+        let policyOffset = batchIndex * Int(nnXLen) * Int(nnYLen) * numPolicyChannels
+        copyMultiArray(policyArray, to: policy, destOffset: policyOffset)
 
         // Extract policy pass output (1, numPolicyChannels)
-        if let passArray = prediction.featureValue(for: IONames.policyPassOutput)?.multiArrayValue {
-            let passOffset = batchIndex * numPolicyChannels
-            copyMultiArray(passArray, to: policyPass, destOffset: passOffset)
-        }
+        let passArray = requireOutput(IONames.policyPassOutput)
+        let passOffset = batchIndex * numPolicyChannels
+        copyMultiArray(passArray, to: policyPass, destOffset: passOffset)
 
         // Extract value output (1, 3)
-        if let valueArray = prediction.featureValue(for: IONames.valueOutput)?.multiArrayValue {
-            let valueOffset = batchIndex * numValueChannels
-            copyMultiArray(valueArray, to: value, destOffset: valueOffset)
-        }
+        let valueArray = requireOutput(IONames.valueOutput)
+        let valueOffset = batchIndex * numValueChannels
+        copyMultiArray(valueArray, to: value, destOffset: valueOffset)
 
         // Extract score value output (1, numScoreValueChannels)
-        if let svArray = prediction.featureValue(for: IONames.scoreValueOutput)?.multiArrayValue {
-            let svOffset = batchIndex * numScoreValueChannels
-            copyMultiArray(svArray, to: scoreValue, destOffset: svOffset)
-        }
+        let svArray = requireOutput(IONames.scoreValueOutput)
+        let svOffset = batchIndex * numScoreValueChannels
+        copyMultiArray(svArray, to: scoreValue, destOffset: svOffset)
 
         // Extract ownership output (1, 1, H, W)
         // Must use stride-aware copy as Core ML may return non-contiguous arrays
-        if let ownArray = prediction.featureValue(for: IONames.ownershipOutput)?.multiArrayValue {
-            let ownOffset = batchIndex * Int(nnXLen) * Int(nnYLen) * numOwnershipChannels
-            copyMultiArray(ownArray, to: ownership, destOffset: ownOffset)
-        }
+        let ownArray = requireOutput(IONames.ownershipOutput)
+        let ownOffset = batchIndex * Int(nnXLen) * Int(nnYLen) * numOwnershipChannels
+        copyMultiArray(ownArray, to: ownership, destOffset: ownOffset)
     }
 }
 
@@ -646,12 +651,20 @@ public class MPSGraphModelHandle {
             fatalError("Metal backend: GPU error: \(error)")
         }
 
-        // Copy results into output buffers
-        fetch[policyHead.policyTensor]?.mpsndarray().readBytes(policy)
-        fetch[policyHead.policyPassTensor]?.mpsndarray().readBytes(policyPass)
-        fetch[valueHead.valueTensor]?.mpsndarray().readBytes(value)
-        fetch[valueHead.scoreValueTensor]?.mpsndarray().readBytes(scoreValue)
-        fetch[valueHead.ownershipTensor]?.mpsndarray().readBytes(ownership)
+        // Copy results into output buffers. Fail loud if any expected output
+        // tensor is missing from the graph result: a silent skip would leave
+        // the caller's buffer uninitialized and search would consume garbage.
+        func readOrDie(_ tensor: MPSGraphTensor, _ dest: UnsafeMutableRawPointer, _ name: String) {
+            guard let result = fetch[tensor] else {
+                fatalError("Metal backend: MPSGraph fetch missing expected output tensor: \(name)")
+            }
+            result.mpsndarray().readBytes(dest)
+        }
+        readOrDie(policyHead.policyTensor, policy, "policy")
+        readOrDie(policyHead.policyPassTensor, policyPass, "policyPass")
+        readOrDie(valueHead.valueTensor, value, "value")
+        readOrDie(valueHead.scoreValueTensor, scoreValue, "scoreValue")
+        readOrDie(valueHead.ownershipTensor, ownership, "ownership")
     }
 }
 

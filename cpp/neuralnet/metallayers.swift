@@ -50,6 +50,13 @@ extension Array where Element == NSNumber {
 /// Extension to MPSGraph to the mish activation function
 extension MPSGraph {
     /// Mish activation: x * tanh(softplus(x))
+    /// NOTE: The threshold of 20.0 below assumes float32. exp(20) overflows
+    /// fp16 (max ~65504, log = ~11.09), so if this graph is ever migrated to
+    /// fp16 the threshold must drop to roughly 10.39 (the largest x where
+    /// exp(x) still fits in fp16) AND the upstream model must use the
+    /// MISH_SCALE8 variant, since plain Mish activations themselves can also
+    /// blow past fp16 range on deeper networks. The C++ side currently rejects
+    /// MISH_SCALE8 outright (metalbackend.cpp activationLayerDescToSwift).
     func mish(tensor: MPSGraphTensor) -> MPSGraphTensor {
         assert(tensor.dataType == .float32)
 

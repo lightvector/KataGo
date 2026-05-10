@@ -180,6 +180,15 @@ std::vector<float> KataGoParser::readFloats(size_t count, const std::string& nam
         m_pos += num_bytes;
     }
 
+    // Reject NaN/Inf weights: corrupted or otherwise invalid models would
+    // otherwise produce a structurally-valid CoreML file that yields garbage at
+    // inference time. Matches the CHECKFINITE behavior of cpp/neuralnet/desc.cpp.
+    for (size_t i = 0; i < floats.size(); i++) {
+        if (!std::isfinite(floats[i])) {
+            throw std::runtime_error(name + ": NaN or infinite neural net weight or parameter");
+        }
+    }
+
     return floats;
 }
 
@@ -196,6 +205,23 @@ ConvLayerDesc KataGoParser::parseConvLayer() {
     layer.out_channels = readInt();
     layer.dilation_y = readInt();
     layer.dilation_x = readInt();
+
+    if (layer.dilation_y < 1 || layer.dilation_x < 1) {
+        throw std::runtime_error(layer.name + ": dilation must be >= 1, got y=" +
+                                 std::to_string(layer.dilation_y) + " x=" +
+                                 std::to_string(layer.dilation_x));
+    }
+    if (layer.conv_y_size < 1 || layer.conv_x_size < 1 ||
+        layer.in_channels < 1 || layer.out_channels < 1) {
+        throw std::runtime_error(layer.name + ": invalid conv dimensions");
+    }
+    // KataGo training only emits odd filter sizes (1, 3, 5). An even size would
+    // make "same"-padding ambiguous. Match master desc.cpp's validation.
+    if ((layer.conv_y_size % 2) == 0 || (layer.conv_x_size % 2) == 0) {
+        throw std::runtime_error(layer.name + ": convolution filter sizes must be odd, got y=" +
+                                 std::to_string(layer.conv_y_size) + " x=" +
+                                 std::to_string(layer.conv_x_size));
+    }
 
     // Read weights in file order: [y, x, ic, oc]
     size_t num_weights = static_cast<size_t>(layer.conv_y_size) * layer.conv_x_size *
@@ -239,6 +265,17 @@ BatchNormLayerDesc KataGoParser::parseBatchNormLayer() {
     layer.epsilon = readFloat();
     layer.has_scale = readBool();
     layer.has_bias = readBool();
+
+    if (layer.num_channels < 1) {
+        throw std::runtime_error(layer.name + ": batchnorm numChannels must be >= 1, got " +
+                                 std::to_string(layer.num_channels));
+    }
+    // epsilon == 0 with variance == 0 would divide by zero in the merged-scale
+    // formula below and produce Inf weights. Match master desc.cpp's check.
+    if (layer.epsilon <= 0.0f) {
+        throw std::runtime_error(layer.name + ": batchnorm epsilon must be > 0, got " +
+                                 std::to_string(layer.epsilon));
+    }
 
     layer.mean = readFloats(layer.num_channels, layer.name + "/mean");
     layer.variance = readFloats(layer.num_channels, layer.name + "/variance");
@@ -364,6 +401,25 @@ NestedBottleneckResidualBlockDesc KataGoParser::parseNestedBottleneckBlock(int m
     return block;
 }
 
+// Validate that a block's input/output channel counts match the surrounding
+// trunk. A mismatch would either fail loudly inside CoreML's compiler or, worse,
+// produce a graph whose shapes accidentally line up but compute nonsense.
+// Match master desc.cpp's parseResidualBlockStack() consistency checks.
+static void checkBlockChannels(const std::string& block_name, const std::string& kind,
+                               int pre_bn_channels, int output_channels,
+                               int trunk_num_channels) {
+    if (pre_bn_channels != trunk_num_channels) {
+        throw std::runtime_error(block_name + " (" + kind + "): preBN.numChannels (" +
+                                 std::to_string(pre_bn_channels) + ") != trunkNumChannels (" +
+                                 std::to_string(trunk_num_channels) + ")");
+    }
+    if (output_channels != trunk_num_channels) {
+        throw std::runtime_error(block_name + " (" + kind + "): block output channels (" +
+                                 std::to_string(output_channels) + ") != trunkNumChannels (" +
+                                 std::to_string(trunk_num_channels) + ")");
+    }
+}
+
 std::vector<BlockEntry> KataGoParser::parseBlockStack(int model_version, int num_blocks, int trunk_num_channels) {
     std::vector<BlockEntry> blocks;
     blocks.reserve(num_blocks);
@@ -374,13 +430,25 @@ std::vector<BlockEntry> KataGoParser::parseBlockStack(int model_version, int num
 
         if (block_kind_name == "ordinary_block") {
             entry.block_kind = ORDINARY_BLOCK_KIND;
-            entry.block = std::make_shared<BlockDesc>(parseResidualBlock(model_version));
+            auto desc = parseResidualBlock(model_version);
+            checkBlockChannels(desc.name, "ordinary_block",
+                               desc.pre_bn.num_channels,
+                               desc.final_conv.out_channels, trunk_num_channels);
+            entry.block = std::make_shared<BlockDesc>(std::move(desc));
         } else if (block_kind_name == "gpool_block") {
             entry.block_kind = GLOBAL_POOLING_BLOCK_KIND;
-            entry.block = std::make_shared<BlockDesc>(parseGlobalPoolingResidualBlock(model_version));
+            auto desc = parseGlobalPoolingResidualBlock(model_version);
+            checkBlockChannels(desc.name, "gpool_block",
+                               desc.pre_bn.num_channels,
+                               desc.final_conv.out_channels, trunk_num_channels);
+            entry.block = std::make_shared<BlockDesc>(std::move(desc));
         } else if (block_kind_name == "nested_bottleneck_block") {
             entry.block_kind = NESTED_BOTTLENECK_BLOCK_KIND;
-            entry.block = std::make_shared<BlockDesc>(parseNestedBottleneckBlock(model_version, trunk_num_channels));
+            auto desc = parseNestedBottleneckBlock(model_version, trunk_num_channels);
+            checkBlockChannels(desc.name, "nested_bottleneck_block",
+                               desc.pre_bn.num_channels,
+                               desc.post_conv.out_channels, trunk_num_channels);
+            entry.block = std::make_shared<BlockDesc>(std::move(desc));
         } else {
             throw std::runtime_error("Unknown block kind: " + block_kind_name);
         }
@@ -424,6 +492,19 @@ TrunkDesc KataGoParser::parseTrunk(int model_version, int meta_encoder_version) 
     readInt();  // dilatedNumChannels (unused)
     trunk.gpool_num_channels = readInt();
 
+    if (trunk.num_blocks < 1) {
+        throw std::runtime_error(trunk.name + ": trunk numBlocks must be >= 1, got " +
+                                 std::to_string(trunk.num_blocks));
+    }
+    if (trunk.trunk_num_channels <= 0 || trunk.mid_num_channels <= 0 ||
+        trunk.regular_num_channels <= 0 || trunk.gpool_num_channels <= 0) {
+        throw std::runtime_error(trunk.name + ": all trunk channel counts must be positive (trunk=" +
+                                 std::to_string(trunk.trunk_num_channels) + ", mid=" +
+                                 std::to_string(trunk.mid_num_channels) + ", regular=" +
+                                 std::to_string(trunk.regular_num_channels) + ", gpool=" +
+                                 std::to_string(trunk.gpool_num_channels) + ")");
+    }
+
     // Version >= 15 has 6 unused int parameters
     if (model_version >= 15) {
         for (int i = 0; i < 6; i++) {
@@ -432,11 +513,36 @@ TrunkDesc KataGoParser::parseTrunk(int model_version, int meta_encoder_version) 
     }
 
     trunk.initial_conv = parseConvLayer();
+    if (trunk.initial_conv.out_channels != trunk.trunk_num_channels) {
+        throw std::runtime_error(trunk.name + ": initialConv.outChannels (" +
+                                 std::to_string(trunk.initial_conv.out_channels) +
+                                 ") != trunkNumChannels (" +
+                                 std::to_string(trunk.trunk_num_channels) + ")");
+    }
     trunk.initial_matmul = parseMatMulLayer();
+    if (trunk.initial_matmul.out_channels != trunk.trunk_num_channels) {
+        throw std::runtime_error(trunk.name + ": initialMatMul.outChannels (" +
+                                 std::to_string(trunk.initial_matmul.out_channels) +
+                                 ") != trunkNumChannels (" +
+                                 std::to_string(trunk.trunk_num_channels) + ")");
+    }
 
     // Parse SGF metadata encoder if present
     if (meta_encoder_version > 0) {
-        trunk.sgf_metadata_encoder = parseSGFMetadataEncoder(model_version, meta_encoder_version);
+        auto enc = parseSGFMetadataEncoder(model_version, meta_encoder_version);
+        if (enc.mul1.in_channels != enc.num_input_meta_channels) {
+            throw std::runtime_error(enc.name + ": sgfMetadataEncoder.mul1.inChannels (" +
+                                     std::to_string(enc.mul1.in_channels) +
+                                     ") != numInputMetaChannels (" +
+                                     std::to_string(enc.num_input_meta_channels) + ")");
+        }
+        if (enc.mul3.out_channels != trunk.trunk_num_channels) {
+            throw std::runtime_error(enc.name + ": sgfMetadataEncoder.mul3.outChannels (" +
+                                     std::to_string(enc.mul3.out_channels) +
+                                     ") != trunkNumChannels (" +
+                                     std::to_string(trunk.trunk_num_channels) + ")");
+        }
+        trunk.sgf_metadata_encoder = std::move(enc);
     }
 
     // Parse residual blocks
@@ -444,6 +550,12 @@ TrunkDesc KataGoParser::parseTrunk(int model_version, int meta_encoder_version) 
 
     trunk.trunk_tip_bn = parseBatchNormLayer();
     trunk.trunk_tip_activation = parseActivationLayer(model_version);
+    if (trunk.trunk_tip_bn.num_channels != trunk.trunk_num_channels) {
+        throw std::runtime_error(trunk.name + ": trunkTipBN.numChannels (" +
+                                 std::to_string(trunk.trunk_tip_bn.num_channels) +
+                                 ") != trunkNumChannels (" +
+                                 std::to_string(trunk.trunk_num_channels) + ")");
+    }
 
     return trunk;
 }
@@ -521,16 +633,39 @@ KataGoModelDesc KataGoParser::parseModel() {
 
     model.num_input_channels = readInt();
     model.num_input_global_channels = readInt();
+    if (model.num_input_channels <= 0) {
+        throw std::runtime_error(model.name + ": numInputChannels must be > 0, got " +
+                                 std::to_string(model.num_input_channels));
+    }
+    if (model.num_input_global_channels <= 0) {
+        throw std::runtime_error(model.name + ": numInputGlobalChannels must be > 0, got " +
+                                 std::to_string(model.num_input_global_channels));
+    }
 
-    // Parse post-process params (version >= 13)
+    // Parse post-process params (version >= 13).
+    // Match master desc.cpp: each multiplier must be positive.
     if (model.model_version >= 13) {
-        model.post_process_params.td_score_multiplier = readFloat();
-        model.post_process_params.score_mean_multiplier = readFloat();
-        model.post_process_params.score_stdev_multiplier = readFloat();
-        model.post_process_params.lead_multiplier = readFloat();
-        model.post_process_params.variance_time_multiplier = readFloat();
-        model.post_process_params.shortterm_value_error_multiplier = readFloat();
-        model.post_process_params.shortterm_score_error_multiplier = readFloat();
+        auto& p = model.post_process_params;
+        p.td_score_multiplier = readFloat();
+        p.score_mean_multiplier = readFloat();
+        p.score_stdev_multiplier = readFloat();
+        p.lead_multiplier = readFloat();
+        p.variance_time_multiplier = readFloat();
+        p.shortterm_value_error_multiplier = readFloat();
+        p.shortterm_score_error_multiplier = readFloat();
+        auto checkPositive = [&](const char* field, float v) {
+            if (v <= 0.0f) {
+                throw std::runtime_error(model.name + ": postProcessParams." + field +
+                                         " must be > 0, got " + std::to_string(v));
+            }
+        };
+        checkPositive("tdScoreMultiplier", p.td_score_multiplier);
+        checkPositive("scoreMeanMultiplier", p.score_mean_multiplier);
+        checkPositive("scoreStdevMultiplier", p.score_stdev_multiplier);
+        checkPositive("leadMultiplier", p.lead_multiplier);
+        checkPositive("varianceTimeMultiplier", p.variance_time_multiplier);
+        checkPositive("shorttermValueErrorMultiplier", p.shortterm_value_error_multiplier);
+        checkPositive("shorttermScoreErrorMultiplier", p.shortterm_score_error_multiplier);
     }
 
     // Parse meta encoder version (version >= 15)
@@ -538,6 +673,19 @@ KataGoModelDesc KataGoParser::parseModel() {
     model.num_input_meta_channels = 0;
     if (model.model_version >= 15) {
         model.meta_encoder_version = readInt();
+        // Forward-compat gate: master rejects values outside [0, 1] with a
+        // "you may need a newer KataGo version" message. Without this, a
+        // future model with metaEncoderVersion=2 would parse silently and
+        // get hardcoded the wrong num_input_meta_channels below.
+        if (model.meta_encoder_version < 0) {
+            throw std::runtime_error(model.name + ": metaEncoderVersion unexpected value: " +
+                                     std::to_string(model.meta_encoder_version));
+        }
+        if (model.meta_encoder_version > 1) {
+            throw std::runtime_error(model.name + ": metaEncoderVersion " +
+                                     std::to_string(model.meta_encoder_version) +
+                                     " not implemented; you may need a newer KataGo version");
+        }
         // Read unused params
         for (int i = 0; i < 7; i++) {
             readInt();
@@ -552,6 +700,22 @@ KataGoModelDesc KataGoParser::parseModel() {
     model.trunk = parseTrunk(model.model_version, model.meta_encoder_version);
     model.policy_head = parsePolicyHead(model.model_version);
     model.value_head = parseValueHead(model.model_version);
+
+    // Top-level input-channel cross-checks against the trunk's first layers.
+    // Match master desc.cpp: catches mismatches between header-declared input
+    // channel counts and what the trunk actually expects.
+    if (model.num_input_channels != model.trunk.initial_conv.in_channels) {
+        throw std::runtime_error(model.name + ": numInputChannels (" +
+                                 std::to_string(model.num_input_channels) +
+                                 ") != trunk.initialConv.inChannels (" +
+                                 std::to_string(model.trunk.initial_conv.in_channels) + ")");
+    }
+    if (model.num_input_global_channels != model.trunk.initial_matmul.in_channels) {
+        throw std::runtime_error(model.name + ": numInputGlobalChannels (" +
+                                 std::to_string(model.num_input_global_channels) +
+                                 ") != trunk.initialMatMul.inChannels (" +
+                                 std::to_string(model.trunk.initial_matmul.in_channels) + ")");
+    }
 
     // Determine output channel counts
     model.num_policy_channels = model.policy_head.policy_out_channels;

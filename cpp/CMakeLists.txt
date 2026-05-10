@@ -208,8 +208,25 @@ else()
   set(GIT_HEADER_FILE_TEMPLATE ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_TEMPLATE_BARE})
   set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
   set(GIT_HEADER_FILE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_BARE})
+  # Embeds the current git SHA into the binary on every build, while only
+  # triggering recompilation of dependents when the SHA actually changes.
+  #
+  # How it works:
+  #   - ALWAYS_UPDATED is the rule's OUTPUT and is removed at the end of the
+  #     commands, so it is always missing at the start of the next build,
+  #     which forces this rule to re-fire.
+  #   - copy_if_different updates GIT_HEADER_FILE only when the new SHA
+  #     differs from the previous one, leaving its mtime untouched otherwise.
+  #
+  # Both files must be listed as OUTPUTs. Ninja's restat (set automatically
+  # for custom_commands) re-checks every declared OUTPUT's mtime after the
+  # rule runs, and only then propagates rebuilds. Listing GIT_HEADER_FILE
+  # is what lets ninja notice an actual SHA change and rebuild dependents
+  # such as main.cpp; without it, dependents stay stale across commits in
+  # incremental builds. The Make generator is more pessimistic about
+  # generated headers and works either way.
   add_custom_command(
-    OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED} ${GIT_HEADER_FILE}
     COMMAND ${CMAKE_COMMAND} -E copy ${GIT_HEADER_FILE_TEMPLATE} ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     COMMAND ${GIT_EXECUTABLE} describe --match=DummyTagNotExisting --always --abbrev=40 --dirty >> ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${GIT_HEADER_FILE_ALWAYS_UPDATED} ${GIT_HEADER_FILE}

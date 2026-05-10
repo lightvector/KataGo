@@ -174,6 +174,13 @@ struct ComputeHandle {
   bool requireExactNNLen;
 
   /**
+   * @brief One-shot flag: have we verified that the runtime mask is actually
+   * all-1s when requireExactNNLen is true? Owned by the single server thread
+   * that owns this handle, so no synchronization needed.
+   */
+  bool maskIdentityChecked = false;
+
+  /**
    * @brief The MPSGraph-only handle instance from Swift (GPU-only mode).
    */
   swift::Optional<MPSGraphModelHandle> mpsGraphOnlyHandle;
