@@ -163,6 +163,25 @@ namespace OpenCLParams {
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;
   };
+
+  struct AddPointWiseParams {
+    int ELTS_PER_THREAD = 1;  // elements per work-item in grid-stride loop
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
+
+  struct AddChannelBiasesNCHWParams {
+    int XY_ELTS_PER_THREAD = 1;  // spatial elements per work-item in grid-stride loop
+    int NC_ELTS_PER_THREAD = 1;  // batch*channel rows per work-item
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
 }
 
 struct OpenCLTuneParams {
@@ -186,6 +205,8 @@ struct OpenCLTuneParams {
   OpenCLParams::Conv5x5Params conv5x5 = OpenCLParams::Conv5x5Params();
   OpenCLParams::GPoolParams gPool = OpenCLParams::GPoolParams();
   OpenCLParams::TransformerParams transformer = OpenCLParams::TransformerParams();
+  OpenCLParams::AddPointWiseParams addPointWise = OpenCLParams::AddPointWiseParams();
+  OpenCLParams::AddChannelBiasesNCHWParams addChannelBiasesNCHW = OpenCLParams::AddChannelBiasesNCHWParams();
 
   bool operator==(const OpenCLTuneParams& other) const;
   bool isValid() const;

@@ -784,16 +784,23 @@ __kernel void scaleBiasMaskActNCHW(
 )%%";
 
 string OpenCLKernels::addPointWise = OpenCLKernels::common + R"%%(
+#ifndef ELTS_PER_THREAD
+  #define ELTS_PER_THREAD 1
+#endif
 __kernel void addPointWise(
   __global realstore* accum,
   __global realstore* value,
   int size
 ) {
-  const int s = get_global_id(0);
-
-  if(s < size) {
-    real result = LOAD(accum,s) + LOAD(value,s);
-    STORE(accum,s,result);
+  const int offsetInTile = get_local_id(0);
+  const int tileStart = get_group_id(0) * (get_local_size(0) * ELTS_PER_THREAD);
+  #pragma unroll
+  for(int d = 0; d < ELTS_PER_THREAD; d++) {
+    int s = tileStart + d * get_local_size(0) + offsetInTile;
+    if(s < size) {
+      real result = LOAD(accum,s) + LOAD(value,s);
+      STORE(accum,s,result);
+    }
   }
 }
 )%%";
@@ -994,18 +1001,38 @@ __kernel void valueHeadPoolChannelsNCHW(
 
 
 string OpenCLKernels::addChannelBiasesNCHW = OpenCLKernels::common + R"%%(
+#ifndef XY_ELTS_PER_THREAD
+  #define XY_ELTS_PER_THREAD 1
+#endif
+#ifndef NC_ELTS_PER_THREAD
+  #define NC_ELTS_PER_THREAD 1
+#endif
 __kernel void addChannelBiasesNCHW(
   __global realstore* accum,  //NC, HW
   __global float* biases, //NC
   int ncSize,
   int xySize
 ) {
-  const int xy = get_global_id(0);
-  const int nc = get_global_id(1);
+  const int xyOffsetInTile = get_local_id(0);
+  const int xyTileStart = get_group_id(0) * (get_local_size(0) * XY_ELTS_PER_THREAD);
+  const int ncBase = get_global_id(1) * NC_ELTS_PER_THREAD;
 
-  if(nc < ncSize && xy < xySize) {
-    real result = LOAD(accum,nc * xySize + xy) + floatToReal(biases[nc]);
-    STORE(accum, nc * xySize + xy, result);
+  #pragma unroll
+  for(int r = 0; r < NC_ELTS_PER_THREAD; r++) {
+    const int nc = ncBase + r;
+    if(nc >= ncSize)
+      return;
+    real bias = floatToReal(biases[nc]);
+    int baseIdx = nc * xySize;
+    #pragma unroll
+    for(int d = 0; d < XY_ELTS_PER_THREAD; d++) {
+      int xy = xyTileStart + d * get_local_size(0) + xyOffsetInTile;
+      if(xy < xySize) {
+        int idx = baseIdx + xy;
+        real result = LOAD(accum,idx) + bias;
+        STORE(accum, idx, result);
+      }
+    }
   }
 }
 )%%";

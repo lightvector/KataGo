@@ -260,6 +260,7 @@ namespace OpenCLHelpers {
   cl_int doAddPointWise(
     cl_kernel kernel,
     cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
     cl_mem acc,
     cl_mem value,
     int totalSize,

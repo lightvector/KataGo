@@ -1211,6 +1211,7 @@ cl_int OpenCLHelpers::computeMaskSums(
 cl_int OpenCLHelpers::doAddPointWise(
   cl_kernel kernel,
   cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
   cl_mem acc,
   cl_mem value,
   int totalSize,
@@ -1220,9 +1221,12 @@ cl_int OpenCLHelpers::doAddPointWise(
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&value);
   clSetKernelArg(kernel, 2, sizeof(int), (const void *)&totalSize);
 
+  int eltsPerThread = tuneParams.addPointWise.ELTS_PER_THREAD;
+  size_t numThreads = ((size_t)totalSize + eltsPerThread - 1) / eltsPerThread;
+
   static constexpr int nKernelDims = 1;
-  size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
-  size_t* localSizes = NULL;
+  size_t globalSizes[nKernelDims] = {roundUpToMultiple(numThreads, (size_t)32)};
+  size_t localSizes[nKernelDims] = {32};
 
   cl_int err;
   err = clEnqueueNDRangeKernel(

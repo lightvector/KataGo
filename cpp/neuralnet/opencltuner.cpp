@@ -583,6 +583,54 @@ bool OpenCLParams::TransformerParams::isValid() const {
   return true;
 }
 
+string OpenCLParams::AddPointWiseParams::desc() const {
+  string s;
+  s += "ELTS_PER_THREAD=" + Global::intToString(ELTS_PER_THREAD);
+  return s;
+}
+string OpenCLParams::AddPointWiseParams::compileOptions() const {
+  string s;
+  s += "-DELTS_PER_THREAD=" + Global::intToString(ELTS_PER_THREAD);
+  return s;
+}
+void OpenCLParams::AddPointWiseParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  ELTS_PER_THREAD = getInt(kvs,"ELTS_PER_THREAD",ELTS_PER_THREAD);
+}
+bool OpenCLParams::AddPointWiseParams::isValid() const {
+  if(ELTS_PER_THREAD <= 0) return false;
+  if(ELTS_PER_THREAD > 32) return false;
+  if((ELTS_PER_THREAD & (ELTS_PER_THREAD-1)) != 0) return false;
+  return true;
+}
+
+string OpenCLParams::AddChannelBiasesNCHWParams::desc() const {
+  string s;
+  s += "XY_ELTS_PER_THREAD=" + Global::intToString(XY_ELTS_PER_THREAD);
+  s += " NC_ELTS_PER_THREAD=" + Global::intToString(NC_ELTS_PER_THREAD);
+  return s;
+}
+string OpenCLParams::AddChannelBiasesNCHWParams::compileOptions() const {
+  string s;
+  s += "-DXY_ELTS_PER_THREAD=" + Global::intToString(XY_ELTS_PER_THREAD);
+  s += " -DNC_ELTS_PER_THREAD=" + Global::intToString(NC_ELTS_PER_THREAD);
+  return s;
+}
+void OpenCLParams::AddChannelBiasesNCHWParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  XY_ELTS_PER_THREAD = getInt(kvs,"XY_ELTS_PER_THREAD",XY_ELTS_PER_THREAD);
+  NC_ELTS_PER_THREAD = getInt(kvs,"NC_ELTS_PER_THREAD",NC_ELTS_PER_THREAD);
+}
+bool OpenCLParams::AddChannelBiasesNCHWParams::isValid() const {
+  if(XY_ELTS_PER_THREAD <= 0) return false;
+  if(XY_ELTS_PER_THREAD > 4) return false;
+  if((XY_ELTS_PER_THREAD & (XY_ELTS_PER_THREAD-1)) != 0) return false;
+  if(NC_ELTS_PER_THREAD <= 0) return false;
+  if(NC_ELTS_PER_THREAD > 8) return false;
+  if((NC_ELTS_PER_THREAD & (NC_ELTS_PER_THREAD-1)) != 0) return false;
+  return true;
+}
+
 bool OpenCLTuneParams::isValid() const {
   return
     xGemmDirect.isValid() &&
@@ -593,7 +641,9 @@ bool OpenCLTuneParams::isValid() const {
     conv3x3.isValid() &&
     conv5x5.isValid() &&
     gPool.isValid() &&
-    transformer.isValid();
+    transformer.isValid() &&
+    addPointWise.isValid() &&
+    addChannelBiasesNCHW.isValid();
 }
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
@@ -671,6 +721,10 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << config.gPool.desc() << "\n";
   out << "#transformer" << "\n";
   out << config.transformer.desc() << "\n";
+  out << "#addPointWise" << "\n";
+  out << config.addPointWise.desc() << "\n";
+  out << "#addChannelBiasesNCHW" << "\n";
+  out << config.addChannelBiasesNCHW.desc() << "\n";
   out.flush();
   out.close();
 }
@@ -690,7 +744,7 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
 
-  if(filteredLines.size() != 18)
+  if(filteredLines.size() != 20)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
@@ -711,6 +765,8 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   config.conv5x5.fillFromDesc(filename,filteredLines[15]);
   config.gPool.fillFromDesc(filename,filteredLines[16]);
   config.transformer.fillFromDesc(filename,filteredLines[17]);
+  config.addPointWise.fillFromDesc(filename,filteredLines[18]);
+  config.addChannelBiasesNCHW.fillFromDesc(filename,filteredLines[19]);
   return config;
 }
 
@@ -3150,6 +3206,388 @@ static void tuneTransformerAttention(
 }
 
 
+static void tuneAddPointWise(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning addPointWise" << endl;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  if(full) {
+    addConfigs(configs,SETTER(addPointWise.ELTS_PER_THREAD),{1,2,4,8,16,32});
+  }
+  else {
+    addConfigs(configs,SETTER(addPointWise.ELTS_PER_THREAD),{1,2,4,8,16});
+  }
+
+  filterConfigs(configs,ISVALID(addPointWise));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(),currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.addPointWise.ELTS_PER_THREAD = untunedConfig.addPointWise.ELTS_PER_THREAD;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.addPointWise.desc(); };
+
+  int numChannels = modelInfo.trunkNumChannels;
+  int totalSize = batchSize * numChannels * nnXLen * nnYLen;
+  int outputNumFloats = totalSize;
+  vector<float> accumInputVec;
+  vector<float> valueInputVec;
+  {
+    Rand rand("tuneAddPointWiseAccum");
+    accumInputVec.resize(totalSize);
+    for(int i = 0; i < totalSize; i++)
+      accumInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tuneAddPointWiseValue");
+    valueInputVec.resize(totalSize);
+    for(int i = 0; i < totalSize; i++)
+      valueInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+
+    if(computeOnCPU) {
+      int numToRecord = 10;
+      ret.clear();
+      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      for(int i = 0; i < numToRecord; i++) {
+        for(int j = 0; j < totalSize; j++)
+          retBase[j] = accumInputVec[j] + valueInputVec[j];
+        retBase += outputNumFloats;
+      }
+      return accums;
+    }
+
+    cl_int err;
+    cl_program program;
+    string compileError;
+    bool compileSuc = tryCompileProgram(
+      "addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise,
+      cfg.addPointWise.compileOptions() + " " + maybeFP16CompileOptions,
+      program, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+    cl_kernel kernel = clCreateKernel(program, "addPointWise", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
+
+    cl_mem value;
+    vector<float> dummy;
+    if(cfg.shouldUseFP16Storage)
+      value = randomReadOnlyBufferHalf("tuneAddPointWiseValue", context, totalSize, 1.0, dummy);
+    else
+      value = randomReadOnlyBufferFloat("tuneAddPointWiseValue", context, totalSize, 1.0, dummy);
+
+    // accum needs to be read-write since the kernel modifies it in-place
+    auto makeAccumBuf = [&]() -> cl_mem {
+      if(cfg.shouldUseFP16Storage) {
+        vector<half_t> buf(totalSize);
+        Rand rand("tuneAddPointWiseAccum");
+        for(int j = 0; j < totalSize; j++)
+          buf[j] = half_float::half_cast<half_t>(rand.nextDouble(1.0));
+        return createReadWriteBuffer(context, buf);
+      }
+      else {
+        vector<float> buf(totalSize);
+        Rand rand("tuneAddPointWiseAccum");
+        for(int j = 0; j < totalSize; j++)
+          buf[j] = (float)rand.nextDouble(1.0);
+        return createReadWriteBuffer(context, buf);
+      }
+    };
+
+    cl_mem accum = makeAccumBuf();
+
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.clear();
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    float* retBase = ret.data();
+    for(int i = 0; i<reps; i++) {
+      double weight;
+      switch(i % numToRecord) {
+      case 0: weight = 0; break;
+      default: weight = 1; break;
+      }
+
+      cl_event event;
+      err = doAddPointWise(
+        kernel,
+        commandQueue,
+        cfg,
+        accum,value,totalSize,
+        &event
+      );
+
+      accums.countResultAndFreeEvent(err,event,weight);
+      if(accums.bad)
+        break;
+
+      if(i < numToRecord) {
+        if(cfg.shouldUseFP16Storage)
+          blockingReadBufferHalfToFloat(commandQueue, accum, outputNumFloats, retBase);
+        else
+          blockingReadBuffer(commandQueue, accum, outputNumFloats, retBase);
+        retBase += outputNumFloats;
+      }
+
+      // Re-upload accum for next rep since addPointWise modifies it in-place
+      if(i < reps - 1) {
+        clReleaseMemObject(accum);
+        accum = makeAccumBuf();
+      }
+    }
+
+    clReleaseMemObject(accum);
+    clReleaseMemObject(value);
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.005;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc)
+    throw StringError("Tuning addPointWise failed - could not find any working configuration");
+
+  tunedConfig = currentConfig;
+}
+
+static void tuneAddChannelBiasesNCHW(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning addChannelBiasesNCHW" << endl;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  if(full) {
+    addConfigs(configs,SETTER(addChannelBiasesNCHW.XY_ELTS_PER_THREAD),{1,2,4});
+    addConfigs(configs,SETTER(addChannelBiasesNCHW.NC_ELTS_PER_THREAD),{1,2,4,8});
+  }
+  else {
+    addConfigs(configs,SETTER(addChannelBiasesNCHW.XY_ELTS_PER_THREAD),{1,2,4});
+    addConfigs(configs,SETTER(addChannelBiasesNCHW.NC_ELTS_PER_THREAD),{1,2,4,8});
+  }
+
+  filterConfigs(configs,ISVALID(addChannelBiasesNCHW));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(),currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.addChannelBiasesNCHW.XY_ELTS_PER_THREAD = untunedConfig.addChannelBiasesNCHW.XY_ELTS_PER_THREAD;
+  referenceConfig.addChannelBiasesNCHW.NC_ELTS_PER_THREAD = untunedConfig.addChannelBiasesNCHW.NC_ELTS_PER_THREAD;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.addChannelBiasesNCHW.desc(); };
+
+  int numChannels = modelInfo.trunkNumChannels;
+  int nnXYLen = nnXLen * nnYLen;
+  int ncSize = batchSize * numChannels;
+  int accumSize = ncSize * nnXYLen;
+  int outputNumFloats = accumSize;
+  vector<float> accumInputVec;
+  vector<float> biasInputVec;
+  {
+    Rand rand("tuneAddChannelBiasesAccum");
+    accumInputVec.resize(accumSize);
+    for(int i = 0; i < accumSize; i++)
+      accumInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tuneAddChannelBiasesBias");
+    biasInputVec.resize(ncSize);
+    for(int i = 0; i < ncSize; i++)
+      biasInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+
+    if(computeOnCPU) {
+      int numToRecord = 10;
+      ret.clear();
+      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      for(int i = 0; i < numToRecord; i++) {
+        for(int nc = 0; nc < ncSize; nc++) {
+          for(int xy = 0; xy < nnXYLen; xy++) {
+            retBase[nc * nnXYLen + xy] = accumInputVec[nc * nnXYLen + xy] + biasInputVec[nc];
+          }
+        }
+        retBase += outputNumFloats;
+      }
+      return accums;
+    }
+
+    cl_int err;
+    cl_program program;
+    string compileError;
+    bool compileSuc = tryCompileProgram(
+      "addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW,
+      cfg.addChannelBiasesNCHW.compileOptions() + " " + maybeFP16CompileOptions,
+      program, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+    cl_kernel kernel = clCreateKernel(program, "addChannelBiasesNCHW", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
+
+    // accum needs to be read-write since the kernel modifies it in-place
+    auto makeAccumBuf = [&]() -> cl_mem {
+      if(cfg.shouldUseFP16Storage) {
+        vector<half_t> buf(accumSize);
+        Rand rand("tuneAddChannelBiasesAccum");
+        for(int j = 0; j < accumSize; j++)
+          buf[j] = half_float::half_cast<half_t>(rand.nextDouble(1.0));
+        return createReadWriteBuffer(context, buf);
+      }
+      else {
+        vector<float> buf(accumSize);
+        Rand rand("tuneAddChannelBiasesAccum");
+        for(int j = 0; j < accumSize; j++)
+          buf[j] = (float)rand.nextDouble(1.0);
+        return createReadWriteBuffer(context, buf);
+      }
+    };
+
+    cl_mem accum = makeAccumBuf();
+    cl_mem bias = createReadOnlyBuffer(context, biasInputVec);
+
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.clear();
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    float* retBase = ret.data();
+    for(int i = 0; i<reps; i++) {
+      double weight;
+      switch(i % numToRecord) {
+      case 0: weight = 0; break;
+      default: weight = 1; break;
+      }
+
+      // Dispatch using same logic as openclbackend.cpp addChannelBiases
+      int xyEltsPerThread = cfg.addChannelBiasesNCHW.XY_ELTS_PER_THREAD;
+      int ncEltsPerThread = cfg.addChannelBiasesNCHW.NC_ELTS_PER_THREAD;
+      size_t xyThreads = ((size_t)nnXYLen + xyEltsPerThread - 1) / xyEltsPerThread;
+      size_t ncThreads = ((size_t)ncSize + ncEltsPerThread - 1) / ncEltsPerThread;
+      static constexpr int nKernelDims = 2;
+      size_t globalSizes[nKernelDims] = {roundUpToMultiple(xyThreads, (size_t)32), ncThreads};
+      size_t localSizes[nKernelDims] = {32, 1};
+
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&accum);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&bias);
+      clSetKernelArg(kernel, 2, sizeof(int), (const void *)&ncSize);
+      clSetKernelArg(kernel, 3, sizeof(int), (const void *)&nnXYLen);
+
+      cl_event event;
+      err = clEnqueueNDRangeKernel(
+        commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+      );
+
+      accums.countResultAndFreeEvent(err,event,weight);
+      if(accums.bad)
+        break;
+
+      if(i < numToRecord) {
+        if(cfg.shouldUseFP16Storage)
+          blockingReadBufferHalfToFloat(commandQueue, accum, outputNumFloats, retBase);
+        else
+          blockingReadBuffer(commandQueue, accum, outputNumFloats, retBase);
+        retBase += outputNumFloats;
+      }
+
+      // Re-upload accum for next rep since kernel modifies it in-place
+      if(i < reps - 1) {
+        clReleaseMemObject(accum);
+        accum = makeAccumBuf();
+      }
+    }
+
+    clReleaseMemObject(accum);
+    clReleaseMemObject(bias);
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.005;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc)
+    throw StringError("Tuning addChannelBiasesNCHW failed - could not find any working configuration");
+
+  tunedConfig = currentConfig;
+}
+
 static void dummyThreadLoop(
   const vector<DeviceInfo>& allDeviceInfos,
   Logger* logger,
@@ -3288,8 +3726,9 @@ static void dummyThreadLoop(
     }
     else if(which == 4 || which == 5) {
       cl_event event;
+      OpenCLTuneParams defaultParams;
       err = OpenCLHelpers::doAddPointWise(
-        addPointWiseKernel, commandQueue, buffer, (which == 4 ? matrixC : matrixD), mSize*kSize, &event
+        addPointWiseKernel, commandQueue, defaultParams, buffer, (which == 4 ? matrixC : matrixD), mSize*kSize, &event
       );
 
       if(err != 0) {
@@ -3752,6 +4191,50 @@ void OpenCLTuner::tune(
   {
     OpenCLTuneParams result;
     tuneTransformerAttention(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
+  }
+
+  {
+    OpenCLTuneParams result;
+    tuneAddPointWise(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
+  }
+
+  {
+    OpenCLTuneParams result;
+    tuneAddChannelBiasesNCHW(
       currentConfig,
       untunedConfig,
       context,

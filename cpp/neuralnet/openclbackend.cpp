@@ -297,7 +297,7 @@ struct CompiledPrograms {
     );
     addPointWiseProgram = compileProgram(
       "addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise,
-      maybeFP16CompileOptions
+      tuneParams.addPointWise.compileOptions() + " " + maybeFP16CompileOptions
     );
     sumChannelsNCHWProgram = compileProgram(
       "sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW,
@@ -313,7 +313,7 @@ struct CompiledPrograms {
     );
     addChannelBiasesNCHWProgram = compileProgram(
       "addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW,
-      maybeFP16CompileOptions
+      tuneParams.addChannelBiasesNCHW.compileOptions() + " " + maybeFP16CompileOptions
     );
     addCBiasesNCProgram = compileProgram(
       "addCBiasesNCProgram", context, deviceIdsToUse, OpenCLKernels::addCBiasesNCAct,
@@ -767,9 +767,14 @@ static cl_mem createReadWriteBuffer(ComputeHandleInternal* handle, size_t numElt
 
 static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem bias, int ncSize, int nnXYLen) {
   cl_int err;
+  int xyEltsPerThread = handle->tuneParams.addChannelBiasesNCHW.XY_ELTS_PER_THREAD;
+  int ncEltsPerThread = handle->tuneParams.addChannelBiasesNCHW.NC_ELTS_PER_THREAD;
+  size_t xyThreads = ((size_t)nnXYLen + xyEltsPerThread - 1) / xyEltsPerThread;
+  size_t ncThreads = ((size_t)ncSize + ncEltsPerThread - 1) / ncEltsPerThread;
+
   static constexpr int nKernelDims = 2;
-  size_t globalSizes[nKernelDims] = {powerOf2ify(nnXYLen),powerOf2ify(ncSize)};
-  size_t* localSizes = NULL;
+  size_t globalSizes[nKernelDims] = {roundUpToMultiple(xyThreads, (size_t)32), ncThreads};
+  size_t localSizes[nKernelDims] = {32, 1};
 
   cl_kernel kernel = handle->addChannelBiasesNCHWKernel;
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&src);
@@ -789,7 +794,7 @@ static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem b
 static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value, int totalSize) {
   cl_int err;
   MAYBE_EVENT;
-  err = OpenCLHelpers::doAddPointWise(handle->addPointWiseKernel, handle->commandQueue, acc, value, totalSize, MAYBE_EVENTREF);
+  err = OpenCLHelpers::doAddPointWise(handle->addPointWiseKernel, handle->commandQueue, handle->tuneParams, acc, value, totalSize, MAYBE_EVENTREF);
   CHECK_ERR(err);
   MAYBE_PROFILE("AddPointWise");
   MAYBE_FREE_EVENT;
