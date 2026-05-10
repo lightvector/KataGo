@@ -920,7 +920,7 @@ int MainCmds::analysis(const vector<string>& args) {
           continue;
         rules.komi = (float)komi;
         if(!Rules::komiIsIntOrHalfInt(rules.komi)) {
-          reportErrorForId(rbase.id, "rules", msg);
+          reportErrorForId(rbase.id, "komi", msg);
           continue;
         }
       }
