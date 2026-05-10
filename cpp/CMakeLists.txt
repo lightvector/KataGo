@@ -463,23 +463,33 @@ elseif(USE_BACKEND STREQUAL "OPENCL")
   endif()
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
-  if(NOT (MSVC))
-    find_package(Eigen3 REQUIRED)
+  # Allow EIGEN3_INCLUDE_DIRS as a manual override (for users who downloaded
+  # Eigen3 and just want to point at the unpacked directory).
+  if(EIGEN3_INCLUDE_DIRS)
+    message(STATUS "Using user-provided EIGEN3_INCLUDE_DIRS=${EIGEN3_INCLUDE_DIRS}")
     include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
-    message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
   else()
-    if(EIGEN3_INCLUDE_DIRS)
-      message(STATUS "EIGEN3_INCLUDE_DIRS is set to ${EIGEN3_INCLUDE_DIRS}, assuming that Eigen3 header files are here.")
-      include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
+    if(NOT (MSVC))
+      find_package(Eigen3 REQUIRED)
     else()
       find_package(Eigen3)
       if(NOT Eigen3_FOUND)
         set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS} CACHE PATH "Directory containing 'Eigen' and 'unsupported' subdirs with Eigen headers")
         message(FATAL_ERROR "*** KataGo: Eigen3 was not found. If you've downloaded Eigen3, you can IGNORE the whole above error from CMake and just set 'EIGEN3_INCLUDE_DIRS' to the root eigen3-3.*.* directory after unzipping it. Among other things it should contain 'Eigen' and 'unsupported' subdirs, which is all KataGo needs. Otherwise, you will need to 'build' Eigen3 even though it is header-only and install it via MSVC in order for cmake to find it via FindEigen3.cmake.")
-      else()
-        include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
-        message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
       endif()
+    endif()
+    # Modern Eigen3Config.cmake (Homebrew, apt, vcpkg, ...) only exports the
+    # imported target Eigen3::Eigen with INTERFACE_INCLUDE_DIRECTORIES set; the
+    # legacy variable EIGEN3_INCLUDE_DIRS is not always populated. Prefer the
+    # target where available, fall back to the variable for older installs.
+    if(TARGET Eigen3::Eigen)
+      # Plain (non-keyword) form to match the rest of KataGo's CMakeLists,
+      # which doesn't use PRIVATE/PUBLIC/INTERFACE on target_link_libraries.
+      target_link_libraries(katago Eigen3::Eigen)
+      message(STATUS "Found Eigen3 (using Eigen3::Eigen imported target)")
+    else()
+      include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
+      message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
     endif()
   endif()
 endif()
