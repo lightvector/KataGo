@@ -27,9 +27,12 @@ SWConvLayerDesc MetalProcess::convLayerDescToSwift(const ConvLayerDesc * desc) {
 /// - Parameter desc: The BatchNormLayerDesc instance to convert.
 /// - Returns: A SWBatchNormLayerDesc instance with the same properties as the input BatchNormLayerDesc.
 SWBatchNormLayerDesc MetalProcess::batchNormLayerDescToSwift(const BatchNormLayerDesc * desc) {
+  int numChannels = desc->numChannels;
+  testAssert(desc->mergedScale.size() == numChannels);
+  testAssert(desc->mergedBias.size() == numChannels);
 
   SWBatchNormLayerDesc swDesc =
-  createSWBatchNormLayerDesc(desc->numChannels,
+  createSWBatchNormLayerDesc(numChannels,
                              (float*)desc->mergedScale.data(),
                              (float*)desc->mergedBias.data());
 
