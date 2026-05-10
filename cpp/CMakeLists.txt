@@ -23,8 +23,12 @@ include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses
 
 if(APPLE)
   # Fix linking on 10.14+. See https://stackoverflow.com/questions/54068035
-  include_directories(/usr/local/include)
-  link_directories(/usr/local/lib)
+  if(IS_DIRECTORY /usr/local/include)
+    include_directories(/usr/local/include)
+  endif()
+  if(IS_DIRECTORY /usr/local/lib)
+    link_directories(/usr/local/lib)
+  endif()
 endif()
 
 if(NOT WIN32)
