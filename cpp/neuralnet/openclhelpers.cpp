@@ -762,21 +762,41 @@ cl_int OpenCLHelpers::doBatchedHGemmWmma_KM_KN_NM(
   return err;
 }
 
+cl_int OpenCLHelpers::doPadHalfInputNCHW(
+  cl_kernel padKernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int batchSize, int cSize, int hwSize, int hwSizePadded,
+  cl_mem src, cl_mem dst,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(padKernel, 0, sizeof(cl_mem), (void *)&src);
+  clSetKernelArg(padKernel, 1, sizeof(cl_mem), (void *)&dst);
+  clSetKernelArg(padKernel, 2, sizeof(int), (void *)&hwSize);
+  clSetKernelArg(padKernel, 3, sizeof(int), (void *)&hwSizePadded);
+  int totalRows = batchSize * cSize;
+  clSetKernelArg(padKernel, 4, sizeof(int), (void *)&totalRows);
+
+  int eltsPerThread = tuneParams.hGemmWmmaNCHW.PAD_ELTS_PER_THREAD;
+  int rowsPerThread = tuneParams.hGemmWmmaNCHW.PAD_ROWS_PER_THREAD;
+  size_t hwThreads = ((size_t)hwSizePadded + eltsPerThread - 1) / eltsPerThread;
+  size_t rowThreads = ((size_t)totalRows + rowsPerThread - 1) / rowsPerThread;
+  size_t globalSizes[2] = {roundUpToMultiple(hwThreads, (size_t)32), rowThreads};
+  size_t localSizes[2] = {32, 1};
+
+  return clEnqueueNDRangeKernel(
+    commandQueue, padKernel, 2, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+}
+
 cl_int OpenCLHelpers::doHGemmWmma_NCHW_ICOC(
   cl_kernel kernel,
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
   int batchSize, int cSize, int hwSize, int ocSize,
-  cl_mem A, cl_mem B, cl_mem C,
+  cl_mem paddedA, cl_mem B, cl_mem C,
   cl_event* eventBuf
 ) {
-  clSetKernelArg(kernel, 0, sizeof(int), (void *)&cSize);
-  clSetKernelArg(kernel, 1, sizeof(int), (void *)&hwSize);
-  clSetKernelArg(kernel, 2, sizeof(int), (void *)&ocSize);
-  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
-  clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&B);
-  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&C);
-
   // Always check these
   testAssert(ocSize % tuneParams.hGemmWmmaNCHW.NWG == 0);
   testAssert(cSize % tuneParams.hGemmWmmaNCHW.KWG == 0);
@@ -798,9 +818,19 @@ cl_int OpenCLHelpers::doHGemmWmma_NCHW_ICOC(
   const size_t NWG = tuneParams.hGemmWmmaNCHW.NWG;
   const size_t WARP_SIZE = 32;
 
-  int hwSizeRoundedUp = (int)roundUpToMultiple(hwSize,MWG);
+  int hwSizePadded = (int)roundUpToMultiple(hwSize, MWG);
 
-  size_t globalSizes[nKernelDims] = {hwSizeRoundedUp * MWAVE / MWG / MWARP * WARP_SIZE, ocSize * NWAVE / NWG / NWARP, (size_t)batchSize};
+  // The kernel reads A from paddedA (shape [batchSize, cSize, hwSizePadded])
+  // and writes C with hwSize stride (not padded).
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&cSize);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&hwSize);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&hwSizePadded);
+  clSetKernelArg(kernel, 3, sizeof(int), (void *)&ocSize);
+  clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&paddedA);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 6, sizeof(cl_mem), (void *)&C);
+
+  size_t globalSizes[nKernelDims] = {(size_t)hwSizePadded * MWAVE / MWG / MWARP * WARP_SIZE, ocSize * NWAVE / NWG / NWARP, (size_t)batchSize};
   size_t localSizes[nKernelDims] = {MWAVE/MWARP * WARP_SIZE, NWAVE/NWARP, 1};
 
   cl_int err;

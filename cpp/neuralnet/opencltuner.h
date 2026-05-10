@@ -83,8 +83,14 @@ namespace OpenCLParams {
     int VWN = 2;
     int SB = 0;
 
+    // Pad kernel parameters
+    int PAD_ELTS_PER_THREAD = 1;  // hw elements per thread (1,2,4)
+    int PAD_ROWS_PER_THREAD = 1;  // channel*batch rows per thread (1,2,4,8,16)
+
     std::string desc() const;
     std::string compileOptions() const;
+    std::string padDesc() const;
+    std::string padCompileOptions() const;
     int getRequiredCDivisor() const; // Use of HGemmWmmaNCHW on a matrix mult requires that input and output C is divisble by this
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;

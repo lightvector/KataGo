@@ -302,6 +302,8 @@ string OpenCLParams::HGemmWmmaNCHWParams::desc() const {
   s += " VWM=" + Global::intToString(VWM);
   s += " VWN=" + Global::intToString(VWN);
   s += " SB=" + Global::intToString(SB);
+  s += " PAD_ELTS_PER_THREAD=" + Global::intToString(PAD_ELTS_PER_THREAD);
+  s += " PAD_ROWS_PER_THREAD=" + Global::intToString(PAD_ROWS_PER_THREAD);
   return s;
 }
 string OpenCLParams::HGemmWmmaNCHWParams::compileOptions() const {
@@ -316,6 +318,20 @@ string OpenCLParams::HGemmWmmaNCHWParams::compileOptions() const {
   s += " -DVWM=" + Global::intToString(VWM);
   s += " -DVWN=" + Global::intToString(VWN);
   s += " -DSB=" + Global::intToString(SB);
+  s += " -DELTS_PER_THREAD=" + Global::intToString(PAD_ELTS_PER_THREAD);
+  s += " -DROWS_PER_THREAD=" + Global::intToString(PAD_ROWS_PER_THREAD);
+  return s;
+}
+string OpenCLParams::HGemmWmmaNCHWParams::padDesc() const {
+  string s;
+  s += "PAD_ELTS_PER_THREAD=" + Global::intToString(PAD_ELTS_PER_THREAD);
+  s += " PAD_ROWS_PER_THREAD=" + Global::intToString(PAD_ROWS_PER_THREAD);
+  return s;
+}
+string OpenCLParams::HGemmWmmaNCHWParams::padCompileOptions() const {
+  string s;
+  s += "-DELTS_PER_THREAD=" + Global::intToString(PAD_ELTS_PER_THREAD);
+  s += " -DROWS_PER_THREAD=" + Global::intToString(PAD_ROWS_PER_THREAD);
   return s;
 }
 void OpenCLParams::HGemmWmmaNCHWParams::fillFromDesc(const string& fileName, const string& desc) {
@@ -330,6 +346,8 @@ void OpenCLParams::HGemmWmmaNCHWParams::fillFromDesc(const string& fileName, con
   VWM = getInt(kvs,"VWM",VWM);
   VWN = getInt(kvs,"VWN",VWN);
   SB = getInt(kvs,"SB",SB);
+  PAD_ELTS_PER_THREAD = getInt(kvs,"PAD_ELTS_PER_THREAD",PAD_ELTS_PER_THREAD);
+  PAD_ROWS_PER_THREAD = getInt(kvs,"PAD_ROWS_PER_THREAD",PAD_ROWS_PER_THREAD);
 }
 bool OpenCLParams::HGemmWmmaNCHWParams::isValid() const {
   if(MWG <= 0) return false;
@@ -343,6 +361,8 @@ bool OpenCLParams::HGemmWmmaNCHWParams::isValid() const {
   if(VWN <= 0) return false;
   if(SB < 0 || SB > 1) return false;
   if(SB == 0 && VWN != 2) return false;
+  if(PAD_ELTS_PER_THREAD <= 0) return false;
+  if(PAD_ROWS_PER_THREAD <= 0) return false;
 
   if(!isMultipleOf(MWG,VWM)) return false;
   if(!isMultipleOf(NWG,VWN)) return false;
@@ -2183,6 +2203,8 @@ static bool tuneHGemmWmmaNCHW(
     if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
     cl_kernel kernel = clCreateKernel(program, "hgemmWmmaNCHW", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
+    cl_kernel padKernel = clCreateKernel(program, "padHalfInputNCHW", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
     int maxChannels = modelInfo.maxConvChannels1x1;
     maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
@@ -2192,16 +2214,20 @@ static bool tuneHGemmWmmaNCHW(
 
     maxChannels = roundUpToMultipleInt(maxChannels,cfg.hGemmWmmaNCHW.getRequiredCDivisor());
 
-    int outputNumFloatsUpperBound = batchSize * maxChannels * nnXLen * nnYLen;
+    int hwSize = nnXLen * nnYLen;
+    int hwSizePadded = roundUpToMultipleInt(hwSize, cfg.hGemmWmmaNCHW.MWG);
+    int outputNumFloatsUpperBound = batchSize * maxChannels * hwSize;
+    int paddedInputSize = batchSize * maxChannels * hwSizePadded;
     vector<float> inputVec;
     vector<float> filterVec;
     // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
     // could need and different reps may slice them differently.
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
-      "tuneHGemmWmma3x3Input", context, batchSize, maxChannels, maxChannels, nnXLen*nnYLen, nnXLen*nnYLen, 1.0, inputVec);
+      "tuneHGemmWmma3x3Input", context, batchSize, maxChannels, maxChannels, hwSize, hwSize, 1.0, inputVec);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Filter", context, batchSize, maxChannels, maxChannels, maxChannels, maxChannels, 1.0 / sqrt(maxChannels), filterVec);
     cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
+    cl_mem paddedInput = createReadWriteBufferHalfZeros(context, paddedInputSize);
 
     const int reps = 18;
     const int numToRecord = 6;
@@ -2246,13 +2272,29 @@ static bool tuneHGemmWmmaNCHW(
         continue;
       }
 
+      // Pad input: [batchSize, inChannelsPadded, hwSize] -> [batchSize, inChannelsPadded, hwSizePadded]
+      cl_event padEvent;
+      err = doPadHalfInputNCHW(
+        padKernel,
+        commandQueue,
+        cfg,
+        batchSize, inChannelsPadded, hwSize, hwSizePadded,
+        input, paddedInput,
+        &padEvent
+      );
+      accums.countResultAndFreeEvent(err,padEvent,weight);
+      accums.weightCounted -= weight; // Count pad time but not as a separate operation
+      if(accums.bad)
+        break;
+
+      // WMMA matmul on padded input
       cl_event event;
       err = doHGemmWmma_NCHW_ICOC(
         kernel,
         commandQueue,
         cfg,
-        batchSize, inChannelsPadded, nnXLen*nnYLen, outChannelsPadded,
-        input, filter, output,
+        batchSize, inChannelsPadded, hwSize, outChannelsPadded,
+        paddedInput, filter, output,
         &event
       );
 
@@ -2274,8 +2316,10 @@ static bool tuneHGemmWmmaNCHW(
     clReleaseMemObject(input);
     clReleaseMemObject(filter);
     clReleaseMemObject(output);
+    clReleaseMemObject(paddedInput);
 
     clReleaseKernel(kernel);
+    clReleaseKernel(padKernel);
     clReleaseProgram(program);
 
     size_t finalRetSize = retBase - ret.data();
@@ -2287,6 +2331,8 @@ static bool tuneHGemmWmmaNCHW(
   bool stopOnReferenceImplFail = true;
   bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.002;
+
+  // Pass 1: Tune WMMA kernel params (with whatever current pad params were passed in)
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -2297,6 +2343,39 @@ static bool tuneHGemmWmmaNCHW(
     verboseTuner,
     errorToleranceScale,
     std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc) {
+    return false;
+  }
+
+  // Pass 2: Tune pad kernel params using best WMMA params from pass 1
+  out << "Tuning pad kernel params for hGemmWmmaNCHW" << endl;
+  vector<OpenCLTuneParams> padConfigs;
+  padConfigs.push_back(currentConfig);
+  addConfigs(padConfigs,SETTER(hGemmWmmaNCHW.PAD_ELTS_PER_THREAD),{1,2,4});
+  addConfigs(padConfigs,SETTER(hGemmWmmaNCHW.PAD_ROWS_PER_THREAD),{1,2,4,8,16});
+  filterConfigs(padConfigs,ISVALID(hGemmWmmaNCHW));
+
+  shuffleConfigs(padConfigs);
+
+  OpenCLTuneParams padReferenceConfig = currentConfig;
+  padReferenceConfig.hGemmWmmaNCHW.PAD_ELTS_PER_THREAD = untunedConfig.hGemmWmmaNCHW.PAD_ELTS_PER_THREAD;
+  padReferenceConfig.hGemmWmmaNCHW.PAD_ROWS_PER_THREAD = untunedConfig.hGemmWmmaNCHW.PAD_ROWS_PER_THREAD;
+
+  auto getPadDesc = [](const OpenCLTuneParams& cfg) { return cfg.hGemmWmmaNCHW.padDesc(); };
+
+  suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    padConfigs,
+    currentConfig,
+    padReferenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getPadDesc),
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
     bestKernelsPerSecond
   );
@@ -3492,7 +3571,9 @@ void OpenCLTuner::tune(
             currentConfig.shouldUseFP16TensorCoresFor1x1 = false;
           }
           // If we're using tensor cores normally, AND they're fast enough, then use them for 1x1 convs.
-          else if(currentConfig.shouldUseFP16TensorCores && bestKernelsPerSecond16 / FP16_TENSORCORE_REQUIRED_SPEEDUP >= bestXGemmDirectKernelsPerSecond) {
+          // Require 120% speedup for 1x1 to be conservative against the overhead of the extra
+          // pad-copy kernel launch that the NCHW WMMA path needs.
+          else if(currentConfig.shouldUseFP16TensorCores && bestKernelsPerSecond16 / 1.2 >= bestXGemmDirectKernelsPerSecond) {
             out << "FP16 tensor cores enabled for 1x1 convs" << endl;
             currentConfig = result16;
             currentConfig.canUseFP16TensorCoresFor1x1 = true;

@@ -587,6 +587,7 @@ struct ComputeHandleInternal {
   CLKernel xgemmDirectStridedBatchedNNKernel;
   CLKernel xgemmBatchedNNKernel;
   CLKernel hgemmWmmaNCHWKernel;
+  CLKernel padHalfInputNCHWKernel;
 
   // Shared transformer attention kernel set (lazily created)
   TransformerAttentionKernelSet* attnKernelSet;
@@ -698,8 +699,11 @@ struct ComputeHandleInternal {
       xgemmBatchedNNKernel = clCreateKernel(progs->xgemmProgram, "hgemmWmmaBatched", &err);
     else
       xgemmBatchedNNKernel = clCreateKernel(progs->xgemmProgram, "XgemmBatched", &err);
-    if(usingFP16TensorCoresFor1x1)
+    if(usingFP16TensorCoresFor1x1) {
       hgemmWmmaNCHWKernel = clCreateKernel(progs->hgemmWmmaNCHWProgram, "hgemmWmmaNCHW", &err);
+      CHECK_ERR(err);
+      padHalfInputNCHWKernel = clCreateKernel(progs->hgemmWmmaNCHWProgram, "padHalfInputNCHW", &err);
+    }
     CHECK_ERR(err);
   }
 
@@ -1227,14 +1231,23 @@ struct ConvLayer {
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    ConvWorkspaceEltsNeeded elts;
+    // Winograd workspace for 3x3/5x5 convolutions
     int numTilesTotalPadded = roundUpToMultipleInt(maxBatchSize * numTilesX * numTilesY, handle->getXGemmMPaddingMult());
     int outChannelsPadded = roundUpToMultipleInt(outChannels, handle->getXGemmNPaddingMult());
     int inChannelsPadded = roundUpToMultipleInt(inChannels, handle->getXGemmKPaddingMult());
-    return
-      ConvWorkspaceEltsNeeded(
-        numTilesTotalPadded * inChannelsPadded * inTileXYSize,
-        numTilesTotalPadded * outChannelsPadded * inTileXYSize
-      );
+    elts = ConvWorkspaceEltsNeeded(
+      numTilesTotalPadded * inChannelsPadded * inTileXYSize,
+      numTilesTotalPadded * outChannelsPadded * inTileXYSize
+    );
+    // Padded input buffer for 1x1 WMMA convolutions
+    if(usingHGemmWmmaNHCW) {
+      int MWG = handle->tuneParams.hGemmWmmaNCHW.MWG;
+      int hwSizePadded = roundUpToMultipleInt(nnXLen * nnYLen, MWG);
+      size_t paddedElts = (size_t)maxBatchSize * inChannels * hwSizePadded;
+      elts = ConvWorkspaceEltsNeeded::getMax(elts, ConvWorkspaceEltsNeeded(paddedElts, 0));
+    }
+    return elts;
   }
 
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem convWorkspace, cl_mem convWorkspace2) const {
@@ -1260,19 +1273,39 @@ struct ConvLayer {
         MAYBE_FREE_EVENT;
       }
       else {
-        cl_int err;
-        MAYBE_EVENT;
-        err = doHGemmWmma_NCHW_ICOC(
-          handle->hgemmWmmaNCHWKernel,
-          handle->commandQueue,
-          handle->tuneParams,
-          batchSize, inChannels, nnXLen*nnYLen, outChannels,
-          input, filter, output,
-          MAYBE_EVENTREF
-        );
-        CHECK_ERR(err);
-        MAYBE_PROFILE("HGEMM1x1");
-        MAYBE_FREE_EVENT;
+        int hwSizePadded = roundUpToMultipleInt(nnXLen*nnYLen, handle->tuneParams.hGemmWmmaNCHW.MWG);
+        // Pad input: [batchSize, inChannels, hwSize] -> [batchSize, inChannels, hwSizePadded]
+        {
+          cl_int err;
+          MAYBE_EVENT;
+          err = doPadHalfInputNCHW(
+            handle->padHalfInputNCHWKernel,
+            handle->commandQueue,
+            handle->tuneParams,
+            batchSize, inChannels, nnXLen*nnYLen, hwSizePadded,
+            input, convWorkspace,
+            MAYBE_EVENTREF
+          );
+          CHECK_ERR(err);
+          MAYBE_PROFILE("PadNCHW");
+          MAYBE_FREE_EVENT;
+        }
+        // WMMA matmul on padded input
+        {
+          cl_int err;
+          MAYBE_EVENT;
+          err = doHGemmWmma_NCHW_ICOC(
+            handle->hgemmWmmaNCHWKernel,
+            handle->commandQueue,
+            handle->tuneParams,
+            batchSize, inChannels, nnXLen*nnYLen, outChannels,
+            convWorkspace, filter, output,
+            MAYBE_EVENTREF
+          );
+          CHECK_ERR(err);
+          MAYBE_PROFILE("HGEMM1x1");
+          MAYBE_FREE_EVENT;
+        }
       }
     }
     else if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
@@ -2217,9 +2250,10 @@ struct TransformerMatMulLayer {
 
   // Apply per-position linear projection: input NCHW -> output NCHW
   // This is identical to a 1x1 convolution: output[n,oc,xy] = sum_ic input[n,ic,xy] * weight[ic,oc]
-  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask) const {
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask, cl_mem convWorkspace) const {
     (void)mask;
     if(!usingHGemmWmmaNHCW) {
+      (void)convWorkspace;
       int filterStride = 0; // Reuse same filter for all batch elements
       int inputStride = nnXLen * nnYLen * inChannels;
       int outputStride = nnXLen * nnYLen * outChannels;
@@ -2240,20 +2274,48 @@ struct TransformerMatMulLayer {
       MAYBE_FREE_EVENT;
     }
     else {
-      cl_int err;
-      MAYBE_EVENT;
-      err = doHGemmWmma_NCHW_ICOC(
-        handle->hgemmWmmaNCHWKernel,
-        handle->commandQueue,
-        handle->tuneParams,
-        batchSize, inChannels, nnXLen * nnYLen, outChannels,
-        input, filter, output,
-        MAYBE_EVENTREF
-      );
-      CHECK_ERR(err);
-      MAYBE_PROFILE("TransformerMatMulHGemm");
-      MAYBE_FREE_EVENT;
+      int hwSizePadded = roundUpToMultipleInt(nnXLen * nnYLen, handle->tuneParams.hGemmWmmaNCHW.MWG);
+      {
+        cl_int err;
+        MAYBE_EVENT;
+        err = doPadHalfInputNCHW(
+          handle->padHalfInputNCHWKernel,
+          handle->commandQueue,
+          handle->tuneParams,
+          batchSize, inChannels, nnXLen * nnYLen, hwSizePadded,
+          input, convWorkspace,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("TransformerPadNCHW");
+        MAYBE_FREE_EVENT;
+      }
+      {
+        cl_int err;
+        MAYBE_EVENT;
+        err = doHGemmWmma_NCHW_ICOC(
+          handle->hgemmWmmaNCHWKernel,
+          handle->commandQueue,
+          handle->tuneParams,
+          batchSize, inChannels, nnXLen * nnYLen, outChannels,
+          convWorkspace, filter, output,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("TransformerMatMulHGemm");
+        MAYBE_FREE_EVENT;
+      }
     }
+  }
+
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    if(!usingHGemmWmmaNHCW)
+      return ConvWorkspaceEltsNeeded();
+    // Padded input buffer for WMMA loads
+    int MWG = handle->tuneParams.hGemmWmmaNCHW.MWG;
+    int hwSizePadded = roundUpToMultipleInt(nnXLen * nnYLen, MWG);
+    size_t paddedElts = (size_t)maxBatchSize * inChannels * hwSizePadded;
+    return ConvWorkspaceEltsNeeded(paddedElts, 0);
   }
 
   TransformerMatMulLayer() = delete;
@@ -2430,7 +2492,8 @@ struct TransformerAttentionBlock {
     cl_mem trunk,       // (N, C, H, W) - both input and where residual is added
     cl_mem trunkScratch, // temp of same size as trunk
     cl_mem mask,
-    cl_mem maskSum
+    cl_mem maskSum,
+    cl_mem convWorkspace
   ) const {
     (void)maskSum;
     int nnXYLen = nnXLen * nnYLen;
@@ -2448,9 +2511,9 @@ struct TransformerAttentionBlock {
     SizedBuf<cl_mem> kBuf(scratch->allocator, scratch->getBufSizeXY(kTotalDim));
     SizedBuf<cl_mem> vBuf(scratch->allocator, scratch->getBufSizeXY(vTotalDim));
 
-    qProj.apply(handle, batchSize, trunkScratch, qBuf.buf, mask);
-    kProj.apply(handle, batchSize, trunkScratch, kBuf.buf, mask);
-    vProj.apply(handle, batchSize, trunkScratch, vBuf.buf, mask);
+    qProj.apply(handle, batchSize, trunkScratch, qBuf.buf, mask, convWorkspace);
+    kProj.apply(handle, batchSize, trunkScratch, kBuf.buf, mask, convWorkspace);
+    vProj.apply(handle, batchSize, trunkScratch, vBuf.buf, mask, convWorkspace);
 
     // Step 3: Apply RoPE to Q and K
     if(useRope) {
@@ -2557,10 +2620,19 @@ struct TransformerAttentionBlock {
     }
 
     // Step 5: Output projection: attnOut (N, numHeads*vHeadDim, H, W) -> trunkScratch (N, C, H, W)
-    outProj.apply(handle, batchSize, attnOut.buf, trunkScratch, mask);
+    outProj.apply(handle, batchSize, attnOut.buf, trunkScratch, mask, convWorkspace);
 
     // Step 6: Add residual: trunk += trunkScratch
     addPointWise(handle, trunk, trunkScratch, batchSize * inChannels * nnXYLen);
+  }
+
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    ConvWorkspaceEltsNeeded maxElts;
+    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts, qProj.requiredConvWorkspaceElts(handle, maxBatchSize));
+    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts, kProj.requiredConvWorkspaceElts(handle, maxBatchSize));
+    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts, vProj.requiredConvWorkspaceElts(handle, maxBatchSize));
+    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts, outProj.requiredConvWorkspaceElts(handle, maxBatchSize));
+    return maxElts;
   }
 
   TransformerAttentionBlock() = delete;
@@ -2615,7 +2687,8 @@ struct TransformerFFNBlock {
     cl_mem trunk,        // (N, C, H, W) - input and residual target
     cl_mem trunkScratch, // temp
     cl_mem mask,
-    cl_mem maskSum
+    cl_mem maskSum,
+    cl_mem convWorkspace
   ) const {
     (void)maskSum;
     int nnXYLen = nnXLen * nnYLen;
@@ -2625,12 +2698,12 @@ struct TransformerFFNBlock {
 
     // Step 2: linear1 projection -> ffn buffer
     SizedBuf<cl_mem> ffnBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
-    linear1.apply(handle, batchSize, trunkScratch, ffnBuf.buf, mask);
+    linear1.apply(handle, batchSize, trunkScratch, ffnBuf.buf, mask, convWorkspace);
 
     if(useSwiGLU) {
       // Step 2b: gate projection
       SizedBuf<cl_mem> gateBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
-      linearGate->apply(handle, batchSize, trunkScratch, gateBuf.buf, mask);
+      linearGate->apply(handle, batchSize, trunkScratch, gateBuf.buf, mask, convWorkspace);
 
       // Step 3: SwiGLU: output = SiLU(linear1) * gate
       cl_kernel kernel = handle->transformerSwiGLUKernel;
@@ -2664,10 +2737,19 @@ struct TransformerFFNBlock {
     }
 
     // Step 4: linear2 projection: ffnBuf (N, ffnC, H, W) -> trunkScratch (N, C, H, W)
-    linear2.apply(handle, batchSize, ffnBuf.buf, trunkScratch, mask);
+    linear2.apply(handle, batchSize, ffnBuf.buf, trunkScratch, mask, convWorkspace);
 
     // Step 5: Add residual
     addPointWise(handle, trunk, trunkScratch, batchSize * numChannels * nnXYLen);
+  }
+
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    ConvWorkspaceEltsNeeded maxElts;
+    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts, linear1.requiredConvWorkspaceElts(handle, maxBatchSize));
+    if(linearGate)
+      maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts, linearGate->requiredConvWorkspaceElts(handle, maxBatchSize));
+    maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts, linear2.requiredConvWorkspaceElts(handle, maxBatchSize));
+    return maxElts;
   }
 
   TransformerFFNBlock() = delete;
@@ -2773,10 +2855,12 @@ ConvWorkspaceEltsNeeded BlockStack::requiredConvWorkspaceElts(ComputeHandleInter
       maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
     }
     else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
-      // Transformer attention blocks don't use conv workspace
+      TransformerAttentionBlock* block = (TransformerAttentionBlock*)blocks[i].second.get();
+      maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
     }
     else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
-      // Transformer FFN blocks don't use conv workspace
+      TransformerFFNBlock* block = (TransformerFFNBlock*)blocks[i].second.get();
+      maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts,block->requiredConvWorkspaceElts(handle,maxBatchSize));
     }
     else {
       ASSERT_UNREACHABLE;
@@ -2845,11 +2929,11 @@ void BlockStack::apply(
     }
     else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
       TransformerAttentionBlock* block = (TransformerAttentionBlock*)blocks[i].second.get();
-      block->apply(handle, scratch, batchSize, trunk, trunkScratch, mask, maskSum);
+      block->apply(handle, scratch, batchSize, trunk, trunkScratch, mask, maskSum, convWorkspace);
     }
     else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
       TransformerFFNBlock* block = (TransformerFFNBlock*)blocks[i].second.get();
-      block->apply(handle, scratch, batchSize, trunk, trunkScratch, mask, maskSum);
+      block->apply(handle, scratch, batchSize, trunk, trunkScratch, mask, maskSum, convWorkspace);
     }
     else {
       ASSERT_UNREACHABLE;

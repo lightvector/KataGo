@@ -141,12 +141,21 @@ namespace OpenCLHelpers {
     cl_event* eventBuf
   );
 
+  cl_int doPadHalfInputNCHW(
+    cl_kernel padKernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int batchSize, int cSize, int hwSize, int hwSizePadded,
+    cl_mem src, cl_mem dst,
+    cl_event* eventBuf
+  );
+
   cl_int doHGemmWmma_NCHW_ICOC(
     cl_kernel kernel,
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
     int batchSize, int cSize, int hwSize, int ocSize,
-    cl_mem A, cl_mem B, cl_mem C,
+    cl_mem paddedA, cl_mem B, cl_mem C,
     cl_event* eventBuf
   );
 
