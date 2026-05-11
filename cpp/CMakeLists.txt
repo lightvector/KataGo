@@ -218,15 +218,20 @@ else()
   #   - copy_if_different updates GIT_HEADER_FILE only when the new SHA
   #     differs from the previous one, leaving its mtime untouched otherwise.
   #
-  # Both files must be listed as OUTPUTs. Ninja's restat (set automatically
-  # for custom_commands) re-checks every declared OUTPUT's mtime after the
-  # rule runs, and only then propagates rebuilds. Listing GIT_HEADER_FILE
-  # is what lets ninja notice an actual SHA change and rebuild dependents
-  # such as main.cpp; without it, dependents stay stale across commits in
-  # incremental builds. The Make generator is more pessimistic about
-  # generated headers and works either way.
+  # Both files must be listed as OUTPUTs for Ninja. Ninja's restat (set
+  # automatically for custom_commands) re-checks every declared OUTPUT's
+  # mtime after the rule runs, and only then propagates rebuilds. Listing
+  # GIT_HEADER_FILE is what lets ninja notice an actual SHA change and
+  # rebuild dependents such as main.cpp; without it, dependents stay stale
+  # across commits in incremental builds. The Make generator is more
+  # pessimistic about generated headers and doesn't need this, and adding
+  # it causes unnecessary re-linking on every build.
+  set(GIT_CUSTOM_COMMAND_OUTPUTS ${GIT_HEADER_FILE_ALWAYS_UPDATED})
+  if(CMAKE_GENERATOR MATCHES "Ninja")
+    list(APPEND GIT_CUSTOM_COMMAND_OUTPUTS ${GIT_HEADER_FILE})
+  endif()
   add_custom_command(
-    OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED} ${GIT_HEADER_FILE}
+    OUTPUT ${GIT_CUSTOM_COMMAND_OUTPUTS}
     COMMAND ${CMAKE_COMMAND} -E copy ${GIT_HEADER_FILE_TEMPLATE} ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     COMMAND ${GIT_EXECUTABLE} describe --match=DummyTagNotExisting --always --abbrev=40 --dirty >> ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${GIT_HEADER_FILE_ALWAYS_UPDATED} ${GIT_HEADER_FILE}
