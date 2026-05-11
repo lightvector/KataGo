@@ -10,7 +10,7 @@ struct DistributionTable {
   double minZ;
   double maxZ;
 
-  DistributionTable(std::function<double(double)> pdf, std::function<double(double)> cdf, double minZ, double maxZ, int size);
+  DistributionTable(const std::function<double(double)>& pdf, const std::function<double(double)>& cdf, double minZ, double maxZ, int size);
   ~DistributionTable();
 
   DistributionTable(const DistributionTable& other) = delete;

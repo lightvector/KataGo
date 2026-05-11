@@ -307,8 +307,8 @@ struct ConvLayer {
     if(dilationX != 1 || dilationY != 1)
       throw StringError("Eigen backend: Encountered convolution dilation factors other than 1, not supported");
 
-    assert(convXSize % 2 == 1);
-    assert(convYSize % 2 == 1);
+    testAssert(convXSize % 2 == 1);
+    testAssert(convYSize % 2 == 1);
 
     if((convXSize == 3 && convYSize == 3) || (convXSize == 5 && convYSize == 5)) {
       imagePatchSize = 0; //not used in this branch
@@ -702,8 +702,8 @@ struct BatchNormLayer {
   {
     int numChannels = desc.numChannels;
 
-    assert(desc.mergedScale.size() == numChannels);
-    assert(desc.mergedBias.size() == numChannels);
+    testAssert(desc.mergedScale.size() == numChannels);
+    testAssert(desc.mergedBias.size() == numChannels);
 
     mergedScale.resize(numChannels);
     mergedBias.resize(numChannels);
@@ -1645,10 +1645,10 @@ struct InputBuffers {
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
     singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
 
-    assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
-    assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    testAssert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+    testAssert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
     if(m.numInputMetaChannels > 0) {
-      assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
+      testAssert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
     }
 
     spatialInput = vector<float>(m.numInputChannels * nnXLen * nnYLen * maxBatchSize);

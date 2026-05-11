@@ -294,8 +294,8 @@ struct ConvLayer {
     int paddingX = (convXSize / 2) * dilationX;
     int paddingY = (convYSize / 2) * dilationY;
 
-    assert(convXSize % 2 == 1);
-    assert(convYSize % 2 == 1);
+    testAssert(convXSize % 2 == 1);
+    testAssert(convYSize % 2 == 1);
 
     inputDescriptors = manager->getTensorDesc4DByBatchSize(inChannels,useFP16,useNHWCIn);
     outputDescriptors = manager->getTensorDesc4DByBatchSize(outChannels,useFP16,useNHWCOut);
@@ -387,7 +387,7 @@ struct ConvLayer {
       }
     }
 
-    assert(desc->weights.size() == convYSize * convXSize * inChannels * outChannels);
+    testAssert(desc->weights.size() == convYSize * convXSize * inChannels * outChannels);
 
     if(filterNHWC) {
       vector<float> weightsTransposed(desc->weights.size());
@@ -533,12 +533,12 @@ struct BatchNormLayer {
   {
     (void)cudaHandles;
 
-    assert(desc->mean.size() == numChannels);
-    assert(desc->variance.size() == numChannels);
-    assert(desc->scale.size() == numChannels);
-    assert(desc->bias.size() == numChannels);
-    assert(desc->mergedScale.size() == numChannels);
-    assert(desc->mergedBias.size() == numChannels);
+    testAssert(desc->mean.size() == numChannels);
+    testAssert(desc->variance.size() == numChannels);
+    testAssert(desc->scale.size() == numChannels);
+    testAssert(desc->bias.size() == numChannels);
+    testAssert(desc->mergedScale.size() == numChannels);
+    testAssert(desc->mergedBias.size() == numChannels);
     CudaUtils::mallocAndCopyToDevice(name,desc->mergedScale,mergedScaleBuf,useFP16);
     CudaUtils::mallocAndCopyToDevice(name,desc->mergedBias,mergedBiasBuf,useFP16);
   }
@@ -608,7 +608,7 @@ struct MatMulLayer {
     (void)cudaHandles;
 
     if(inChannels > 0 && outChannels > 0) {
-      assert(desc->weights.size() == inChannels * outChannels);
+      testAssert(desc->weights.size() == inChannels * outChannels);
       CudaUtils::mallocAndCopyToDevice(name,desc->weights,matBuf,useFP16);
     }
     else {
@@ -708,7 +708,7 @@ struct MatBiasLayer {
   {
     (void)cudaHandles;
     if(numChannels > 0) {
-      assert(desc->weights.size() == numChannels);
+      testAssert(desc->weights.size() == numChannels);
       CudaUtils::mallocAndCopyToDevice(name,desc->weights,biasBuf,useFP16);
     }
     else
@@ -775,7 +775,7 @@ struct NormActConv {
      usingFP16(useFP16),
      usingNHWC(useNHWC)
   {
-    assert(norm.numChannels == conv.inChannels);
+    testAssert(norm.numChannels == conv.inChannels);
   }
 
   ~NormActConv()
@@ -1143,7 +1143,7 @@ BlockStack::BlockStack(
   usingFP16(useFP16),
   usingNHWC(useNHWC)
 {
-  assert(numBlocks == descBlocks.size());
+  testAssert(numBlocks == descBlocks.size());
   for(int i = 0; i<numBlocks; i++) {
     if(descBlocks[i].first == ORDINARY_BLOCK_KIND) {
       ResidualBlockDesc* blockDesc = (ResidualBlockDesc*)descBlocks[i].second.get();
@@ -1428,7 +1428,7 @@ struct Trunk {
     }
 
     trunkTipBN = std::make_unique<BatchNormLayer>(cudaHandles,&desc->trunkTipBN,&desc->trunkTipActivation,nnXLen,nnYLen,useFP16,useNHWC);
-    assert(desc->blocks.size() == numBlocks);
+    testAssert(desc->blocks.size() == numBlocks);
   }
 
   ~Trunk()
@@ -2516,10 +2516,10 @@ struct InputBuffers {
     singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
     singleOwnershipResultBytes = (size_t)m.numOwnershipChannels * nnXLen * nnYLen * sizeof(float);
 
-    assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
-    assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    testAssert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+    testAssert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
     if(m.numInputMetaChannels > 0) {
-      assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
+      testAssert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
     }
 
     userInputBufferBytes = (size_t)m.numInputChannels * maxBatchSize * nnXLen * nnYLen * sizeof(float);

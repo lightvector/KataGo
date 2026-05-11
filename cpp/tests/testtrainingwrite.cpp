@@ -1337,7 +1337,7 @@ void Tests::runSelfplayStatTestsWithNN(const string& modelFile) {
 
   NNEvaluator* nnEval = startNNEval(modelFile,"nneval",logger,0,inputsNHWC,useNHWC,false);
 
-  auto runStatTest = [&](const std::map<string,string>& cfgParams, PlaySettings playSettings, const Sgf::PositionSample* startPosSample, string name, int numSamples) {
+  auto runStatTest = [&](const std::map<string,string>& cfgParams, const PlaySettings& playSettings, const Sgf::PositionSample* startPosSample, const string& name, int numSamples) {
     cout << "--------------------------------------------------------------------------------------" << endl;
     cout << name << endl;
     nnEval->clearCache();

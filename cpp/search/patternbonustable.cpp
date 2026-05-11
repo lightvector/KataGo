@@ -171,7 +171,7 @@ void PatternBonusTable::avoidRepeatedSgfMoves(
     std::set<Hash128> hashesThisGame;
 
     std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler = [&](
-      Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
+      const Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
       (void)posSample;
       if(comments.size() > 0 && comments.find("%SKIP%") != string::npos)

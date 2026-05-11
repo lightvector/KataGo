@@ -417,10 +417,10 @@ struct ModelParser {
     auto initialMatMul = initialMatMulLayer->getOutput(0);
     auto initialMeta = initialMetaLayer == NULL ? NULL : initialMetaLayer->getOutput(0);
 
-    assert(initialConv->getDimensions().d[1] == numChannels);
-    assert(initialMatMul->getDimensions().d[1] == numChannels);
+    testAssert(initialConv->getDimensions().d[1] == numChannels);
+    testAssert(initialMatMul->getDimensions().d[1] == numChannels);
     if(initialMeta != NULL) {
-      assert(initialMeta->getDimensions().d[1] == numChannels);
+      testAssert(initialMeta->getDimensions().d[1] == numChannels);
     }
 
     markDebugOutput(initialConvLayer->getOutput(0), "After initial conv");
@@ -432,7 +432,7 @@ struct ModelParser {
     auto initialBiasLayerName = name + "/initbias";
     initialBiasLayer->setName(initialBiasLayerName.c_str());
 
-    assert(desc->blocks.size() == desc->numBlocks);
+    testAssert(desc->blocks.size() == desc->numBlocks);
     auto trunkScratchLayer = buildResidualBlockStack(initialBiasLayer->getOutput(0), desc->blocks, "trunk");
 
     auto trunkTipBatchNormLayer = buildBatchNormLayer(trunkScratchLayer->getOutput(0), &desc->trunkTipBN);
@@ -502,8 +502,8 @@ struct ModelParser {
     markDebugOutput(gpoolBiasLayer->getOutput(0), "p1 after-gpool-sum");
 
     // So that mask layer can be omitted
-    assert(desc->p2Conv.convXSize == 1);
-    assert(desc->p2Conv.convYSize == 1);
+    testAssert(desc->p2Conv.convXSize == 1);
+    testAssert(desc->p2Conv.convYSize == 1);
 
     auto p2ConvLayer = buildConvLayer(p1MaskLayer->getOutput(0), &desc->p2Conv, true);
     p2ConvLayer->setPrecision(DataType::kFLOAT);
@@ -564,8 +564,8 @@ struct ModelParser {
     auto sv3BiasLayer = buildMatBiasLayer(sv3MulLayer->getOutput(0), &desc->sv3Bias, true);
 
     // So that mask layer can be omitted
-    assert(desc->vOwnershipConv.convXSize == 1);
-    assert(desc->vOwnershipConv.convYSize == 1);
+    testAssert(desc->vOwnershipConv.convXSize == 1);
+    testAssert(desc->vOwnershipConv.convYSize == 1);
 
     auto vOwnershipConvLayer = buildConvLayer(v1MaskLayer->getOutput(0), &desc->vOwnershipConv, true);
     auto vOwnershipCastLayer = applyCastLayer(vOwnershipConvLayer, DataType::kFLOAT);
@@ -589,9 +589,9 @@ struct ModelParser {
     outputOwnership->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
 
     auto modelDesc = &model->rawModel->modelDesc;
-    assert(outputValue->getDimensions().d[1] == modelDesc->numValueChannels);
-    assert(outputScoreValue->getDimensions().d[1] == modelDesc->numScoreValueChannels);
-    assert(outputOwnership->getDimensions().d[1] == modelDesc->numOwnershipChannels);
+    testAssert(outputValue->getDimensions().d[1] == modelDesc->numValueChannels);
+    testAssert(outputScoreValue->getDimensions().d[1] == modelDesc->numScoreValueChannels);
+    testAssert(outputOwnership->getDimensions().d[1] == modelDesc->numOwnershipChannels);
   }
 
 
@@ -657,7 +657,7 @@ struct ModelParser {
   }
 
   ILayer* buildNestedBottleneckResidualBlock(ITensor* input, const NestedBottleneckResidualBlockDesc* desc) {
-    assert(desc->blocks.size() == desc->numBlocks);
+    testAssert(desc->blocks.size() == desc->numBlocks);
 
     auto preBatchNormLayer = buildBatchNormLayer(input, &desc->preBN);
     auto preActivationLayer = buildActivationLayer(preBatchNormLayer->getOutput(0), &desc->preActivation);
@@ -681,8 +681,8 @@ struct ModelParser {
 
     tuneDesc += Global::strprintf(R"|("%s"(%d,%d))|", desc->name.c_str(), desc->inChannels, desc->outChannels);
 
-    assert(desc->weights.size() == numInChannels * numOutChannels);
-    assert(input->getDimensions().d[1] == numInChannels);
+    testAssert(desc->weights.size() == numInChannels * numOutChannels);
+    testAssert(input->getDimensions().d[1] == numInChannels);
 
     // Transpose from model's CK to TensorRT's KC
     auto transposedWeights = make_unique<float[]>(desc->weights.size());
@@ -716,8 +716,8 @@ struct ModelParser {
 
     tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->numChannels);
 
-    assert(desc->weights.size() == numChannels);
-    assert(input->getDimensions().d[1] == numChannels);
+    testAssert(desc->weights.size() == numChannels);
+    testAssert(input->getDimensions().d[1] == numChannels);
 
     auto matBiasLayer = model->network->addScale(
       *input,
@@ -752,8 +752,8 @@ struct ModelParser {
       desc->dilationX,
       desc->dilationY);
 
-    assert(desc->weights.size() == convYSize * convXSize * numInChannels * numOutChannels);
-    assert(input->getDimensions().d[1] == numInChannels);
+    testAssert(desc->weights.size() == convYSize * convXSize * numInChannels * numOutChannels);
+    testAssert(input->getDimensions().d[1] == numInChannels);
 
     auto convLayer = model->network->addConvolutionNd(
       *input,
@@ -777,13 +777,13 @@ struct ModelParser {
 
     tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->numChannels);
 
-    assert(desc->mean.size() == numChannels);
-    assert(desc->variance.size() == numChannels);
-    assert(desc->scale.size() == numChannels);
-    assert(desc->bias.size() == numChannels);
-    assert(desc->mergedScale.size() == numChannels);
-    assert(desc->mergedBias.size() == numChannels);
-    assert(input->getDimensions().d[1] == numChannels);
+    testAssert(desc->mean.size() == numChannels);
+    testAssert(desc->variance.size() == numChannels);
+    testAssert(desc->scale.size() == numChannels);
+    testAssert(desc->bias.size() == numChannels);
+    testAssert(desc->mergedScale.size() == numChannels);
+    testAssert(desc->mergedBias.size() == numChannels);
+    testAssert(input->getDimensions().d[1] == numChannels);
 
     auto bnLayer = model->network->addScale(
       *input,
@@ -1586,10 +1586,10 @@ struct InputBuffers {
     singleOwnershipResultElts = m.numOwnershipChannels * nnXLen * nnYLen;
     singleOwnershipResultBytes = singleOwnershipResultElts * sizeof(float);
 
-    assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
-    assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    testAssert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+    testAssert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
     if(m.numInputMetaChannels > 0) {
-      assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
+      testAssert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
     }
 
     inputMaskBufferBytes = maxBatchSize * singleMaskBytes;

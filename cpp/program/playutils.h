@@ -56,7 +56,7 @@ namespace PlayUtils {
   );
 
   Loc getGameInitializationMove(
-    Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
+    Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
     Rand& gameRand, double temperature
   );
   void initializeGameUsingPolicy(

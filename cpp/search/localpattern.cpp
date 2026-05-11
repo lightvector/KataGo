@@ -1,5 +1,6 @@
 #include "../search/localpattern.h"
 
+#include "../core/test.h"
 #include "../neuralnet/nninputs.h"
 
 using namespace std;
@@ -16,8 +17,8 @@ LocalPatternHasher::LocalPatternHasher()
 void LocalPatternHasher::init(int x, int y, Rand& rand) {
   xSize = x;
   ySize = y;
-  assert(xSize > 0 && xSize % 2 == 1);
-  assert(ySize > 0 && ySize % 2 == 1);
+  testAssert(xSize > 0 && xSize % 2 == 1);
+  testAssert(ySize > 0 && ySize % 2 == 1);
   zobristLocalPattern.resize(NUM_BOARD_COLORS * xSize * ySize);
   zobristPla.resize(NUM_BOARD_COLORS);
   zobristAtari.resize(xSize * ySize);

@@ -306,7 +306,8 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
   vector<cl_platform_id> platformIds(maxPlatforms);
   err = clGetPlatformIDs((cl_uint)platformIds.size(), platformIds.data(), &numPlatforms);
   CHECK_ERR(err);
-  assert(numPlatforms <= platformIds.size());
+  if(numPlatforms > platformIds.size())
+    throw StringError("OpenCL: more platforms found (" + Global::uint64ToString(numPlatforms) + ") than expected maximum (" + Global::uint64ToString(platformIds.size()) + ")");
   platformIds.resize(numPlatforms);
 
   constexpr int bufLen = 16384;
@@ -323,17 +324,20 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     cl_platform_id platformId = platformIds[platformIdx];
 
     err = clGetPlatformInfo(platformId, CL_PLATFORM_NAME, bufLen, buf.data(), &sizeRet);
-    assert(sizeRet < bufLen-1);
+    if(sizeRet >= bufLen-1)
+      throw StringError("OpenCL: platform/device info string unexpectedly long, buffer too small");
     CHECK_ERR(err);
     string name = string(buf.data());
 
     err = clGetPlatformInfo(platformId, CL_PLATFORM_VENDOR, bufLen, buf.data(), &sizeRet);
-    assert(sizeRet < bufLen-1);
+    if(sizeRet >= bufLen-1)
+      throw StringError("OpenCL: platform/device info string unexpectedly long, buffer too small");
     CHECK_ERR(err);
     string vendor = string(buf.data());
 
     err = clGetPlatformInfo(platformId, CL_PLATFORM_VERSION, bufLen, buf.data(), &sizeRet);
-    assert(sizeRet < bufLen-1);
+    if(sizeRet >= bufLen-1)
+      throw StringError("OpenCL: platform/device info string unexpectedly long, buffer too small");
     CHECK_ERR(err);
     string version = string(buf.data());
 
@@ -359,7 +363,8 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
 
     CHECK_ERR(err);
     numDevicesTotal += numDevices;
-    assert(numDevicesTotal <= deviceIds.size());
+    if(numDevicesTotal > deviceIds.size())
+      throw StringError("OpenCL: more devices found (" + Global::uint64ToString(numDevicesTotal) + ") than expected maximum (" + Global::uint64ToString(deviceIds.size()) + ")");
     if(logger != NULL)
       logger->write("Found " + Global::uint32ToString(numDevices) + " device(s) on platform " + Global::uint32ToString(platformIdx) + " with type CPU or GPU or Accelerator");
   }
@@ -370,27 +375,32 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     size_t sizeRet;
 
     err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_NAME, bufLen, buf.data(), &sizeRet);
-    assert(sizeRet < bufLen-1);
+    if(sizeRet >= bufLen-1)
+      throw StringError("OpenCL: platform/device info string unexpectedly long, buffer too small");
     CHECK_ERR(err);
     string name = string(buf.data());
 
     err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_VENDOR, bufLen, buf.data(), &sizeRet);
-    assert(sizeRet < bufLen-1);
+    if(sizeRet >= bufLen-1)
+      throw StringError("OpenCL: platform/device info string unexpectedly long, buffer too small");
     CHECK_ERR(err);
     string vendor = string(buf.data());
 
     cl_device_type deviceType;
     err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_TYPE, sizeof(cl_device_type), &deviceType, &sizeRet);
-    assert(sizeRet <= sizeof(cl_device_type));
+    if(sizeRet > sizeof(cl_device_type))
+      throw StringError("OpenCL: device type info returned unexpected size " + Global::uint64ToString(sizeRet));
     CHECK_ERR(err);
 
     err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_VERSION, bufLen, buf.data(), &sizeRet);
-    assert(sizeRet < bufLen-1);
+    if(sizeRet >= bufLen-1)
+      throw StringError("OpenCL: platform/device info string unexpectedly long, buffer too small");
     CHECK_ERR(err);
     string openCLVersion = string(buf.data());
 
     err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_EXTENSIONS, bufLen, buf.data(), &sizeRet);
-    assert(sizeRet < bufLen-1);
+    if(sizeRet >= bufLen-1)
+      throw StringError("OpenCL: platform/device info string unexpectedly long, buffer too small");
     CHECK_ERR(err);
     string extensions = string(buf.data());
 
@@ -648,7 +658,7 @@ size_t OpenCLHelpers::powerOf2ify(size_t size) {
     return s * 2;
   if(s * 3 >= size)
     return s * 3;
-  assert(s * 4 >= size);
+  testAssert(s * 4 >= size);
   return s * 4;
 }
 
@@ -728,6 +738,7 @@ cl_int OpenCLHelpers::doBatchedHGemmWmma_KM_KN_NM(
   testAssert(K % tuneParams.hGemmWmma.KWG == 0);
 
   // FP16 requires this. Should be checked in tuner, so these should be true at this point.
+  // Guaranteed by HGemmWmmaParams::isValid() which is checked at load time.
   assert(tuneParams.hGemmWmma.KWG % 16 == 0);
   assert(tuneParams.hGemmWmma.MWG % 8 == 0);
   assert(tuneParams.hGemmWmma.NWG % 8 == 0);
@@ -773,6 +784,7 @@ cl_int OpenCLHelpers::doHGemmWmma_NCHW_ICOC(
   testAssert(cSize % tuneParams.hGemmWmmaNCHW.getRequiredCDivisor() == 0);
 
   // FP16 requires this. Should be checked in tuner, so these should be true at this point.
+  // Guaranteed by HGemmWmmaNCHWParams::isValid() which is checked at load time.
   assert(tuneParams.hGemmWmmaNCHW.KWG % 16 == 0);
   assert(tuneParams.hGemmWmmaNCHW.MWG % 8 == 0);
   assert(tuneParams.hGemmWmmaNCHW.NWG % 8 == 0);

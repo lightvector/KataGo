@@ -1393,6 +1393,28 @@ b28c512nbt = {
     "v2_size":144,
 }
 
+b40c768nbt = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "trunk_num_channels":768,
+    "mid_num_channels":384,
+    "gpool_num_channels":128,
+    "gamma_weight_decay_center_1":True,
+    "block_kind": [
+        [f"rconv{i}", "bottlenest2gpool" if i % 3 == 0 else "bottlenest2"]
+        for i in range(1, 41)
+    ],
+    "p1_num_channels":128,
+    "g1_num_channels":128,
+    "v1_num_channels":256,
+    "sbv2_num_channels":256,
+    "num_scorebeliefs":8,
+    "v2_size":256,
+}
+
 b20c640nbt = {
     "version":15,
     "norm_kind":"fixup",
@@ -1801,6 +1823,35 @@ b6c384h6nbttfrs = {
     "v2_size":96,
 }
 
+b5c384h6nbttflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "learnable_rope":True,
+    "block_kind": [
+        ["block1","bottlenest2transformerropesg"],
+        ["block2","bottlenest2transformerropesg"],
+        ["block3","bottlenest2transformerropesg"],
+        ["block4","bottlenest2transformerropesg"],
+        ["block5","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":80,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
 b6c384h6nbttflrs = {
     "version":15,
     "norm_kind":"fixup",
@@ -1860,6 +1911,146 @@ b7c384h6nbttflrs = {
     "sbv2_num_channels":80,
     "num_scorebeliefs":8,
     "v2_size":96,
+}
+
+b9c768h12nbttflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":768,
+    "mid_num_channels":384,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":1024,
+    "transformer_heads":12,
+    "transformer_kv_heads":12,
+    "learnable_rope":True,
+    "block_kind": [
+        ["block1","bottlenest2transformerropesg"],
+        ["block2","bottlenest2transformerropesg"],
+        ["block3","bottlenest2transformerropesg"],
+        ["block4","bottlenest2transformerropesg"],
+        ["block5","bottlenest2transformerropesg"],
+        ["block6","bottlenest2transformerropesg"],
+        ["block7","bottlenest2transformerropesg"],
+        ["block8","bottlenest2transformerropesg"],
+        ["block9","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
+b15c512h8nbttflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":512,
+    "mid_num_channels":256,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":768,
+    "transformer_heads":8,
+    "transformer_kv_heads":8,
+    "learnable_rope":True,
+    "block_kind": [
+        ["block1","bottlenest2transformerropesg"],
+        ["block2","bottlenest2transformerropesg"],
+        ["block3","bottlenest2transformerropesg"],
+        ["block4","bottlenest2transformerropesg"],
+        ["block5","bottlenest2transformerropesg"],
+        ["block6","bottlenest2transformerropesg"],
+        ["block7","bottlenest2transformerropesg"],
+        ["block8","bottlenest2transformerropesg"],
+        ["block9","bottlenest2transformerropesg"],
+        ["block10","bottlenest2transformerropesg"],
+        ["block11","bottlenest2transformerropesg"],
+        ["block12","bottlenest2transformerropesg"],
+        ["block13","bottlenest2transformerropesg"],
+        ["block14","bottlenest2transformerropesg"],
+        ["block15","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
+b11c640h10nbttflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":640,
+    "mid_num_channels":320,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":896,
+    "transformer_heads":10,
+    "transformer_kv_heads":10,
+    "learnable_rope":True,
+    "block_kind": [
+        ["block1","bottlenest2transformerropesg"],
+        ["block2","bottlenest2transformerropesg"],
+        ["block3","bottlenest2transformerropesg"],
+        ["block4","bottlenest2transformerropesg"],
+        ["block5","bottlenest2transformerropesg"],
+        ["block6","bottlenest2transformerropesg"],
+        ["block7","bottlenest2transformerropesg"],
+        ["block8","bottlenest2transformerropesg"],
+        ["block9","bottlenest2transformerropesg"],
+        ["block10","bottlenest2transformerropesg"],
+        ["block11","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
+b9c768h8nbttflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":768,
+    "mid_num_channels":384,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":1024,
+    "transformer_heads":8,
+    "transformer_kv_heads":8,
+    "learnable_rope":True,
+    "block_kind": [
+        ["block1","bottlenest2transformerropesg"],
+        ["block2","bottlenest2transformerropesg"],
+        ["block3","bottlenest2transformerropesg"],
+        ["block4","bottlenest2transformerropesg"],
+        ["block5","bottlenest2transformerropesg"],
+        ["block6","bottlenest2transformerropesg"],
+        ["block7","bottlenest2transformerropesg"],
+        ["block8","bottlenest2transformerropesg"],
+        ["block9","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
 }
 
 b14c192h6tfrs = {
@@ -2309,6 +2500,263 @@ b21c512h16tfrs = {
     "v2_size":144,
 }
 
+# Vanilla baseline transformer ladder
+b16c256h8tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":256,
+    "mid_num_channels":256,
+    "gpool_num_channels":48,
+    "transformer_ffn_channels":768,
+    "transformer_heads":8,
+    "transformer_kv_heads":8,
+    "block_kind": [item for i in range(1,17) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":48,
+    "g1_num_channels":48,
+    "v1_num_channels":96,
+    "sbv2_num_channels":96,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
+b20c384h12tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":384,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":1024,
+    "transformer_heads":12,
+    "transformer_kv_heads":12,
+    "block_kind": [item for i in range(1,21) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
+b30c512h16tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":512,
+    "mid_num_channels":512,
+    "gpool_num_channels":96,
+    "transformer_ffn_channels":1536,
+    "transformer_heads":16,
+    "transformer_kv_heads":16,
+    "block_kind": [item for i in range(1,31) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":96,
+    "g1_num_channels":96,
+    "v1_num_channels":192,
+    "sbv2_num_channels":192,
+    "num_scorebeliefs":8,
+    "v2_size":192,
+}
+
+# b18c384nbt-comparable tier copies/variants
+b22c192h6tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":192,
+    "mid_num_channels":192,
+    "gpool_num_channels":48,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "block_kind": [item for i in range(1,23) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":48,
+    "g1_num_channels":48,
+    "v1_num_channels":96,
+    "sbv2_num_channels":96,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+b10c384h6nbttflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":192,
+    "gpool_num_channels":48,
+    "transformer_ffn_channels":512,
+    "transformer_heads":6,
+    "transformer_kv_heads":6,
+    "learnable_rope":True,
+    "block_kind": [
+        ["block1","bottlenest2transformerropesg"],
+        ["block2","bottlenest2transformerropesg"],
+        ["block3","bottlenest2transformerropesg"],
+        ["block4","bottlenest2transformerropesg"],
+        ["block5","bottlenest2transformerropesg"],
+        ["block6","bottlenest2transformerropesg"],
+        ["block7","bottlenest2transformerropesg"],
+        ["block8","bottlenest2transformerropesg"],
+        ["block9","bottlenest2transformerropesg"],
+        ["block10","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":48,
+    "g1_num_channels":48,
+    "v1_num_channels":96,
+    "sbv2_num_channels":96,
+    "num_scorebeliefs":8,
+    "v2_size":96,
+}
+
+# b28c512nbt-comparable tier copies/variants
+b35c256h8tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":256,
+    "mid_num_channels":256,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":768,
+    "transformer_heads":8,
+    "transformer_kv_heads":8,
+    "block_kind": [item for i in range(1,36) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
+b26c320h10tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":320,
+    "mid_num_channels":320,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":896,
+    "transformer_heads":10,
+    "transformer_kv_heads":10,
+    "block_kind": [item for i in range(1,27) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
+b22c384h8tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":384,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":1024,
+    "transformer_heads":8,
+    "transformer_kv_heads":8,
+    "block_kind": [item for i in range(1,23) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
+# Cheaper-than-b40c768nbt tier copies/variants
+b45c384h12tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":384,
+    "gpool_num_channels":96,
+    "transformer_ffn_channels":1024,
+    "transformer_heads":12,
+    "transformer_kv_heads":12,
+    "block_kind": [item for i in range(1,46) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":96,
+    "g1_num_channels":96,
+    "v1_num_channels":192,
+    "sbv2_num_channels":192,
+    "num_scorebeliefs":8,
+    "v2_size":192,
+}
+
+b32c480h10tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":480,
+    "mid_num_channels":480,
+    "gpool_num_channels":96,
+    "transformer_ffn_channels":1536,
+    "transformer_heads":10,
+    "transformer_kv_heads":10,
+    "block_kind": [item for i in range(1,33) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":96,
+    "g1_num_channels":96,
+    "v1_num_channels":192,
+    "sbv2_num_channels":192,
+    "num_scorebeliefs":8,
+    "v2_size":192,
+}
+
+b18c768h16tfrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":768,
+    "mid_num_channels":768,
+    "gpool_num_channels":96,
+    "transformer_ffn_channels":2048,
+    "transformer_heads":16,
+    "transformer_kv_heads":16,
+    "block_kind": [item for i in range(1,19) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":96,
+    "g1_num_channels":96,
+    "v1_num_channels":192,
+    "sbv2_num_channels":192,
+    "num_scorebeliefs":8,
+    "v2_size":192,
+}
+
 b5c384h6nbttfgabs = {
     "version":15,
     "norm_kind":"fixup",
@@ -2536,17 +2984,60 @@ base_config_of_name = {
     "b32c448nbt": b32c448nbt,
     "b28c512nbt": b28c512nbt,  # Recommended best config for this cost
     "b20c640nbt": b20c640nbt,
+    "b40c768nbt": b40c768nbt,
 
     # Standard transformer models
     "b7c96h3tfrs": b7c96h3tfrs,
     "b8c96h3tfrs": b8c96h3tfrs,
     "b11c96h3tfrs": b11c96h3tfrs,
     "b14c192h6tfrs": b14c192h6tfrs,
+    "b14c192h6tflrs": {**b14c192h6tfrs, "learnable_rope": True},
     "b12c384h12tfrs": b12c384h12tfrs,
     "b24c256h8tfrs": b24c256h8tfrs,
     "b18c384h12tfrs": b18c384h12tfrs,
     "b40c384h12tfrs": b40c384h12tfrs,
     "b21c512h16tfrs": b21c512h16tfrs,
+
+    # b18c384nbt-comparable tier
+    "b16c256h8tfrs": b16c256h8tfrs,
+    "b22c192h6tfrs": b22c192h6tfrs,
+    "b10c384h6nbttflrs": b10c384h6nbttflrs,
+
+    # b28c512nbt-comparable tier
+    "b20c384h12tfrs": b20c384h12tfrs,
+    "b35c256h8tfrs": b35c256h8tfrs,
+    "b26c320h10tfrs": b26c320h10tfrs,
+    "b22c384h8tfrs": b22c384h8tfrs,
+    "b9c768h12nbttflrs": b9c768h12nbttflrs,
+    "b15c512h8nbttflrs": b15c512h8nbttflrs,
+    "b14c512h8nbttflrs-qkn-ireg16": {**b15c512h8nbttflrs,
+        "attention_qk_norm": True,
+        "inline_registers": True,
+        "attention_num_rw_registers": 16,
+        "block_kind": [
+            ["block1","bottlenest2transformerropesg"],
+            ["block2","bottlenest2transformerropesg"],
+            ["block3","bottlenest2transformerropesg"],
+            ["block4","bottlenest2transformerropesg"],
+            ["block5","bottlenest2transformerropesg"],
+            ["block6","bottlenest2transformerropesg"],
+            ["block7","bottlenest2transformerropesg"],
+            ["block8","bottlenest2transformerropesg"],
+            ["block9","bottlenest2transformerropesg"],
+            ["block10","bottlenest2transformerropesg"],
+            ["block11","bottlenest2transformerropesg"],
+            ["block12","bottlenest2transformerropesg"],
+            ["block13","bottlenest2transformerropesg"],
+            ["block14","bottlenest2transformerropesg"],
+        ] },
+    "b11c640h10nbttflrs": b11c640h10nbttflrs,
+    "b9c768h8nbttflrs": b9c768h8nbttflrs,
+
+    # Cheaper-than-b40c768nbt tier
+    "b30c512h16tfrs": b30c512h16tfrs,
+    "b45c384h12tfrs": b45c384h12tfrs,
+    "b32c480h10tfrs": b32c480h10tfrs,
+    "b18c768h16tfrs": b18c768h16tfrs,
 
     # Mixed conv and transformer
     "b2b10c96h3tfrs": b2b10c96h3tfrs,
@@ -2559,6 +3050,7 @@ base_config_of_name = {
     # Nested bottleneck transformers
     "b5c192h3nbttfrs": b5c192h3nbttfrs,
     "b6c384h6nbttfrs": b6c384h6nbttfrs,
+    "b5c384h6nbttflrs": b5c384h6nbttflrs, # Learnable RoPE, 5 blocks
     "b6c384h6nbttflrs": b6c384h6nbttflrs, # Learnable RoPE
     "b7c384h6nbttflrs": b7c384h6nbttflrs, # Learnable RoPE, 7 blocks
     "b5c384h6nbttfgabs": b5c384h6nbttfgabs, # +GAB
@@ -2590,6 +3082,50 @@ base_config_of_name = {
 
     "b6c384h6nbttflrs-dwc": {**b6c384h6nbttflrs, "transformer_ffn_depthwise_conv": True},
     "b6c384h6nbttflrs-qkn": {**b6c384h6nbttflrs, "attention_qk_norm": True},
+    "b6c384h6nbttflr-qkn": {**b6c384h6nbttflrs, "attention_qk_norm": True, "block_kind": [
+        ["block1","bottlenest2transformerrope"],
+        ["block2","bottlenest2transformerrope"],
+        ["block3","bottlenest2transformerrope"],
+        ["block4","bottlenest2transformerrope"],
+        ["block5","bottlenest2transformerrope"],
+        ["block6","bottlenest2transformerrope"],
+    ]},
+
+    # Inline registers: registers are part of the trunk tensor (NC1S layout),
+    # sharing trunk channel dim and participating in all layers identically
+    # to board tokens. No separate register parameters/channels/FFN needed.
+    "b6c384h6nbttflrs-qkn-ireg16": {**b6c384h6nbttflrs,
+        "attention_qk_norm": True,
+        "inline_registers": True,
+        "attention_num_rw_registers": 16 },
+    "b8c768h12nbttflrs-qkn-ireg16": {**b9c768h12nbttflrs,
+        "attention_qk_norm": True,
+        "inline_registers": True,
+        "attention_num_rw_registers": 16,
+        "block_kind": [
+            ["block1","bottlenest2transformerropesg"],
+            ["block2","bottlenest2transformerropesg"],
+            ["block3","bottlenest2transformerropesg"],
+            ["block4","bottlenest2transformerropesg"],
+            ["block5","bottlenest2transformerropesg"],
+            ["block6","bottlenest2transformerropesg"],
+            ["block7","bottlenest2transformerropesg"],
+            ["block8","bottlenest2transformerropesg"],
+        ] },
+    "b8c768h12nbttflrs-qkn-ireg24": {**b9c768h12nbttflrs,
+        "attention_qk_norm": True,
+        "inline_registers": True,
+        "attention_num_rw_registers": 24,
+        "block_kind": [
+            ["block1","bottlenest2transformerropesg"],
+            ["block2","bottlenest2transformerropesg"],
+            ["block3","bottlenest2transformerropesg"],
+            ["block4","bottlenest2transformerropesg"],
+            ["block5","bottlenest2transformerropesg"],
+            ["block6","bottlenest2transformerropesg"],
+            ["block7","bottlenest2transformerropesg"],
+            ["block8","bottlenest2transformerropesg"],
+        ] },
 
     "sandbox": sandbox,
 }
@@ -2686,6 +3222,17 @@ for name, base_config in list(config_of_name.items()):
     config = base_config.copy()
     config["use_trunk_channel_gate"] = True
     config_of_name[name+"-tcg"] = config
+
+for name, base_config in list(config_of_name.items()):
+    # Trunk residual backout: parallel backout trunk that later blocks can learn to subtract
+    config = base_config.copy()
+    config["use_trunk_residual_backout"] = True
+    config_of_name[name+"-trb"] = config
+
+    config = base_config.copy()
+    config["use_trunk_residual_backout"] = True
+    config["trunk_residual_backout_noreg"] = True
+    config_of_name[name+"-trbnr"] = config
 
 for name, base_config in list(config_of_name.items()):
     config = base_config.copy()

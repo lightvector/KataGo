@@ -8,6 +8,7 @@
 
 #include "../core/global.h"
 #include "../core/multithread.h"
+#include "../core/test.h"
 
 #include <queue>
 
@@ -215,7 +216,7 @@ class ThreadSafeQueue final : public ThreadSafeContainer<T>
   }
   inline T popUnsynchronized() override {
     if(headIdx >= eltsDequeue.size()) {
-      assert(eltsEnqueue.size() > 0);
+      testAssert(eltsEnqueue.size() > 0);
       eltsDequeue.resize(0);
       eltsDequeue.swap(eltsEnqueue);
       headIdx = 0;
@@ -229,7 +230,7 @@ class ThreadSafeQueue final : public ThreadSafeContainer<T>
   }
 
   inline size_t sizeUnsynchronized() override {
-    assert(eltsDequeue.size() >= headIdx);
+    testAssert(eltsDequeue.size() >= headIdx);
     return eltsDequeue.size() - headIdx + eltsEnqueue.size();
   }
 

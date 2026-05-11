@@ -1,6 +1,7 @@
 #include "../dataio/poswriter.h"
 
 #include "../core/fileutils.h"
+#include "../core/test.h"
 
 //------------------------
 #include "../core/using.h"
@@ -81,8 +82,8 @@ static void writeLoop(
 }
 
 void PosWriter::start() {
-  assert(!toWriteQueue.isReadOnly());
-  assert(writeLoopThread == NULL);
+  testAssert(!toWriteQueue.isReadOnly());
+  testAssert(writeLoopThread == NULL);
   writeLoopThread = new std::thread(writeLoop, suffix, outDir, sgfSplitCount, sgfSplitIdx, maxPosesPerOutFile, &toWriteQueue);
 }
 

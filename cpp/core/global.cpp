@@ -23,13 +23,13 @@ using namespace std;
 void Global::fatalError(const char* s)
 {
   cout << "\nFATAL ERROR:\n" << s << endl;
-  exit(EXIT_FAILURE);
+  quick_exit(EXIT_FAILURE);
 }
 
 void Global::fatalError(const string& s)
 {
   cout << "\nFATAL ERROR:\n" << s << endl;
-  exit(EXIT_FAILURE);
+  quick_exit(EXIT_FAILURE);
 }
 
 //STRINGS---------------------------------

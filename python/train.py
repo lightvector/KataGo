@@ -96,6 +96,9 @@ if __name__ == "__main__":
 
     optional_args.add_argument('-use-adamw', help='Use adamw optimizer', required=False, action='store_true')
     optional_args.add_argument('-use-muon', help='Use muon optimizer', required=False, action='store_true')
+    optional_args.add_argument('-use-normuon', help='Use normuon optimizer (muon with neuron-wise normalization)', required=False, action='store_true')
+    optional_args.add_argument('-ns-steps', help='Number of Newton-Schulz iterations for muon/normuon', type=int, required=False, default=5)
+    optional_args.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon/normuon', required=False, action='store_true')
 
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
     optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
@@ -117,6 +120,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-no-repeat-files', help='Track what shuffled data was used and do not repeat, even when killed and resumed', required=False, action='store_true')
     optional_args.add_argument('-quit-if-no-data', help='If no data, quit instead of waiting for data', required=False, action='store_true')
 
+    optional_args.add_argument('-no-lr-warmup', help='Disable LR warmup schedule', required=False, action='store_true')
     optional_args.add_argument('-gnorm-stats-debug', required=False, action='store_true')
 
     optional_args.add_argument('-brenorm-avg-momentum', type=float, help='Set brenorm running avg rate to this value', required=False)
@@ -212,9 +216,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     lookahead_k = args["lookahead_k"]
     lookahead_alpha = args["lookahead_alpha"]
     lookahead_print = args["lookahead_print"]
-
     use_adamw = args["use_adamw"]
-    use_muon = args["use_muon"]
+    use_normuon = args["use_normuon"]
+    use_muon = args["use_muon"] or use_normuon
+    ns_steps = args["ns_steps"]
+    use_polar_express = args["use_polar_express"]
+    if not use_muon:
+        if ns_steps != 5:
+            raise ValueError("-ns-steps can only be used with muon or normuon optimizer")
+        if use_polar_express:
+            raise ValueError("-use-polar-express can only be used with muon or normuon optimizer")
+    optimizer_name = "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
     use_fp16 = args["use_fp16"]
     no_compile = args["no_compile"]
     use_tf32_matmul = args["use_tf32_matmul"]
@@ -235,6 +247,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     quit_if_no_data = args["quit_if_no_data"]
 
     gnorm_stats_debug = args["gnorm_stats_debug"]
+    no_lr_warmup = args["no_lr_warmup"]
 
     brenorm_target_rmax = args["brenorm_target_rmax"]
     brenorm_target_dmax = args["brenorm_target_dmax"]
@@ -625,12 +638,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
                 swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
 
-            metrics_obj = Metrics(batch_size,world_size,raw_model)
+            metrics_obj = Metrics(world_size,raw_model)
             running_metrics = {}
             train_state = {}
             last_val_metrics = {}
 
             train_state["global_step_samples"] = 0
+            train_state["optimizer_name"] = optimizer_name
 
             norms = Metrics.get_model_norms(raw_model)
             modelnorm_normal_baseline = norms["normal"]
@@ -644,9 +658,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
             elif use_muon:
                 if world_size > 1:
-                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw")
+                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
                 else:
-                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw")
+                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
             else:
                 optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
 
@@ -717,7 +731,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 if swa_model_state_dict is not None:
                     swa_model.load_state_dict(swa_model_state_dict)
 
-            metrics_obj = Metrics(batch_size,world_size,raw_model)
+            metrics_obj = Metrics(world_size,raw_model)
             if "metrics" in state_dict:
                 metrics_obj.load_state_dict(state_dict["metrics"])
             else:
@@ -735,20 +749,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 logging.info("WARNING: Running metrics not found in state dict, using fresh last val metrics")
 
-            if use_adamw:
-                optimizer_name = "AdamW"
-            if use_muon:
-                optimizer_name = "Muon"
-            else:
-                optimizer_name = "SGD"
+            # optimizer_name already computed at top level
 
             if use_adamw:
                 optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
             elif use_muon:
                 if world_size > 1:
-                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics))
+                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
                 else:
-                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics))
+                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
             else:
                 optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
             if "optimizer" in state_dict:
@@ -828,6 +837,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"head_lr_factor {head_lr_factor}")
     logging.info(f"noreg_lr_factor {noreg_lr_factor}")
     logging.info(f"muon_adam_lr_factor {muon_adam_lr_factor}")
+    if use_muon:
+        logging.info(f"ns_steps {ns_steps}")
+        logging.info(f"use_polar_express {use_polar_express}")
 
     logging.info(f"Model norm normal baseline: " + str(train_state["modelnorm_normal_baseline"]))
     logging.info(f"Model norm input baseline: " + str(train_state["modelnorm_input_baseline"]))
@@ -862,7 +874,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     def update_and_return_lr_and_wd():
         # Warmup for initial training
         warmup_scale = 1.0
-        if train_state["global_step_samples"] < 250000:
+        if no_lr_warmup:
+            warmup_scale = 1.0
+        elif train_state["global_step_samples"] < 250000:
             warmup_scale = 1.0 / 20.0
         elif train_state["global_step_samples"] < 500000:
             warmup_scale = 1.0 / 14.0
@@ -1425,6 +1439,13 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
+                if normal_weight_decay_right_now > 0 and lr_right_now > 0:
+                    # Time constant in samples for normal group weight decay (samples for params to decay by factor e)
+                    # lr_group = lr_right_now * group_scale * sqrt(B*W/256), and optimizer applies p *= (1 - lr_group * wd) per step
+                    # Each step = B*W samples, so tau_samples = (B*W) / (lr_group * wd) = sqrt(256*B*W) / (2.0 * lr_right_now * wd)
+                    normal_group_scale = 2.0 if use_muon else 1.0
+                    effective_lr_group = lr_right_now * normal_group_scale * math.sqrt(batch_size * world_size / 256.0)
+                    metrics["wdtime_batch"] = (batch_size * world_size) / (effective_lr_group * normal_weight_decay_right_now)
                 metrics["gnorm_cap_batch"] = gnorm_cap
                 metrics["window_start_batch"] = train_state["window_start_data_row_idx"]
                 metrics["window_end_batch"] = train_state["total_num_data_rows"]
@@ -1511,7 +1532,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
-                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 50 == 0:
+                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 20 == 0:
+                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+                if train_state["global_step_samples"] <= 500000000 and batch_count_this_epoch % 200 == 0:
                     lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
 
                 # Update batch renorm parameters

@@ -36,7 +36,7 @@ static void decodeBase64(const string& input, string& output) {
       int extracted = carry >> (numBitsInCarry-8);
       carry -= (extracted << (numBitsInCarry-8));
       numBitsInCarry -= 8;
-      assert(extracted >= 0 && extracted < 256);
+      testAssert(extracted >= 0 && extracted < 256);
       output.push_back((char)extracted);
     }
   }

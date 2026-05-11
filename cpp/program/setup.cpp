@@ -1,6 +1,7 @@
 #include "../program/setup.h"
 
 #include "../core/datetime.h"
+#include "../core/test.h"
 #include "../core/makedir.h"
 #include "../core/fileutils.h"
 #include "../neuralnet/nninterface.h"
@@ -57,7 +58,7 @@ NNEvaluator* Setup::initializeNNEvaluator(
       disableFP16,
       setupFor
     );
-  assert(nnEvals.size() == 1);
+  testAssert(nnEvals.size() == 1);
   return nnEvals[0];
 }
 
@@ -77,8 +78,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   setup_for_t setupFor
 ) {
   vector<NNEvaluator*> nnEvals;
-  assert(nnModelNames.size() == nnModelFiles.size());
-  assert(expectedSha256s.size() == 0 || expectedSha256s.size() == nnModelFiles.size());
+  testAssert(nnModelNames.size() == nnModelFiles.size());
+  testAssert(expectedSha256s.size() == 0 || expectedSha256s.size() == nnModelFiles.size());
 
   #if defined(USE_CUDA_BACKEND)
   string backendPrefix = "cuda";
@@ -1138,7 +1139,7 @@ std::unique_ptr<PatternBonusTable> Setup::loadAndPruneAutoPatternBonusTables(Con
       int maxTurnNumber = getAutoPatternIntParam(cfg,"autoAvoidRepeatMaxTurnNumber",boardXSize,boardYSize,0,1000000);
       size_t maxPoses = getAutoPatternInt64Param(cfg,"autoAvoidRepeatMaxPoses",boardXSize,boardYSize,0,(int64_t)1000000000000LL);
 
-      string logSource = dirPath;
+      const string& logSource = dirPath;
       patternBonusTable->avoidRepeatedPosMovesAndDeleteExcessFiles({baseDir + "/" + dirName},penalty,lambda,minTurnNumber,maxTurnNumber,maxPoses,logger,logSource);
     }
 
