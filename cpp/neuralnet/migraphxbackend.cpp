@@ -5,7 +5,6 @@
 #include "../neuralnet/desc.h"
 #include "../neuralnet/sgfmetadata.h"
 #include "../neuralnet/activations.h"
-#include "../neuralnet/activations.h"
 
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
@@ -45,25 +44,24 @@ using namespace std;
 //------------------------ MIGraphX Backend Documentation ------------------------
 //
 // This is a MIGraphX backend implementation for KataGo.
-// 
+//
 // Current Status:
 // - Full model weight loading from ModelDesc
-// - Complete residual network structure (28 blocks for b28c512nbt)
+// - Complete residual network structure (ordinary, global-pooling, nested-bottleneck blocks)
+// - Full BatchNorm support via multibroadcast
+// - FP16 support (configurable via useFP16Mode)
 // - Input/output tensor handling
 // - Working inference with MIGraphX GPU backend
+// - Disk cache for compiled programs (keyed by model hash, board size, batch size, FP16, MIGraphX version)
 //
 // Known Limitations:
-// - BatchNorm is simplified (skipped) due to MIGraphX broadcast limitations
-// - Global pooling residual blocks use simplified implementation
-// - Value/Score/Ownership heads use simplified projections
-//
-// Future Optimizations:
-// - Implement proper BatchNorm with broadcast
-// - Full global pooling residual block implementation
-// - Complete value head with v2Mul/v3Mul layers
-// - FP16 support for faster inference
+// - No dynamic batch size support (multiple static programs compiled per batch size)
+// - Global pooling assumes full board (requireExactNNLen required for non-full boards)
+// - SGF metadata encoder not supported
 //
 //------------------------ MIGraphX Model Implementation ------------------------
+
+static constexpr int MAX_CHANNELS_SANITY_CHECK = 10000;
 
 struct MIGraphXModel {
     // Multiple compiled programs for different batch sizes
@@ -86,14 +84,7 @@ struct MIGraphXModel {
     int numValueChannels;
     int numScoreValueChannels;
     int numOwnershipChannels;
-    
-    MIGraphXModel()
-        : modelVersion(0), maxBatchSize(1), nnXLen(19), nnYLen(19),
-          useFP16(false), useNHWC(false),
-          numInputChannels(0), numInputGlobalChannels(0), numInputMetaChannels(0),
-          numPolicyChannels(0), numValueChannels(3),
-          numScoreValueChannels(0), numOwnershipChannels(0) {}
-    
+
     // Find the best (smallest sufficient) batch size for the given actual batch
     int getBestBatchSize(int actualBatch) const {
         for(int bs : batchSizes) {
@@ -123,33 +114,42 @@ public:
         migraphx::instruction_ref input,
         const ConvLayerDesc& convDesc
     ) {
-        // Validate dimensions
-        if(convDesc.inChannels <= 0 || convDesc.inChannels > 10000 ||
-           convDesc.outChannels <= 0 || convDesc.outChannels > 10000 ||
-           convDesc.convYSize <= 0 || convDesc.convYSize > 100 ||
-           convDesc.convXSize <= 0 || convDesc.convXSize > 100) {
-            cerr << "ERROR: Conv " << convDesc.name << " has invalid dimensions (in=" << convDesc.inChannels
-                 << ", out=" << convDesc.outChannels << ", ky=" << convDesc.convYSize 
-                 << ", kx=" << convDesc.convXSize << ")" << endl;
-            return input;
-        }
-        
+        // Validate dimensions: KataGo only uses odd-sized kernels (1x1, 3x3, 5x5)
+        if(convDesc.inChannels <= 0 || convDesc.inChannels > MAX_CHANNELS_SANITY_CHECK ||
+           convDesc.outChannels <= 0 || convDesc.outChannels > MAX_CHANNELS_SANITY_CHECK ||
+           convDesc.convYSize <= 0 || convDesc.convYSize > 9 ||
+           convDesc.convXSize <= 0 || convDesc.convXSize > 9)
+            throw StringError(
+                "Conv " + convDesc.name + " has invalid dimensions (in=" + Global::intToString(convDesc.inChannels) +
+                ", out=" + Global::intToString(convDesc.outChannels) +
+                ", ky=" + Global::intToString(convDesc.convYSize) +
+                ", kx=" + Global::intToString(convDesc.convXSize) + ")"
+            );
+        if(convDesc.convYSize % 2 == 0 || convDesc.convXSize % 2 == 0)
+            throw StringError(
+                "Conv " + convDesc.name + " has even kernel size (ky=" + Global::intToString(convDesc.convYSize) +
+                ", kx=" + Global::intToString(convDesc.convXSize) +
+                "); only odd kernel sizes are supported (SAME padding is undefined for even kernels)"
+            );
+
         vector<size_t> wShape = {
             (size_t)convDesc.outChannels,
             (size_t)convDesc.inChannels,
             (size_t)convDesc.convYSize,
             (size_t)convDesc.convXSize
         };
-        size_t expectedWeights = (size_t)convDesc.outChannels * (size_t)convDesc.inChannels 
+        size_t expectedWeights = (size_t)convDesc.outChannels * (size_t)convDesc.inChannels
                                  * (size_t)convDesc.convYSize * (size_t)convDesc.convXSize;
-        
-        if(convDesc.weights.size() != expectedWeights) {
-            cerr << "ERROR: Conv " << convDesc.name << " weights size mismatch: "
-                 << convDesc.weights.size() << " vs expected " << expectedWeights
-                 << " (out=" << convDesc.outChannels << ", in=" << convDesc.inChannels
-                 << ", ky=" << convDesc.convYSize << ", kx=" << convDesc.convXSize << ")" << endl;
-            return input;  // Return input to avoid crash
-        }
+
+        if(convDesc.weights.size() != expectedWeights)
+            throw StringError(
+                "Conv " + convDesc.name + " weights size mismatch: " +
+                Global::uint64ToString(convDesc.weights.size()) + " vs expected " + Global::uint64ToString(expectedWeights) +
+                " (out=" + Global::intToString(convDesc.outChannels) +
+                ", in=" + Global::intToString(convDesc.inChannels) +
+                ", ky=" + Global::intToString(convDesc.convYSize) +
+                ", kx=" + Global::intToString(convDesc.convXSize) + ")"
+            );
         
         auto weights = addLiteral(convDesc.weights, wShape);
         
@@ -176,22 +176,19 @@ public:
         migraphx::instruction_ref input,
         const BatchNormLayerDesc& bnDesc
     ) {
-        // Skip if BN has no channels or invalid weights
-        if(bnDesc.numChannels <= 0 || bnDesc.numChannels > 10000) {
-            cerr << "WARNING: BatchNorm " << bnDesc.name << " has invalid numChannels=" << bnDesc.numChannels 
-                 << ", skipping BN" << endl;
-            return input;
-        }
-        
+        if(bnDesc.numChannels <= 0 || bnDesc.numChannels > MAX_CHANNELS_SANITY_CHECK)
+            throw StringError(
+                "BatchNorm " + bnDesc.name + " has invalid numChannels=" + Global::intToString(bnDesc.numChannels)
+            );
+
         int numChannels = bnDesc.numChannels;
-        
-        // Validate weight sizes match numChannels
-        if(bnDesc.mergedScale.size() != (size_t)numChannels || bnDesc.mergedBias.size() != (size_t)numChannels) {
-            cerr << "WARNING: BatchNorm " << bnDesc.name << " weight size mismatch (C=" << numChannels 
-                 << ", scale=" << bnDesc.mergedScale.size() << ", bias=" << bnDesc.mergedBias.size() 
-                 << "), skipping BN" << endl;
-            return input;
-        }
+
+        if(bnDesc.mergedScale.size() != (size_t)numChannels || bnDesc.mergedBias.size() != (size_t)numChannels)
+            throw StringError(
+                "BatchNorm " + bnDesc.name + " weight size mismatch (C=" + Global::intToString(numChannels) +
+                ", scale=" + Global::uint64ToString(bnDesc.mergedScale.size()) +
+                ", bias=" + Global::uint64ToString(bnDesc.mergedBias.size()) + ")"
+            );
         
         // Create scale and bias literals from mergedScale and mergedBias
         vector<size_t> paramShape = {(size_t)numChannels};
@@ -228,23 +225,22 @@ public:
         const MatMulLayerDesc& matmulDesc,
         const MatBiasLayerDesc* biasDesc = nullptr
     ) {
-        // Validate channel counts
-        if(matmulDesc.inChannels <= 0 || matmulDesc.inChannels > 10000 || 
-           matmulDesc.outChannels <= 0 || matmulDesc.outChannels > 10000) {
-            cerr << "ERROR: MatMul " << matmulDesc.name << " has invalid channels (in=" 
-                 << matmulDesc.inChannels << ", out=" << matmulDesc.outChannels << ")" << endl;
-            return input;
-        }
-        
+        if(matmulDesc.inChannels <= 0 || matmulDesc.inChannels > MAX_CHANNELS_SANITY_CHECK ||
+           matmulDesc.outChannels <= 0 || matmulDesc.outChannels > MAX_CHANNELS_SANITY_CHECK)
+            throw StringError(
+                "MatMul " + matmulDesc.name + " has invalid channels (in=" + Global::intToString(matmulDesc.inChannels) +
+                ", out=" + Global::intToString(matmulDesc.outChannels) + ")"
+            );
+
         vector<size_t> wShape = {(size_t)matmulDesc.inChannels, (size_t)matmulDesc.outChannels};
         size_t expectedWeights = (size_t)matmulDesc.inChannels * (size_t)matmulDesc.outChannels;
-        if(matmulDesc.weights.size() != expectedWeights) {
-            cerr << "ERROR: MatMul " << matmulDesc.name << " weights size mismatch: " 
-                 << matmulDesc.weights.size() << " vs expected " << expectedWeights 
-                 << " (in=" << matmulDesc.inChannels << ", out=" << matmulDesc.outChannels << ")" << endl;
-            // Return input to avoid crash (this will break the model but prevent segfault)
-            return input;
-        }
+        if(matmulDesc.weights.size() != expectedWeights)
+            throw StringError(
+                "MatMul " + matmulDesc.name + " weights size mismatch: " +
+                Global::uint64ToString(matmulDesc.weights.size()) + " vs expected " + Global::uint64ToString(expectedWeights) +
+                " (in=" + Global::intToString(matmulDesc.inChannels) +
+                ", out=" + Global::intToString(matmulDesc.outChannels) + ")"
+            );
         auto weights = addLiteral(matmulDesc.weights, wShape);
         
         auto matmul = main_module->add_instruction(migraphx::make_op("dot"), input, weights);
@@ -291,33 +287,40 @@ public:
         return main_module->add_instruction(migraphx::make_op("relu"), input);
     }
     
-    // Mish activation: x * tanh(softplus(x)) = x * tanh(log(1 + exp(x)))
+    // Mish activation: x * tanh(softplus(x))
+    // Uses numerically stable softplus: max(x,0) + log1p(exp(-|x|))
+    // This avoids exp overflow for large positive x (since -|x| <= 0 so exp(-|x|) <= 1)
     migraphx::instruction_ref addMish(migraphx::instruction_ref input) {
         auto inputLens = input->get_shape().lens();
-        // softplus(x) = log(1 + exp(x))
-        auto exp_x = main_module->add_instruction(migraphx::make_op("exp"), input);
+        // softplus(x) = max(x,0) + log(1 + exp(-|x|))  — numerically stable for all x
+        auto abs_x = main_module->add_instruction(migraphx::make_op("abs"), input);
+        auto neg_abs_x = main_module->add_instruction(migraphx::make_op("neg"), abs_x);
+        auto exp_neg_abs = main_module->add_instruction(migraphx::make_op("exp"), neg_abs_x);
         auto ones = broadcastScalar(1.0f, inputLens);
-        auto one_plus_exp = main_module->add_instruction(migraphx::make_op("add"), exp_x, ones);
-        auto softplus = main_module->add_instruction(migraphx::make_op("log"), one_plus_exp);
+        auto one_plus_exp_neg_abs = main_module->add_instruction(migraphx::make_op("add"), exp_neg_abs, ones);
+        auto log_part = main_module->add_instruction(migraphx::make_op("log"), one_plus_exp_neg_abs);
+        auto relu_x = main_module->add_instruction(migraphx::make_op("relu"), input);
+        auto softplus = main_module->add_instruction(migraphx::make_op("add"), relu_x, log_part);
         auto tanh_sp = main_module->add_instruction(migraphx::make_op("tanh"), softplus);
         return main_module->add_instruction(migraphx::make_op("mul"), input, tanh_sp);
     }
-    
-    // Mish-scale8 activation: x * tanh(softplus(clamp(8x, -, 30)))
-    // For x >= 2.5: tanh(softplus(20+)) ≈ 1, so result ≈ x (identity)
-    // For x < 2.5: standard mish with 8x scaling of softplus argument
+
+    // Mish-scale8 activation: x * tanh(softplus(8x))
+    // Uses numerically stable softplus: max(8x,0) + log1p(exp(-|8x|))
+    // Safe for both FP32 and FP16 since exp argument is always <= 0.
     migraphx::instruction_ref addMishScale8(migraphx::instruction_ref input) {
         auto inputLens = input->get_shape().lens();
-        // scaled = 8 * x, clamped to max 30 to prevent exp overflow
         auto eight = broadcastScalar(8.0f, inputLens);
         auto scaled = main_module->add_instruction(migraphx::make_op("mul"), input, eight);
-        auto thirty = broadcastScalar(30.0f, inputLens);
-        scaled = main_module->add_instruction(migraphx::make_op("min"), scaled, thirty);
-        // softplus(scaled) = log(1 + exp(scaled))
-        auto exp_s = main_module->add_instruction(migraphx::make_op("exp"), scaled);
+        // softplus(scaled) = max(scaled,0) + log(1 + exp(-|scaled|))  — numerically stable
+        auto abs_scaled = main_module->add_instruction(migraphx::make_op("abs"), scaled);
+        auto neg_abs_scaled = main_module->add_instruction(migraphx::make_op("neg"), abs_scaled);
+        auto exp_neg_abs = main_module->add_instruction(migraphx::make_op("exp"), neg_abs_scaled);
         auto ones = broadcastScalar(1.0f, inputLens);
-        auto one_plus_exp = main_module->add_instruction(migraphx::make_op("add"), exp_s, ones);
-        auto softplus = main_module->add_instruction(migraphx::make_op("log"), one_plus_exp);
+        auto one_plus_exp = main_module->add_instruction(migraphx::make_op("add"), exp_neg_abs, ones);
+        auto log_part = main_module->add_instruction(migraphx::make_op("log"), one_plus_exp);
+        auto relu_scaled = main_module->add_instruction(migraphx::make_op("relu"), scaled);
+        auto softplus = main_module->add_instruction(migraphx::make_op("add"), relu_scaled, log_part);
         auto tanh_sp = main_module->add_instruction(migraphx::make_op("tanh"), softplus);
         return main_module->add_instruction(migraphx::make_op("mul"), input, tanh_sp);
     }
@@ -503,13 +506,6 @@ static migraphx::instruction_ref buildResidualBlock(
     return builder.main_module->add_instruction(migraphx::make_op("add"), x, residual);
 }
 
-// Forward declarations
-static migraphx::instruction_ref buildResidualBlock(
-    MIGraphXGraphBuilder& builder,
-    migraphx::instruction_ref input,
-    const ResidualBlockDesc& blockDesc
-);
-
 static migraphx::instruction_ref buildGlobalPoolingResidualBlock(
     MIGraphXGraphBuilder& builder,
     migraphx::instruction_ref input,
@@ -658,8 +654,8 @@ static migraphx::program buildMIGraphXProgram(
     auto inputSpatial = main_module->add_parameter("input_spatial", migraphx::shape(migraphx::shape::float_type, inputShape));
     auto inputGlobal = main_module->add_parameter("input_global", migraphx::shape(migraphx::shape::float_type, inputGlobalShape));
     
-    // MIGraphX backend uses NCHW format only
-    (void)useNHWC;  // Silently ignore NHWC setting
+    if(useNHWC)
+        throw StringError("MIGraphX backend: useNHWC = false required, NHWC format is not supported");
     
     MIGraphXGraphBuilder builder(main_module, dataType, maxBatchSize, nnXLen, nnYLen);
     
@@ -674,16 +670,16 @@ static migraphx::program buildMIGraphXProgram(
     const TrunkDesc& trunkDesc = modelDesc.trunk;
     
     // Initial conv
-    if(trunkDesc.initialConv.outChannels > 0 && trunkDesc.initialConv.inChannels == numSpatialFeatures) {
-        trunk = builder.addConv(trunk, trunkDesc.initialConv);
-    } else if(trunkDesc.initialConv.outChannels > 0) {
-        cout << "MIGraphX: Skipping initialConv (input channel mismatch)" << endl;
-    }
-    
+    if(trunkDesc.initialConv.inChannels != numSpatialFeatures)
+        throw StringError(
+            "MIGraphX: initialConv input channels mismatch: expected " + Global::intToString(numSpatialFeatures) +
+            " but got " + Global::intToString(trunkDesc.initialConv.inChannels)
+        );
+    trunk = builder.addConv(trunk, trunkDesc.initialConv);
+
     // Initial MatMul for global features
-    if(trunkDesc.initialMatMul.outChannels > 0) {
+    {
         auto globalProcessed = builder.addMatMul(inputGlobal, trunkDesc.initialMatMul);
-        // Broadcast global features from [N, C] to spatial dimensions [N, C, H, W]
         auto trunkShape = trunk->get_shape().lens();
         auto globalUnsqueezed = main_module->add_instruction(
             migraphx::make_op("unsqueeze", {{"axes", migraphx::value(vector<int64_t>{2, 3})}}), globalProcessed);
@@ -691,12 +687,13 @@ static migraphx::program buildMIGraphXProgram(
             migraphx::make_op("multibroadcast", {{"out_lens", trunkShape}}), globalUnsqueezed);
         trunk = main_module->add_instruction(migraphx::make_op("add"), trunk, globalBroadcast);
     }
-    
-    // SGF Metadata encoder (if enabled) - disabled for now due to potential weight shape issues
-    if(trunkDesc.metaEncoderVersion > 0 && numMetaFeatures > 0) {
-        // Skip SGF metadata encoder for now
-        cout << "MIGraphX: SGF Metadata encoder disabled" << endl;
-    }
+
+    // SGF Metadata encoder is not supported
+    if(trunkDesc.metaEncoderVersion > 0 && numMetaFeatures > 0)
+        throw StringError(
+            "MIGraphX backend does not support SGF metadata encoder (metaEncoderVersion=" +
+            Global::intToString(trunkDesc.metaEncoderVersion) + ")"
+        );
     
     // Residual blocks using the stack builder
     trunk = buildResidualBlockStack(builder, trunk, trunkDesc.blocks, "trunk");
@@ -708,60 +705,41 @@ static migraphx::program buildMIGraphXProgram(
     // ======== Policy Head ========
     const PolicyHeadDesc& policyDesc = modelDesc.policyHead;
     
-    migraphx::instruction_ref policy = trunk;
-    migraphx::instruction_ref policyPass = trunk; // will be overwritten
-    
-    if(policyDesc.p1Conv.outChannels > 0) {
-        // p1Conv branch (spatial policy)
-        auto p1Conv = builder.addConv(trunk, policyDesc.p1Conv);
-        
-        // g1Conv branch for global pooling
-        auto g1Conv = builder.addConv(trunk, policyDesc.g1Conv);
-        g1Conv = builder.addBatchNorm(g1Conv, policyDesc.g1BN);
-        g1Conv = builder.addActivation(g1Conv, policyDesc.g1Activation.activation);
-        
-        // Global pool: [batch, g1C, H, W] -> [batch, g1C*3]
-        auto gpool = builder.addGPool(g1Conv, false);
-        
-        // gpoolToBiasMul: [batch, g1C*3] -> [batch, p1C] bias
-        auto gpoolBias = builder.addMatMul(gpool, policyDesc.gpoolToBiasMul);
-        
-        // Broadcast bias and add to p1Conv
-        auto p1Shape = p1Conv->get_shape().lens();
-        auto biasUnsqueezed = main_module->add_instruction(
-            migraphx::make_op("unsqueeze", {{"axes", migraphx::value(vector<int64_t>{2, 3})}}), gpoolBias);
-        auto biasBroadcast = main_module->add_instruction(
-            migraphx::make_op("multibroadcast", {{"out_lens", p1Shape}}), biasUnsqueezed);
-        policy = main_module->add_instruction(migraphx::make_op("add"), p1Conv, biasBroadcast);
-        
-        policy = builder.addBatchNorm(policy, policyDesc.p1BN);
-        policy = builder.addActivation(policy, policyDesc.p1Activation.activation);
-        
-        // p2Conv -> spatial policy logits
-        if(policyDesc.p2Conv.outChannels > 0) {
-            policy = builder.addConv(policy, policyDesc.p2Conv);
-        }
-        
-        // Flatten spatial policy: [batch, numPolicyChannels, H, W] -> [batch, numPolicyChannels*H*W]
-        policy = builder.addFlatten(policy);
-        
-        // Pass policy (separate path from spatial, uses same gpool)
-        // gpoolToPassMul: [batch, g1C*3] -> passHidden
-        policyPass = builder.addMatMul(gpool, policyDesc.gpoolToPassMul, &policyDesc.gpoolToPassBias);
-        policyPass = builder.addActivation(policyPass, policyDesc.passActivation.activation);
-        
-        // gpoolToPassMul2: passHidden -> [batch, numPolicyChannels] (for modelVersion >= 15)
-        if(policyDesc.gpoolToPassMul2.outChannels > 0) {
-            policyPass = builder.addMatMul(policyPass, policyDesc.gpoolToPassMul2);
-        }
-    } else {
-        policy = builder.addFlatten(trunk);
-        // Zero pass policy fallback
-        vector<float> zeroPass(modelDesc.numPolicyChannels, 0.0f);
-        policyPass = builder.addLiteral(zeroPass, {1, (size_t)modelDesc.numPolicyChannels});
-        policyPass = main_module->add_instruction(
-            migraphx::make_op("multibroadcast", {{"out_lens", vector<size_t>{(size_t)maxBatchSize, (size_t)modelDesc.numPolicyChannels}}}), policyPass);
-    }
+    if(policyDesc.p1Conv.outChannels <= 0)
+        throw StringError("MIGraphX: policy head p1Conv has no output channels");
+
+    // p1Conv branch (spatial policy)
+    auto p1Conv = builder.addConv(trunk, policyDesc.p1Conv);
+
+    // g1Conv branch for global pooling
+    auto g1Conv = builder.addConv(trunk, policyDesc.g1Conv);
+    g1Conv = builder.addBatchNorm(g1Conv, policyDesc.g1BN);
+    g1Conv = builder.addActivation(g1Conv, policyDesc.g1Activation.activation);
+
+    // Global pool: [batch, g1C, H, W] -> [batch, g1C*3]
+    auto gpool = builder.addGPool(g1Conv, false);
+
+    // gpoolToBiasMul: [batch, g1C*3] -> [batch, p1C] bias
+    auto gpoolBias = builder.addMatMul(gpool, policyDesc.gpoolToBiasMul);
+
+    // Broadcast bias and add to p1Conv
+    auto p1Shape = p1Conv->get_shape().lens();
+    auto biasUnsqueezed = main_module->add_instruction(
+        migraphx::make_op("unsqueeze", {{"axes", migraphx::value(vector<int64_t>{2, 3})}}), gpoolBias);
+    auto biasBroadcast = main_module->add_instruction(
+        migraphx::make_op("multibroadcast", {{"out_lens", p1Shape}}), biasUnsqueezed);
+    auto policy = main_module->add_instruction(migraphx::make_op("add"), p1Conv, biasBroadcast);
+
+    policy = builder.addBatchNorm(policy, policyDesc.p1BN);
+    policy = builder.addActivation(policy, policyDesc.p1Activation.activation);
+    policy = builder.addConv(policy, policyDesc.p2Conv);
+    policy = builder.addFlatten(policy);
+
+    // Pass policy path
+    auto policyPass = builder.addMatMul(gpool, policyDesc.gpoolToPassMul, &policyDesc.gpoolToPassBias);
+    policyPass = builder.addActivation(policyPass, policyDesc.passActivation.activation);
+    if(policyDesc.gpoolToPassMul2.outChannels > 0)
+        policyPass = builder.addMatMul(policyPass, policyDesc.gpoolToPassMul2);
     
     // ======== Value Head ========
     const ValueHeadDesc& valueDesc = modelDesc.valueHead;
@@ -786,12 +764,7 @@ static migraphx::program buildMIGraphXProgram(
     // Score value branch: same v2 -> sv3Mul + sv3Bias
     auto scoreValue = builder.addMatMul(v2, valueDesc.sv3Mul, &valueDesc.sv3Bias);
     
-    // Set outputs: policy, policyPass, value, scoreValue, ownership
-    if(modelDesc.modelVersion >= 2) {
-        main_module->add_return({policy, policyPass, valueOut, scoreValue, ownership});
-    } else {
-        main_module->add_return({policy, valueOut});
-    }
+    main_module->add_return({policy, policyPass, valueOut, scoreValue, ownership});
     
     return prog;
 }
@@ -965,16 +938,21 @@ static string getCacheFilePath(
     // Create directory if not exists
     MakeDir::make(cacheDir);
     
-    // Generate unique cache key based on model and parameters
+    // Cache key includes MIGraphX version to invalidate when the compiler changes
+#if defined(MIGRAPHX_VERSION_MAJOR) && defined(MIGRAPHX_VERSION_MINOR) && defined(MIGRAPHX_VERSION_PATCH)
+    string migraphxVersionStr = Global::strprintf("%d_%d_%d", MIGRAPHX_VERSION_MAJOR, MIGRAPHX_VERSION_MINOR, MIGRAPHX_VERSION_PATCH);
+#else
+    string migraphxVersionStr = "unknown";
+#endif
     string cacheKey = Global::strprintf(
-        "migraphx_%s_%s_%dx%d_batch%d_fp%d_nhwc%d_%s",
+        "migraphx%s_%s_%s_%dx%d_batch%d_fp%d_%s",
+        migraphxVersionStr.c_str(),
         modelDesc.name.c_str(),
         modelDesc.sha256.substr(0, 16).c_str(),
         nnYLen,
         nnXLen,
         maxBatchSize,
         useFP16 ? 1 : 0,
-        useNHWC ? 1 : 0,
         requireExactNNLen ? "exact" : "max"
     );
     
@@ -1006,21 +984,20 @@ ComputeHandle* createComputeHandle(
     
     bool useFP16 = (ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto);
     bool useNHWC = (ctx->useNHWCMode == enabled_t::True);
-    
-    // MIGraphX backend only supports NCHW format
-    if(useNHWC) {
-        cout << "MIGraphX: WARNING: NHWC format is not supported, forcing NCHW" << endl;
-        useNHWC = false;
-    }
-    
+
+    if(useNHWC)
+        throw StringError("MIGraphX backend: useNHWC = false required, NHWC format is not supported");
+    if(inputsUseNHWC)
+        throw StringError("MIGraphX backend: inputsUseNHWC = false required, NHWC format is not supported");
+
     handle->model = make_unique<MIGraphXModel>();
     handle->model->modelVersion = model->modelDesc.modelVersion;
     handle->model->maxBatchSize = maxBatchSize;
     handle->model->nnXLen = ctx->nnXLen;
     handle->model->nnYLen = ctx->nnYLen;
     handle->model->useFP16 = useFP16;
-    handle->model->useNHWC = false;  // Always NCHW
-    
+    handle->model->useNHWC = false;
+
     handle->model->numInputChannels = model->modelDesc.numInputChannels;
     handle->model->numInputGlobalChannels = model->modelDesc.numInputGlobalChannels;
     handle->model->numInputMetaChannels = model->modelDesc.numInputMetaChannels;
@@ -1028,16 +1005,14 @@ ComputeHandle* createComputeHandle(
     handle->model->numValueChannels = model->modelDesc.numValueChannels;
     handle->model->numScoreValueChannels = model->modelDesc.numScoreValueChannels;
     handle->model->numOwnershipChannels = model->modelDesc.numOwnershipChannels;
-    
-    // Generate batch sizes to compile
+
     vector<int> batchSizesToCompile = generateBatchSizes(maxBatchSize);
     handle->model->batchSizes = batchSizesToCompile;
     handle->model->tgt = migraphx::make_target("gpu");
-    
+
     lock_guard<mutex> cacheLock(migraphxCacheMutex);
-    
+
     for(int bs : batchSizesToCompile) {
-        // Generate cache file path for this batch size
         string cacheFile = getCacheFilePath(
             ctx->homeDataDir,
             model->modelDesc,
@@ -1048,38 +1023,35 @@ ComputeHandle* createComputeHandle(
             useNHWC,
             requireExactNNLen
         );
-        
+
         bool cacheLoaded = false;
-        
-        // Try to load from cache
+
         if(FileUtils::exists(cacheFile)) {
             try {
-                if(logger) {
+                if(logger)
                     logger->write("MIGraphX: Loading compiled program from cache (batch " + Global::intToString(bs) + "): " + cacheFile);
-                }
-                cout << "MIGraphX: Loading batch " << bs << " from cache..." << endl;
-                
                 handle->model->progs[bs] = migraphx::load(cacheFile);
                 cacheLoaded = true;
-                
-                cout << "MIGraphX: Batch " << bs << " loaded! (FP16: " << (useFP16 ? "yes" : "no") << ")" << endl;
+                if(logger)
+                    logger->write("MIGraphX: Batch " + Global::intToString(bs) + " loaded from cache (FP16: " + string(useFP16 ? "yes" : "no") + ")");
             } catch(const exception& e) {
-                if(logger) {
-                    logger->write(string("MIGraphX: Cache load failed for batch ") + Global::intToString(bs) + ": " + e.what());
-                }
-                cout << "MIGraphX: Cache load failed for batch " << bs << ", rebuilding..." << endl;
+                if(logger)
+                    logger->write("MIGraphX: Cache load failed for batch " + Global::intToString(bs) + ": " + e.what() + " — rebuilding");
             }
         }
-        
+
         if(!cacheLoaded) {
-            cout << "MIGraphX: Building model (version " << model->modelDesc.modelVersion << ")..." << endl;
-            cout << "  Board size: " << ctx->nnXLen << "x" << ctx->nnYLen << endl;
-            cout << "  Batch size: " << bs << endl;
-            cout << "  FP16: " << (useFP16 ? "yes" : "no") << endl;
-            cout << "  NHWC: " << (useNHWC ? "yes" : "no") << endl;
-            cout << "  Trunk channels: " << model->modelDesc.trunk.trunkNumChannels << endl;
-            cout << "  Num blocks: " << model->modelDesc.trunk.numBlocks << endl;
-            
+            if(logger) {
+                logger->write(
+                    "MIGraphX: Building model (version " + Global::intToString(model->modelDesc.modelVersion) + ")"
+                    " board=" + Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) +
+                    " batch=" + Global::intToString(bs) +
+                    " fp16=" + string(useFP16 ? "yes" : "no") +
+                    " trunk_ch=" + Global::intToString(model->modelDesc.trunk.trunkNumChannels) +
+                    " blocks=" + Global::intToString(model->modelDesc.trunk.numBlocks)
+                );
+            }
+
             handle->model->progs[bs] = buildMIGraphXProgram(
                 model->modelDesc,
                 bs,
@@ -1088,38 +1060,39 @@ ComputeHandle* createComputeHandle(
                 useFP16,
                 useNHWC
             );
-            
-            cout << "MIGraphX: Compiling batch " << bs << "..." << endl;
+
+            if(logger)
+                logger->write("MIGraphX: Compiling batch " + Global::intToString(bs) + "...");
             migraphx::compile_options compile_opts;
             compile_opts.offload_copy = true;
-            
             handle->model->progs[bs].compile(handle->model->tgt, compile_opts);
-            
-            cout << "MIGraphX: Batch " << bs << " compiled!" << endl;
-            
-            // Save to cache
+            if(logger)
+                logger->write("MIGraphX: Batch " + Global::intToString(bs) + " compiled");
+
+            // Save to cache using a temp file + atomic rename to avoid corruption from concurrent writes
             try {
-                if(logger) {
-                    logger->write("MIGraphX: Saving compiled program to cache (batch " + Global::intToString(bs) + "): " + cacheFile);
-                }
-                migraphx::save(handle->model->progs[bs], cacheFile);
-                cout << "MIGraphX: Batch " << bs << " cached!" << endl;
+                string tmpFile = cacheFile + ".tmp";
+                migraphx::save(handle->model->progs[bs], tmpFile);
+                if(std::rename(tmpFile.c_str(), cacheFile.c_str()) != 0)
+                    throw StringError("rename failed");
+                if(logger)
+                    logger->write("MIGraphX: Saved compiled program to cache: " + cacheFile);
             } catch(const exception& e) {
-                if(logger) {
-                    logger->write(string("MIGraphX: Cache save failed: ") + e.what());
-                }
-                cout << "MIGraphX: Cache save failed: " << e.what() << endl;
+                if(logger)
+                    logger->write("MIGraphX: Cache save failed (non-fatal): " + string(e.what()));
             }
         }
     }
-    
-    cout << "MIGraphX: All " << batchSizesToCompile.size() << " batch sizes ready: ";
-    for(size_t i = 0; i < batchSizesToCompile.size(); i++) {
-        if(i > 0) cout << ", ";
-        cout << batchSizesToCompile[i];
+
+    if(logger) {
+        string batchList;
+        for(size_t i = 0; i < batchSizesToCompile.size(); i++) {
+            if(i > 0) batchList += ", ";
+            batchList += Global::intToString(batchSizesToCompile[i]);
+        }
+        logger->write("MIGraphX: All " + Global::uint64ToString(batchSizesToCompile.size()) + " batch sizes ready: " + batchList);
     }
-    cout << endl;
-    
+
     return reinterpret_cast<ComputeHandle*>(handle);
 }
 
@@ -1281,62 +1254,36 @@ void getOutput(
         });
     }
     
-    if(modelVersion >= 2) {
-        // Policy pass: [maxBatchSize, numPolicyChannels]
-        if(results.size() > 1) {
-            results[1].visit([&](auto output) {
-                for(int row = 0; row < batchSize; row++) {
-                    for(int i = 0; i < numPolicyChannels; i++) {
-                        buffers->policyPassResults[row * numPolicyChannels + i] = static_cast<float>(output[row * numPolicyChannels + i]);
-                    }
-                }
-            });
+    // Output order: policy[0], policyPass[1], value[2], scoreValue[3], ownership[4]
+    assert(results.size() >= 5);
+    results[1].visit([&](auto output) {
+        for(int row = 0; row < batchSize; row++) {
+            for(int i = 0; i < numPolicyChannels; i++) {
+                buffers->policyPassResults[row * numPolicyChannels + i] = static_cast<float>(output[row * numPolicyChannels + i]);
+            }
         }
-        
-        // Value: [maxBatchSize, numValueChannels]
-        if(results.size() > 2) {
-            results[2].visit([&](auto output) {
-                for(int row = 0; row < batchSize; row++) {
-                    for(int i = 0; i < numValueChannels; i++) {
-                        buffers->valueResults[row * numValueChannels + i] = static_cast<float>(output[row * numValueChannels + i]);
-                    }
-                }
-            });
+    });
+    results[2].visit([&](auto output) {
+        for(int row = 0; row < batchSize; row++) {
+            for(int i = 0; i < numValueChannels; i++) {
+                buffers->valueResults[row * numValueChannels + i] = static_cast<float>(output[row * numValueChannels + i]);
+            }
         }
-        
-        // Score value: [maxBatchSize, numScoreValueChannels]
-        if(results.size() > 3) {
-            results[3].visit([&](auto output) {
-                for(int row = 0; row < batchSize; row++) {
-                    for(int i = 0; i < numScoreValueChannels; i++) {
-                        buffers->scoreValueResults[row * numScoreValueChannels + i] = static_cast<float>(output[row * numScoreValueChannels + i]);
-                    }
-                }
-            });
+    });
+    results[3].visit([&](auto output) {
+        for(int row = 0; row < batchSize; row++) {
+            for(int i = 0; i < numScoreValueChannels; i++) {
+                buffers->scoreValueResults[row * numScoreValueChannels + i] = static_cast<float>(output[row * numScoreValueChannels + i]);
+            }
         }
-        
-        // Ownership: [maxBatchSize, H * W]
-        if(results.size() > 4) {
-            results[4].visit([&](auto output) {
-                for(int row = 0; row < batchSize; row++) {
-                    for(size_t i = 0; i < ownershipSize; i++) {
-                        buffers->ownershipResults[row * ownershipSize + i] = static_cast<float>(output[row * ownershipSize + i]);
-                    }
-                }
-            });
+    });
+    results[4].visit([&](auto output) {
+        for(int row = 0; row < batchSize; row++) {
+            for(size_t i = 0; i < ownershipSize; i++) {
+                buffers->ownershipResults[row * ownershipSize + i] = static_cast<float>(output[row * ownershipSize + i]);
+            }
         }
-    } else {
-        // Value: [maxBatchSize, numValueChannels]
-        if(results.size() > 1) {
-            results[1].visit([&](auto output) {
-                for(int row = 0; row < batchSize; row++) {
-                    for(int i = 0; i < numValueChannels; i++) {
-                        buffers->valueResults[row * numValueChannels + i] = static_cast<float>(output[row * numValueChannels + i]);
-                    }
-                }
-            });
-        }
-    }
+    });
     
     // Process outputs per row
     assert(outputs.size() == (size_t)batchSize);
@@ -1415,12 +1362,7 @@ void getOutput(
             output->shorttermWinlossError = 0.0f;
             output->shorttermScoreError = 0.0f;
         } else {
-            output->whiteScoreMean = 0.0f;
-            output->whiteScoreMeanSq = 1.0f;
-            output->whiteLead = 0.0f;
-            output->varTimeLeft = 0.0f;
-            output->shorttermWinlossError = 0.0f;
-            output->shorttermScoreError = 0.0f;
+            ASSERT_UNREACHABLE;
         }
         
         output->policyOptimismUsed = policyOptimism;

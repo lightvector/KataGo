@@ -289,6 +289,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-trt";
 #elif defined(USE_ROCM_BACKEND)
   s += "-rocm";
+#elif defined(USE_MIGRAPHX_BACKEND)
+  s += "-migraphx";
 #elif defined(USE_METAL_BACKEND)
   s += "-metal";
 #elif defined(USE_OPENCL_BACKEND)
