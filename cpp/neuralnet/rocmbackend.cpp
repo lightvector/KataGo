@@ -2365,6 +2365,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool useNHWC = false;
   if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::Auto)
     useFP16 = true;
+  if(context->useNHWCMode == enabled_t::True)
+    throw StringError("ROCm backend: useNHWC = false required, internal NHWC computation is not supported (inputsUseNHWC for input format is still accepted)");
 
   if(logger != NULL) {
     logger->write(
