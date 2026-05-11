@@ -154,7 +154,7 @@ static string addMergedBNNode(
 }
 
 // =====================================================================
-// Activation: ReLU, Mish (softplus->tanh->mul), or Identity
+// Activation: ReLU, Mish (softplus->tanh->mul), Identity, or error
 // =====================================================================
 static string addActivationNode(
   onnx::GraphProto* graph,
@@ -168,7 +168,7 @@ static string addActivationNode(
     addNode(graph, "Relu", {input}, output);
     return output;
   } else if(activationType == ACTIVATION_MISH) {
-    // Mish = x * tanh(softplus(x)) = x * tanh(ln(1 + exp(x)))
+    // Mish = x * tanh(softplus(x)). Uses ONNX built-in Softplus which is numerically stable.
     string sp = uniqueName(nameCounter, prefix + "/softplus");
     addNode(graph, "Softplus", {input}, sp);
 
@@ -178,9 +178,12 @@ static string addActivationNode(
     string output = uniqueName(nameCounter, prefix + "/mish");
     addNode(graph, "Mul", {input, th}, output);
     return output;
-  } else {
-    // ACTIVATION_IDENTITY -- pass through
+  } else if(activationType == ACTIVATION_MISH_SCALE8) {
+    throw StringError("ONNX backend: ACTIVATION_MISH_SCALE8 is not yet supported in the ONNX model builder");
+  } else if(activationType == ACTIVATION_IDENTITY) {
     return input;
+  } else {
+    throw StringError("ONNX backend: unknown activation type " + to_string(activationType));
   }
 }
 

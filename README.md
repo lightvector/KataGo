@@ -142,6 +142,8 @@ path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz -config path/to/gtp_cus
 
 #### ONNX/OpenVINO Intel NPU Quick Start (Windows)
 
+> **Note on raw `.onnx` files and model version:** When loading a raw `.onnx` model (not a KataGo `.bin.gz`), the backend auto-detects the model version from output tensor shapes. This heuristic is usually correct for standard KataGo models, but may misdetect the version for unusual configurations, causing incorrect score or ownership outputs without any error. If results look wrong, add `onnxModelVersion = <N>` (e.g. `onnxModelVersion = 15`) to your GTP config to force the correct version. Standard `.bin.gz` KataGo models are unaffected — the version is always read from the file directly.
+
 If you want to use ONNX Runtime + OpenVINO on Intel NPU:
 * Install Intel NPU driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
 * Install OpenVINO archive package (Windows): https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-archive-windows.html
@@ -164,6 +166,8 @@ If you don't prepare config file, then use -override-config args, like:
 ```
 
 #### ONNX/OpenVINO Intel NPU Quick Start (Linux)
+
+> **Note on raw `.onnx` files and model version:** Same as above for Windows — if using a raw `.onnx` model and results look wrong, add `onnxModelVersion = <N>` to your config. Standard `.bin.gz` models are unaffected.
 
 If you want to use ONNX Runtime + OpenVINO on Intel NPU:
 * Install Intel NPU driver (Linux): https://github.com/intel/linux-npu-driver

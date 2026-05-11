@@ -33,8 +33,13 @@ using namespace std;
 //   - 6 score-value channels, 1 policy channel  -> version 10
 //   - 6 score-value channels, 2 policy channels -> version 15
 //
-// If the heuristic picks the wrong version, set the `onnxModelVersion` config
-// key to the correct value (>= 0) to override auto-detection.
+// IMPORTANT: This heuristic may misdetect the version for unusual model
+// configurations. A wrong version causes silent score-output mismatch (e.g.
+// whiteLead or varTimeLeft filled from wrong buffer offsets). If inference
+// results look wrong, override the detected version by adding
+//   onnxModelVersion = <correct_version>
+// to your GTP config, or via -override-config onnxModelVersion=<N>.
+// Standard .bin.gz KataGo models do NOT need this — version is read from the file.
 static int detectModelVersion(
   int numInputChannels, int numInputGlobalChannels,
   int numPolicyChannels, int numScoreValueChannels,
@@ -125,8 +130,11 @@ struct LoadedModel {
         else
           numInputMetaChannels = (int)shape[1];
       } else {
-        cerr << "ONNX backend warning: unrecognized input tensor '" << name
-             << "' with " << shape.size() << "D shape, ignoring" << "\n";
+        throw StringError(
+          "ONNX backend: unrecognized input tensor '" + name +
+          "' with " + Global::intToString((int)shape.size()) + "D shape — "
+          "expected tensors named 'spatial', 'global', or 'meta' (2D or 4D)"
+        );
       }
     }
 
@@ -487,6 +495,8 @@ ComputeContext* NeuralNet::createComputeContext(
   (void)gpuIdxs;
   (void)homeDataDirOverride;
   (void)openCLReTunePerBoardSize;
+  // useFP16Mode and useNHWCMode are intentionally ignored: ONNX Runtime handles precision
+  // and data layout internally per execution provider (e.g. NPU/CUDA decide FP16 themselves).
   (void)useFP16Mode;
   (void)useNHWCMode;
   (void)loadedModel;
@@ -561,7 +571,11 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
+  // maxBatchSize is intentionally ignored: ONNX Runtime sessions support dynamic batch sizes.
+  // The InputBuffers maxBatchSize field still enforces the upper bound at inference time.
   (void)maxBatchSize;
+  // requireExactNNLen is intentionally ignored: ONNX Runtime handles dynamic board shapes
+  // transparently. The session will accept any board size up to the configured nnXLen x nnYLen.
   (void)requireExactNNLen;
   if(inputsUseNHWC)
     throw StringError("ONNX backend: inputsUseNHWC = true not supported, must use NCHW");
