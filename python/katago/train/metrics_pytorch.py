@@ -22,8 +22,7 @@ def constant_like(data, other_tensor):
     return torch.tensor(data, dtype=other_tensor.dtype, device=other_tensor.device, requires_grad=False)
 
 class Metrics:
-    def __init__(self, batch_size: int, world_size: int, raw_model: Model):
-        self.n = batch_size
+    def __init__(self, world_size: int, raw_model: Model):
         self.world_size = world_size
         self.pos_len = raw_model.pos_len
         self.pos_area = raw_model.pos_len * raw_model.pos_len
@@ -53,23 +52,24 @@ class Metrics:
         self.moving_unowned_proportion_weight = state_dict["moving_unowned_proportion_weight"]
 
     def loss_policy_player_samplewise(self, pred_logits, target_probs, weight, global_weight):
-        assert pred_logits.shape == (self.n, self.policy_len)
-        assert target_probs.shape == (self.n, self.policy_len)
+        assert pred_logits.shape[1:] == (self.policy_len,)
+        assert target_probs.shape == pred_logits.shape
         loss = cross_entropy(pred_logits, target_probs, dim=1)
         return global_weight * weight * loss
 
     def loss_policy_opponent_samplewise(self, pred_logits, target_probs, weight, global_weight):
-        assert pred_logits.shape == (self.n, self.policy_len)
-        assert target_probs.shape == (self.n, self.policy_len)
+        assert pred_logits.shape[1:] == (self.policy_len,)
+        assert target_probs.shape == pred_logits.shape
         loss = cross_entropy(pred_logits, target_probs, dim=1)
         return 0.15 * global_weight * weight * loss
 
     def loss_qvalues_samplewise(self, pred_wl_pretanh, pred_score_prescaled, target_wl, target_score, target_visits, global_weight):
-        assert pred_wl_pretanh.shape == (self.n, self.policy_len)
-        assert pred_score_prescaled.shape == (self.n, self.policy_len)
-        assert target_wl.shape == (self.n, self.policy_len)
-        assert target_score.shape == (self.n, self.policy_len)
-        assert target_visits.shape == (self.n, self.policy_len)
+        n = pred_wl_pretanh.shape[0]
+        assert pred_wl_pretanh.shape == (n, self.policy_len)
+        assert pred_score_prescaled.shape == (n, self.policy_len)
+        assert target_wl.shape == (n, self.policy_len)
+        assert target_score.shape == (n, self.policy_len)
+        assert target_visits.shape == (n, self.policy_len)
 
         mask = (target_visits != 0).float()
         sqrtvisits = torch.sqrt(target_visits)
@@ -95,23 +95,26 @@ class Metrics:
 
 
     def loss_value_samplewise(self, pred_logits, target_probs, weight, global_weight):
-        assert pred_logits.shape == (self.n, self.value_len)
-        assert target_probs.shape == (self.n, self.value_len)
-        assert weight.shape == (self.n,)
+        n = pred_logits.shape[0]
+        assert pred_logits.shape == (n, self.value_len)
+        assert target_probs.shape == (n, self.value_len)
+        assert weight.shape == (n,)
         loss = cross_entropy(pred_logits, target_probs, dim=1)
         return 1.20 * global_weight * weight * loss
 
     def loss_td_value_samplewise(self, pred_logits, target_probs, weight, global_weight):
-        assert pred_logits.shape == (self.n, self.num_td_values, self.value_len)
-        assert target_probs.shape == (self.n, self.num_td_values, self.value_len)
-        assert weight.shape == (self.n,)
-        assert global_weight.shape == (self.n,)
+        n = pred_logits.shape[0]
+        assert pred_logits.shape == (n, self.num_td_values, self.value_len)
+        assert target_probs.shape == (n, self.num_td_values, self.value_len)
+        assert weight.shape == (n,)
+        assert global_weight.shape == (n,)
         loss = cross_entropy(pred_logits, target_probs, dim=2) - cross_entropy(torch.log(target_probs + 1.0e-30), target_probs, dim=2)
         return 1.20 * global_weight.unsqueeze(1) * weight.unsqueeze(1) * loss
 
     def loss_td_score_samplewise(self, pred, target, weight, global_weight):
-        assert pred.shape == (self.n, self.num_td_values)
-        assert target.shape == (self.n, self.num_td_values)
+        n = pred.shape[0]
+        assert pred.shape == (n, self.num_td_values)
+        assert target.shape == (n, self.num_td_values)
         loss = torch.sum(huber_loss(pred, target, delta = 12.0), dim=1)
         return 0.0004 * global_weight * weight * loss
 
@@ -120,24 +123,26 @@ class Metrics:
         # This uses a formulation where each batch element cares about its average loss.
         # In particular this means that ownership loss predictions on small boards "count more" per spot.
         # Not unlike the way that policy and value loss are also equal-weighted by batch element.
-        assert pred_pretanh.shape == (self.n, 1, self.pos_len, self.pos_len)
-        assert target.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask_sum_hw.shape == (self.n,)
-        pred_logits = pred_pretanh.view(self.n,self.pos_area) * 2.0
-        target_probs = (1.0 + target.view(self.n,self.pos_area)) / 2.0
+        n = pred_pretanh.shape[0]
+        assert pred_pretanh.shape == (n, 1, self.pos_len, self.pos_len)
+        assert target.shape == (n, self.pos_len, self.pos_len)
+        assert mask.shape == (n, self.pos_len, self.pos_len)
+        assert mask_sum_hw.shape == (n,)
+        pred_logits = pred_pretanh.view(-1,self.pos_area) * 2.0
+        target_probs = (1.0 + target.view(-1,self.pos_area)) / 2.0
         loss = torch.sum(
-            torch.nn.functional.binary_cross_entropy_with_logits(pred_logits, target_probs, reduction="none") * mask.view(self.n,self.pos_area),
+            torch.nn.functional.binary_cross_entropy_with_logits(pred_logits, target_probs, reduction="none") * mask.view(-1,self.pos_area),
             dim=1,
         ) / mask_sum_hw
         return 1.5 * global_weight * weight * loss
 
 
     def loss_scoring_samplewise(self, pred_scoring, target, weight, mask, mask_sum_hw, global_weight):
-        assert pred_scoring.shape == (self.n, 1, self.pos_len, self.pos_len)
-        assert target.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask_sum_hw.shape == (self.n,)
+        n = pred_scoring.shape[0]
+        assert pred_scoring.shape == (n, 1, self.pos_len, self.pos_len)
+        assert target.shape == (n, self.pos_len, self.pos_len)
+        assert mask.shape == (n, self.pos_len, self.pos_len)
+        assert mask_sum_hw.shape == (n,)
 
         loss = torch.sum(torch.square(pred_scoring.squeeze(1) - target) * mask, dim=(1,2)) / mask_sum_hw
         # Simple huberlike transform to reduce crazy values
@@ -154,10 +159,11 @@ class Metrics:
         # causing some scaling with board size. So, I dunno, let's compromise and scale by sqrt(boardarea).
         # Also, the further out targets should be weighted a little less due to them being higher entropy
         # due to simply being farther in the future, so multiply by [1,0.25].
-        assert pred_pretanh.shape == (self.n, self.num_futurepos_values, self.pos_len, self.pos_len)
-        assert target.shape == (self.n, self.num_futurepos_values, self.pos_len, self.pos_len)
-        assert mask.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask_sum_hw.shape == (self.n,)
+        n = pred_pretanh.shape[0]
+        assert pred_pretanh.shape == (n, self.num_futurepos_values, self.pos_len, self.pos_len)
+        assert target.shape == (n, self.num_futurepos_values, self.pos_len, self.pos_len)
+        assert mask.shape == (n, self.pos_len, self.pos_len)
+        assert mask_sum_hw.shape == (n,)
         loss = torch.square(torch.tanh(pred_pretanh) - target) * mask.unsqueeze(1)
         loss = loss * constant_like([1.0,0.25], loss).view(1,2,1,1)
         loss = torch.sum(loss, dim=(1, 2, 3)) / torch.sqrt(mask_sum_hw)
@@ -166,11 +172,12 @@ class Metrics:
 
     def loss_seki_samplewise(self, pred_logits, target, target_ownership, weight, mask, mask_sum_hw, global_weight, is_training, skip_moving_update):
         assert self.num_seki_logits == 4
-        assert pred_logits.shape == (self.n, self.num_seki_logits, self.pos_len, self.pos_len)
-        assert target.shape == (self.n, self.pos_len, self.pos_len)
-        assert target_ownership.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask.shape == (self.n, self.pos_len, self.pos_len)
-        assert mask_sum_hw.shape == (self.n,)
+        n = pred_logits.shape[0]
+        assert pred_logits.shape == (n, self.num_seki_logits, self.pos_len, self.pos_len)
+        assert target.shape == (n, self.pos_len, self.pos_len)
+        assert target_ownership.shape == (n, self.pos_len, self.pos_len)
+        assert mask.shape == (n, self.pos_len, self.pos_len)
+        assert mask_sum_hw.shape == (n,)
 
         owned_target = torch.square(target_ownership)
         unowned_target = 1.0 - owned_target
@@ -216,29 +223,29 @@ class Metrics:
         #but rather something meanlike locally and something medianlike
         # for very large possible losses. This seems... okay - it might actually
         # be what users want.
-        assert pred.shape == (self.n,)
-        assert target.shape == (self.n,)
+        assert pred.shape == target.shape
+        assert pred.ndim == 1
         loss = huber_loss(pred, target, delta = 12.0)
         return 0.0015 * global_weight * weight * loss
 
 
     def loss_scorebelief_cdf_samplewise(self, pred_logits, target_probs, weight, global_weight):
-        assert pred_logits.shape == (self.n,self.scorebelief_len)
-        assert target_probs.shape == (self.n,self.scorebelief_len)
+        assert pred_logits.shape[1:] == (self.scorebelief_len,)
+        assert target_probs.shape == pred_logits.shape
         pred_cdf = torch.cumsum(torch.nn.functional.softmax(pred_logits, dim=1), dim=1)
         target_cdf = torch.cumsum(target_probs, dim=1)
         loss = torch.sum(torch.square(pred_cdf-target_cdf),axis=1)
         return 0.020 * global_weight * weight * loss
 
     def loss_scorebelief_pdf_samplewise(self, pred_logits, target_probs, weight, global_weight):
-        assert pred_logits.shape == (self.n,self.scorebelief_len)
-        assert target_probs.shape == (self.n,self.scorebelief_len)
+        assert pred_logits.shape[1:] == (self.scorebelief_len,)
+        assert target_probs.shape == pred_logits.shape
         loss = cross_entropy(pred_logits, target_probs, dim=1)
         return 0.020 * global_weight * weight * loss
 
     def loss_scorestdev_samplewise(self, pred, scorebelief_logits, global_weight):
-        assert pred.shape == (self.n,)
-        assert scorebelief_logits.shape == (self.n,self.scorebelief_len)
+        assert pred.ndim == 1
+        assert scorebelief_logits.shape[1:] == (self.scorebelief_len,)
         assert self.score_belief_offset_vector.shape == (self.scorebelief_len,)
         scorebelief_probs = torch.nn.functional.softmax(scorebelief_logits, dim=1)
         expected_score_from_belief = torch.sum(scorebelief_probs * self.score_belief_offset_vector.view(1,-1),dim=1,keepdim=True)
@@ -256,14 +263,14 @@ class Metrics:
         #but rather something meanlike locally and something medianlike
         # for very large possible losses. This seems... okay - it might actually
         # be what users want.
-        assert pred.shape == (self.n,)
-        assert target.shape == (self.n,)
+        assert pred.shape == target.shape
+        assert pred.ndim == 1
         loss = huber_loss(pred, target, delta = 8.0)
         return 0.0060 * global_weight * weight * loss
 
     def loss_variance_time_samplewise(self, pred, target, weight, global_weight):
-        assert pred.shape == (self.n,)
-        assert target.shape == (self.n,)
+        assert pred.shape == target.shape
+        assert pred.ndim == 1
         # Even if the training target is 0, add a tiny bit of irreducible error for regularizing the prediction.
         loss = huber_loss(pred, target + 1.0e-5, delta = 50.0)
         return 0.0003 * global_weight * weight * loss

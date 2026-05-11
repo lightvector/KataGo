@@ -221,7 +221,7 @@ namespace OpenCLTuner {
 
   std::string defaultDirectory(bool makeDir, const std::string& homeDataDirOverride);
   std::string defaultFileName(const std::string& gpuName, int nnXLen, int nnYLen, int trunkNumChannels, int modelVersion);
-  std::string defaultFileName(const std::string& gpuName, int nnXLen, int nnYLen, ModelInfoForTuning modelInfo);
+  std::string defaultFileName(const std::string& gpuName, int nnXLen, int nnYLen, const ModelInfoForTuning& modelInfo);
 
   OpenCLTuneParams loadOrAutoTune(
     std::string openCLTunerFile,

@@ -38,7 +38,7 @@ def assert_keys(npz, include_meta, include_qvalues):
     # since we'll handle missing values by filling with zeros
     expected_keys = set(keys)
     actual_keys = set(npz.keys())
-    if include_qvalues and "qValueTargetsNCMove" in actual_keys:
+    if "qValueTargetsNCMove" in actual_keys:
         expected_keys.add("qValueTargetsNCMove")
     assert(actual_keys == expected_keys)
 
@@ -347,6 +347,12 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
 
     if record_writer is not None:
         record_writer.close()
+
+    # Clean up scratch dir for this output file now that we're done with it,
+    # to reduce peak disk usage when there are many output files.
+    if os.path.exists(out_tmp_dir):
+        shutil.rmtree(out_tmp_dir)
+
     return num_batches * batch_size
 
 def get_numpy_npz_headers(filename):
@@ -788,27 +794,6 @@ if __name__ == '__main__':
         approx_rows_to_keep = min(approx_rows_to_keep, keep_target_rows)
     keep_prob = approx_rows_to_keep / num_rows_used
 
-    num_out_files = int(round(approx_rows_to_keep / approx_rows_per_out_file))
-    num_out_files = max(num_out_files,1)
-
-    if output_npz:
-        out_files = [os.path.join(out_dir, "data%d.npz" % i) for i in range(num_out_files)]
-    else:
-        assert False, "No longer supports outputting tensorflow data"
-
-    out_tmp_dirs = [os.path.join(out_tmp_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
-    print("Writing %d output files with %d kept / %d desired rows" % (num_out_files, approx_rows_to_keep, desired_num_rows), flush=True)
-
-    def clean_tmp_dirs():
-        for tmp_dir in out_tmp_dirs:
-            if os.path.exists(tmp_dir):
-                print("Cleaning up tmp dir: " + tmp_dir)
-                shutil.rmtree(tmp_dir)
-
-    clean_tmp_dirs()
-    for tmp_dir in out_tmp_dirs:
-        os.makedirs(tmp_dir,exist_ok=True)
-
     num_rows_in_desired_files = 0
     if only_include_md5_path_prop_lbound is not None or only_include_md5_path_prop_ubound is not None:
         new_desired_input_files = []
@@ -835,6 +820,28 @@ if __name__ == '__main__':
     if num_rows_in_desired_files <= 0:
         print("No rows in desired files")
         sys.exit(0)
+
+    approx_rows_to_keep_after_md5 = num_rows_in_desired_files * keep_prob
+    num_out_files = int(round(approx_rows_to_keep_after_md5 / approx_rows_per_out_file))
+    num_out_files = max(num_out_files,1)
+
+    if output_npz:
+        out_files = [os.path.join(out_dir, "data%d.npz" % i) for i in range(num_out_files)]
+    else:
+        assert False, "No longer supports outputting tensorflow data"
+
+    out_tmp_dirs = [os.path.join(out_tmp_dir, "tmp.shuf%d" % i) for i in range(num_out_files)]
+    print("Writing %d output files with approx %d kept rows (keep_prob %.4f of %d desired rows, %d pre-md5 rows)" % (num_out_files, approx_rows_to_keep_after_md5, keep_prob, num_rows_in_desired_files, desired_num_rows), flush=True)
+
+    def clean_tmp_dirs():
+        for tmp_dir in out_tmp_dirs:
+            if os.path.exists(tmp_dir):
+                print("Cleaning up tmp dir: " + tmp_dir)
+                shutil.rmtree(tmp_dir)
+
+    clean_tmp_dirs()
+    for tmp_dir in out_tmp_dirs:
+        os.makedirs(tmp_dir,exist_ok=True)
 
     # Clump files into sharding groups. More efficient if shuffling a ton of small npz files
     # since we aren't doing separate tasks for every individual file but rather handling a bunch

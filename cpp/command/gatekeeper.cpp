@@ -12,6 +12,7 @@
 #include "../program/setup.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include <sstream>
@@ -169,7 +170,7 @@ namespace {
         numCandidateWinPoints += (data->bIdx == 1) ? blackPoints : whitePoints;
 
         if(sgfOut != NULL) {
-          assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
+          testAssert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
           WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->endHist,data,false,true);
           (*sgfOut) << endl;
         }
@@ -178,7 +179,7 @@ namespace {
         //Terminate games if one side has won enough to guarantee the victory.
         int64_t numTotalGames = matchPairer->getNumGamesTotalToGenerate();
         int64_t numGamesRemaining = numTotalGames - numGamesTallied;
-        assert(numGamesRemaining >= 0);
+        testAssert(numGamesRemaining >= 0);
         if(numGamesRemaining > 0) {
           if(numCandidateWinPoints >= numTotalGames * requiredCandidateWinProp) {
             logger.write("Candidate has already won enough games, terminating remaning games");
@@ -517,7 +518,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     if(shouldStop.load())
       break;
 
-    assert(netAndStuff == NULL);
+    testAssert(netAndStuff == NULL);
     netAndStuff = loadLatestNeuralNet();
 
     if(netAndStuff == NULL) {

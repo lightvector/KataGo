@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "../core/rand.h"
+#include "../core/test.h"
 
 using namespace std;
 
@@ -33,18 +34,6 @@ const Hash128 Board::ZOBRIST_GAME_IS_OVER = //Based on sha256 hash of Board::ZOB
   Hash128(0xb6f9e465597a77eeULL, 0xf1d583d960a4ce7fULL);
 
 //LOCATION--------------------------------------------------------------------------------
-Loc Location::getLoc(int x, int y, int x_size)
-{
-  return (x+1) + (y+1)*(x_size+1);
-}
-int Location::getX(Loc loc, int x_size)
-{
-  return (loc % (x_size+1)) - 1;
-}
-int Location::getY(Loc loc, int x_size)
-{
-  return (loc / (x_size+1)) - 1;
-}
 void Location::getAdjacentOffsets(short adj_offsets[8], int x_size)
 {
   adj_offsets[0] = -(x_size+1);
@@ -131,7 +120,7 @@ Board::Board(const Board& other)
 
 void Board::init(int xS, int yS)
 {
-  assert(IS_ZOBRIST_INITALIZED);
+  testAssert(IS_ZOBRIST_INITALIZED);
   if(xS < 0 || yS < 0 || xS > MAX_LEN || yS > MAX_LEN)
     throw StringError("Board::init - invalid board size");
 
@@ -609,7 +598,7 @@ bool Board::isAdjacentToChain(Loc loc, Loc chain) const {
 
 
 //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
-bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const {
+bool Board::isNonPassAliveSelfConnection(Loc loc, Player pla, const Color* passAliveArea) const {
   if(colors[loc] != C_EMPTY || passAliveArea[loc] == pla)
     return false;
 
@@ -727,7 +716,7 @@ bool Board::setStoneFailIfNoLibs(Loc loc, Color color) {
   return true;
 }
 
-bool Board::setStonesFailIfNoLibs(std::vector<Move> placements) {
+bool Board::setStonesFailIfNoLibs(const std::vector<Move>& placements) {
   std::set<Loc> locs;
   for(const Move& placement: placements) {
     if(locs.find(placement.loc) != locs.end())
@@ -2317,7 +2306,7 @@ void Board::checkConsistency() const {
   };
 
   Hash128 tmp_pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
-  int emptyCount = 0;
+  // int emptyCount = 0;
   for(Loc loc = 0; loc < MAX_ARR_SIZE; loc++) {
     int x = Location::getX(loc,x_size);
     int y = Location::getY(loc,x_size);
@@ -2338,7 +2327,7 @@ void Board::checkConsistency() const {
       else if(colors[loc] == C_EMPTY) {
         // if(!empty_list.contains(loc))
         //   throw StringError(errLabel + "Empty list doesn't contain empty location");
-        emptyCount += 1;
+        // emptyCount += 1;
       }
       else
         throw StringError(errLabel + "Non-(black,white,empty) value within board legal area");

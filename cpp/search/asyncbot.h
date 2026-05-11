@@ -6,13 +6,13 @@
 class AsyncBot {
  public:
   AsyncBot(
-    SearchParams params,
+    const SearchParams& params,
     NNEvaluator* nnEval,
     Logger* logger,
     const std::string& randSeed
   );
   AsyncBot(
-    SearchParams params,
+    const SearchParams& params,
     NNEvaluator* nnEval,
     NNEvaluator* humanEval,
     Logger* logger,
@@ -48,11 +48,11 @@ class AsyncBot {
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAvoidMoveUntilRescaleRoot(bool b);
   void setAlwaysIncludeOwnerMap(bool b);
-  void setParams(SearchParams params);
-  void setParamsNoClearing(SearchParams params);
+  void setParams(const SearchParams& params);
+  void setParamsNoClearing(const SearchParams& params);
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
   void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
-  void setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache);
+  void setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache);
   void clearSearch();
   void clearEvalCache();
 

@@ -83,7 +83,7 @@ struct Rules {
   static bool tryParseRules(const std::string& str, Rules& buf);
   static bool tryParseRulesWithoutKomi(const std::string& str, Rules& buf, float komi);
 
-  static Rules updateRules(const std::string& key, const std::string& value, Rules priorRules);
+  static Rules updateRules(const std::string& key, const std::string& value, const Rules& priorRules);
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString() const;

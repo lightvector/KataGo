@@ -32,11 +32,11 @@ namespace TestSearchCommon {
 
   void printPolicyValueOwnership(const Board& board, const NNResultBuf& buf);
 
-  void printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, PrintTreeOptions options);
+  void printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, const PrintTreeOptions& options);
 
   void runBotOnPosition(AsyncBot* bot, Board board, Player nextPla, BoardHistory hist, TestSearchOptions opts);
 
-  void runBotOnSgf(AsyncBot* bot, const std::string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, TestSearchOptions opts);
+  void runBotOnSgf(AsyncBot* bot, const std::string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, const TestSearchOptions& opts);
 
   NNEvaluator* startNNEval(
     const std::string& modelFile, Logger& logger, const std::string& seed, int nnXLen, int nnYLen,

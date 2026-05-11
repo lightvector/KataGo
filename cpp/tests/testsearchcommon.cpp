@@ -39,7 +39,7 @@ void TestSearchCommon::printPolicyValueOwnership(const Board& board, const NNRes
   buf.result->debugPrint(cout,board);
 }
 
-void TestSearchCommon::printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, PrintTreeOptions options) {
+void TestSearchCommon::printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, const PrintTreeOptions& options) {
   Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
   cout << hist.rules << " " << hist.encorePhase << "\n";
   cout << "Root visits: " << search->getRootVisits() << "\n";
@@ -177,7 +177,7 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
     bot->clearSearch();
 }
 
-void TestSearchCommon::runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, TestSearchOptions opts) {
+void TestSearchCommon::runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, const TestSearchOptions& opts) {
   std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
   Board board;

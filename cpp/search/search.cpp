@@ -9,6 +9,7 @@
 #include <numeric>
 
 #include "../core/fancymath.h"
+#include "../core/test.h"
 #include "../core/timer.h"
 #include "../game/graphhash.h"
 #include "../search/distributiontable.h"
@@ -65,10 +66,10 @@ SearchThread::~SearchThread() {
 
 static const double VALUE_WEIGHT_DEGREES_OF_FREEDOM = 3.0;
 
-Search::Search(SearchParams params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
+Search::Search(const SearchParams& params, NNEvaluator* nnEval, Logger* lg, const string& rSeed)
   :Search(params,nnEval,NULL,lg,rSeed)
 {}
-Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed)
+Search::Search(const SearchParams& params, NNEvaluator* nnEval, NNEvaluator* humanEval, Logger* lg, const string& rSeed)
   :rootPla(P_BLACK),
    rootBoard(),
    rootHistory(),
@@ -111,11 +112,11 @@ Search::Search(SearchParams params, NNEvaluator* nnEval, NNEvaluator* humanEval,
    oldNNOutputsToCleanUpMutex(),
    oldNNOutputsToCleanUp()
 {
-  assert(logger != NULL);
+  testAssert(logger != NULL);
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
-  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
-  assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
 
   if(humanEvaluator != NULL) {
@@ -169,10 +170,6 @@ Player Search::getRootPla() const {
 
 Player Search::getPlayoutDoublingAdvantagePla() const {
   return searchParams.playoutDoublingAdvantagePla == C_EMPTY ? plaThatSearchIsFor : searchParams.playoutDoublingAdvantagePla;
-}
-
-int Search::getPos(Loc moveLoc) const {
-  return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen);
 }
 
 void Search::setPosition(Player pla, const Board& board, const BoardHistory& history) {
@@ -252,12 +249,12 @@ void Search::setRootSymmetryPruningOnly(const std::vector<int>& v) {
 }
 
 
-void Search::setParams(SearchParams params) {
+void Search::setParams(const SearchParams& params) {
   clearSearch();
   searchParams = params;
 }
 
-void Search::setParamsNoClearing(SearchParams params) {
+void Search::setParamsNoClearing(const SearchParams& params) {
   searchParams = params;
 }
 
@@ -274,7 +271,7 @@ void Search::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBon
   setExternalPatternBonusTable(table == nullptr ? nullptr : std::make_unique<PatternBonusTable>(*table));
 }
 
-void Search::setExternalEvalCache(std::shared_ptr<EvalCacheTable> cache) {
+void Search::setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache) {
   if(cache == evalCache)
     return;
   clearSearch();
@@ -286,8 +283,8 @@ void Search::setNNEval(NNEvaluator* nnEval) {
   nnEvaluator = nnEval;
   nnXLen = nnEval->getNNXLen();
   nnYLen = nnEval->getNNYLen();
-  assert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
-  assert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnXLen > 0 && nnXLen <= NNPos::MAX_BOARD_LEN);
+  testAssert(nnYLen > 0 && nnYLen <= NNPos::MAX_BOARD_LEN);
   policySize = NNPos::getPolicySize(nnXLen,nnYLen);
 
   if(humanEvaluator != NULL) {
@@ -448,7 +445,7 @@ void Search::runWholeSearch(Player movePla, bool pondering, std::function<bool()
 }
 
 void Search::runWholeSearch(
-  std::function<void()>* searchBegun,
+  const std::function<void()>* searchBegun,
   std::function<bool()>* shouldStopEarly,
   bool pondering,
   const TimeControls& tc,
@@ -766,8 +763,7 @@ void Search::beginSearch(bool pondering) {
         }
         for(; i<childrenCapacity; i++) {
           SearchNode* child = children[i].getIfAllocated();
-          (void)child;
-          assert(child == NULL);
+          testAssert(child == NULL);
         }
       }
 
@@ -929,7 +925,7 @@ void Search::removeSubtreeValueBias(SearchNode* node) {
 //Also clears subtreevaluebias for deleted nodes.
 void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool old) {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
-  assert(numAdditionalThreads >= 0);
+  testAssert(numAdditionalThreads >= 0);
   std::function<void(int)> g = [&](int threadIdx) {
     size_t idx0 = (size_t)((uint64_t)(threadIdx) * nodeTable->entries.size() / (numAdditionalThreads+1));
     size_t idx1 = (size_t)((uint64_t)(threadIdx+1) * nodeTable->entries.size() / (numAdditionalThreads+1));
@@ -954,7 +950,7 @@ void Search::deleteAllOldOrAllNewTableNodesAndSubtreeValueBiasMulithreaded(bool 
 //Doesn't clear subtree value bias.
 void Search::deleteAllTableNodesMulithreaded() {
   int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
-  assert(numAdditionalThreads >= 0);
+  testAssert(numAdditionalThreads >= 0);
   std::function<void(int)> g = [&](int threadIdx) noexcept {
     size_t idx0 = (size_t)((uint64_t)(threadIdx) * nodeTable->entries.size() / (numAdditionalThreads+1));
     size_t idx1 = (size_t)((uint64_t)(threadIdx+1) * nodeTable->entries.size() / (numAdditionalThreads+1));
@@ -1027,8 +1023,8 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
       //and has 0 visits because we began a search and then stopped it before any playouts happened.
       //In that case, there's not much to recompute.
       if(weightSum <= 0.0) {
-        assert(numVisits == 0);
-        assert(isRoot);
+        testAssert(numVisits == 0);
+        testAssert(isRoot);
       }
       else {
         double resultUtility = getResultUtility(winLossValueAvg, noResultValueAvg);
@@ -1058,7 +1054,7 @@ void Search::recursivelyRecomputeStats(SearchNode& n) {
 }
 
 void Search::recursivelyRecordEvalCache(SearchNode& n) {
-  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+  std::function<void(SearchNode*,int)> f = [&](const SearchNode* node, int threadIdx) {
     (void)threadIdx;
     int64_t numVisits = node->stats.visits.load(std::memory_order_acquire);
     if(numVisits >= searchParams.evalCacheMinVisits && !node->forceNonTerminal) {
@@ -1432,7 +1428,7 @@ bool Search::playoutDescend(
 bool Search::maybeCatchUpEdgeVisits(
   SearchThread& thread,
   SearchNode& node,
-  SearchNode* child,
+  const SearchNode* child,
   const SearchNodeState& nodeState,
   const int bestChildIdx
 ) {

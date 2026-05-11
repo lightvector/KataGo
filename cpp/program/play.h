@@ -111,7 +111,7 @@ class GameInitializer {
 
   //Only sample the space of possible rules
   Rules createRules();
-  bool isAllowedBSize(int xSize, int ySize);
+  bool isAllowedBSize(int xSize, int ySize) const;
 
   std::vector<std::pair<int,int>> getAllowedBSizes() const;
   int getMinBoardXSize() const;
@@ -249,8 +249,8 @@ namespace Play {
     const WaitableFlag* shouldPause,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
-    std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+    const std::function<NNEvaluator*()>& checkForNewNNEval,
+    const std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>& onEachMove
   );
 
   //In the case where checkForNewNNEval is provided, will MODIFY the provided botSpecs with any new nneval!
@@ -264,8 +264,8 @@ namespace Play {
     const WaitableFlag* shouldPause,
     const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
     Rand& gameRand,
-    std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+    const std::function<NNEvaluator*()>& checkForNewNNEval,
+    const std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>& onEachMove
   );
 
   void maybeForkGame(
@@ -312,8 +312,8 @@ class GameRunner {
   GameInitializer* gameInit;
 
 public:
-  GameRunner(ConfigParser& cfg, PlaySettings playSettings, Logger& logger);
-  GameRunner(ConfigParser& cfg, const std::string& gameInitRandSeed, PlaySettings fModes, Logger& logger);
+  GameRunner(ConfigParser& cfg, const PlaySettings& playSettings, Logger& logger);
+  GameRunner(ConfigParser& cfg, const std::string& gameInitRandSeed, const PlaySettings& fModes, Logger& logger);
   ~GameRunner();
 
   //Will return NULL if stopped before the game completes. The caller is responsible for freeing the data
@@ -328,9 +328,9 @@ public:
     Logger& logger,
     const std::function<bool()>& shouldStop,
     const WaitableFlag* shouldPause,
-    std::function<NNEvaluator*()> checkForNewNNEval,
-    std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
-    std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+    const std::function<NNEvaluator*()>& checkForNewNNEval,
+    const std::function<void(const MatchPairer::BotSpec&, Search*)>& afterInitialization,
+    const std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>& onEachMove
   );
 
   const GameInitializer* getGameInitializer() const;

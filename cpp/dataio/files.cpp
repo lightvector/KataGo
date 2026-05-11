@@ -168,7 +168,7 @@ void FileHelpers::sortNewestToOldest(std::vector<std::string>& files) {
   std::sort(
     filesWithTime.begin(),
     filesWithTime.end(),
-    [](const std::pair<string, gfs::file_time_type>& a, std::pair<string, gfs::file_time_type>& b) -> bool {
+    [](const std::pair<string, gfs::file_time_type>& a, const std::pair<string, gfs::file_time_type>& b) -> bool {
       return a.second > b.second;
     }
   );

@@ -48,7 +48,7 @@ static bool isMultipleOf(int x, int y) {
   return x % y == 0;
 }
 
-static int getInt(const map<string,int> map, const string& key, int defaultValue) {
+static int getInt(const map<string,int>& map, const string& key, int defaultValue) {
   if(!contains(map,key))
     return defaultValue;
   return map_get(map,key);
@@ -736,7 +736,7 @@ static cl_mem randomReadOnly3dPaddedBufferHalf(
 template<typename T>
 static void addConfigs(
   vector<OpenCLTuneParams>& configs,
-  std::function<void(OpenCLTuneParams&, T value)> apply,
+  const std::function<void(OpenCLTuneParams&, T value)>& apply,
   const vector<T>& values
 ) {
   vector<OpenCLTuneParams> newCfgs;
@@ -752,7 +752,7 @@ static void addConfigs(
 
 static void filterConfigs(
   vector<OpenCLTuneParams>& configs,
-  std::function<bool(const OpenCLTuneParams&)> isValid
+  const std::function<bool(const OpenCLTuneParams&)>& isValid
 ) {
   vector<OpenCLTuneParams> newCfgs;
   for(int j = 0; j<configs.size(); j++) {
@@ -839,8 +839,8 @@ static bool testAllConfigs(
   bool verboseErrors,
   bool verboseTuner,
   double errorToleranceScale,
-  std::function<string(const OpenCLTuneParams&)> getDesc,
-  std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool)> testConfig,
+  const std::function<string(const OpenCLTuneParams&)>& getDesc,
+  const std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool)>& testConfig,
   double& bestKernelsPerSecondBuf
 ) {
   vector<OpenCLTuneParams> configs = configsToTest;
@@ -1006,7 +1006,7 @@ static void tuneXGemmDirect(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  OpenCLTuner::ModelInfoForTuning modelInfo,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
   bool full,
   ostream& out,
   bool verboseErrors,
@@ -1196,7 +1196,7 @@ static bool tuneXGemm(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  OpenCLTuner::ModelInfoForTuning modelInfo,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
   bool full,
   ostream& out,
   bool useFP16Storage,
@@ -1442,7 +1442,7 @@ static bool tuneXGemm16(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  OpenCLTuner::ModelInfoForTuning modelInfo,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
   bool full,
   ostream& out,
   bool verboseErrors,
@@ -1675,7 +1675,7 @@ static bool tuneHGemmWmma(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  OpenCLTuner::ModelInfoForTuning modelInfo,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
   bool full,
   ostream& out,
   bool verboseErrors,
@@ -1886,7 +1886,7 @@ static bool tuneHGemmWmmaNCHW(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  OpenCLTuner::ModelInfoForTuning modelInfo,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
   bool full,
   ostream& out,
   bool verboseErrors,
@@ -2084,7 +2084,7 @@ static void tuneTransform(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  OpenCLTuner::ModelInfoForTuning modelInfo,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
   bool full,
   ostream& out,
   const string& maybeFP16CompileOptions,
@@ -2251,7 +2251,7 @@ static void tuneUntransform(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  OpenCLTuner::ModelInfoForTuning modelInfo,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
   bool full,
   ostream& out,
   const string& maybeFP16CompileOptions,
@@ -2421,7 +2421,7 @@ static void tuneGPool(
   int batchSize,
   int nnXLen,
   int nnYLen,
-  OpenCLTuner::ModelInfoForTuning modelInfo,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
   bool full,
   ostream& out,
   const string& maybeFP16CompileOptions,
@@ -3192,7 +3192,7 @@ string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLe
   return Global::strprintf("tune%d_gpu%s_x%d_y%d_c%d_mv%d.txt", TUNER_VERSION, gpuNameForFile.c_str(), nnXLen, nnYLen, trunkNumChannels, modelVersion);
 }
 
-string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLen, OpenCLTuner::ModelInfoForTuning modelInfo) {
+string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLen, const OpenCLTuner::ModelInfoForTuning& modelInfo) {
   return defaultFileName(gpuName, nnXLen, nnYLen, modelInfo.trunkNumChannels, modelInfo.modelVersion);
 }
 

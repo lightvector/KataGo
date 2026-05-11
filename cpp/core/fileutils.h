@@ -46,7 +46,7 @@ namespace FileUtils {
 
   // Recursively walk a directory and find all the files that match fileFilter.
   // fileFilter receives just the file name and not the full path, but collected contains the paths.
-  void collectFiles(const std::string& dirname, std::function<bool(const std::string&)> fileFilter, std::vector<std::string>& collected);
+  void collectFiles(const std::string& dirname, const std::function<bool(const std::string&)>& fileFilter, std::vector<std::string>& collected);
 }
 
 

@@ -59,6 +59,7 @@ struct BatchNormLayerDesc {
 
   BatchNormLayerDesc& operator=(BatchNormLayerDesc&& other);
 
+  void computeMerged();
   void scaleInputChannels(const std::vector<float>& scaling);
   void extractChannelFactorsAbsLtOne(std::vector<float>& channelFactors);
   void extractChannelFactorsAbsLtOneWithInverses(std::vector<float>& channelFactors, std::vector<float>& invChannelFactors);
@@ -134,7 +135,7 @@ struct ResidualBlockDesc {
 
   ResidualBlockDesc& operator=(ResidualBlockDesc&& other);
 
-  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
 
   void transformToReduceActivations();
@@ -164,7 +165,7 @@ struct GlobalPoolingResidualBlockDesc {
 
   GlobalPoolingResidualBlockDesc& operator=(GlobalPoolingResidualBlockDesc&& other);
 
-  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
 
   void transformToReduceActivations();
@@ -194,7 +195,7 @@ struct NestedBottleneckResidualBlockDesc {
 
   NestedBottleneckResidualBlockDesc& operator=(NestedBottleneckResidualBlockDesc&& other);
 
-  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
 
   void transformToReduceActivations();
@@ -257,7 +258,7 @@ struct TrunkDesc {
 
   TrunkDesc& operator=(TrunkDesc&& other);
 
-  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
 
   void transformToReduceActivations();
@@ -291,7 +292,7 @@ struct PolicyHeadDesc {
 
   PolicyHeadDesc& operator=(PolicyHeadDesc&& other);
 
-  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
@@ -322,7 +323,7 @@ struct ValueHeadDesc {
 
   ValueHeadDesc& operator=(ValueHeadDesc&& other);
 
-  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
@@ -373,7 +374,7 @@ struct ModelDesc {
 
   ModelDesc& operator=(ModelDesc&& other);
 
-  void iterConvLayers(std::function<void(const ConvLayerDesc& dest)> f) const;
+  void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   int maxConvChannels(int convXSize, int convYSize) const;
   double getTrunkSpatialConvDepth() const;
 

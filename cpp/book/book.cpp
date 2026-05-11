@@ -4,6 +4,7 @@
 #include <fstream>
 #include <thread>
 #include "../core/makedir.h"
+#include "../core/test.h"
 #include "../core/fancymath.h"
 #include "../core/fileutils.h"
 #include "../game/graphhash.h"
@@ -44,63 +45,63 @@ BookHash::BookHash(Hash128 hhash, Hash128 shash)
 :historyHash(hhash),stateHash(shash)
 {}
 
-bool BookHash::operator==(const BookHash other) const
+bool BookHash::operator==(const BookHash& other) const
 {return historyHash == other.historyHash && stateHash == other.stateHash;}
 
-bool BookHash::operator!=(const BookHash other) const
+bool BookHash::operator!=(const BookHash& other) const
 {return historyHash != other.historyHash || stateHash != other.stateHash;}
 
-bool BookHash::operator>(const BookHash other) const
+bool BookHash::operator>(const BookHash& other) const
 {
   if(stateHash > other.stateHash) return true;
   if(stateHash < other.stateHash) return false;
   return historyHash > other.historyHash;
 }
-bool BookHash::operator>=(const BookHash other) const
+bool BookHash::operator>=(const BookHash& other) const
 {
   if(stateHash > other.stateHash) return true;
   if(stateHash < other.stateHash) return false;
   return historyHash >= other.historyHash;
 }
-bool BookHash::operator<(const BookHash other) const
+bool BookHash::operator<(const BookHash& other) const
 {
   if(stateHash < other.stateHash) return true;
   if(stateHash > other.stateHash) return false;
   return historyHash < other.historyHash;
 }
-bool BookHash::operator<=(const BookHash other) const
+bool BookHash::operator<=(const BookHash& other) const
 {
   if(stateHash < other.stateHash) return true;
   if(stateHash > other.stateHash) return false;
   return historyHash <= other.historyHash;
 }
 
-BookHash BookHash::operator^(const BookHash other) const {
+BookHash BookHash::operator^(const BookHash& other) const {
   return BookHash(historyHash ^ other.historyHash, stateHash ^ other.stateHash);
 }
-BookHash BookHash::operator|(const BookHash other) const {
+BookHash BookHash::operator|(const BookHash& other) const {
   return BookHash(historyHash | other.historyHash, stateHash | other.stateHash);
 }
-BookHash BookHash::operator&(const BookHash other) const {
+BookHash BookHash::operator&(const BookHash& other) const {
   return BookHash(historyHash & other.historyHash, stateHash & other.stateHash);
 }
-BookHash& BookHash::operator^=(const BookHash other) {
+BookHash& BookHash::operator^=(const BookHash& other) {
   historyHash ^= other.historyHash;
   stateHash ^= other.stateHash;
   return *this;
 }
-BookHash& BookHash::operator|=(const BookHash other) {
+BookHash& BookHash::operator|=(const BookHash& other) {
   historyHash |= other.historyHash;
   stateHash |= other.stateHash;
   return *this;
 }
-BookHash& BookHash::operator&=(const BookHash other) {
+BookHash& BookHash::operator&=(const BookHash& other) {
   historyHash &= other.historyHash;
   stateHash &= other.stateHash;
   return *this;
 }
 
-std::ostream& operator<<(std::ostream& out, const BookHash other)
+std::ostream& operator<<(std::ostream& out, const BookHash& other)
 {
   out << other.stateHash << other.historyHash;
   return out;
@@ -256,7 +257,7 @@ BookMove::BookMove()
    biggestWLCostFromRoot(0.0)
 {}
 
-BookMove::BookMove(Loc mv, int s, BookHash h, double rp)
+BookMove::BookMove(Loc mv, int s, const BookHash& h, double rp)
   :move(mv),
    symmetryToAlign(s),
    hash(h),
@@ -286,7 +287,7 @@ BookMove BookMove::getSymBookMove(int symmetry, int xSize, int ySize) const {
 // -----------------------------------------------------------------------------------------------------------
 
 
-BookNode::BookNode(BookHash h, Book* b, Player p, const vector<int>& syms)
+BookNode::BookNode(const BookHash& h, Book* b, Player p, const vector<int>& syms)
   :hash(h),
    book(b),
    pla(p),
@@ -381,45 +382,45 @@ ConstSymBookNode& ConstSymBookNode::operator=(const SymBookNode& other) {
   return *this;
 }
 
-bool SymBookNode::isNull() {
+bool SymBookNode::isNull() const {
   return node == nullptr;
 }
-bool ConstSymBookNode::isNull() {
+bool ConstSymBookNode::isNull() const {
   return node == nullptr;
 }
 
-SymBookNode SymBookNode::applySymmetry(int symmetry) {
+SymBookNode SymBookNode::applySymmetry(int symmetry) const {
   // symmetry is the map from thisspace -> retspace
   // symmetryOfNode is the map from nodespace -> thisspace
   // The constructor will want the map from nodespace -> retspace
   return SymBookNode(node,SymmetryHelpers::compose(symmetryOfNode,symmetry));
 }
-ConstSymBookNode ConstSymBookNode::applySymmetry(int symmetry) {
+ConstSymBookNode ConstSymBookNode::applySymmetry(int symmetry) const {
   return ConstSymBookNode(node,SymmetryHelpers::compose(symmetryOfNode,symmetry));
 }
 
-Player SymBookNode::pla() {
+Player SymBookNode::pla() const {
   return node->pla;
 }
-Player ConstSymBookNode::pla() {
+Player ConstSymBookNode::pla() const {
   return node->pla;
 }
 
-BookHash SymBookNode::hash() {
+BookHash SymBookNode::hash() const {
   return node->hash;
 }
-BookHash ConstSymBookNode::hash() {
+BookHash ConstSymBookNode::hash() const {
   return node->hash;
 }
 
-vector<int> SymBookNode::getSymmetries() {
+vector<int> SymBookNode::getSymmetries() const {
   vector<int> symmetries;
   symmetries.reserve(node->symmetries.size());
   for(int symmetry: node->symmetries)
     symmetries.push_back(SymmetryHelpers::compose(invSymmetryOfNode, symmetry, symmetryOfNode));
   return symmetries;
 }
-vector<int> ConstSymBookNode::getSymmetries() {
+vector<int> ConstSymBookNode::getSymmetries() const {
   vector<int> symmetries;
   symmetries.reserve(node->symmetries.size());
   for(int symmetry: node->symmetries)
@@ -428,10 +429,10 @@ vector<int> ConstSymBookNode::getSymmetries() {
 }
 
 
-bool SymBookNode::isMoveInBook(Loc move) {
+bool SymBookNode::isMoveInBook(Loc move) const {
   return ConstSymBookNode(*this).isMoveInBook(move);
 }
-bool ConstSymBookNode::isMoveInBook(Loc move) {
+bool ConstSymBookNode::isMoveInBook(Loc move) const {
   assert(node != nullptr);
   for(int symmetry: node->symmetries) {
     // invSymmetryOfNode is the map (symbooknodespace -> nodespace)
@@ -444,18 +445,18 @@ bool ConstSymBookNode::isMoveInBook(Loc move) {
   return false;
 }
 
-int SymBookNode::numUniqueMovesInBook() {
+int SymBookNode::numUniqueMovesInBook() const {
   return ConstSymBookNode(*this).numUniqueMovesInBook();
 }
-int ConstSymBookNode::numUniqueMovesInBook() {
+int ConstSymBookNode::numUniqueMovesInBook() const {
   assert(node != nullptr);
   return (int)(node->moves.size());
 }
 
-vector<BookMove> SymBookNode::getUniqueMovesInBook() {
+vector<BookMove> SymBookNode::getUniqueMovesInBook() const {
   return ConstSymBookNode(*this).getUniqueMovesInBook();
 }
-vector<BookMove> ConstSymBookNode::getUniqueMovesInBook() {
+vector<BookMove> ConstSymBookNode::getUniqueMovesInBook() const {
   assert(node != nullptr);
   vector<BookMove> ret;
   ret.reserve(node->moves.size());
@@ -469,7 +470,7 @@ BookValues& SymBookNode::thisValuesNotInBook() {
   assert(node != nullptr);
   return node->thisValuesNotInBook;
 }
-const BookValues& ConstSymBookNode::thisValuesNotInBook() {
+const BookValues& ConstSymBookNode::thisValuesNotInBook() const {
   assert(node != nullptr);
   return node->thisValuesNotInBook;
 }
@@ -478,7 +479,7 @@ bool& SymBookNode::canExpand() {
   assert(node != nullptr);
   return node->canExpand;
 }
-bool ConstSymBookNode::canExpand() {
+bool ConstSymBookNode::canExpand() const {
   assert(node != nullptr);
   return node->canExpand;
 }
@@ -486,47 +487,47 @@ bool& SymBookNode::canReExpand() {
   assert(node != nullptr);
   return node->canReExpand;
 }
-bool ConstSymBookNode::canReExpand() {
+bool ConstSymBookNode::canReExpand() const {
   assert(node != nullptr);
   return node->canReExpand;
 }
 
 
-const RecursiveBookValues& SymBookNode::recursiveValues() {
+const RecursiveBookValues& SymBookNode::recursiveValues() const {
   assert(node != nullptr);
   return node->recursiveValues;
 }
-const RecursiveBookValues& ConstSymBookNode::recursiveValues() {
+const RecursiveBookValues& ConstSymBookNode::recursiveValues() const {
   assert(node != nullptr);
   return node->recursiveValues;
 }
 
-int SymBookNode::minDepthFromRoot() {
+int SymBookNode::minDepthFromRoot() const {
   assert(node != nullptr);
   return node->minDepthFromRoot;
 }
-int ConstSymBookNode::minDepthFromRoot() {
+int ConstSymBookNode::minDepthFromRoot() const {
   assert(node != nullptr);
   return node->minDepthFromRoot;
 }
-double SymBookNode::minCostFromRoot() {
+double SymBookNode::minCostFromRoot() const {
   assert(node != nullptr);
   return node->minCostFromRoot;
 }
-double ConstSymBookNode::minCostFromRoot() {
+double ConstSymBookNode::minCostFromRoot() const {
   assert(node != nullptr);
   return node->minCostFromRoot;
 }
-double SymBookNode::totalExpansionCost() {
+double SymBookNode::totalExpansionCost() const {
   assert(node != nullptr);
   return node->minCostFromRoot + node->thisNodeExpansionCost;
 }
-double ConstSymBookNode::totalExpansionCost() {
+double ConstSymBookNode::totalExpansionCost() const {
   assert(node != nullptr);
   return node->minCostFromRoot + node->thisNodeExpansionCost;
 }
 
-SymBookNode SymBookNode::canonicalParent() {
+SymBookNode SymBookNode::canonicalParent() const {
   if(node->parents.size() <= 0)
     return SymBookNode(nullptr);
   int64_t bestParentIdx = node->bestParentIdx;
@@ -544,7 +545,7 @@ SymBookNode SymBookNode::canonicalParent() {
   // For the constructor, we need the map parentspace -> displayspace
   return SymBookNode(parent,SymmetryHelpers::compose(moveFromParent.symmetryToAlign,symmetryOfNode));
 }
-ConstSymBookNode ConstSymBookNode::canonicalParent() {
+ConstSymBookNode ConstSymBookNode::canonicalParent() const {
   if(node->parents.size() <= 0)
     return ConstSymBookNode(nullptr);
   int64_t bestParentIdx = node->bestParentIdx;
@@ -563,7 +564,7 @@ ConstSymBookNode ConstSymBookNode::canonicalParent() {
   return ConstSymBookNode(parent,SymmetryHelpers::compose(moveFromParent.symmetryToAlign,symmetryOfNode));
 }
 
-SymBookNode SymBookNode::follow(Loc move) {
+SymBookNode SymBookNode::follow(Loc move) const {
   assert(node != nullptr);
   for(int symmetry: node->symmetries) {
     // Same logic here, invSymmetryOfNode maps symbooknodespace -> nodespace
@@ -581,7 +582,7 @@ SymBookNode SymBookNode::follow(Loc move) {
   }
   return SymBookNode(nullptr);
 }
-ConstSymBookNode ConstSymBookNode::follow(Loc move) {
+ConstSymBookNode ConstSymBookNode::follow(Loc move) const {
   assert(node != nullptr);
   for(int symmetry: node->symmetries) {
     // Same logic here, invSymmetryOfNode maps symbooknodespace -> nodespace
@@ -597,7 +598,7 @@ ConstSymBookNode ConstSymBookNode::follow(Loc move) {
   return ConstSymBookNode(nullptr);
 }
 
-SymBookNode SymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) {
+SymBookNode SymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) const {
   SymBookNode ret = follow(move);
   if(ret.isNull())
     return SymBookNode(nullptr);
@@ -606,7 +607,7 @@ SymBookNode SymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) {
   hist.makeBoardMoveAssumeLegal(board,move,node->pla,nullptr);
   return ret;
 }
-ConstSymBookNode ConstSymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) {
+ConstSymBookNode ConstSymBookNode::playMove(Board& board, BoardHistory& hist, Loc move) const {
   ConstSymBookNode ret = follow(move);
   if(ret.isNull())
     return ConstSymBookNode(nullptr);
@@ -673,8 +674,7 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
   if(child == nullptr) {
     child = new BookNode(childHash, node->book, hist.presumedNextMovePla, symmetriesOfChild);
     bool suc = node->book->add(childHash,child);
-    assert(suc);
-    (void)suc;
+    testAssert(suc);
     childIsTransposing = false;
   }
   else {
@@ -692,18 +692,18 @@ SymBookNode SymBookNode::playAndAddMove(Board& board, BoardHistory& hist, Loc mo
   return SymBookNode(child,SymmetryHelpers::invert(symmetryToAlignToChild));
 }
 
-bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) {
+bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) const {
   vector<double> winLossRet;
   return getBoardHistoryReachingHere(ret,moveHistoryRet,winLossRet);
 }
-bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) {
+bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet) const {
   vector<double> winLossRet;
   return getBoardHistoryReachingHere(ret,moveHistoryRet,winLossRet);
 }
-bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) {
+bool SymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) const {
   return ConstSymBookNode(*this).getBoardHistoryReachingHere(ret,moveHistoryRet,winlossRet);
 }
-bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) {
+bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc>& moveHistoryRet, vector<double>& winlossRet) const {
   assert(node != nullptr);
   const Book* book = node->book;
   vector<const BookNode*> pathFromRoot;
@@ -720,10 +720,9 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
       return Book::DFSAction::recurse;
     }
   );
-  (void)suc;
-  assert(suc);
-  assert(pathFromRoot.size() >= 1);
-  assert(movesFromRoot.size() == pathFromRoot.size());
+  testAssert(suc);
+  testAssert(pathFromRoot.size() >= 1);
+  testAssert(movesFromRoot.size() == pathFromRoot.size());
 
   winlossRet.clear();
   for(const BookNode* pathNode: pathFromRoot)
@@ -734,7 +733,7 @@ bool ConstSymBookNode::getBoardHistoryReachingHere(BoardHistory& ret, vector<Loc
   int symmetryAcc = 0;
   for(size_t i = 0; i < pathFromRoot.size()-1; i++) {
     auto iter = pathFromRoot[i]->moves.find(movesFromRoot[i]);
-    assert(iter != pathFromRoot[i]->moves.end());
+    testAssert(iter != pathFromRoot[i]->moves.end());
     symmetryAcc = SymmetryHelpers::compose(symmetryAcc,iter->second.symmetryToAlign);
   }
   // At the end, we'll need this symmetry to transform it into SymBookNode space.
@@ -858,7 +857,7 @@ void BookParams::randomizeParams(Rand& rand, double stdev) {
 Book::Book(
   int bversion,
   const Board& b,
-  Rules r,
+  const Rules& r,
   Player p,
   int rb,
   BookParams bp
@@ -950,7 +949,7 @@ ConstSymBookNode Book::get(const BoardHistory& hist) const {
 void Book::recompute(const vector<SymBookNode>& newAndChangedNodes) {
   // Walk up from all changed nodes and mark all parents dirty recursively.
   std::set<BookHash> dirtyNodes;
-  std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](BookNode* node) {
+  std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](const BookNode* node) {
     // cout << "Mark dirty " << node->hash << " " << node << endl;
     if(contains(dirtyNodes, node->hash))
       return DFSAction::skip;
@@ -1009,7 +1008,7 @@ void Book::recomputeEverything() {
 void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedNodes, MutexPool& mutexPool, int numThreads) {
   // Mark all dirty nodes
   std::set<BookHash> dirtyNodes;
-  std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](BookNode* node) {
+  std::function<DFSAction(BookNode*)> markDirty = [&dirtyNodes](const BookNode* node) {
     if(contains(dirtyNodes, node->hash))
       return DFSAction::skip;
     dirtyNodes.insert(node->hash);
@@ -1026,7 +1025,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
   std::vector<std::thread> threads;
   threads.reserve(numThreads);
   for(int i = 0; i < numThreads; i++) {
-    threads.emplace_back([this, &dirtyNodes, &mutexPool, visitedDoneValue, i]() {
+    threads.emplace_back([this, &dirtyNodes, &mutexPool, visitedDoneValue]() {
       Rand rand;
       bool allDirty = false;
       iterateDirtyNodesPostOrder(
@@ -1084,7 +1083,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
 
   threads.clear();
   for(int i = 0; i < numThreads; i++) {
-    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts, i]() {
+    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts]() {
       Rand rand;
       iterateEntireBookPreOrder(
         [this, &mutexPool](BookNode* node) {
@@ -1143,7 +1142,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
   std::vector<std::thread> threads;
   threads.reserve(numThreads);
   for(int i = 0; i < numThreads; i++) {
-    threads.emplace_back([this, &mutexPool, visitedDoneValue, i]() {
+    threads.emplace_back([this, &mutexPool, visitedDoneValue]() {
       Rand rand;
       bool allDirty = true;
       iterateDirtyNodesPostOrder(
@@ -1201,7 +1200,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
 
   threads.clear();
   for(int i = 0; i < numThreads; i++) {
-    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts, i]() {
+    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts]() {
       Rand rand;
       iterateEntireBookPreOrder(
         [this, &mutexPool](BookNode* node) {
@@ -1259,7 +1258,7 @@ vector<SymBookNode> Book::getNextNToExpand(int n) {
     nodes.end(),
     toExpand.begin(),
     toExpand.end(),
-    [](BookNode* n0, BookNode* n1) {
+    [](const BookNode* n0, const BookNode* n1) {
       return n0->minCostFromRoot + n0->thisNodeExpansionCost < n1->minCostFromRoot + n1->thisNodeExpansionCost;
     }
   );
@@ -1302,21 +1301,21 @@ std::vector<SymBookNode> Book::getAllNodes() {
   return ret;
 }
 
-int64_t Book::getIdx(BookHash hash) const {
+int64_t Book::getIdx(const BookHash& hash) const {
   std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter == nodeIdxMap.end())
     throw StringError("Node idx not found for hash");
   return iter->second;
 }
-BookNode* Book::get(BookHash hash) {
+BookNode* Book::get(const BookHash& hash) {
   std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter == nodeIdxMap.end())
     return nullptr;
   return nodes[iter->second];
 }
-const BookNode* Book::get(BookHash hash) const {
+const BookNode* Book::get(const BookHash& hash) const {
   const std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter == nodeIdxMap.end())
@@ -1325,14 +1324,14 @@ const BookNode* Book::get(BookHash hash) const {
 }
 
 
-BookNode* Book::getAssertNotNull(BookHash hash) {
+BookNode* Book::getAssertNotNull(const BookHash& hash) {
   BookNode* node = get(hash);
   if(node == nullptr)
     throw StringError("getAssertNotNull: No book node found for the given hash " + hash.toString());
   return node;
 }
 
-const BookNode* Book::getAssertNotNull(BookHash hash) const {
+const BookNode* Book::getAssertNotNull(const BookHash& hash) const {
   const BookNode* node = get(hash);
   if(node == nullptr)
     throw StringError("getAssertNotNull: No book node found for the given hash " + hash.toString());
@@ -1340,20 +1339,20 @@ const BookNode* Book::getAssertNotNull(BookHash hash) const {
 }
 
 
-SymBookNode Book::getByHash(BookHash hash) {
+SymBookNode Book::getByHash(const BookHash& hash) {
   BookNode* node = get(hash);
   if(node == nullptr)
     return SymBookNode(nullptr);
   return SymBookNode(node,0);
 }
-ConstSymBookNode Book::getByHash(BookHash hash) const {
+ConstSymBookNode Book::getByHash(const BookHash& hash) const {
   const BookNode* node = get(hash);
   if(node == nullptr)
     return ConstSymBookNode(nullptr);
   return ConstSymBookNode(node,0);
 }
 
-bool Book::add(BookHash hash, BookNode* node) {
+bool Book::add(const BookHash& hash, BookNode* node) {
   std::map<BookHash,int64_t>& nodeIdxMap = nodeIdxMapsByHash[hash.stateHash.hash0 % NUM_HASH_BUCKETS];
   auto iter = nodeIdxMap.find(hash);
   if(iter != nodeIdxMap.end())
@@ -1614,7 +1613,7 @@ void Book::iterateEntireBookPreOrder(
       continue;
     reverseDepthFirstSearchWithPostF(
       initialNode,
-      [&visitedHashes](BookNode* node) {
+      [&visitedHashes](const BookNode* node) {
         if(contains(visitedHashes, node->hash))
           return DFSAction::skip;
         return DFSAction::recurse;
@@ -1926,7 +1925,7 @@ Book::MinCostResult Book::computeMinCostToChangeWinLossHelper(
         if(!inserted) {
           // Avoid double counting. Cache is guaranteed to be populated by recursive calls
           std::map<BookHash,double>::const_iterator cacheIter = costCache.find(hash);
-          assert(cacheIter != costCache.end());
+          testAssert(cacheIter != costCache.end());
           result.totalCost -= cacheIter->second;
         }
       }
@@ -1961,7 +1960,7 @@ void Book::recomputeNodeCost(BookNode* node) {
       std::pair<BookHash,Loc>& parentInfo = node->parents[parentIdx];
       const BookNode* parent = getAssertNotNull(parentInfo.first);
       auto parentLocAndBookMove = parent->moves.find(parentInfo.second);
-      assert(parentLocAndBookMove != parent->moves.end());
+      testAssert(parentLocAndBookMove != parent->moves.end());
       int depth = parent->minDepthFromRoot + 1;
       double cost = parentLocAndBookMove->second.costFromRoot;
       double biggestWLCostFromRoot = parentLocAndBookMove->second.biggestWLCostFromRoot;
@@ -2712,13 +2711,13 @@ int64_t Book::exportToHtmlDir(
     return string(toStringBuf);
   };
 
-  auto getFilePath = [&](BookNode* node, bool relative) {
+  auto getFilePath = [&](const BookNode* node, bool relative) {
     string path = relative ? "" : dirName + "/";
     if(node == root)
       path += "root/root";
     else {
       string hashStr = node->hash.toString();
-      assert(hashStr.size() > 10);
+      testAssert(hashStr.size() > 10);
       // Pull from the middle of the string, to avoid the fact that the hashes are
       // biased towards small hashes due to finding the minimum of the 8 symmetries.
       path += hashStr.substr(8,2) + "/" + node->hash.toString();
@@ -2742,7 +2741,7 @@ int64_t Book::exportToHtmlDir(
     string html = HTML_TEMPLATE;
     auto replace = [&](const string& key, const string& replacement) {
       size_t pos = html.find(key);
-      assert(pos != string::npos);
+      testAssert(pos != string::npos);
       html.replace(pos, key.size(), replacement);
     };
 
@@ -2981,7 +2980,7 @@ int64_t Book::exportToHtmlDir(
   return numFilesWritten;
 }
 
-static const char BOARD_LINE_DELIMITER = '|';
+// static const char BOARD_LINE_DELIMITER = '|';
 
 static double roundDouble(double x, double invMinPrec) {
   return round(x * invMinPrec) / invMinPrec;

@@ -39,7 +39,7 @@ void Tests::runOwnershipTests(const string& configFile, const string& modelFile)
 
   Search* bot = new Search(params, nnEval, &logger, Global::uint64ToString(seedRand.nextUInt64()));
 
-  auto runOnBoard = [&](const Board& board, Rules rules) {
+  auto runOnBoard = [&](const Board& board, const Rules& rules) {
     Player nextPla = P_BLACK;
     BoardHistory hist(board,nextPla,rules,0);
     int64_t numVisits = 100;

@@ -185,7 +185,7 @@ int LogBuf::sync() {
   return 0;
 }
 
-void Logger::logThreadUncaught(const string& name, Logger* logger, std::function<void()> f) {
+void Logger::logThreadUncaught(const string& name, Logger* logger, const std::function<void()>& f) {
   try {
     f();
   }
