@@ -27,6 +27,8 @@
 #include <migraphx/load_save.hpp>
 #include <migraphx/half.hpp>
 
+#include <hip/hip_runtime.h>
+
 #include <iostream>
 #include <fstream>
 #include <memory>
@@ -246,24 +248,25 @@ public:
         auto matmul = main_module->add_instruction(migraphx::make_op("dot"), input, weights);
         
         if(biasDesc != nullptr && !biasDesc->weights.empty()) {
-            if(biasDesc->weights.size() != (size_t)biasDesc->numChannels) {
-                cerr << "ERROR: MatMul bias " << biasDesc->name << " size mismatch: "
-                     << biasDesc->weights.size() << " vs expected " << biasDesc->numChannels << endl;
-            } else {
-                vector<size_t> bShape = {(size_t)biasDesc->numChannels};
-                auto bias = addLiteral(biasDesc->weights, bShape);
-                
-                // Unsqueeze for broadcasting: [numChannels] -> [1, numChannels]
-                auto unsqueeze_op = migraphx::make_op("unsqueeze", {{"axes", migraphx::value({0})}});
-                bias = main_module->add_instruction(unsqueeze_op, bias);
-                
-                // Explicit broadcast to match matmul output shape
-                auto matmulShape = matmul->get_shape().lens();
-                bias = main_module->add_instruction(
-                    migraphx::make_op("multibroadcast", {{"out_lens", matmulShape}}), bias);
-                
-                matmul = main_module->add_instruction(migraphx::make_op("add"), matmul, bias);
-            }
+            if(biasDesc->weights.size() != (size_t)biasDesc->numChannels)
+                throw StringError(
+                    "MIGraphX: MatMul bias " + biasDesc->name + " size mismatch: " +
+                    Global::uint64ToString(biasDesc->weights.size()) + " vs expected " +
+                    Global::intToString(biasDesc->numChannels)
+                );
+            vector<size_t> bShape = {(size_t)biasDesc->numChannels};
+            auto bias = addLiteral(biasDesc->weights, bShape);
+
+            // Unsqueeze for broadcasting: [numChannels] -> [1, numChannels]
+            auto unsqueeze_op = migraphx::make_op("unsqueeze", {{"axes", migraphx::value({0})}});
+            bias = main_module->add_instruction(unsqueeze_op, bias);
+
+            // Explicit broadcast to match matmul output shape
+            auto matmulShape = matmul->get_shape().lens();
+            bias = main_module->add_instruction(
+                migraphx::make_op("multibroadcast", {{"out_lens", matmulShape}}), bias);
+
+            matmul = main_module->add_instruction(migraphx::make_op("add"), matmul, bias);
         }
         
         return matmul;
@@ -679,6 +682,12 @@ static migraphx::program buildMIGraphXProgram(
 
     // Initial MatMul for global features
     {
+        if(trunkDesc.initialMatMul.inChannels != numGlobalFeatures)
+            throw StringError(
+                "MIGraphX: initialMatMul input channels mismatch: expected " +
+                Global::intToString(numGlobalFeatures) + " but got " +
+                Global::intToString(trunkDesc.initialMatMul.inChannels)
+            );
         auto globalProcessed = builder.addMatMul(inputGlobal, trunkDesc.initialMatMul);
         auto trunkShape = trunk->get_shape().lens();
         auto globalUnsqueezed = main_module->add_instruction(
@@ -921,7 +930,9 @@ static vector<int> generateBatchSizes(int maxBatchSize) {
     return sizes;
 }
 
-// Generate cache file path
+// Generate cache file path. Returns empty string if caching should be disabled
+// (e.g. MIGraphX version macros are not available, in which case different MIGraphX
+// installs would collide on the same key and risk loading incompatible binaries).
 static string getCacheFilePath(
     const string& homeDataDir,
     const ModelDesc& modelDesc,
@@ -930,23 +941,46 @@ static string getCacheFilePath(
     int maxBatchSize,
     bool useFP16,
     bool useNHWC,
-    bool requireExactNNLen
+    bool requireExactNNLen,
+    int gpuIdx,
+    Logger* logger
 ) {
-    auto cacheDir = HomeData::getHomeDataDir(true, homeDataDir);
-    cacheDir += "/migraphxcache";
-    
-    // Create directory if not exists
-    MakeDir::make(cacheDir);
-    
-    // Cache key includes MIGraphX version to invalidate when the compiler changes
+    (void)useNHWC;
+
+    // Cache key includes MIGraphX version to invalidate when the compiler changes.
+    // If the version macros are missing, we cannot safely key the cache; skip it.
 #if defined(MIGRAPHX_VERSION_MAJOR) && defined(MIGRAPHX_VERSION_MINOR) && defined(MIGRAPHX_VERSION_PATCH)
     string migraphxVersionStr = Global::strprintf("%d_%d_%d", MIGRAPHX_VERSION_MAJOR, MIGRAPHX_VERSION_MINOR, MIGRAPHX_VERSION_PATCH);
 #else
-    string migraphxVersionStr = "unknown";
+    if(logger)
+        logger->write("MIGraphX: version macros (MIGRAPHX_VERSION_MAJOR/MINOR/PATCH) not defined; compiled-program cache disabled");
+    return "";
 #endif
+
+    // Include GPU architecture (e.g. gfx1100) in the key so that cached binaries
+    // built for one architecture are not loaded onto an incompatible one.
+    hipDeviceProp_t props;
+    hipError_t err = hipGetDeviceProperties(&props, gpuIdx);
+    if(err != hipSuccess) {
+        if(logger)
+            logger->write(
+                "MIGraphX: hipGetDeviceProperties failed for GPU " + Global::intToString(gpuIdx) +
+                " (" + string(hipGetErrorString(err)) + "); compiled-program cache disabled"
+            );
+        return "";
+    }
+    string archName = props.gcnArchName;
+
+    auto cacheDir = HomeData::getHomeDataDir(true, homeDataDir);
+    cacheDir += "/migraphxcache";
+
+    // Create directory if not exists
+    MakeDir::make(cacheDir);
+
     string cacheKey = Global::strprintf(
-        "migraphx%s_%s_%s_%dx%d_batch%d_fp%d_%s",
+        "migraphx%s_%s_%s_%s_%dx%d_batch%d_fp%d_%s",
         migraphxVersionStr.c_str(),
+        archName.c_str(),
         modelDesc.name.c_str(),
         modelDesc.sha256.substr(0, 16).c_str(),
         nnYLen,
@@ -955,7 +989,7 @@ static string getCacheFilePath(
         useFP16 ? 1 : 0,
         requireExactNNLen ? "exact" : "max"
     );
-    
+
     return cacheDir + "/" + cacheKey + ".mxr";
 }
 
@@ -1021,12 +1055,14 @@ ComputeHandle* createComputeHandle(
             bs,
             useFP16,
             useNHWC,
-            requireExactNNLen
+            requireExactNNLen,
+            gpuIdxForThisThread,
+            logger
         );
 
         bool cacheLoaded = false;
 
-        if(FileUtils::exists(cacheFile)) {
+        if(!cacheFile.empty() && FileUtils::exists(cacheFile)) {
             try {
                 if(logger)
                     logger->write("MIGraphX: Loading compiled program from cache (batch " + Global::intToString(bs) + "): " + cacheFile);
@@ -1070,16 +1106,18 @@ ComputeHandle* createComputeHandle(
                 logger->write("MIGraphX: Batch " + Global::intToString(bs) + " compiled");
 
             // Save to cache using a temp file + atomic rename to avoid corruption from concurrent writes
-            try {
-                string tmpFile = cacheFile + ".tmp";
-                migraphx::save(handle->model->progs[bs], tmpFile);
-                if(std::rename(tmpFile.c_str(), cacheFile.c_str()) != 0)
-                    throw StringError("rename failed");
-                if(logger)
-                    logger->write("MIGraphX: Saved compiled program to cache: " + cacheFile);
-            } catch(const exception& e) {
-                if(logger)
-                    logger->write("MIGraphX: Cache save failed (non-fatal): " + string(e.what()));
+            if(!cacheFile.empty()) {
+                try {
+                    string tmpFile = cacheFile + ".tmp";
+                    migraphx::save(handle->model->progs[bs], tmpFile);
+                    if(std::rename(tmpFile.c_str(), cacheFile.c_str()) != 0)
+                        throw StringError("rename failed");
+                    if(logger)
+                        logger->write("MIGraphX: Saved compiled program to cache: " + cacheFile);
+                } catch(const exception& e) {
+                    if(logger)
+                        logger->write("MIGraphX: Cache save failed (non-fatal): " + string(e.what()));
+                }
             }
         }
     }
@@ -1369,7 +1407,10 @@ void getOutput(
     }
 }
 
-// Test functions - implemented using MIGraphX for layer verification
+// Test functions - implemented using MIGraphX for layer verification.
+// These exercise the SAME graph-construction code paths used by the production
+// inference path (MIGraphXGraphBuilder, buildResidualBlock, ...), so that a passing
+// test gives meaningful coverage of what actually runs at inference time.
 bool testEvaluateConv(
     const ConvLayerDesc* desc,
     int batchSize,
@@ -1383,36 +1424,18 @@ bool testEvaluateConv(
     // Skip NHWC tests - MIGraphX backend uses NCHW format
     if(useNHWC)
         return false;
-    
+
     try {
         migraphx::program prog;
         auto main_module = prog.get_main_module();
-        
+
         migraphx::shape::type_t dataType = useFP16 ? migraphx::shape::half_type : migraphx::shape::float_type;
         vector<size_t> inputShape = {(size_t)batchSize, (size_t)desc->inChannels, (size_t)nnYLen, (size_t)nnXLen};
-        
+
         auto input = main_module->add_parameter("input", migraphx::shape(dataType, inputShape));
-        
-        // Create weights - MIGraphX expects float data, will convert internally
-        vector<size_t> wShape = {(size_t)desc->outChannels, (size_t)desc->inChannels, (size_t)desc->convYSize, (size_t)desc->convXSize};
-        migraphx::shape wShapeDesc(dataType, wShape);
-        auto weights = main_module->add_literal(migraphx::literal(wShapeDesc, desc->weights));
-        
-        // Convolution
-        int padY = (desc->convYSize - 1) / 2 * desc->dilationY;
-        int padX = (desc->convXSize - 1) / 2 * desc->dilationX;
-        vector<size_t> padding = {(size_t)padY, (size_t)padX};
-        vector<size_t> stride = {1, 1};
-        vector<size_t> dilation = {(size_t)desc->dilationY, (size_t)desc->dilationX};
-        
-        auto conv_op = migraphx::make_op("convolution", {
-            {"padding", migraphx::value(padding)},
-            {"stride", migraphx::value(stride)},
-            {"dilation", migraphx::value(dilation)},
-            {"group", 1}
-        });
-        
-        auto conv = main_module->add_instruction(conv_op, input, weights);
+
+        MIGraphXGraphBuilder builder(main_module, dataType, batchSize, nnXLen, nnYLen);
+        auto conv = builder.addConv(input, *desc);
         main_module->add_return({conv});
         
         // Compile and run
@@ -1479,44 +1502,23 @@ bool testEvaluateBatchNorm(
     vector<float>& outputBuffer
 ) {
     (void)maskBuffer;  // BatchNorm doesn't use mask directly
-    
+
     // Skip NHWC tests - MIGraphX backend uses NCHW format
     if(useNHWC)
         return false;
-    
-    // Validate weights are available
-    if(desc->mergedScale.size() != (size_t)desc->numChannels || desc->mergedBias.size() != (size_t)desc->numChannels) {
-        cerr << "BatchNorm test: weight size mismatch, skipping" << endl;
-        return false;
-    }
-    
+
     try {
         migraphx::program prog;
         auto main_module = prog.get_main_module();
-        
+
         migraphx::shape::type_t dataType = useFP16 ? migraphx::shape::half_type : migraphx::shape::float_type;
         vector<size_t> inputShape = {(size_t)batchSize, (size_t)desc->numChannels, (size_t)nnYLen, (size_t)nnXLen};
-        
+
         auto input = main_module->add_parameter("input", migraphx::shape(dataType, inputShape));
-        
-        // Create merged scale and bias
-        vector<size_t> paramShape = {(size_t)desc->numChannels};
-        migraphx::shape paramDesc(dataType, paramShape);
-        
-        auto scale = main_module->add_literal(migraphx::literal(paramDesc, desc->mergedScale));
-        auto bias = main_module->add_literal(migraphx::literal(paramDesc, desc->mergedBias));
-        
-        // Broadcast scale and bias to input shape
-        vector<size_t> broadcastShape = {1, (size_t)desc->numChannels, 1, 1};
-        auto scale_broadcast = main_module->add_instruction(
-            migraphx::make_op("multibroadcast", {{"out_lens", inputShape}}), scale);
-        auto bias_broadcast = main_module->add_instruction(
-            migraphx::make_op("multibroadcast", {{"out_lens", inputShape}}), bias);
-        
-        // Apply scale and bias: y = x * scale + bias
-        auto scaled = main_module->add_instruction(migraphx::make_op("mul"), input, scale_broadcast);
-        auto result = main_module->add_instruction(migraphx::make_op("add"), scaled, bias_broadcast);
-        
+
+        MIGraphXGraphBuilder builder(main_module, dataType, batchSize, nnXLen, nnYLen);
+        auto result = builder.addBatchNorm(input, *desc);
+
         main_module->add_return({result});
         
         // Compile and run
@@ -1581,87 +1583,25 @@ bool testEvaluateResidualBlock(
     vector<float>& outputBuffer
 ) {
     (void)maskBuffer;
-    
+
     // Skip NHWC tests - MIGraphX backend uses NCHW format
     if(useNHWC)
         return false;
-    
-    // Validate weights are available
-    size_t w1Expected = (size_t)desc->regularConv.outChannels * desc->regularConv.inChannels 
-                        * desc->regularConv.convYSize * desc->regularConv.convXSize;
-    size_t w2Expected = (size_t)desc->finalConv.outChannels * desc->finalConv.inChannels
-                        * desc->finalConv.convYSize * desc->finalConv.convXSize;
-    if(desc->regularConv.weights.size() != w1Expected || desc->finalConv.weights.size() != w2Expected) {
-        cerr << "ResidualBlock test: weight size mismatch, skipping" << endl;
-        return false;
-    }
-    
+
     try {
         migraphx::program prog;
         auto main_module = prog.get_main_module();
-        
+
         migraphx::shape::type_t dataType = useFP16 ? migraphx::shape::half_type : migraphx::shape::float_type;
         int numChannels = desc->regularConv.inChannels;
         vector<size_t> inputShape = {(size_t)batchSize, (size_t)numChannels, (size_t)nnYLen, (size_t)nnXLen};
-        
+
         auto input = main_module->add_parameter("input", migraphx::shape(dataType, inputShape));
-        
-        // Build residual block
-        auto residual = input;
-        
-        // preBN + preActivation (simplified - just activation for now)
-        auto x = input;
-        if(desc->preActivation.activation == 1) {  // GELU
-            // Simplified GELU
-            auto sigmoid = main_module->add_instruction(migraphx::make_op("sigmoid"), x);
-            x = main_module->add_instruction(migraphx::make_op("mul"), x, sigmoid);
-        } else {
-            x = main_module->add_instruction(migraphx::make_op("relu"), x);
-        }
-        
-        // regularConv
-        vector<size_t> w1Shape = {(size_t)desc->regularConv.outChannels, (size_t)desc->regularConv.inChannels, 
-                                   (size_t)desc->regularConv.convYSize, (size_t)desc->regularConv.convXSize};
-        migraphx::shape w1Desc(dataType, w1Shape);
-        auto w1 = main_module->add_literal(migraphx::literal(w1Desc, desc->regularConv.weights));
-        
-        int pad1 = (desc->regularConv.convYSize - 1) / 2;
-        vector<size_t> padding1 = {(size_t)pad1, (size_t)pad1};
-        auto conv1_op = migraphx::make_op("convolution", {
-            {"padding", migraphx::value(padding1)},
-            {"stride", migraphx::value(vector<size_t>{1, 1})},
-            {"dilation", migraphx::value(vector<size_t>{(size_t)desc->regularConv.dilationY, (size_t)desc->regularConv.dilationX})},
-            {"group", 1}
-        });
-        x = main_module->add_instruction(conv1_op, x, w1);
-        
-        // midActivation
-        if(desc->midActivation.activation == 1) {
-            auto sigmoid = main_module->add_instruction(migraphx::make_op("sigmoid"), x);
-            x = main_module->add_instruction(migraphx::make_op("mul"), x, sigmoid);
-        } else {
-            x = main_module->add_instruction(migraphx::make_op("relu"), x);
-        }
-        
-        // finalConv
-        vector<size_t> w2Shape = {(size_t)desc->finalConv.outChannels, (size_t)desc->finalConv.inChannels,
-                                   (size_t)desc->finalConv.convYSize, (size_t)desc->finalConv.convXSize};
-        migraphx::shape w2Desc(dataType, w2Shape);
-        auto w2 = main_module->add_literal(migraphx::literal(w2Desc, desc->finalConv.weights));
-        
-        int pad2 = (desc->finalConv.convYSize - 1) / 2;
-        vector<size_t> padding2 = {(size_t)pad2, (size_t)pad2};
-        auto conv2_op = migraphx::make_op("convolution", {
-            {"padding", migraphx::value(padding2)},
-            {"stride", migraphx::value(vector<size_t>{1, 1})},
-            {"dilation", migraphx::value(vector<size_t>{(size_t)desc->finalConv.dilationY, (size_t)desc->finalConv.dilationX})},
-            {"group", 1}
-        });
-        x = main_module->add_instruction(conv2_op, x, w2);
-        
-        // Add residual
-        auto result = main_module->add_instruction(migraphx::make_op("add"), x, residual);
-        
+
+        // Build the residual block using the exact same code path used at inference.
+        MIGraphXGraphBuilder builder(main_module, dataType, batchSize, nnXLen, nnYLen);
+        auto result = buildResidualBlock(builder, input, *desc);
+
         main_module->add_return({result});
         
         // Compile and run
@@ -1725,99 +1665,60 @@ bool testEvaluateGlobalPoolingResidualBlock(
     const vector<float>& maskBuffer,
     vector<float>& outputBuffer
 ) {
-    (void)desc;
-    (void)batchSize;
-    (void)nnXLen;
-    (void)nnYLen;
-    (void)useFP16;
-    (void)useNHWC;
-    (void)inputBuffer;
     (void)maskBuffer;
-    (void)outputBuffer;
-    
-    // Global pooling residual block tests not supported yet
-    return false;
-    
+
+    // Skip NHWC tests - MIGraphX backend uses NCHW format
+    if(useNHWC)
+        return false;
+
     try {
         migraphx::program prog;
         auto main_module = prog.get_main_module();
-        
-        migraphx::shape::type_t dataType = migraphx::shape::float_type;
+
+        migraphx::shape::type_t dataType = useFP16 ? migraphx::shape::half_type : migraphx::shape::float_type;
         int numChannels = desc->regularConv.inChannels;
         vector<size_t> inputShape = {(size_t)batchSize, (size_t)numChannels, (size_t)nnYLen, (size_t)nnXLen};
-        
+
         auto input = main_module->add_parameter("input", migraphx::shape(dataType, inputShape));
-        
-        // Simplified global pooling residual block (without full gpool branch for now)
-        auto residual = input;
-        
-        // Activation
-        auto x = main_module->add_instruction(migraphx::make_op("relu"), input);
-        
-        // regularConv
-        vector<size_t> wShape = {(size_t)desc->regularConv.outChannels, (size_t)desc->regularConv.inChannels,
-                                  (size_t)desc->regularConv.convYSize, (size_t)desc->regularConv.convXSize};
-        migraphx::shape wDesc(dataType, wShape);
-        auto w = main_module->add_literal(migraphx::literal(wDesc, desc->regularConv.weights));
-        
-        int pad = (desc->regularConv.convYSize - 1) / 2;
-        vector<size_t> padding = {(size_t)pad, (size_t)pad};
-        auto conv_op = migraphx::make_op("convolution", {
-            {"padding", migraphx::value(padding)},
-            {"stride", migraphx::value(vector<size_t>{1, 1})},
-            {"dilation", migraphx::value(vector<size_t>{(size_t)desc->regularConv.dilationY, (size_t)desc->regularConv.dilationX})},
-            {"group", 1}
-        });
-        x = main_module->add_instruction(conv_op, x, w);
-        
-        // midActivation
-        x = main_module->add_instruction(migraphx::make_op("relu"), x);
-        
-        // finalConv
-        vector<size_t> w2Shape = {(size_t)desc->finalConv.outChannels, (size_t)desc->finalConv.inChannels,
-                                   (size_t)desc->finalConv.convYSize, (size_t)desc->finalConv.convXSize};
-        migraphx::shape w2Desc(dataType, w2Shape);
-        auto w2 = main_module->add_literal(migraphx::literal(w2Desc, desc->finalConv.weights));
-        
-        int pad2 = (desc->finalConv.convYSize - 1) / 2;
-        vector<size_t> padding2 = {(size_t)pad2, (size_t)pad2};
-        auto conv2_op = migraphx::make_op("convolution", {
-            {"padding", migraphx::value(padding2)},
-            {"stride", migraphx::value(vector<size_t>{1, 1})},
-            {"dilation", migraphx::value(vector<size_t>{(size_t)desc->finalConv.dilationY, (size_t)desc->finalConv.dilationX})},
-            {"group", 1}
-        });
-        x = main_module->add_instruction(conv2_op, x, w2);
-        
-        // Add residual
-        auto result = main_module->add_instruction(migraphx::make_op("add"), x, residual);
-        
+
+        // Build the global pooling residual block using the same code path as inference.
+        MIGraphXGraphBuilder builder(main_module, dataType, batchSize, nnXLen, nnYLen);
+        auto result = buildGlobalPoolingResidualBlock(builder, input, *desc);
+
         main_module->add_return({result});
-        
+
         // Compile and run
         migraphx::compile_options compile_opts;
         compile_opts.offload_copy = true;
         auto target = migraphx::make_target("gpu");
         prog.compile(target, compile_opts);
-        
+
         migraphx::parameter_map params;
-        params["input"] = migraphx::argument(migraphx::shape(dataType, inputShape), const_cast<float*>(inputBuffer.data()));
-        
+
+        vector<migraphx::half> halfInput;
+        if(useFP16) {
+            halfInput.resize(inputBuffer.size());
+            for(size_t i = 0; i < inputBuffer.size(); i++) {
+                halfInput[i] = migraphx::half(inputBuffer[i]);
+            }
+            params["input"] = migraphx::argument(migraphx::shape(dataType, inputShape), halfInput.data());
+        } else {
+            params["input"] = migraphx::argument(migraphx::shape(dataType, inputShape), const_cast<float*>(inputBuffer.data()));
+        }
+
         auto results = prog.eval(params);
-        
+
         // Copy output
         size_t outputSize = batchSize * numChannels * nnYLen * nnXLen;
         outputBuffer.resize(outputSize);
-        
+
         auto outputArg = results[0];
-        vector<float> tempOutput(outputSize);
         outputArg.visit([&](auto output) {
             for(size_t i = 0; i < outputSize; i++) {
-                tempOutput[i] = static_cast<float>(output[i]);
+                outputBuffer[i] = static_cast<float>(output[i]);
             }
         });
-        outputBuffer = tempOutput;
-        
+
         return true;
     } catch(const exception& e) {
         cerr << "testEvaluateGlobalPoolingResidualBlock failed: " << e.what() << endl;

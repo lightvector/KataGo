@@ -882,22 +882,20 @@ elseif(USE_BACKEND STREQUAL "MIGRAPHX")
   find_library(AMDHIP64_LIBRARY amdhip64
                HINTS /opt/rocm/lib
                PATH_SUFFIXES lib lib64)
-  if(AMDHIP64_LIBRARY)
-    target_link_libraries(katago ${AMDHIP64_LIBRARY})
-  else()
-    target_link_libraries(katago amdhip64)
+  if(NOT AMDHIP64_LIBRARY)
+    message(FATAL_ERROR "Required library 'amdhip64' not found. Install ROCm and ensure /opt/rocm/lib is accessible, or pass -DCMAKE_PREFIX_PATH=/opt/rocm.")
   endif()
+  target_link_libraries(katago ${AMDHIP64_LIBRARY})
   
-  # Link other required libraries
+  # Link HIP runtime compiler (required)
   find_library(HIPRTC_LIBRARY hiprtc
                HINTS /opt/rocm/lib
                PATH_SUFFIXES lib lib64)
-  if(HIPRTC_LIBRARY)
-    target_link_libraries(katago ${HIPRTC_LIBRARY})
+  if(NOT HIPRTC_LIBRARY)
+    message(FATAL_ERROR "Required library 'hiprtc' not found. Install ROCm and ensure /opt/rocm/lib is accessible, or pass -DCMAKE_PREFIX_PATH=/opt/rocm.")
   endif()
+  target_link_libraries(katago ${HIPRTC_LIBRARY})
   
-  # Add ROCm library directories
-  link_directories(/opt/rocm/lib)
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)
