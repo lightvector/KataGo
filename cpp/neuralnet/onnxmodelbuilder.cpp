@@ -179,7 +179,17 @@ static string addActivationNode(
     addNode(graph, "Mul", {input, th}, output);
     return output;
   } else if(activationType == ACTIVATION_MISH_SCALE8) {
-    throw StringError("ONNX backend: ACTIVATION_MISH_SCALE8 is not yet supported in the ONNX model builder");
+    // Mish-scale8 = x * tanh(softplus(8 * x))
+    string eight = addScalarInitializer(graph, uniqueName(nameCounter, prefix + "/c8"), 8.0f);
+    string scaled = uniqueName(nameCounter, prefix + "/scale8");
+    addNode(graph, "Mul", {input, eight}, scaled);
+    string sp = uniqueName(nameCounter, prefix + "/softplus");
+    addNode(graph, "Softplus", {scaled}, sp);
+    string th = uniqueName(nameCounter, prefix + "/tanh");
+    addNode(graph, "Tanh", {sp}, th);
+    string output = uniqueName(nameCounter, prefix + "/mish8");
+    addNode(graph, "Mul", {input, th}, output);
+    return output;
   } else if(activationType == ACTIVATION_IDENTITY) {
     return input;
   } else {
@@ -558,6 +568,34 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
   const PolicyHeadDesc& policyHead = modelDesc.policyHead;
   const ValueHeadDesc& valueHead = modelDesc.valueHead;
 
+  // Validate that trunk input dimensions match the declared model input channels.
+  // Catching this here produces a clear KataGo-level error instead of an
+  // unintelligible ONNX Runtime shape-mismatch error at session creation.
+  if(trunk.initialConv.inChannels != numInputChannels)
+    throw StringError(
+      "ONNX builder: trunk.initialConv.inChannels (" +
+      to_string(trunk.initialConv.inChannels) +
+      ") != modelDesc.numInputChannels (" + to_string(numInputChannels) + ")"
+    );
+  if(trunk.initialMatMul.inChannels != numInputGlobalChannels)
+    throw StringError(
+      "ONNX builder: trunk.initialMatMul.inChannels (" +
+      to_string(trunk.initialMatMul.inChannels) +
+      ") != modelDesc.numInputGlobalChannels (" + to_string(numInputGlobalChannels) + ")"
+    );
+  if(trunk.metaEncoderVersion > 0 && modelDesc.numInputMetaChannels <= 0)
+    throw StringError(
+      "ONNX builder: trunk has metaEncoderVersion=" + to_string(trunk.metaEncoderVersion) +
+      " but numInputMetaChannels=" + to_string(modelDesc.numInputMetaChannels)
+    );
+  if(trunk.metaEncoderVersion > 0 &&
+     trunk.sgfMetadataEncoder.mul1.inChannels != modelDesc.numInputMetaChannels)
+    throw StringError(
+      "ONNX builder: sgfMetadataEncoder.mul1.inChannels (" +
+      to_string(trunk.sgfMetadataEncoder.mul1.inChannels) +
+      ") != modelDesc.numInputMetaChannels (" + to_string(modelDesc.numInputMetaChannels) + ")"
+    );
+
   onnx::ModelProto model;
   model.set_ir_version(8);
   model.set_producer_name("KataGo");
@@ -774,4 +812,106 @@ string OnnxModelBuilder::buildOnnxModel(const ModelDesc& modelDesc, int nnXLen, 
     throw StringError("ONNX backend: failed to serialize ONNX model to protobuf");
 
   return serialized;
+}
+
+// =====================================================================
+// Helpers for single-layer test models
+// =====================================================================
+static void initEmptyTestModel(onnx::ModelProto& model, onnx::GraphProto*& graph) {
+  model.set_ir_version(8);
+  model.set_producer_name("KataGo");
+  model.set_domain("ai.katago");
+  auto* opset = model.add_opset_import();
+  opset->set_domain("");
+  opset->set_version(18);
+  graph = model.mutable_graph();
+  graph->set_name("katago_test");
+}
+
+static string serializeTestModel(const onnx::ModelProto& model) {
+  string serialized;
+  if(!model.SerializeToString(&serialized))
+    throw StringError("ONNX backend: failed to serialize test ONNX model to protobuf");
+  return serialized;
+}
+
+// =====================================================================
+// Single-layer test model builders
+// =====================================================================
+string OnnxModelBuilder::buildSingleConvModel(
+  const ConvLayerDesc& desc, int batchSize, int nnXLen, int nnYLen
+) {
+  int nameCounter = 0;
+  onnx::ModelProto model;
+  onnx::GraphProto* graph = nullptr;
+  initEmptyTestModel(model, graph);
+
+  addGraphInput(graph, "input", {batchSize, desc.inChannels, nnYLen, nnXLen});
+
+  string conv = addConvNode(graph, nameCounter, "input", desc, "test/conv");
+  addNode(graph, "Identity", {conv}, "output");
+
+  addGraphOutput(graph, "output", {batchSize, desc.outChannels, nnYLen, nnXLen});
+  return serializeTestModel(model);
+}
+
+string OnnxModelBuilder::buildSingleBatchNormModel(
+  const BatchNormLayerDesc& desc, int batchSize, int nnXLen, int nnYLen
+) {
+  int nameCounter = 0;
+  onnx::ModelProto model;
+  onnx::GraphProto* graph = nullptr;
+  initEmptyTestModel(model, graph);
+
+  addGraphInput(graph, "input", {batchSize, desc.numChannels, nnYLen, nnXLen});
+
+  string bn = addMergedBNNode(graph, nameCounter, "input", desc, "test/bn");
+  addNode(graph, "Identity", {bn}, "output");
+
+  addGraphOutput(graph, "output", {batchSize, desc.numChannels, nnYLen, nnXLen});
+  return serializeTestModel(model);
+}
+
+string OnnxModelBuilder::buildSingleResidualBlockModel(
+  const ResidualBlockDesc& desc, int batchSize, int nnXLen, int nnYLen
+) {
+  int nameCounter = 0;
+  onnx::ModelProto model;
+  onnx::GraphProto* graph = nullptr;
+  initEmptyTestModel(model, graph);
+
+  int numChannels = desc.regularConv.inChannels;
+  addGraphInput(graph, "input", {batchSize, numChannels, nnYLen, nnXLen});
+  addGraphInput(graph, "mask",  {batchSize, 1, nnYLen, nnXLen});
+
+  string block = addResidualBlock(graph, nameCounter, "input", "mask", desc, "test/resblock");
+  addNode(graph, "Identity", {block}, "output");
+
+  addGraphOutput(graph, "output", {batchSize, numChannels, nnYLen, nnXLen});
+  return serializeTestModel(model);
+}
+
+string OnnxModelBuilder::buildSingleGlobalPoolingResidualBlockModel(
+  const GlobalPoolingResidualBlockDesc& desc, int batchSize, int nnXLen, int nnYLen
+) {
+  int nameCounter = 0;
+  onnx::ModelProto model;
+  onnx::GraphProto* graph = nullptr;
+  initEmptyTestModel(model, graph);
+
+  int numChannels = desc.regularConv.inChannels;
+  addGraphInput(graph, "input", {batchSize, numChannels, nnYLen, nnXLen});
+  addGraphInput(graph, "mask",  {batchSize, 1, nnYLen, nnXLen});
+
+  // Compute maskSumHW = ReduceSum(mask, [2,3], keepdims=1) -> [N,1,1,1]
+  string sumAxes = addInt64Initializer(graph, "test_mask_sum_axes", {2, 3});
+  string maskSumHW = uniqueName(nameCounter, "test/maskSumHW");
+  onnx::NodeProto* sumNode = addNode(graph, "ReduceSum", {"mask", sumAxes}, maskSumHW);
+  setAttrInt(sumNode, "keepdims", 1);
+
+  string block = addGPoolResidualBlock(graph, nameCounter, "input", "mask", maskSumHW, desc, "test/gpoolblock");
+  addNode(graph, "Identity", {block}, "output");
+
+  addGraphOutput(graph, "output", {batchSize, numChannels, nnYLen, nnXLen});
+  return serializeTestModel(model);
 }

@@ -33,12 +33,11 @@ using namespace std;
 //   - 6 score-value channels, 1 policy channel  -> version 10
 //   - 6 score-value channels, 2 policy channels -> version 15
 //
-// IMPORTANT: This heuristic may misdetect the version for unusual model
-// configurations. A wrong version causes silent score-output mismatch (e.g.
-// whiteLead or varTimeLeft filled from wrong buffer offsets). If inference
-// results look wrong, override the detected version by adding
-//   onnxModelVersion = <correct_version>
-// to your GTP config, or via -override-config onnxModelVersion=<N>.
+// If the heuristic cannot identify the model version with confidence, this
+// throws StringError to force the user to specify it explicitly.  A silently
+// wrong version causes score-output mismatch (e.g. whiteLead or varTimeLeft
+// filled from wrong buffer offsets), which is much worse than a load-time error.
+// Override via 'modelVersion=<N>' in backendExtraParam, or via -override-config.
 // Standard .bin.gz KataGo models do NOT need this — version is read from the file.
 static int detectModelVersion(
   int numInputChannels, int numInputGlobalChannels,
@@ -57,11 +56,20 @@ static int detectModelVersion(
       return 10;
     if(numScoreValueChannels == 4)
       return 8;
-    // Default for V7 inputs
-    return 15;
+    throw StringError(
+      "ONNX backend: cannot auto-detect modelVersion from V7 inputs with "
+      "numScoreValueChannels=" + Global::intToString(numScoreValueChannels) +
+      ", numPolicyChannels=" + Global::intToString(numPolicyChannels) +
+      ". Set 'modelVersion=<N>' in the onnx backendExtraParam (or via "
+      "-override-config onnxModelVersion=<N>) to specify the model version explicitly."
+    );
   }
-  // Older input versions -- fall back to a reasonable default
-  return NNModelVersion::defaultModelVersion;
+  throw StringError(
+    "ONNX backend: cannot auto-detect modelVersion for input shape "
+    "(numInputChannels=" + Global::intToString(numInputChannels) +
+    ", numInputGlobalChannels=" + Global::intToString(numInputGlobalChannels) +
+    "). Set 'modelVersion=<N>' explicitly via backendExtraParam or -override-config."
+  );
 }
 
 struct LoadedModel {
@@ -168,6 +176,23 @@ struct LoadedModel {
         if(shape.size() >= 2)
           numOwnershipChannels = (int)shape[1];
       }
+    }
+
+    // Validate that every required output was identified. Without this,
+    // unmatched names silently leave channel counts at 0 and downstream code
+    // produces garbage offsets and shape mismatches with unhelpful errors.
+    if(numPolicyChannels == 0 || numValueChannels == 0 ||
+       numScoreValueChannels == 0 || numOwnershipChannels == 0) {
+      throw StringError(
+        "ONNX backend: failed to introspect required outputs from raw .onnx file '" +
+        fileName + "'. Found policy=" + Global::intToString(numPolicyChannels) +
+        ", value=" + Global::intToString(numValueChannels) +
+        ", miscvalue=" + Global::intToString(numScoreValueChannels) +
+        ", ownership=" + Global::intToString(numOwnershipChannels) +
+        ". Expected output tensor names containing 'policy', 'value', 'miscvalue', "
+        "'ownership' (case-sensitive substring match). Either rename the model "
+        "outputs accordingly or use a non-raw .bin.gz KataGo model."
+      );
     }
 
     // Populate ModelDesc metadata (weights are in the ONNX graph, not in modelDesc)
@@ -839,15 +864,112 @@ void NeuralNet::printDevices() {
 }
 
 //--------------------------------------------------------------
-// FOR TESTING -- all return false (not implemented for this backend)
+// FOR TESTING -- exercise the same OnnxModelBuilder helpers used by production
+// inference by wrapping the layer in a minimal single-output ONNX model and
+// running it through ONNX Runtime's CPU execution provider.
+//
+// useFP16 / useNHWC are not supported by this backend and the tests skip those
+// configurations (return false). Skipping is interpreted by the test harness as
+// "backend doesn't support this configuration", not as a failure.
+
+namespace {
+
+// Run a single-input model: input -> output. Returns false if useFP16 or useNHWC
+// requested (this backend always runs FP32 NCHW).
+bool runSingleInputTestModel(
+  const std::string& onnxBytes,
+  const std::array<int64_t, 4>& inputShape,
+  const std::vector<float>& inputBuffer,
+  size_t outputSize,
+  std::vector<float>& outputBuffer
+) {
+  Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "KataGoOnnxTest");
+  Ort::SessionOptions opts;
+  opts.SetIntraOpNumThreads(1);
+  Ort::Session session(env, onnxBytes.data(), onnxBytes.size(), opts);
+
+  Ort::MemoryInfo memInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+
+  size_t inputElts = (size_t)inputShape[0] * inputShape[1] * inputShape[2] * inputShape[3];
+  Ort::Value inputTensor = Ort::Value::CreateTensor<float>(
+    memInfo, const_cast<float*>(inputBuffer.data()), inputElts,
+    inputShape.data(), inputShape.size()
+  );
+
+  const char* inputNames[] = {"input"};
+  const char* outputNames[] = {"output"};
+  auto results = session.Run(
+    Ort::RunOptions{nullptr},
+    inputNames, &inputTensor, 1,
+    outputNames, 1
+  );
+
+  const float* data = results[0].GetTensorData<float>();
+  outputBuffer.assign(data, data + outputSize);
+  return true;
+}
+
+// Run a 2-input (input + mask) model: input, mask -> output.
+bool runMaskedTestModel(
+  const std::string& onnxBytes,
+  const std::array<int64_t, 4>& inputShape,
+  const std::vector<float>& inputBuffer,
+  const std::vector<float>& maskBuffer,
+  size_t outputSize,
+  std::vector<float>& outputBuffer
+) {
+  Ort::Env env(ORT_LOGGING_LEVEL_WARNING, "KataGoOnnxTest");
+  Ort::SessionOptions opts;
+  opts.SetIntraOpNumThreads(1);
+  Ort::Session session(env, onnxBytes.data(), onnxBytes.size(), opts);
+
+  Ort::MemoryInfo memInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+
+  size_t inputElts = (size_t)inputShape[0] * inputShape[1] * inputShape[2] * inputShape[3];
+  std::array<int64_t, 4> maskShape = {inputShape[0], 1, inputShape[2], inputShape[3]};
+  size_t maskElts = (size_t)maskShape[0] * maskShape[1] * maskShape[2] * maskShape[3];
+
+  Ort::Value inputTensor = Ort::Value::CreateTensor<float>(
+    memInfo, const_cast<float*>(inputBuffer.data()), inputElts,
+    inputShape.data(), inputShape.size()
+  );
+  Ort::Value maskTensor = Ort::Value::CreateTensor<float>(
+    memInfo, const_cast<float*>(maskBuffer.data()), maskElts,
+    maskShape.data(), maskShape.size()
+  );
+
+  // ONNX session orders inputs by declaration order in the graph.
+  const char* inputNames[] = {"input", "mask"};
+  Ort::Value inputs[2] = {std::move(inputTensor), std::move(maskTensor)};
+  const char* outputNames[] = {"output"};
+  auto results = session.Run(
+    Ort::RunOptions{nullptr},
+    inputNames, inputs, 2,
+    outputNames, 1
+  );
+
+  const float* data = results[0].GetTensorData<float>();
+  outputBuffer.assign(data, data + outputSize);
+  return true;
+}
+
+}  // namespace
 
 bool NeuralNet::testEvaluateConv(
   const ConvLayerDesc* desc, int batchSize, int nnXLen, int nnYLen,
   bool useFP16, bool useNHWC, const std::vector<float>& inputBuffer, std::vector<float>& outputBuffer
 ) {
-  (void)desc; (void)batchSize; (void)nnXLen; (void)nnYLen;
-  (void)useFP16; (void)useNHWC; (void)inputBuffer; (void)outputBuffer;
-  return false;
+  if(useFP16 || useNHWC)
+    return false;
+  try {
+    std::string onnxBytes = OnnxModelBuilder::buildSingleConvModel(*desc, batchSize, nnXLen, nnYLen);
+    std::array<int64_t, 4> inputShape = {batchSize, desc->inChannels, nnYLen, nnXLen};
+    size_t outputSize = (size_t)batchSize * desc->outChannels * nnYLen * nnXLen;
+    return runSingleInputTestModel(onnxBytes, inputShape, inputBuffer, outputSize, outputBuffer);
+  } catch(const std::exception& e) {
+    cerr << "testEvaluateConv failed: " << e.what() << endl;
+    return false;
+  }
 }
 
 bool NeuralNet::testEvaluateBatchNorm(
@@ -855,9 +977,18 @@ bool NeuralNet::testEvaluateBatchNorm(
   bool useFP16, bool useNHWC, const std::vector<float>& inputBuffer,
   const std::vector<float>& maskBuffer, std::vector<float>& outputBuffer
 ) {
-  (void)desc; (void)batchSize; (void)nnXLen; (void)nnYLen;
-  (void)useFP16; (void)useNHWC; (void)inputBuffer; (void)maskBuffer; (void)outputBuffer;
-  return false;
+  (void)maskBuffer;  // Merged BN doesn't depend on the mask directly.
+  if(useFP16 || useNHWC)
+    return false;
+  try {
+    std::string onnxBytes = OnnxModelBuilder::buildSingleBatchNormModel(*desc, batchSize, nnXLen, nnYLen);
+    std::array<int64_t, 4> inputShape = {batchSize, desc->numChannels, nnYLen, nnXLen};
+    size_t outputSize = (size_t)batchSize * desc->numChannels * nnYLen * nnXLen;
+    return runSingleInputTestModel(onnxBytes, inputShape, inputBuffer, outputSize, outputBuffer);
+  } catch(const std::exception& e) {
+    cerr << "testEvaluateBatchNorm failed: " << e.what() << endl;
+    return false;
+  }
 }
 
 bool NeuralNet::testEvaluateResidualBlock(
@@ -865,9 +996,18 @@ bool NeuralNet::testEvaluateResidualBlock(
   bool useFP16, bool useNHWC, const std::vector<float>& inputBuffer,
   const std::vector<float>& maskBuffer, std::vector<float>& outputBuffer
 ) {
-  (void)desc; (void)batchSize; (void)nnXLen; (void)nnYLen;
-  (void)useFP16; (void)useNHWC; (void)inputBuffer; (void)maskBuffer; (void)outputBuffer;
-  return false;
+  if(useFP16 || useNHWC)
+    return false;
+  try {
+    std::string onnxBytes = OnnxModelBuilder::buildSingleResidualBlockModel(*desc, batchSize, nnXLen, nnYLen);
+    int numChannels = desc->regularConv.inChannels;
+    std::array<int64_t, 4> inputShape = {batchSize, numChannels, nnYLen, nnXLen};
+    size_t outputSize = (size_t)batchSize * numChannels * nnYLen * nnXLen;
+    return runMaskedTestModel(onnxBytes, inputShape, inputBuffer, maskBuffer, outputSize, outputBuffer);
+  } catch(const std::exception& e) {
+    cerr << "testEvaluateResidualBlock failed: " << e.what() << endl;
+    return false;
+  }
 }
 
 bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
@@ -875,7 +1015,16 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   bool useFP16, bool useNHWC, const std::vector<float>& inputBuffer,
   const std::vector<float>& maskBuffer, std::vector<float>& outputBuffer
 ) {
-  (void)desc; (void)batchSize; (void)nnXLen; (void)nnYLen;
-  (void)useFP16; (void)useNHWC; (void)inputBuffer; (void)maskBuffer; (void)outputBuffer;
-  return false;
+  if(useFP16 || useNHWC)
+    return false;
+  try {
+    std::string onnxBytes = OnnxModelBuilder::buildSingleGlobalPoolingResidualBlockModel(*desc, batchSize, nnXLen, nnYLen);
+    int numChannels = desc->regularConv.inChannels;
+    std::array<int64_t, 4> inputShape = {batchSize, numChannels, nnYLen, nnXLen};
+    size_t outputSize = (size_t)batchSize * numChannels * nnYLen * nnXLen;
+    return runMaskedTestModel(onnxBytes, inputShape, inputBuffer, maskBuffer, outputSize, outputBuffer);
+  } catch(const std::exception& e) {
+    cerr << "testEvaluateGlobalPoolingResidualBlock failed: " << e.what() << endl;
+    return false;
+  }
 }

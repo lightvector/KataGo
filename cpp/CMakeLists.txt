@@ -600,8 +600,8 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   else()
     find_library(ONNXRUNTIME_LIB onnxruntime HINTS "${ONNXRUNTIME_ROOT}/lib" "${ONNXRUNTIME_ROOT}/bin" "${ONNXRUNTIME_ROOT}")
   endif()
-  if(NOT EXISTS "${ONNXRUNTIME_LIB}" AND NOT ONNXRUNTIME_LIB)
-    message(FATAL_ERROR "Could not find onnxruntime library under ${ONNXRUNTIME_ROOT}")
+  if(NOT ONNXRUNTIME_LIB OR ONNXRUNTIME_LIB STREQUAL "ONNXRUNTIME_LIB-NOTFOUND" OR NOT EXISTS "${ONNXRUNTIME_LIB}")
+    message(FATAL_ERROR "Could not find onnxruntime library under ${ONNXRUNTIME_ROOT}. Looked for: ${ONNXRUNTIME_LIB}")
   endif()
   target_link_libraries(katago ${ONNXRUNTIME_LIB})
 
@@ -714,6 +714,23 @@ elseif(USE_BACKEND STREQUAL "ONNX")
           "${_onnxruntime_dll}"
           $<TARGET_FILE_DIR:katago>
       )
+    endforeach()
+  endif()
+
+  # Copy runtime DLLs that vcpkg built as shared libraries but does not
+  # automatically deploy alongside the executable (e.g. zlib, abseil, protobuf).
+  if(WIN32 AND _katago_vcpkg_installed_root)
+    set(_vcpkg_bin_dir "${_katago_vcpkg_installed_root}/bin")
+    foreach(_dll_name z abseil_dll libprotobuf)
+      file(GLOB _found_dlls "${_vcpkg_bin_dir}/${_dll_name}.dll")
+      foreach(_dll IN LISTS _found_dlls)
+        add_custom_command(TARGET katago POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_dll}"
+            $<TARGET_FILE_DIR:katago>
+          COMMENT "Deploying ${_dll_name}.dll"
+        )
+      endforeach()
     endforeach()
   endif()
 elseif(USE_BACKEND STREQUAL "EIGEN")
