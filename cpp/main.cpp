@@ -33,6 +33,7 @@ genconfig : User-friendly interface to generate a config with rules and automati
 contribute : Connect to online distributed KataGo training and run perpetually contributing selfplay games.
 
 match : Run self-play match games based on a config, more efficient than gtp due to batching.
+tune-params : Tune KataGo PUCT hyperparameters via sequential optimization (QRS-Tune).
 version : Print version and exit.
 
 analysis : Runs an engine designed to analyze entire games in parallel.
@@ -87,6 +88,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::tuner(subArgs);
   else if(subcommand == "match")
     return MainCmds::match(subArgs);
+  else if(subcommand == "tune-params")
+    return MainCmds::tuneparams(subArgs);
   else if(subcommand == "selfplay")
     return MainCmds::selfplay(subArgs);
   else if(subcommand == "testgpuerror")

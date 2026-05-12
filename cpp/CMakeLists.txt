@@ -342,6 +342,7 @@ add_executable(katago
   tests/tinymodel.cpp
   tests/tinymodeldata.cpp
   distributed/client.cpp
+  qrstune/QRSOptimizer.cpp
   command/commandline.cpp
   command/analysis.cpp
   command/benchmark.cpp
@@ -352,6 +353,7 @@ add_executable(katago
   command/gputest.cpp
   command/gtp.cpp
   command/match.cpp
+  command/tuneparams.cpp
   command/misc.cpp
   command/runtests.cpp
   command/sandbox.cpp
