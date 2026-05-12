@@ -1,4 +1,44 @@
 cmake_minimum_required(VERSION 3.18.2)
+
+# Helper: produce the default broad list of AMD GPU architectures the ROCm
+# backend should target when the user has not passed -DCMAKE_HIP_ARCHITECTURES=...
+# Required archs are always included; optional archs are probed and only
+# included if the HIP compiler accepts them (e.g. older toolchains may not
+# support gfx1031/gfx1032).
+function(katago_default_hip_archs out_var)
+  set(_required_archs
+      gfx906 gfx908 gfx90a gfx942 gfx950
+      gfx1030 gfx1100 gfx1101 gfx1151 gfx1201)
+  set(_optional_archs gfx1031 gfx1032)
+  set(_result "${_required_archs}")
+
+  if(CMAKE_HIP_COMPILER)
+    set(_probe_dir "${CMAKE_BINARY_DIR}/_katago_hip_arch_probe")
+    file(MAKE_DIRECTORY "${_probe_dir}")
+    set(_probe_src "${_probe_dir}/probe.cpp")
+    if(NOT EXISTS "${_probe_src}")
+      file(WRITE "${_probe_src}" "int main(){return 0;}\n")
+    endif()
+    foreach(_arch IN LISTS _optional_archs)
+      execute_process(
+        COMMAND "${CMAKE_HIP_COMPILER}" --offload-arch=${_arch} -x hip -c
+                "${_probe_src}" -o "${_probe_dir}/probe_${_arch}.o"
+        RESULT_VARIABLE _rc
+        OUTPUT_QUIET ERROR_QUIET)
+      if(_rc EQUAL 0)
+        list(APPEND _result ${_arch})
+        message(STATUS "HIP arch ${_arch} accepted by compiler — including")
+      else()
+        message(STATUS "HIP arch ${_arch} not accepted by compiler — skipping")
+      endif()
+    endforeach()
+  else()
+    message(STATUS "CMAKE_HIP_COMPILER not yet known; optional archs (gfx1031/gfx1032) not probed")
+  endif()
+
+  set(${out_var} "${_result}" PARENT_SCOPE)
+endfunction()
+
 if(USE_BACKEND STREQUAL "METAL")
   project(katago LANGUAGES CXX Swift)
 elseif(USE_BACKEND STREQUAL "ROCM")
@@ -34,41 +74,14 @@ elseif(USE_BACKEND STREQUAL "ROCM")
       set(CMAKE_HIP_COMPILER "${CMAKE_CXX_COMPILER}" CACHE FILEPATH "" FORCE)
     endif()
     # ---------- HIP architectures (must be set before project() / enable_language(HIP)) ----------
-    if(NOT DEFINED CMAKE_HIP_ARCHITECTURES AND DEFINED ENV{HIP_PATH})
-      # TheRock layout: lib/llvm/bin/; standard HIP SDK layout: bin/
-      foreach(_arch_candidate
-          "$ENV{HIP_PATH}/lib/llvm/bin/amdgpu-arch.exe"
-          "$ENV{HIP_PATH}/bin/amdgpu-arch.exe")
-        if(EXISTS "${_arch_candidate}")
-          set(_amdgpu_arch_exe "${_arch_candidate}")
-          break()
-        endif()
-      endforeach()
-      if(EXISTS "${_amdgpu_arch_exe}")
-        execute_process(COMMAND "${_amdgpu_arch_exe}"
-          OUTPUT_VARIABLE _detected_archs OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-        if(_detected_archs)
-          string(REPLACE "\n" ";" _arch_list "${_detected_archs}")
-          # Filter to only valid gfxNNNN entries (amdgpu-arch may also print
-          # "HIP Library Path: ..." header lines on some installations)
-          set(_filtered_archs "")
-          foreach(_a ${_arch_list})
-            if(_a MATCHES "^gfx[0-9]")
-              list(APPEND _filtered_archs "${_a}")
-            endif()
-          endforeach()
-          list(REMOVE_DUPLICATES _filtered_archs)
-          if(_filtered_archs)
-            set(CMAKE_HIP_ARCHITECTURES "${_filtered_archs}" CACHE STRING "Auto-detected AMD GPU targets")
-            message(STATUS "Pre-project auto-detected AMD GPU architectures: ${CMAKE_HIP_ARCHITECTURES}")
-          endif()
-        endif()
-      endif()
-      if(NOT CMAKE_HIP_ARCHITECTURES)
-        # Conservative fallback covering RDNA2/3/4 and CDNA2/3
-        set(CMAKE_HIP_ARCHITECTURES "gfx1030;gfx1100;gfx1101;gfx1151;gfx1201;gfx90a;gfx942;gfx950" CACHE STRING "Fallback AMD GPU targets")
-        message(STATUS "amdgpu-arch not available; using fallback architectures: ${CMAKE_HIP_ARCHITECTURES}")
-      endif()
+    # Default to the broad set of AMD GPU architectures KataGo supports unless
+    # the user explicitly passed -DCMAKE_HIP_ARCHITECTURES=... on the command line.
+    if(NOT DEFINED CMAKE_HIP_ARCHITECTURES)
+      katago_default_hip_archs(_default_archs)
+      set(CMAKE_HIP_ARCHITECTURES "${_default_archs}" CACHE STRING "Default broad set of AMD GPU targets")
+      message(STATUS "Pre-project default CMAKE_HIP_ARCHITECTURES=${CMAKE_HIP_ARCHITECTURES}")
+    else()
+      message(STATUS "Pre-project user-specified CMAKE_HIP_ARCHITECTURES=${CMAKE_HIP_ARCHITECTURES}")
     endif()
     # ---------- Windows SDK includes (needed by HIP compiler test during project()) ----------
     # The HIP runtime wrapper includes MSVC headers that require Windows SDK ucrt/shared/um.
@@ -297,9 +310,6 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
 elseif(USE_BACKEND STREQUAL "ROCM")
   message(STATUS "-DUSE_BACKEND=ROCM, using AMD ROCm backend.")
 
-  enable_language(HIP)
-  set(CMAKE_HIP_STANDARD 17)
-
   if(CMAKE_PREFIX_PATH STREQUAL "" OR NOT DEFINED CMAKE_PREFIX_PATH)
     if(WIN32)
       # Windows: HIP SDK installed via installer or manually
@@ -310,7 +320,7 @@ elseif(USE_BACKEND STREQUAL "ROCM")
         list(APPEND CMAKE_PREFIX_PATH "$ENV{ROCM_PATH}")
         message(STATUS "Auto-detected ROCM_PATH=$ENV{ROCM_PATH} → CMAKE_PREFIX_PATH")
       else()
-        message(WARNING "HIP_PATH or ROCM_PATH environment variable not set. Please install HIP SDK for Windows.")
+        message(FATAL_ERROR "ROCM backend on Windows requires HIP_PATH or ROCM_PATH environment variable (or -DCMAKE_PREFIX_PATH=<HIP SDK path>). Please install the HIP SDK for Windows.")
       endif()
     else()
       # Linux: Standard ROCm installation path
@@ -321,45 +331,29 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     endif()
   endif()
 
-  # Users can -DCMAKE_HIP_ARCHITECTURES=gfx90a;gfx942 manually specify GFX architectures
-  if(NOT DEFINED CMAKE_HIP_ARCHITECTURES)
-    # Auto-detect installed GPU architectures via amdgpu-arch
-    set(_amdgpu_arch_exe "")
-    if(WIN32 AND DEFINED ENV{HIP_PATH})
-      foreach(_arch_cand
-          "$ENV{HIP_PATH}/lib/llvm/bin/amdgpu-arch.exe"
-          "$ENV{HIP_PATH}/bin/amdgpu-arch.exe")
-        if(EXISTS "${_arch_cand}")
-          set(_amdgpu_arch_exe "${_arch_cand}")
-          break()
-        endif()
-      endforeach()
-    elseif(EXISTS "/opt/rocm/bin/amdgpu-arch")
-      set(_amdgpu_arch_exe "/opt/rocm/bin/amdgpu-arch")
-    endif()
-    if(_amdgpu_arch_exe)
-      execute_process(COMMAND "${_amdgpu_arch_exe}"
-        OUTPUT_VARIABLE _detected_archs OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-      if(_detected_archs)
-        string(REPLACE "\n" ";" _arch_list "${_detected_archs}")
-        set(_filtered_archs2 "")
-        foreach(_a ${_arch_list})
-          if(_a MATCHES "^gfx[0-9]")
-            list(APPEND _filtered_archs2 "${_a}")
-          endif()
-        endforeach()
-        list(REMOVE_DUPLICATES _filtered_archs2)
-        if(_filtered_archs2)
-          set(CMAKE_HIP_ARCHITECTURES "${_filtered_archs2}" CACHE STRING "Auto-detected AMD GPU targets")
-          message(STATUS "Auto-detected AMD GPU architectures: ${CMAKE_HIP_ARCHITECTURES}")
-        endif()
-      endif()
-    endif()
-    if(NOT CMAKE_HIP_ARCHITECTURES)
-      # Fallback: compile for a broad range of supported architectures
-      add_compile_definitions(-DGPU_TARGETS=gfx950,gfx942,gfx90a,gfx908,gfx1100,gfx1101,gfx1151,gfx1201,gfx1030)
+  # Ensure CMAKE_HIP_COMPILER is set BEFORE we run the optional-arch probe and
+  # before enable_language(HIP). On Windows the pre-project block already sets
+  # it; on Linux fall back to hipcc under /opt/rocm.
+  if(NOT WIN32 AND NOT CMAKE_HIP_COMPILER)
+    if(EXISTS "/opt/rocm/bin/hipcc")
+      set(CMAKE_HIP_COMPILER "/opt/rocm/bin/hipcc" CACHE FILEPATH "" FORCE)
     endif()
   endif()
+
+  # Default GPU architectures must be set BEFORE enable_language(HIP).
+  # Users who pass -DCMAKE_HIP_ARCHITECTURES=... on the command line get
+  # exactly that list; otherwise we default to the broad set KataGo supports
+  # (plus gfx1031/gfx1032 if the compiler accepts them).
+  if(NOT DEFINED CMAKE_HIP_ARCHITECTURES)
+    katago_default_hip_archs(_default_archs)
+    set(CMAKE_HIP_ARCHITECTURES "${_default_archs}" CACHE STRING "Default broad set of AMD GPU targets")
+    message(STATUS "Default CMAKE_HIP_ARCHITECTURES=${CMAKE_HIP_ARCHITECTURES}")
+  else()
+    message(STATUS "User-specified CMAKE_HIP_ARCHITECTURES=${CMAKE_HIP_ARCHITECTURES}")
+  endif()
+
+  enable_language(HIP)
+  set(CMAKE_HIP_STANDARD 17)
 
   # 2) Specify backend source code. rocmhelpers.hip contains GPU kernels, don't forget it
   set(NEURALNET_BACKEND_SOURCES
@@ -741,7 +735,10 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   target_compile_definitions(katago PRIVATE HIP_TARGET_VERSION=${CMAKE_HIP_COMPILER_VERSION})
 
   string(TOLOWER "${CMAKE_HIP_ARCHITECTURES}" _gfxlist)  # e.g. "90a;942"
-  if(_gfxlist MATCHES "803|900|90a|94[0-9]|110[0-9]|120[0-9]|115[0-9]|1030")
+  # All architectures in our default broad list (gfx906/908/90a/942/950 and
+  # gfx1030/1031/1032/1100/1101/1151/1201) support packed FP16 ops. The regex
+  # below matches each of them so user-specified subset lists still work.
+  if(_gfxlist MATCHES "(gfx)?(90[06a]|908|94[02]|950|103[012]|110[01]|1151|1201)")
     target_compile_definitions(katago PRIVATE HIP_SUPPORTS_FP16)
     message(STATUS "Detected FP16‑capable GFX arch (${CMAKE_HIP_ARCHITECTURES}); defining HIP_SUPPORTS_FP16")
   endif()
@@ -830,7 +827,7 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   elseif(TARGET roc::miopen)
     set(_miopen_target roc::miopen)
   else()
-    set(_miopen_target roc::miopen)
+    message(FATAL_ERROR "Neither 'MIOpen' nor 'roc::miopen' imported target exists after find_package + fallback. This is a bug in the ROCM backend detection logic in cpp/CMakeLists.txt.")
   endif()
   
   target_link_libraries(katago
