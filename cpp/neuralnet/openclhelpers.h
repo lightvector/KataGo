@@ -256,6 +256,57 @@ namespace OpenCLHelpers {
     int totalSize,
     cl_event* eventBuf
   );
+
+  cl_int doSwiGLU(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    cl_mem mainProj,
+    cl_mem gateProj,
+    cl_mem output,
+    int totalSize,
+    cl_event* eventBuf
+  );
+
+  // Spatial RMSNorm helpers (shared by backend and tuner)
+
+  // Compute reduction sizing: how many workgroups for pass 1, and the tilesPerGroup for each pass.
+  // Pass 2 is sized so that numWorkgroupsPass1 fits in a single workgroup (1 output group).
+  struct SpatialRMSNormSizing {
+    int numCHWWorkgroups;   // workgroups per batch element for pass 1
+    int tilesPerGroupPass1; // tiles per group for pass 1
+    int tilesPerGroupPass2; // tiles per group for pass 2 (reduces numCHWWorkgroups values -> 1)
+  };
+  SpatialRMSNormSizing computeSpatialRMSNormSizing(int tileSize, int chwSize);
+
+  cl_int doSpatialRMSNormSumSq(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    int batchSize, int cSize, int xySize,
+    int tileSize, int tilesPerGroup, int numCHWWorkgroups,
+    cl_mem input, cl_mem mask, cl_mem output,
+    cl_event* eventBuf
+  );
+
+  cl_int doSpatialRMSNormReduce(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    int batchSize, int numPartials,
+    int tileSize, int tilesPerGroup,
+    cl_mem input, cl_mem output,
+    cl_event* eventBuf
+  );
+
+  cl_int doSpatialRMSNormApply(
+    cl_kernel kernel,
+    cl_command_queue commandQueue,
+    const OpenCLTuneParams& tuneParams,
+    int batchSize, int cSize, int xySize,
+    cl_mem input, cl_mem output,
+    cl_mem gamma, cl_mem beta,
+    cl_mem mask, cl_mem maskSum, cl_mem sumSqBuf,
+    cl_event* eventBuf
+  );
 }
 
 

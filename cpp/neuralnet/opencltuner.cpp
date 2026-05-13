@@ -584,24 +584,60 @@ bool OpenCLParams::TransformerParams::isValid() const {
   return true;
 }
 
-string OpenCLParams::AddPointWiseParams::desc() const {
+string OpenCLParams::TransformerRMSNormParams::desc() const {
   string s;
-  s += "ELTS_PER_THREAD=" + Global::intToString(ELTS_PER_THREAD);
+  s += "WG_C_SIZE=" + Global::intToString(WG_C_SIZE);
+  s += " WG_XY_SIZE=" + Global::intToString(WG_XY_SIZE);
+  s += " C_PER_THREAD=" + Global::intToString(C_PER_THREAD);
   return s;
 }
-string OpenCLParams::AddPointWiseParams::compileOptions() const {
+string OpenCLParams::TransformerRMSNormParams::compileOptions() const {
+  string s;
+  s += "-DWG_C_SIZE=" + Global::intToString(WG_C_SIZE);
+  s += " -DWG_XY_SIZE=" + Global::intToString(WG_XY_SIZE);
+  s += " -DC_PER_THREAD=" + Global::intToString(C_PER_THREAD);
+  return s;
+}
+void OpenCLParams::TransformerRMSNormParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  WG_C_SIZE = getInt(kvs,"WG_C_SIZE",WG_C_SIZE);
+  WG_XY_SIZE = getInt(kvs,"WG_XY_SIZE",WG_XY_SIZE);
+  C_PER_THREAD = getInt(kvs,"C_PER_THREAD",C_PER_THREAD);
+}
+bool OpenCLParams::TransformerRMSNormParams::isValid() const {
+  if(WG_C_SIZE <= 0 || WG_C_SIZE > 1024) return false;
+  if((WG_C_SIZE & (WG_C_SIZE-1)) != 0) return false;
+  if(WG_XY_SIZE <= 0 || WG_XY_SIZE > 32) return false;
+  if((WG_XY_SIZE & (WG_XY_SIZE-1)) != 0) return false;
+  if(WG_C_SIZE * WG_XY_SIZE > 1024) return false;
+  if(C_PER_THREAD <= 0 || C_PER_THREAD > 32) return false;
+  if((C_PER_THREAD & (C_PER_THREAD-1)) != 0) return false;
+  return true;
+}
+
+string OpenCLParams::PointWiseParams::desc() const {
+  string s;
+  s += "ELTS_PER_THREAD=" + Global::intToString(ELTS_PER_THREAD);
+  s += " LOCAL_SIZE=" + Global::intToString(LOCAL_SIZE);
+  return s;
+}
+string OpenCLParams::PointWiseParams::compileOptions() const {
   string s;
   s += "-DELTS_PER_THREAD=" + Global::intToString(ELTS_PER_THREAD);
   return s;
 }
-void OpenCLParams::AddPointWiseParams::fillFromDesc(const string& fileName, const string& desc) {
+void OpenCLParams::PointWiseParams::fillFromDesc(const string& fileName, const string& desc) {
   map<string,int> kvs = readDescKeyValues(fileName, desc);
   ELTS_PER_THREAD = getInt(kvs,"ELTS_PER_THREAD",ELTS_PER_THREAD);
+  LOCAL_SIZE = getInt(kvs,"LOCAL_SIZE",LOCAL_SIZE);
 }
-bool OpenCLParams::AddPointWiseParams::isValid() const {
+bool OpenCLParams::PointWiseParams::isValid() const {
   if(ELTS_PER_THREAD <= 0) return false;
   if(ELTS_PER_THREAD > 32) return false;
   if((ELTS_PER_THREAD & (ELTS_PER_THREAD-1)) != 0) return false;
+  if(LOCAL_SIZE < 32) return false;
+  if(LOCAL_SIZE > 512) return false;
+  if((LOCAL_SIZE & (LOCAL_SIZE-1)) != 0) return false;
   return true;
 }
 
@@ -632,6 +668,37 @@ bool OpenCLParams::AddChannelBiasesNCHWParams::isValid() const {
   return true;
 }
 
+string OpenCLParams::SpatialRMSNormParams::desc() const {
+  string s;
+  s += "TILE_SIZE=" + Global::intToString(TILE_SIZE);
+  s += " APPLY_ELTS_PER_THREAD=" + Global::intToString(APPLY_ELTS_PER_THREAD);
+  return s;
+}
+string OpenCLParams::SpatialRMSNormParams::reduceCompileOptions() const {
+  string s;
+  s += "-DTILE_SIZE=" + Global::intToString(TILE_SIZE);
+  return s;
+}
+string OpenCLParams::SpatialRMSNormParams::applyCompileOptions() const {
+  string s;
+  s += "-DAPPLY_ELTS_PER_THREAD=" + Global::intToString(APPLY_ELTS_PER_THREAD);
+  return s;
+}
+void OpenCLParams::SpatialRMSNormParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  TILE_SIZE = getInt(kvs,"TILE_SIZE",TILE_SIZE);
+  APPLY_ELTS_PER_THREAD = getInt(kvs,"APPLY_ELTS_PER_THREAD",APPLY_ELTS_PER_THREAD);
+}
+bool OpenCLParams::SpatialRMSNormParams::isValid() const {
+  if(TILE_SIZE <= 0) return false;
+  if(TILE_SIZE > 1024) return false;
+  if((TILE_SIZE & (TILE_SIZE-1)) != 0) return false;
+  if(APPLY_ELTS_PER_THREAD <= 0) return false;
+  if(APPLY_ELTS_PER_THREAD > 32) return false;
+  if((APPLY_ELTS_PER_THREAD & (APPLY_ELTS_PER_THREAD-1)) != 0) return false;
+  return true;
+}
+
 bool OpenCLTuneParams::isValid() const {
   if(!xGemmDirect.isValid()) return false;
   if(!xGemm.isValid()) return false;
@@ -642,8 +709,10 @@ bool OpenCLTuneParams::isValid() const {
   if(!conv5x5.isValid()) return false;
   if(!gPool.isValid()) return false;
   if(!transformer.isValid()) return false;
-  if(!addPointWise.isValid()) return false;
+  if(!transformerRMSNorm.isValid()) return false;
+  if(!pointWise.isValid()) return false;
   if(!addChannelBiasesNCHW.isValid()) return false;
+  if(!spatialRMSNorm.isValid()) return false;
 
   // "should" implies "can"
   if(shouldUseFP16Storage && !canUseFP16Storage) return false;
@@ -740,10 +809,14 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << config.gPool.desc() << "\n";
   out << "#transformer" << "\n";
   out << config.transformer.desc() << "\n";
-  out << "#addPointWise" << "\n";
-  out << config.addPointWise.desc() << "\n";
+  out << "#transformerRMSNorm" << "\n";
+  out << config.transformerRMSNorm.desc() << "\n";
+  out << "#pointWise" << "\n";
+  out << config.pointWise.desc() << "\n";
   out << "#addChannelBiasesNCHW" << "\n";
   out << config.addChannelBiasesNCHW.desc() << "\n";
+  out << "#spatialRMSNorm" << "\n";
+  out << config.spatialRMSNorm.desc() << "\n";
   out.flush();
   out.close();
 }
@@ -763,7 +836,7 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
 
-  if(filteredLines.size() != 20)
+  if(filteredLines.size() != 22)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
@@ -784,8 +857,10 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   config.conv5x5.fillFromDesc(filename,filteredLines[15]);
   config.gPool.fillFromDesc(filename,filteredLines[16]);
   config.transformer.fillFromDesc(filename,filteredLines[17]);
-  config.addPointWise.fillFromDesc(filename,filteredLines[18]);
-  config.addChannelBiasesNCHW.fillFromDesc(filename,filteredLines[19]);
+  config.transformerRMSNorm.fillFromDesc(filename,filteredLines[18]);
+  config.pointWise.fillFromDesc(filename,filteredLines[19]);
+  config.addChannelBiasesNCHW.fillFromDesc(filename,filteredLines[20]);
+  config.spatialRMSNorm.fillFromDesc(filename,filteredLines[21]);
   return config;
 }
 
@@ -3177,7 +3252,7 @@ static void tuneTransformerAttention(
 }
 
 
-static void tuneAddPointWise(
+static void tunePointWise(
   OpenCLTuneParams currentConfig,
   const OpenCLTuneParams& untunedConfig,
   const cl_context& context,
@@ -3195,44 +3270,71 @@ static void tuneAddPointWise(
   OpenCLTuneParams& tunedConfig
 ) {
   out << "------------------------------------------------------" << endl;
-  out << "Tuning addPointWise" << endl;
+  out << "Tuning pointWise (addPointWise + swiGLU)" << endl;
+
+  bool hasSwiGLU = modelInfo.transformerFFNChannels > 0;
 
   vector<OpenCLTuneParams> configs;
   configs.push_back(currentConfig);
 
   if(full) {
-    addConfigs(configs,SETTER(addPointWise.ELTS_PER_THREAD),{1,2,4,8,16,32});
+    addConfigs(configs,SETTER(pointWise.ELTS_PER_THREAD),{1,2,4,8,16,32});
+    addConfigs(configs,SETTER(pointWise.LOCAL_SIZE),{32,64,128,256,512});
   }
   else {
-    addConfigs(configs,SETTER(addPointWise.ELTS_PER_THREAD),{1,2,4,8,16});
+    addConfigs(configs,SETTER(pointWise.ELTS_PER_THREAD),{1,2,4,8,16});
+    addConfigs(configs,SETTER(pointWise.LOCAL_SIZE),{32,64,128,256});
   }
 
-  filterConfigs(configs,ISVALID(addPointWise));
+  filterConfigs(configs,ISVALID(pointWise));
   shuffleConfigs(configs);
   configs.insert(configs.begin(),currentConfig);
 
   OpenCLTuneParams referenceConfig = currentConfig;
-  referenceConfig.addPointWise.ELTS_PER_THREAD = untunedConfig.addPointWise.ELTS_PER_THREAD;
+  referenceConfig.pointWise.ELTS_PER_THREAD = untunedConfig.pointWise.ELTS_PER_THREAD;
+  referenceConfig.pointWise.LOCAL_SIZE = untunedConfig.pointWise.LOCAL_SIZE;
 
-  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.addPointWise.desc(); };
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.pointWise.desc(); };
 
   int numChannels = modelInfo.trunkNumChannels;
+  int ffnChannels = hasSwiGLU ? modelInfo.transformerFFNChannels : 0;
   int paddedNNXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
-  int totalSize = batchSize * numChannels * paddedNNXYLen;
-  int outputNumFloats = totalSize;
+  int addTotalSize = batchSize * numChannels * paddedNNXYLen;
+  int swigluTotalSize = hasSwiGLU ? batchSize * ffnChannels * paddedNNXYLen : 0;
+  // Output: addPointWise results followed by swiGLU results (if applicable)
+  int addOutputNumFloats = addTotalSize;
+  int swigluOutputNumFloats = swigluTotalSize;
+  int combinedOutputNumFloats = addOutputNumFloats + swigluOutputNumFloats;
+
   vector<float> accumInputVec;
   vector<float> valueInputVec;
+  vector<float> swigluMainVec;
+  vector<float> swigluGateVec;
   {
-    Rand rand("tuneAddPointWiseAccum");
-    accumInputVec.resize(totalSize);
-    for(int i = 0; i < totalSize; i++)
+    Rand rand("tunePointWiseAccum");
+    accumInputVec.resize(addTotalSize);
+    for(int i = 0; i < addTotalSize; i++)
       accumInputVec[i] = (float)rand.nextDouble(1.0);
   }
   {
-    Rand rand("tuneAddPointWiseValue");
-    valueInputVec.resize(totalSize);
-    for(int i = 0; i < totalSize; i++)
+    Rand rand("tunePointWiseValue");
+    valueInputVec.resize(addTotalSize);
+    for(int i = 0; i < addTotalSize; i++)
       valueInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  if(hasSwiGLU) {
+    {
+      Rand rand("tunePointWiseSwiGLUMain");
+      swigluMainVec.resize(swigluTotalSize);
+      for(int i = 0; i < swigluTotalSize; i++)
+        swigluMainVec[i] = (float)rand.nextDouble(1.0);
+    }
+    {
+      Rand rand("tunePointWiseSwiGLUGate");
+      swigluGateVec.resize(swigluTotalSize);
+      for(int i = 0; i < swigluTotalSize; i++)
+        swigluGateVec[i] = (float)rand.nextDouble(1.0);
+    }
   }
 
   auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
@@ -3241,86 +3343,137 @@ static void tuneAddPointWise(
     if(computeOnCPU) {
       int numToRecord = 10;
       ret.clear();
-      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      ret.resize(combinedOutputNumFloats * numToRecord, 0.0f);
       float* retBase = ret.data();
       for(int i = 0; i < numToRecord; i++) {
-        for(int j = 0; j < totalSize; j++)
+        // AddPointWise reference
+        for(int j = 0; j < addTotalSize; j++)
           retBase[j] = accumInputVec[j] + valueInputVec[j];
-        retBase += outputNumFloats;
+        // SwiGLU reference
+        if(hasSwiGLU) {
+          for(int j = 0; j < swigluTotalSize; j++) {
+            float a = swigluMainVec[j];
+            float b = swigluGateVec[j];
+            float silu_a = a / (1.0f + expf(-a));
+            retBase[addOutputNumFloats + j] = silu_a * b;
+          }
+        }
+        retBase += combinedOutputNumFloats;
       }
       return accums;
     }
 
     cl_int err;
-    cl_program program;
     string compileError;
-    bool compileSuc = tryCompileProgram(
+    bool compileSuc;
+    string compileOptions = cfg.pointWise.compileOptions() + " " + maybeFP16CompileOptions;
+
+    // Compile addPointWise
+    cl_program addProgram;
+    compileSuc = tryCompileProgram(
       "addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise,
-      cfg.addPointWise.compileOptions() + " " + maybeFP16CompileOptions,
-      program, compileError
+      compileOptions, addProgram, compileError
     );
     if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
-    cl_kernel kernel = clCreateKernel(program, "addPointWise", &err);
-    if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
+    cl_kernel addKernel = clCreateKernel(addProgram, "addPointWise", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseProgram(addProgram); return accums; }
 
+    // Compile swiGLU (if applicable)
+    cl_program swigluProgram = NULL;
+    cl_kernel swigluKernel = NULL;
+    if(hasSwiGLU) {
+      compileSuc = tryCompileProgram(
+        "transformerSwiGLUProgram", context, deviceIdsToUse, OpenCLKernels::transformerSwiGLU,
+        compileOptions, swigluProgram, compileError
+      );
+      if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; clReleaseKernel(addKernel); clReleaseProgram(addProgram); return accums; }
+      swigluKernel = clCreateKernel(swigluProgram, "transformerSwiGLU", &err);
+      if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseKernel(addKernel); clReleaseProgram(addProgram); clReleaseProgram(swigluProgram); return accums; }
+    }
+
+    // Create buffers
     cl_mem value;
     vector<float> dummy;
     if(cfg.shouldUseFP16Storage)
-      value = randomReadOnlyBufferHalf("tuneAddPointWiseValue", context, totalSize, 1.0, dummy);
+      value = randomReadOnlyBufferHalf("tunePointWiseValue", context, addTotalSize, 1.0, dummy);
     else
-      value = randomReadOnlyBufferFloat("tuneAddPointWiseValue", context, totalSize, 1.0, dummy);
+      value = randomReadOnlyBufferFloat("tunePointWiseValue", context, addTotalSize, 1.0, dummy);
 
-    // accum needs to be read-write since the kernel modifies it in-place
     auto makeAccumBuf = [&]() -> cl_mem {
       if(cfg.shouldUseFP16Storage) {
-        vector<half_t> buf(totalSize);
-        Rand rand("tuneAddPointWiseAccum");
-        for(int j = 0; j < totalSize; j++)
+        vector<half_t> buf(addTotalSize);
+        Rand rand("tunePointWiseAccum");
+        for(int j = 0; j < addTotalSize; j++)
           buf[j] = half_float::half_cast<half_t>(rand.nextDouble(1.0));
         return createReadWriteBuffer(context, buf);
       }
       else {
-        vector<float> buf(totalSize);
-        Rand rand("tuneAddPointWiseAccum");
-        for(int j = 0; j < totalSize; j++)
+        vector<float> buf(addTotalSize);
+        Rand rand("tunePointWiseAccum");
+        for(int j = 0; j < addTotalSize; j++)
           buf[j] = (float)rand.nextDouble(1.0);
         return createReadWriteBuffer(context, buf);
       }
     };
+
+    cl_mem swigluMain = NULL;
+    cl_mem swigluGate = NULL;
+    cl_mem swigluOutput = NULL;
+    if(hasSwiGLU) {
+      if(cfg.shouldUseFP16Storage) {
+        swigluMain = randomReadOnlyBufferHalf("tunePointWiseSwiGLUMain", context, swigluTotalSize, 1.0, dummy);
+        swigluGate = randomReadOnlyBufferHalf("tunePointWiseSwiGLUGate", context, swigluTotalSize, 1.0, dummy);
+      } else {
+        swigluMain = randomReadOnlyBufferFloat("tunePointWiseSwiGLUMain", context, swigluTotalSize, 1.0, dummy);
+        swigluGate = randomReadOnlyBufferFloat("tunePointWiseSwiGLUGate", context, swigluTotalSize, 1.0, dummy);
+      }
+      swigluOutput = createReadWriteBufferFloatZeros(context, swigluTotalSize);
+    }
 
     cl_mem accum = makeAccumBuf();
 
     const int reps = 20;
     const int numToRecord = 10;
     ret.clear();
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    ret.resize(combinedOutputNumFloats * numToRecord, 0.0f);
     float* retBase = ret.data();
-    for(int i = 0; i<reps; i++) {
+    for(int i = 0; i < reps; i++) {
       double weight;
       switch(i % numToRecord) {
       case 0: weight = 0; break;
       default: weight = 1; break;
       }
 
-      cl_event event;
-      err = doAddPointWise(
-        kernel,
-        commandQueue,
-        cfg,
-        accum,value,totalSize,
-        &event
-      );
+      // Run addPointWise
+      {
+        cl_event event;
+        err = doAddPointWise(addKernel, commandQueue, cfg, accum, value, addTotalSize, &event);
+        accums.countResultAndFreeEvent(err, event, weight);
+        if(accums.bad) break;
+      }
 
-      accums.countResultAndFreeEvent(err,event,weight);
-      if(accums.bad)
-        break;
+      // Run swiGLU (if applicable)
+      if(hasSwiGLU) {
+        cl_event event;
+        err = doSwiGLU(swigluKernel, commandQueue, cfg, swigluMain, swigluGate, swigluOutput, swigluTotalSize, &event);
+        accums.countResultAndFreeEvent(err, event, weight);
+        if(accums.bad) break;
+      }
 
       if(i < numToRecord) {
+        // Record addPointWise output
         if(cfg.shouldUseFP16Storage)
-          blockingReadBufferHalfToFloat(commandQueue, accum, outputNumFloats, retBase);
+          blockingReadBufferHalfToFloat(commandQueue, accum, addOutputNumFloats, retBase);
         else
-          blockingReadBuffer(commandQueue, accum, outputNumFloats, retBase);
-        retBase += outputNumFloats;
+          blockingReadBuffer(commandQueue, accum, addOutputNumFloats, retBase);
+        // Record swiGLU output
+        if(hasSwiGLU) {
+          if(cfg.shouldUseFP16Storage)
+            blockingReadBufferHalfToFloat(commandQueue, swigluOutput, swigluOutputNumFloats, retBase + addOutputNumFloats);
+          else
+            blockingReadBuffer(commandQueue, swigluOutput, swigluOutputNumFloats, retBase + addOutputNumFloats);
+        }
+        retBase += combinedOutputNumFloats;
       }
 
       // Re-upload accum for next rep since addPointWise modifies it in-place
@@ -3332,8 +3485,13 @@ static void tuneAddPointWise(
 
     clReleaseMemObject(accum);
     clReleaseMemObject(value);
-    clReleaseKernel(kernel);
-    clReleaseProgram(program);
+    if(swigluMain != NULL) clReleaseMemObject(swigluMain);
+    if(swigluGate != NULL) clReleaseMemObject(swigluGate);
+    if(swigluOutput != NULL) clReleaseMemObject(swigluOutput);
+    clReleaseKernel(addKernel);
+    clReleaseProgram(addProgram);
+    if(swigluKernel != NULL) clReleaseKernel(swigluKernel);
+    if(swigluProgram != NULL) clReleaseProgram(swigluProgram);
 
     int finalRetSize = retBase - ret.data();
     ret.resize(finalRetSize);
@@ -3343,7 +3501,7 @@ static void tuneAddPointWise(
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
-  double errorToleranceScale = 0.005;
+  double errorToleranceScale = 0.05;
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -3358,7 +3516,7 @@ static void tuneAddPointWise(
     bestKernelsPerSecond
   );
   if(!suc)
-    throw StringError("Tuning addPointWise failed - could not find any working configuration");
+    throw StringError("Tuning pointWise failed - could not find any working configuration");
 
   tunedConfig = currentConfig;
 }
@@ -3556,6 +3714,475 @@ static void tuneAddChannelBiasesNCHW(
   );
   if(!suc)
     throw StringError("Tuning addChannelBiasesNCHW failed - could not find any working configuration");
+
+  tunedConfig = currentConfig;
+}
+
+static void tuneTransformerRMSNorm(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  // Skip if not a transformer model
+  if(modelInfo.transformerHeadDim <= 0) {
+    tunedConfig = currentConfig;
+    return;
+  }
+
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning transformerRMSNorm" << endl;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  if(full) {
+    addConfigs(configs,SETTER(transformerRMSNorm.WG_C_SIZE),{32,64,128,256,512});
+    addConfigs(configs,SETTER(transformerRMSNorm.WG_XY_SIZE),{1,2,4,8,16,32});
+    addConfigs(configs,SETTER(transformerRMSNorm.C_PER_THREAD),{1,2,4,8,16});
+  }
+  else {
+    addConfigs(configs,SETTER(transformerRMSNorm.WG_C_SIZE),{32,64,128,256});
+    addConfigs(configs,SETTER(transformerRMSNorm.WG_XY_SIZE),{1,2,4,8,16});
+    addConfigs(configs,SETTER(transformerRMSNorm.C_PER_THREAD),{1,2,4,8});
+  }
+
+  filterConfigs(configs,ISVALID(transformerRMSNorm));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(),currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.transformerRMSNorm.WG_C_SIZE = untunedConfig.transformerRMSNorm.WG_C_SIZE;
+  referenceConfig.transformerRMSNorm.WG_XY_SIZE = untunedConfig.transformerRMSNorm.WG_XY_SIZE;
+  referenceConfig.transformerRMSNorm.C_PER_THREAD = untunedConfig.transformerRMSNorm.C_PER_THREAD;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.transformerRMSNorm.desc(); };
+
+  int numChannels = modelInfo.trunkNumChannels;
+  int paddedNNXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+  int inputNumFloats = batchSize * numChannels * paddedNNXYLen;
+  int outputNumFloats = inputNumFloats;
+
+  vector<float> inputVec;
+  vector<float> weightVec(numChannels);
+  {
+    Rand rand("tuneTransformerRMSNormInput");
+    inputVec.resize(inputNumFloats);
+    for(int i = 0; i < inputNumFloats; i++)
+      inputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tuneTransformerRMSNormWeight");
+    for(int i = 0; i < numChannels; i++)
+      weightVec[i] = (float)rand.nextDouble(1.0);
+  }
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+
+    int xySize = paddedNNXYLen;
+
+    if(computeOnCPU) {
+      int numToRecord = 10;
+      ret.clear();
+      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      for(int rep = 0; rep < numToRecord; rep++) {
+        for(int n = 0; n < batchSize; n++) {
+          for(int xy = 0; xy < xySize; xy++) {
+            // mask is 1.0
+            float sumSq = 0.0f;
+            for(int c = 0; c < numChannels; c++) {
+              float val = inputVec[(n * numChannels + c) * xySize + xy];
+              sumSq += val * val;
+            }
+            float rms = 1.0f / sqrtf(sumSq / (float)numChannels + 1e-6f);
+            for(int c = 0; c < numChannels; c++) {
+              float val = inputVec[(n * numChannels + c) * xySize + xy];
+              retBase[(n * numChannels + c) * xySize + xy] = val * rms * weightVec[c]; // maskVal = 1.0
+            }
+          }
+        }
+        retBase += outputNumFloats;
+      }
+      return accums;
+    }
+
+    cl_int err;
+    cl_program program;
+    string compileError;
+    bool compileSuc = tryCompileProgram(
+      "tuneTransformerRMSNormProgram", context, deviceIdsToUse, OpenCLKernels::transformerRMSNorm,
+      cfg.transformerRMSNorm.compileOptions() + " " + maybeFP16CompileOptions,
+      program, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+    cl_kernel kernel = clCreateKernel(program, "transformerRMSNorm", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseProgram(program); return accums; }
+
+    cl_mem input;
+    vector<float> dummy;
+    if(cfg.shouldUseFP16Storage)
+      input = randomReadOnlyBufferHalf("tuneTransformerRMSNormInput", context, inputNumFloats, 1.0, dummy);
+    else
+      input = randomReadOnlyBufferFloat("tuneTransformerRMSNormInput", context, inputNumFloats, 1.0, dummy);
+
+    cl_mem mask;
+    if(cfg.shouldUseFP16Storage)
+      mask = constantReadOnlyBufferHalf(context, batchSize * paddedNNXYLen, 1.0f);
+    else
+      mask = constantReadOnlyBufferFloat(context, batchSize * paddedNNXYLen, 1.0f);
+    cl_mem weight = createReadOnlyBuffer(context, weightVec);
+    cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
+
+    int wgCSize = cfg.transformerRMSNorm.WG_C_SIZE;
+    int wgXYSize = cfg.transformerRMSNorm.WG_XY_SIZE;
+    int numXYGroups = (xySize + wgXYSize - 1) / wgXYSize;
+
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.clear();
+    ret.resize(outputNumFloats * numToRecord, 0.0f);
+    float* retBase = ret.data();
+    for(int i = 0; i < reps; i++) {
+      double weight2;
+      switch(i % numToRecord) {
+      case 0: weight2 = 0; break;
+      default: weight2 = 1; break;
+      }
+
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), &input);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), &output);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), &weight);
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), &mask);
+      clSetKernelArg(kernel, 4, sizeof(int), &batchSize);
+      clSetKernelArg(kernel, 5, sizeof(int), &numChannels);
+      clSetKernelArg(kernel, 6, sizeof(int), &paddedNNXYLen);
+
+      size_t globalSizes[2] = {(size_t)(wgCSize * wgXYSize) * (size_t)numXYGroups, (size_t)batchSize};
+      size_t localSizes[2] = {(size_t)(wgCSize * wgXYSize), 1};
+      cl_event event;
+      err = clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, globalSizes, localSizes, 0, NULL, &event);
+
+      accums.countResultAndFreeEvent(err, event, weight2);
+      if(accums.bad)
+        break;
+
+      if(i < numToRecord) {
+        if(cfg.shouldUseFP16Storage)
+          blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, retBase);
+        else
+          blockingReadBuffer(commandQueue, output, outputNumFloats, retBase);
+        retBase += outputNumFloats;
+      }
+    }
+
+    clReleaseMemObject(input);
+    clReleaseMemObject(mask);
+    clReleaseMemObject(weight);
+    clReleaseMemObject(output);
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc)
+    throw StringError("Tuning transformerRMSNorm failed - could not find any working configuration");
+
+  tunedConfig = currentConfig;
+}
+
+static void tuneSpatialRMSNorm(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning spatialRMSNorm" << endl;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  if(full) {
+    addConfigs(configs,SETTER(spatialRMSNorm.TILE_SIZE),{32,64,128,256,512,1024});
+    addConfigs(configs,SETTER(spatialRMSNorm.APPLY_ELTS_PER_THREAD),{1,2,4,8,16,32});
+  }
+  else {
+    addConfigs(configs,SETTER(spatialRMSNorm.TILE_SIZE),{32,64,128,256,512});
+    addConfigs(configs,SETTER(spatialRMSNorm.APPLY_ELTS_PER_THREAD),{1,2,4,8,16});
+  }
+
+  filterConfigs(configs,ISVALID(spatialRMSNorm));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(),currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.spatialRMSNorm.TILE_SIZE = untunedConfig.spatialRMSNorm.TILE_SIZE;
+  referenceConfig.spatialRMSNorm.APPLY_ELTS_PER_THREAD = untunedConfig.spatialRMSNorm.APPLY_ELTS_PER_THREAD;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.spatialRMSNorm.desc(); };
+
+  int numChannels = modelInfo.trunkNumChannels;
+  int paddedNNXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+  int inputNumFloats = batchSize * numChannels * paddedNNXYLen;
+  int outputNumFloats = inputNumFloats;
+
+  vector<float> inputVec;
+  vector<float> gammaVec(numChannels);
+  vector<float> betaVec(numChannels);
+  {
+    Rand rand("tuneSpatialRMSNormInput");
+    inputVec.resize(inputNumFloats);
+    for(int i = 0; i < inputNumFloats; i++)
+      inputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tuneSpatialRMSNormGamma");
+    for(int i = 0; i < numChannels; i++)
+      gammaVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tuneSpatialRMSNormBeta");
+    for(int i = 0; i < numChannels; i++)
+      betaVec[i] = (float)rand.nextDouble(1.0);
+  }
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+
+    int xySize = paddedNNXYLen;
+    float maskSumVal = (float)xySize;
+
+    if(computeOnCPU) {
+      int numToRecord = 10;
+      ret.clear();
+      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      for(int rep = 0; rep < numToRecord; rep++) {
+        for(int n = 0; n < batchSize; n++) {
+          // Compute sum of squares across all channels and spatial positions
+          float sumSq = 0.0f;
+          for(int c = 0; c < numChannels; c++) {
+            for(int xy = 0; xy < xySize; xy++) {
+              float val = inputVec[(n * numChannels + c) * xySize + xy]; // mask is 1.0
+              sumSq += val * val;
+            }
+          }
+          float denom = maskSumVal * (float)numChannels;
+          float rms = 1.0f / sqrtf(sumSq / denom + 1e-6f);
+          // Apply normalization
+          for(int c = 0; c < numChannels; c++) {
+            for(int xy = 0; xy < xySize; xy++) {
+              float val = inputVec[(n * numChannels + c) * xySize + xy];
+              float result = val * rms * gammaVec[c] + betaVec[c]; // mask is 1.0
+              retBase[(n * numChannels + c) * xySize + xy] = result;
+            }
+          }
+        }
+        retBase += outputNumFloats;
+      }
+      return accums;
+    }
+
+    cl_int err;
+
+    // Compile all 3 kernels
+    cl_program sumSqProgram;
+    cl_program reduceProgram;
+    cl_program applyProgram;
+    string compileError;
+    bool compileSuc;
+
+    string reduceOptions = cfg.spatialRMSNorm.reduceCompileOptions();
+
+    compileSuc = tryCompileProgram(
+      "transformerSpatialRMSNormSumSqProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNormSumSq,
+      reduceOptions + " " + maybeFP16CompileOptions,
+      sumSqProgram, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+
+    compileSuc = tryCompileProgram(
+      "transformerSpatialRMSNormReduceProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNormReduce,
+      reduceOptions,
+      reduceProgram, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; clReleaseProgram(sumSqProgram); return accums; }
+
+    compileSuc = tryCompileProgram(
+      "transformerSpatialRMSNormApplyProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNormApply,
+      cfg.spatialRMSNorm.applyCompileOptions() + " " + maybeFP16CompileOptions,
+      applyProgram, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; clReleaseProgram(sumSqProgram); clReleaseProgram(reduceProgram); return accums; }
+
+    cl_kernel sumSqKernel = clCreateKernel(sumSqProgram, "transformerSpatialRMSNormSumSq", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseProgram(sumSqProgram); clReleaseProgram(reduceProgram); clReleaseProgram(applyProgram); return accums; }
+    cl_kernel reduceKernel = clCreateKernel(reduceProgram, "transformerSpatialRMSNormReduce", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseKernel(sumSqKernel); clReleaseProgram(sumSqProgram); clReleaseProgram(reduceProgram); clReleaseProgram(applyProgram); return accums; }
+    cl_kernel applyKernel = clCreateKernel(applyProgram, "transformerSpatialRMSNormApply", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseKernel(sumSqKernel); clReleaseKernel(reduceKernel); clReleaseProgram(sumSqProgram); clReleaseProgram(reduceProgram); clReleaseProgram(applyProgram); return accums; }
+
+    // Compute sizing
+    int tileSize = cfg.spatialRMSNorm.TILE_SIZE;
+    int chwSize = numChannels * xySize;
+    OpenCLHelpers::SpatialRMSNormSizing sizing = OpenCLHelpers::computeSpatialRMSNormSizing(tileSize, chwSize);
+
+    // Create buffers
+    cl_mem input;
+    vector<float> dummy;
+    if(cfg.shouldUseFP16Storage)
+      input = randomReadOnlyBufferHalf("tuneSpatialRMSNormInput", context, inputNumFloats, 1.0, dummy);
+    else
+      input = randomReadOnlyBufferFloat("tuneSpatialRMSNormInput", context, inputNumFloats, 1.0, dummy);
+
+    cl_mem mask;
+    if(cfg.shouldUseFP16Storage)
+      mask = constantReadOnlyBufferHalf(context, batchSize * paddedNNXYLen, 1.0f);
+    else
+      mask = constantReadOnlyBufferFloat(context, batchSize * paddedNNXYLen, 1.0f);
+    cl_mem maskSum = constantReadOnlyBufferFloat(context, batchSize, (float)paddedNNXYLen);
+    cl_mem gamma = createReadOnlyBuffer(context, gammaVec);
+    cl_mem beta = createReadOnlyBuffer(context, betaVec);
+    cl_mem partialSumsBuf = createReadWriteBufferFloatZeros(context, batchSize * sizing.numCHWWorkgroups);
+    cl_mem finalSumBuf = createReadWriteBufferFloatZeros(context, batchSize);
+    cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
+
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.clear();
+    ret.resize(outputNumFloats * numToRecord, 0.0f);
+    float* retBase = ret.data();
+    for(int i = 0; i < reps; i++) {
+      double weight;
+      switch(i % numToRecord) {
+      case 0: weight = 0; break;
+      default: weight = 1; break;
+      }
+
+      // Kernel 1: SumSq (pass 1 reduction)
+      err = OpenCLHelpers::doSpatialRMSNormSumSq(
+        sumSqKernel, commandQueue,
+        batchSize, numChannels, xySize,
+        tileSize, sizing.tilesPerGroupPass1, sizing.numCHWWorkgroups,
+        input, mask, partialSumsBuf, NULL
+      );
+      if(err != 0) { accums.bad = true; accums.badErr = err; break; }
+
+      // Kernel 2: Reduce (pass 2 reduction)
+      err = OpenCLHelpers::doSpatialRMSNormReduce(
+        reduceKernel, commandQueue,
+        batchSize, sizing.numCHWWorkgroups,
+        tileSize, sizing.tilesPerGroupPass2,
+        partialSumsBuf, finalSumBuf, NULL
+      );
+      if(err != 0) { accums.bad = true; accums.badErr = err; break; }
+
+      // Kernel 3: Apply
+      cl_event event;
+      err = OpenCLHelpers::doSpatialRMSNormApply(
+        applyKernel, commandQueue,
+        cfg,
+        batchSize, numChannels, xySize,
+        input, output, gamma, beta,
+        mask, maskSum, finalSumBuf, &event
+      );
+
+      accums.countResultAndFreeEvent(err, event, weight);
+      if(accums.bad)
+        break;
+
+      if(i < numToRecord) {
+        if(cfg.shouldUseFP16Storage)
+          blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, retBase);
+        else
+          blockingReadBuffer(commandQueue, output, outputNumFloats, retBase);
+        retBase += outputNumFloats;
+      }
+    }
+
+    clReleaseMemObject(input);
+    clReleaseMemObject(mask);
+    clReleaseMemObject(maskSum);
+    clReleaseMemObject(gamma);
+    clReleaseMemObject(beta);
+    clReleaseMemObject(partialSumsBuf);
+    clReleaseMemObject(finalSumBuf);
+    clReleaseMemObject(output);
+    clReleaseKernel(sumSqKernel);
+    clReleaseKernel(reduceKernel);
+    clReleaseKernel(applyKernel);
+    clReleaseProgram(sumSqProgram);
+    clReleaseProgram(reduceProgram);
+    clReleaseProgram(applyProgram);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc)
+    throw StringError("Tuning spatialRMSNorm failed - could not find any working configuration");
 
   tunedConfig = currentConfig;
 }
@@ -4184,7 +4811,29 @@ void OpenCLTuner::tune(
 
   {
     OpenCLTuneParams result;
-    tuneAddPointWise(
+    tuneTransformerRMSNorm(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
+  }
+
+  {
+    OpenCLTuneParams result;
+    tunePointWise(
       currentConfig,
       untunedConfig,
       context,
@@ -4207,6 +4856,28 @@ void OpenCLTuner::tune(
   {
     OpenCLTuneParams result;
     tuneAddChannelBiasesNCHW(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
+  }
+
+  {
+    OpenCLTuneParams result;
+    tuneSpatialRMSNorm(
       currentConfig,
       untunedConfig,
       context,

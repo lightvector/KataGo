@@ -35,7 +35,9 @@ namespace OpenCLKernels {
 
   // Transformer kernels
   extern std::string transformerRMSNorm;
-  extern std::string transformerSpatialRMSNorm;
+  extern std::string transformerSpatialRMSNormSumSq;
+  extern std::string transformerSpatialRMSNormReduce;
+  extern std::string transformerSpatialRMSNormApply;
   extern std::string transformerApplyRoPE;
   extern std::string transformerScaledDotProductAttention;
   extern std::string transformerScaledDotProductAttentionNaive;

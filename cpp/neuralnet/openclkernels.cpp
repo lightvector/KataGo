@@ -1084,8 +1084,11 @@ __kernel void extractChannel0NCHW(__global realstore* in, __global realstore* ou
 
 // Per-channel RMSNorm used inside transformer blocks (weight-only, no bias).
 // Input/output are NCHW spatial tensors. Mask is applied.
-// Each workgroup handles one (n,xy) position and reduces across C channels.
-// Defines: CSIZE - number of channels
+// Each workgroup of WG_C_SIZE * WG_XY_SIZE threads cooperatively reduces across C channels
+// for WG_XY_SIZE spatial positions. Adjacent threads in a warp handle adjacent xy positions
+// for the same channel, giving coalesced memory access in NCHW layout.
+// Defines: WG_C_SIZE, WG_XY_SIZE - workgroup dimensions (both powers of two)
+//          C_PER_THREAD - channels per thread per loop iteration
 string OpenCLKernels::transformerRMSNorm = OpenCLKernels::common + R"%%(
 __kernel void transformerRMSNorm(
   __global realstore* input,   // N, C, H, W (NCHW)
@@ -1096,104 +1099,198 @@ __kernel void transformerRMSNorm(
   int cSize,
   int xySize
 ) {
-  // Each work-item processes one (n, xy) pair, iterating over channels
-  const int xy = get_global_id(0);
-  const int n = get_global_id(1);
+  // Thread decomposition: adjacent threads get adjacent xy for coalesced NCHW access
+  const int lid = get_local_id(0);
+  const int lid_xy = lid % WG_XY_SIZE;
+  const int lid_c = lid / WG_XY_SIZE;
+  const int xy = get_group_id(0) * WG_XY_SIZE + lid_xy;
+  const int n = get_group_id(1);
+  if(n >= nSize) return;
 
-  if(n < nSize && xy < xySize) {
-    float maskVal = LOAD(mask, n * xySize + xy);
-    if(maskVal == 0.0f) {
-      for(int c = 0; c < cSize; c++) {
-        STORE(output, (n * cSize + c) * xySize + xy, ZERO);
+  float maskVal = (xy < xySize) ? LOAD(mask, n * xySize + xy) : 0.0f;
+
+  // Phase 1: Each thread accumulates sum of squares for its channels
+  float acc = 0.0f;
+  for(int base = lid_c * C_PER_THREAD; base < cSize; base += WG_C_SIZE * C_PER_THREAD) {
+    #pragma unroll
+    for(int dc = 0; dc < C_PER_THREAD; dc++) {
+      int c = base + dc;
+      if(c < cSize && xy < xySize) {
+        float val = LOAD(input, (n * cSize + c) * xySize + xy) * maskVal;
+        acc += val * val;
       }
-      return;
     }
+  }
 
-    // Compute sum of squares across channels
-    float sumSq = 0.0f;
-    for(int c = 0; c < cSize; c++) {
-      float val = LOAD(input, (n * cSize + c) * xySize + xy);
-      sumSq += val * val;
-    }
+  // Phase 2: Reduce across C dimension in local memory
+  // partials[lid_xy][lid_c] - each xy position reduces independently
+  __local float partials[WG_XY_SIZE * WG_C_SIZE];
+  partials[lid_xy * WG_C_SIZE + lid_c] = acc;
+  for(int span = WG_C_SIZE / 2; span > 0; span /= 2) {
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if(lid_c < span)
+      partials[lid_xy * WG_C_SIZE + lid_c] += partials[lid_xy * WG_C_SIZE + lid_c + span];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+  float rms = rsqrt(partials[lid_xy * WG_C_SIZE] / (float)cSize + 1e-6f);
 
-    // RMS normalization: x / sqrt(mean(x^2) + eps)
-    float rms = rsqrt(sumSq / (float)cSize + 1e-6f);
-
-    // Apply weight and mask
-    for(int c = 0; c < cSize; c++) {
-      float val = LOAD(input, (n * cSize + c) * xySize + xy);
-      float result = val * rms * weight[c] * maskVal;
-      STORE(output, (n * cSize + c) * xySize + xy, floatToReal(result));
+  // Phase 3: Apply normalization
+  for(int base = lid_c * C_PER_THREAD; base < cSize; base += WG_C_SIZE * C_PER_THREAD) {
+    #pragma unroll
+    for(int dc = 0; dc < C_PER_THREAD; dc++) {
+      int c = base + dc;
+      if(c < cSize && xy < xySize) {
+        float val = LOAD(input, (n * cSize + c) * xySize + xy);
+        float result = val * rms * weight[c] * maskVal;
+        STORE(output, (n * cSize + c) * xySize + xy, floatToReal(result));
+      }
     }
   }
 }
 )%%";
 
 // Spatial RMSNorm for trunk tip (rsnh suffix).
-// Computes single RMS across ALL channels and spatial positions per sample.
-// Then applies per-channel gamma and beta, plus mask.
-string OpenCLKernels::transformerSpatialRMSNorm = OpenCLKernels::common + R"%%(
-//Defines:
-//XYSTRIDE - power of two parallelism stride for reduction
-//LOCALSIZE_TOTAL - total local work size
+// Three-kernel approach for deterministic parallel reduction:
+//   Pass 1 (SumSq): Compute masked sum of squares from NCHW input, producing partial sums.
+//   Pass 2 (Reduce): Reduce partial sums to a single sum per batch element.
+//   Apply: Normalize with gamma, beta, mask using the computed RMS.
+//
+// The two reduction kernels share the same structure, parametrized by TILE_SIZE.
+// Each workgroup handles a contiguous chunk of TILE_SIZE * tilesPerGroup elements.
+// Threads accumulate, then reduce in local memory; the leader writes one output.
 
-__kernel void transformerSpatialRMSNorm(
-  __global realstore* input,   // N, C, H, W (NCHW)
-  __global realstore* output,  // N, C, H, W (NCHW)
+// Pass 1: Square + mask reduction from NCHW input to partial sums.
+// Input: [N, C, xySize] (NCHW), Mask: [N, xySize]
+// Output: [N, numWorkgroups] partial sums of squares.
+string OpenCLKernels::transformerSpatialRMSNormSumSq = OpenCLKernels::common + R"%%(
+//Defines:
+//TILE_SIZE - workgroup size (power of two)
+
+__kernel void transformerSpatialRMSNormSumSq(
+  __global realstore* input,   // N, C, xySize (NCHW)
+  __global realstore* mask,    // N, xySize
+  __global float* output,      // N, numCHWWorkgroups (partial sums)
+  int nSize,
+  int cSize,
+  int xySize,
+  int tilesPerGroup
+) {
+  const int lid = get_local_id(0);
+  const int n = get_group_id(1);
+  if(n >= nSize) return;
+
+  const int groupIdx = get_group_id(0);
+  const int totalElems = cSize * xySize;
+  const int chunkStart = groupIdx * TILE_SIZE * tilesPerGroup;
+
+  float acc = 0.0f;
+  for(int t = 0; t < tilesPerGroup; t++) {
+    int idx = chunkStart + t * TILE_SIZE + lid;
+    if(idx < totalElems) {
+      int c = idx / xySize;
+      int xy = idx % xySize;
+      float maskVal = LOAD(mask, n * xySize + xy);
+      float val = LOAD(input, (n * cSize + c) * xySize + xy) * maskVal;
+      acc += val * val;
+    }
+  }
+
+  __local float partials[TILE_SIZE];
+  partials[lid] = acc;
+  for(int span = TILE_SIZE / 2; span > 0; span /= 2) {
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if(lid < span)
+      partials[lid] += partials[lid + span];
+  }
+
+  if(lid == 0) {
+    int numWorkgroups = get_num_groups(0);
+    output[n * numWorkgroups + groupIdx] = partials[0];
+  }
+}
+)%%";
+
+// Pass 2: Plain sum reduction from partial sums to a single value per batch element.
+// Input: [N, numPartials] floats (partial sums from pass 1), Output: [N, 1].
+string OpenCLKernels::transformerSpatialRMSNormReduce = R"%%(
+//Defines:
+//TILE_SIZE - workgroup size (power of two), same as pass 1
+
+__kernel void transformerSpatialRMSNormReduce(
+  __global float* input,       // N, numPartials
+  __global float* output,      // N, 1
+  int nSize,
+  int numPartials,
+  int tilesPerGroup
+) {
+  const int lid = get_local_id(0);
+  const int n = get_group_id(1);
+  if(n >= nSize) return;
+
+  const int groupIdx = get_group_id(0);
+  const int chunkStart = groupIdx * TILE_SIZE * tilesPerGroup;
+
+  float acc = 0.0f;
+  for(int t = 0; t < tilesPerGroup; t++) {
+    int idx = chunkStart + t * TILE_SIZE + lid;
+    if(idx < numPartials) {
+      acc += input[n * numPartials + idx];
+    }
+  }
+
+  __local float partials[TILE_SIZE];
+  partials[lid] = acc;
+  for(int span = TILE_SIZE / 2; span > 0; span /= 2) {
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if(lid < span)
+      partials[lid] += partials[lid + span];
+  }
+
+  if(lid == 0) {
+    int numWorkgroups = get_num_groups(0);
+    output[n * numWorkgroups + groupIdx] = partials[0];
+  }
+}
+)%%";
+
+// Apply: Read sum of squares (single value per batch element from reduction),
+// compute rms, apply normalization with gamma/beta/mask.
+string OpenCLKernels::transformerSpatialRMSNormApply = OpenCLKernels::common + R"%%(
+//Defines:
+//APPLY_ELTS_PER_THREAD - elements per work-item
+
+__kernel void transformerSpatialRMSNormApply(
+  __global realstore* input,   // N, C, xySize (NCHW)
+  __global realstore* output,  // N, C, xySize (NCHW)
   __global float* gamma,       // C
   __global float* beta,        // C
-  __global realstore* mask,    // N, H, W
+  __global realstore* mask,    // N, xySize
   __global float* maskSum,     // N
+  __global float* sumSqBuf,    // N (final sum of squares from reduction)
   int nSize,
   int cSize,
   int xySize
 ) {
-  // Phase 1: compute sum of squares across all channels and spatial positions
-  // Each workgroup handles one batch element
-  const int xyBase = get_local_id(0);
   const int n = get_group_id(1);
+  if(n >= nSize) return;
 
-  __local float partialSumSq[LOCALSIZE_TOTAL];
-  int localIdx = get_local_id(0);
+  float mSum = maskSum[n];
+  float denom = mSum * (float)cSize;
+  float rms = rsqrt(sumSqBuf[n] / denom + 1e-6f);
 
-  float sumSq = 0.0f;
-  if(n < nSize) {
-    for(int c = 0; c < cSize; c++) {
-      for(int xy = xyBase; xy < xySize; xy += XYSTRIDE) {
-        float maskVal = LOAD(mask, n * xySize + xy);
-        float val = LOAD(input, (n * cSize + c) * xySize + xy) * maskVal;
-        sumSq += val * val;
-      }
+  const int totalElems = cSize * xySize;
+  int idx = (int)get_group_id(0) * (int)get_local_size(0) * APPLY_ELTS_PER_THREAD + (int)get_local_id(0);
+
+  for(int e = 0; e < APPLY_ELTS_PER_THREAD; e++) {
+    if(idx < totalElems) {
+      int c = idx / xySize;
+      int xy = idx % xySize;
+      float maskVal = LOAD(mask, n * xySize + xy);
+      float val = LOAD(input, (n * cSize + c) * xySize + xy);
+      float result = (val * rms * gamma[c] + beta[c]) * maskVal;
+      STORE(output, (n * cSize + c) * xySize + xy, floatToReal(result));
     }
-  }
-
-  partialSumSq[localIdx] = sumSq;
-
-  for(int span = XYSTRIDE / 2; span > 0; span /= 2) {
-    barrier(CLK_LOCAL_MEM_FENCE);
-    if(xyBase < span) {
-      partialSumSq[localIdx] += partialSumSq[localIdx + span];
-    }
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
-
-  // Broadcast the total sum of squares
-  float totalSumSq = partialSumSq[0];
-
-  if(n < nSize) {
-    float mSum = maskSum[n];
-    float denom = mSum * (float)cSize;
-    float rms = rsqrt(totalSumSq / denom + 1e-6f);
-
-    // Phase 2: apply normalization with gamma, beta, and mask
-    for(int c = 0; c < cSize; c++) {
-      for(int xy = xyBase; xy < xySize; xy += XYSTRIDE) {
-        float maskVal = LOAD(mask, n * xySize + xy);
-        float val = LOAD(input, (n * cSize + c) * xySize + xy);
-        float result = (val * rms * gamma[c] + beta[c]) * maskVal;
-        STORE(output, (n * cSize + c) * xySize + xy, floatToReal(result));
-      }
-    }
+    idx += (int)get_local_size(0);
   }
 }
 )%%";
@@ -1524,35 +1621,26 @@ __kernel void scaledDotProductAttentionNaive(
 
 // SwiGLU: output = SiLU(linear1(x)) * linearGate(x)
 // Both inputs are already computed.
-// a: result of linear1 projection (N, ffnC, H, W)
-// b: result of gate projection (N, ffnC, H, W)
+// SwiGLU activation: output = SiLU(main_proj) * gate_proj
+// Flat grid-stride over all N*C*XY elements, no mask needed (inputs already masked by prior layers).
+// Defines: ELTS_PER_THREAD - elements per work-item
 string OpenCLKernels::transformerSwiGLU = OpenCLKernels::common + R"%%(
 __kernel void transformerSwiGLU(
-  __global realstore* main_proj,  // N, ffnC, H, W - gets SiLU applied
-  __global realstore* gate_proj,  // N, ffnC, H, W - multiplicative gate
-  __global realstore* output,     // N, ffnC, H, W
-  __global realstore* mask,       // N, H, W
-  int nSize,
-  int cSize,
-  int xySize
+  __global realstore* main_proj,
+  __global realstore* gate_proj,
+  __global realstore* output,
+  int size
 ) {
-  const int xy = get_global_id(0);
-  const int c = get_global_id(1);
-
-  if(c < cSize && xy < xySize) {
-    for(int n = 0; n < nSize; n++) {
-      int maskIdx = n * xySize + xy;
-      float maskVal = LOAD(mask, maskIdx);
-      int idx = (n * cSize + c) * xySize + xy;
-
-      float a = LOAD(main_proj, idx);
-      float b = LOAD(gate_proj, idx);
-
-      // SiLU(a) = a * sigmoid(a)
+  const int tileStart = get_group_id(0) * (int)(get_local_size(0)) * ELTS_PER_THREAD;
+  const int lid = get_local_id(0);
+  #pragma unroll
+  for(int d = 0; d < ELTS_PER_THREAD; d++) {
+    int s = tileStart + d * (int)(get_local_size(0)) + lid;
+    if(s < size) {
+      float a = LOAD(main_proj, s);
+      float b = LOAD(gate_proj, s);
       float silu_a = a / (1.0f + exp(-a));
-      float result = silu_a * b * maskVal;
-
-      STORE(output, idx, floatToReal(result));
+      STORE(output, s, floatToReal(silu_a * b));
     }
   }
 }

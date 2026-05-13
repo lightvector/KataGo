@@ -169,8 +169,20 @@ namespace OpenCLParams {
     bool isValid() const;
   };
 
-  struct AddPointWiseParams {
+  struct TransformerRMSNormParams {
+    int WG_C_SIZE = 64;         // threads per workgroup for C-reduction
+    int WG_XY_SIZE = 1;         // spatial positions per workgroup
+    int C_PER_THREAD = 4;       // channels per thread per loop iteration
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
+
+  struct PointWiseParams {
     int ELTS_PER_THREAD = 1;  // elements per work-item in grid-stride loop
+    int LOCAL_SIZE = 32;      // workgroup size
 
     std::string desc() const;
     std::string compileOptions() const;
@@ -184,6 +196,17 @@ namespace OpenCLParams {
 
     std::string desc() const;
     std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
+
+  struct SpatialRMSNormParams {
+    int TILE_SIZE = 32;           // workgroup size for reduction kernels (passes 1 and 2)
+    int APPLY_ELTS_PER_THREAD = 1; // elements per work-item in apply kernel
+
+    std::string desc() const;
+    std::string reduceCompileOptions() const;
+    std::string applyCompileOptions() const;
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;
   };
@@ -210,8 +233,10 @@ struct OpenCLTuneParams {
   OpenCLParams::Conv5x5Params conv5x5 = OpenCLParams::Conv5x5Params();
   OpenCLParams::GPoolParams gPool = OpenCLParams::GPoolParams();
   OpenCLParams::TransformerParams transformer = OpenCLParams::TransformerParams();
-  OpenCLParams::AddPointWiseParams addPointWise = OpenCLParams::AddPointWiseParams();
+  OpenCLParams::TransformerRMSNormParams transformerRMSNorm = OpenCLParams::TransformerRMSNormParams();
+  OpenCLParams::PointWiseParams pointWise = OpenCLParams::PointWiseParams();
   OpenCLParams::AddChannelBiasesNCHWParams addChannelBiasesNCHW = OpenCLParams::AddChannelBiasesNCHWParams();
+  OpenCLParams::SpatialRMSNormParams spatialRMSNorm = OpenCLParams::SpatialRMSNormParams();
 
   bool operator==(const OpenCLTuneParams& other) const;
   bool isValid() const;

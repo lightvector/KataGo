@@ -75,7 +75,7 @@ using half_t = half_float::half;
         }));                                                            \
     if(isNew) {                                                         \
       handle->profileResultPrinters.push_back(std::function<void()>([_profileName,counter,timeTaken]() { \
-            cout << _profileName << " " << *counter << " " << *timeTaken/ *counter << " " << *timeTaken << "\n"; \
+            cout << "PROFILE " << _profileName << " " << *counter << " " << *timeTaken/ *counter << " " << *timeTaken << "\n"; \
           }));                                                          \
     }                                                                   \
   }
@@ -166,7 +166,9 @@ struct CompiledPrograms {
   CLProgram scaleBiasMaskMishScale8NCHWProgram;
   CLProgram scaleBiasMaskSiluNCHWProgram;
   CLProgram transformerRMSNormProgram;
-  CLProgram transformerSpatialRMSNormProgram;
+  CLProgram transformerSpatialRMSNormSumSqProgram;
+  CLProgram transformerSpatialRMSNormReduceProgram;
+  CLProgram transformerSpatialRMSNormApplyProgram;
   CLProgram transformerApplyRoPEProgram;
   CLProgram transformerSwiGLUProgram;
   CLProgram addPointWiseProgram;
@@ -281,11 +283,19 @@ struct CompiledPrograms {
     );
     transformerRMSNormProgram = compileProgram(
       "transformerRMSNormProgram", context, deviceIdsToUse, OpenCLKernels::transformerRMSNorm,
-      maybeFP16CompileOptions
+      tuneParams.transformerRMSNorm.compileOptions() + " " + maybeFP16CompileOptions
     );
-    transformerSpatialRMSNormProgram = compileProgram(
-      "transformerSpatialRMSNormProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNorm,
-      tuneParams.gPool.compileOptions() + maybeFP16CompileOptions
+    transformerSpatialRMSNormSumSqProgram = compileProgram(
+      "transformerSpatialRMSNormSumSqProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNormSumSq,
+      tuneParams.spatialRMSNorm.reduceCompileOptions() + maybeFP16CompileOptions
+    );
+    transformerSpatialRMSNormReduceProgram = compileProgram(
+      "transformerSpatialRMSNormReduceProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNormReduce,
+      tuneParams.spatialRMSNorm.reduceCompileOptions()
+    );
+    transformerSpatialRMSNormApplyProgram = compileProgram(
+      "transformerSpatialRMSNormApplyProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNormApply,
+      tuneParams.spatialRMSNorm.applyCompileOptions() + maybeFP16CompileOptions
     );
     transformerApplyRoPEProgram = compileProgram(
       "transformerApplyRoPEProgram", context, deviceIdsToUse, OpenCLKernels::transformerApplyRoPE,
@@ -293,11 +303,11 @@ struct CompiledPrograms {
     );
     transformerSwiGLUProgram = compileProgram(
       "transformerSwiGLUProgram", context, deviceIdsToUse, OpenCLKernels::transformerSwiGLU,
-      maybeFP16CompileOptions
+      tuneParams.pointWise.compileOptions() + " " + maybeFP16CompileOptions
     );
     addPointWiseProgram = compileProgram(
       "addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise,
-      tuneParams.addPointWise.compileOptions() + " " + maybeFP16CompileOptions
+      tuneParams.pointWise.compileOptions() + " " + maybeFP16CompileOptions
     );
     sumChannelsNCHWProgram = compileProgram(
       "sumChannelsNCHWProgram", context, deviceIdsToUse, OpenCLKernels::sumChannelsNCHW,
@@ -573,7 +583,9 @@ struct ComputeHandleInternal {
   CLKernel scaleBiasMaskMishScale8NCHWKernel;
   CLKernel scaleBiasMaskSiluNCHWKernel;
   CLKernel transformerRMSNormKernel;
-  CLKernel transformerSpatialRMSNormKernel;
+  CLKernel transformerSpatialRMSNormSumSqKernel;
+  CLKernel transformerSpatialRMSNormReduceKernel;
+  CLKernel transformerSpatialRMSNormApplyKernel;
   CLKernel transformerApplyRoPEKernel;
   CLKernel transformerSwiGLUKernel;
   CLKernel addPointWiseKernel;
@@ -671,7 +683,11 @@ struct ComputeHandleInternal {
     CHECK_ERR(err);
     transformerRMSNormKernel = clCreateKernel(progs->transformerRMSNormProgram, "transformerRMSNorm", &err);
     CHECK_ERR(err);
-    transformerSpatialRMSNormKernel = clCreateKernel(progs->transformerSpatialRMSNormProgram, "transformerSpatialRMSNorm", &err);
+    transformerSpatialRMSNormSumSqKernel = clCreateKernel(progs->transformerSpatialRMSNormSumSqProgram, "transformerSpatialRMSNormSumSq", &err);
+    CHECK_ERR(err);
+    transformerSpatialRMSNormReduceKernel = clCreateKernel(progs->transformerSpatialRMSNormReduceProgram, "transformerSpatialRMSNormReduce", &err);
+    CHECK_ERR(err);
+    transformerSpatialRMSNormApplyKernel = clCreateKernel(progs->transformerSpatialRMSNormApplyProgram, "transformerSpatialRMSNormApply", &err);
     CHECK_ERR(err);
     transformerApplyRoPEKernel = clCreateKernel(progs->transformerApplyRoPEProgram, "transformerApplyRoPE", &err);
     CHECK_ERR(err);
@@ -2008,9 +2024,12 @@ struct TransformerRMSNormLayer {
     clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
 
     cl_int err;
+    int wgCSize = handle->tuneParams.transformerRMSNorm.WG_C_SIZE;
+    int wgXYSize = handle->tuneParams.transformerRMSNorm.WG_XY_SIZE;
+    int numXYGroups = (paddedNNXYLen + wgXYSize - 1) / wgXYSize;
     static constexpr int nKernelDims = 2;
-    size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)(paddedNNXYLen)), powerOf2ify((size_t)batchSize)};
-    size_t* localSizes = NULL;
+    size_t globalSizes[nKernelDims] = {(size_t)(wgCSize * wgXYSize) * (size_t)numXYGroups, (size_t)batchSize};
+    size_t localSizes[nKernelDims] = {(size_t)(wgCSize * wgXYSize), 1};
     MAYBE_EVENT;
     err = clEnqueueNDRangeKernel(
       handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
@@ -2038,6 +2057,9 @@ struct RMSNormLayer {
   cl_mem actOnesBuf;
   cl_mem actZerosBuf;
 
+  // Spatial RMSNorm precomputed sizing
+  OpenCLHelpers::SpatialRMSNormSizing sizing;
+
   RMSNormLayer(
     ComputeHandleInternal* handle,
     const RMSNormLayerDesc* desc,
@@ -2059,6 +2081,12 @@ struct RMSNormLayer {
     gammaBuf = createReadOnlyBuffer(handle, gamma, useFP16);
     betaBuf = createReadOnlyBuffer(handle, beta, useFP16);
 
+    if(spatial) {
+      int tileSize = handle->tuneParams.spatialRMSNorm.TILE_SIZE;
+      int chwSize = numChannels * paddedNNXYLen;
+      sizing = OpenCLHelpers::computeSpatialRMSNormSizing(tileSize, chwSize);
+    }
+
     if(activation != ACTIVATION_IDENTITY) {
       if(activation != ACTIVATION_SILU)
         throw StringError("RMSNormLayer: Unsupported activation: " + Global::intToString(activation));
@@ -2077,7 +2105,20 @@ struct RMSNormLayer {
     if(actZerosBuf != NULL) clReleaseMemObject(actZerosBuf);
   }
 
-  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask, cl_mem maskSum) const {
+  // Report scratch space needed for spatial RMSNorm reduction buffers.
+  // Uses convWorkspace for partial sums and convWorkspace2 for final sums.
+  // Both are float buffers reinterpreted from the (possibly FP16) workspace,
+  // so element counts are scaled by 2 when FP16 storage is in use.
+  ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
+    if(!spatial)
+      return ConvWorkspaceEltsNeeded();
+    size_t floatToEltScale = handle->usingFP16Storage ? 2 : 1;
+    size_t partialSumsFloats = maxBatchSize * (size_t)sizing.numCHWWorkgroups;
+    size_t finalSumFloats = maxBatchSize;
+    return ConvWorkspaceEltsNeeded(partialSumsFloats * floatToEltScale, finalSumFloats * floatToEltScale);
+  }
+
+  void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask, cl_mem maskSum, cl_mem convWorkspace, cl_mem convWorkspace2) const {
     if(!spatial) {
       // Non-spatial per-channel RMSNorm: normalize per position across channels, then apply gamma+beta.
       cl_kernel kernel = handle->transformerRMSNormKernel;
@@ -2090,9 +2131,12 @@ struct RMSNormLayer {
       clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
 
       cl_int err;
+      int wgCSize = handle->tuneParams.transformerRMSNorm.WG_C_SIZE;
+      int wgXYSize = handle->tuneParams.transformerRMSNorm.WG_XY_SIZE;
+      int numXYGroups = (paddedNNXYLen + wgXYSize - 1) / wgXYSize;
       static constexpr int nKernelDims = 2;
-      size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)(paddedNNXYLen)), powerOf2ify((size_t)batchSize)};
-      size_t* localSizes = NULL;
+      size_t globalSizes[nKernelDims] = {(size_t)(wgCSize * wgXYSize) * (size_t)numXYGroups, (size_t)batchSize};
+      size_t localSizes[nKernelDims] = {(size_t)(wgCSize * wgXYSize), 1};
       MAYBE_EVENT;
       err = clEnqueueNDRangeKernel(
         handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
@@ -2105,30 +2149,59 @@ struct RMSNormLayer {
       addChannelBiases(handle, output, betaBuf, batchSize * numChannels, paddedNNXYLen);
     }
     else {
-      // Spatial RMSNorm: single RMS across all channels and spatial positions per sample.
-      cl_kernel kernel = handle->transformerSpatialRMSNormKernel;
-      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
-      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
-      clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&gammaBuf);
-      clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&betaBuf);
-      clSetKernelArg(kernel, 4, sizeof(cl_mem), (const void *)&mask);
-      clSetKernelArg(kernel, 5, sizeof(cl_mem), (const void *)&maskSum);
-      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&batchSize);
-      clSetKernelArg(kernel, 7, sizeof(int), (const void *)&numChannels);
-      clSetKernelArg(kernel, 8, sizeof(int), (const void *)&paddedNNXYLen);
+      // Spatial RMSNorm: deterministic three-kernel approach
+      // convWorkspace = partial sums buffer, convWorkspace2 = final sum buffer
+      int tileSize = handle->tuneParams.spatialRMSNorm.TILE_SIZE;
 
-      cl_int err;
-      static constexpr int nKernelDims = 2;
-      int xStride = handle->tuneParams.gPool.XYSTRIDE;
-      size_t globalSizes[nKernelDims] = {(size_t)xStride, powerOf2ify((size_t)batchSize)};
-      size_t localSizes[nKernelDims] = {(size_t)xStride, 1};
-      MAYBE_EVENT;
-      err = clEnqueueNDRangeKernel(
-        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
-      );
-      CHECK_ERR(err);
-      MAYBE_PROFILE("SpatialRMSNorm");
-      MAYBE_FREE_EVENT;
+      // Pass 1: SumSq
+      {
+        MAYBE_EVENT;
+        cl_int err = OpenCLHelpers::doSpatialRMSNormSumSq(
+          handle->transformerSpatialRMSNormSumSqKernel,
+          handle->commandQueue,
+          batchSize, numChannels, paddedNNXYLen,
+          tileSize, sizing.tilesPerGroupPass1, sizing.numCHWWorkgroups,
+          input, mask, convWorkspace,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("SpatialRMSNormSumSq");
+        MAYBE_FREE_EVENT;
+      }
+
+      // Pass 2: Reduce partial sums to final sum
+      {
+        MAYBE_EVENT;
+        cl_int err = OpenCLHelpers::doSpatialRMSNormReduce(
+          handle->transformerSpatialRMSNormReduceKernel,
+          handle->commandQueue,
+          batchSize, sizing.numCHWWorkgroups,
+          tileSize, sizing.tilesPerGroupPass2,
+          convWorkspace, convWorkspace2,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("SpatialRMSNormReduce");
+        MAYBE_FREE_EVENT;
+      }
+
+      // Apply normalization
+      {
+        MAYBE_EVENT;
+        cl_int err = OpenCLHelpers::doSpatialRMSNormApply(
+          handle->transformerSpatialRMSNormApplyKernel,
+          handle->commandQueue,
+          handle->tuneParams,
+          batchSize, numChannels, paddedNNXYLen,
+          input, output,
+          gammaBuf, betaBuf,
+          mask, maskSum, convWorkspace2,
+          MAYBE_EVENTREF
+        );
+        CHECK_ERR(err);
+        MAYBE_PROFILE("SpatialRMSNormApply");
+        MAYBE_FREE_EVENT;
+      }
     }
 
     // Apply activation in-place on output if needed
@@ -2632,26 +2705,13 @@ struct TransformerFFNBlock {
       SizedBuf<cl_mem> gateBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
       linearGate->apply(handle, batchSize, trunkScratch, gateBuf.buf, mask, convWorkspace);
 
-      // Step 3: SwiGLU: output = SiLU(linear1) * gate
-      cl_kernel kernel = handle->transformerSwiGLUKernel;
-      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&ffnBuf.buf);
-      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&gateBuf.buf);
-      clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&ffnBuf.buf);  // output in-place to ffnBuf
-      clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mask);
-      clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
-      clSetKernelArg(kernel, 5, sizeof(int), (const void *)&ffnChannels);
-      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
-
+      // Step 3: SwiGLU: output = SiLU(linear1) * gate (no mask needed, inputs already masked)
+      int totalSize = batchSize * ffnChannels * paddedNNXYLen;
       cl_int err;
-      static constexpr int nKernelDims = 2;
-      size_t globalSizes[nKernelDims] = {
-        powerOf2ify((size_t)paddedNNXYLen),
-        powerOf2ify((size_t)ffnChannels)
-      };
-      size_t* localSizes = NULL;
       MAYBE_EVENT;
-      err = clEnqueueNDRangeKernel(
-        handle->commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, MAYBE_EVENTREF
+      err = OpenCLHelpers::doSwiGLU(
+        handle->transformerSwiGLUKernel, handle->commandQueue, handle->tuneParams,
+        ffnBuf.buf, gateBuf.buf, ffnBuf.buf, totalSize, MAYBE_EVENTREF
       );
       CHECK_ERR(err);
       MAYBE_PROFILE("SwiGLU");
@@ -2987,10 +3047,13 @@ struct Trunk {
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
-    return ConvWorkspaceEltsNeeded::getMax(
+    ConvWorkspaceEltsNeeded maxElts = ConvWorkspaceEltsNeeded::getMax(
       initialConv->requiredConvWorkspaceElts(handle,maxBatchSize),
       blocks.requiredConvWorkspaceElts(handle,maxBatchSize)
     );
+    if(trunkTipRMSNorm)
+      maxElts = ConvWorkspaceEltsNeeded::getMax(maxElts, trunkTipRMSNorm->requiredConvWorkspaceElts(handle,maxBatchSize));
+    return maxElts;
   }
 
   void apply(
@@ -3039,7 +3102,7 @@ struct Trunk {
     }
     else {
       // RMSNorm (spatial or non-spatial or grouped) for trunk tip, with fused activation
-      trunkTipRMSNorm->apply(handle,batchSize,trunk,trunk,mask,maskSum);
+      trunkTipRMSNorm->apply(handle,batchSize,trunk,trunk,mask,maskSum,convWorkspace,convWorkspace2);
     }
 
     #ifdef DEBUG_INTERMEDIATE_VALUES
