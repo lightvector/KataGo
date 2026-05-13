@@ -251,8 +251,6 @@ string Version::getKataGoVersionFullInfo() {
 #define STRINGIFY2(x) STRINGIFY(x)
   out << "Compiled with HIP runtime version " << STRINGIFY2(HIP_TARGET_VERSION) << endl;
 #endif
-#elif defined(USE_MIGRAPHX_BACKEND)
-  out << "Using MIGraphX backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
 #else
@@ -287,8 +285,6 @@ string Version::getGitRevisionWithBackend() {
   s += "-trt";
 #elif defined(USE_ROCM_BACKEND)
   s += "-rocm";
-#elif defined(USE_MIGRAPHX_BACKEND)
-  s += "-migraphx";
 #elif defined(USE_METAL_BACKEND)
   s += "-metal";
 #elif defined(USE_OPENCL_BACKEND)

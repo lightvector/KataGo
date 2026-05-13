@@ -9,7 +9,7 @@ Summary of source folders, in approximate dependency order, from lowest level to
   * `board.{cpp,h}` - Raw board implementation, without move history. Helper functions for Benson's algorithm and ladder search.
   * `boardhistory.{cpp,h}` - Datastructure that does include move history - handles superko, passing, game end, final scoring, komi, handicap detection, etc.
   * `graphhash.{cpp,h}` - History-sensitive hash used for [monte-carlo graph search](https://github.com/lightvector/KataGo/blob/master/docs/GraphSearch.md).
-* `neuralnet` - Neural net GPU implementation and interface. Contains OpenCL, CUDA, Eigen, TensorRT backends along with common interfaces and model data structures.
+* `neuralnet` - Neural net GPU implementation and interface. Contains OpenCL, CUDA, Eigen, TensorRT, ROCm, Metal backends along with common interfaces and model data structures.
   * `desc.{cpp,h}` - Data structure holding neural net structure and weights.
   * `modelversion.{cpp,h}` - Enumerates the various versions of neural net features and models.
   * `nninputs.{cpp,h}` - Implements the input features for the neural net.

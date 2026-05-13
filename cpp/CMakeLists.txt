@@ -192,7 +192,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL ROCM MIGRAPHX)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL ROCM)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -364,62 +364,6 @@ elseif(USE_BACKEND STREQUAL "ROCM")
 
   # Optional: Enable model-size‑based autotuning and other macros
   # add_compile_definitions(HIP_SUPPORTS_FP16)
-
-# --------------------------- MIGRAPHX backend（AMD MIGraphX graph inference） ---------------------------
-elseif(USE_BACKEND STREQUAL "MIGRAPHX")
-  message(STATUS "-DUSE_BACKEND=MIGRAPHX, using AMD MIGraphX backend.")
-
-  # Use standard C++ compiler with MIGraphX
-  set(CMAKE_CXX_STANDARD 17)
-  
-  # Find MIGraphX manually (avoid CMake config which adds hipcc-specific flags)
-  # Note: MIGraphX headers are split between two locations:
-  # - /opt/rocm/lib/migraphx/include/migraphx/ (C++ API headers like program.hpp)
-  # - /opt/rocm/include/migraphx/ (export.h and other common headers)
-  find_path(MIGRAPHX_CXX_INCLUDE_DIR migraphx/program.hpp
-            HINTS /opt/rocm/lib/migraphx/include
-            PATH_SUFFIXES include)
-  
-  find_path(MIGRAPHX_INCLUDE_DIR migraphx/export.h
-            HINTS /opt/rocm/include
-            PATH_SUFFIXES include)
-  
-  find_library(MIGRAPHX_LIBRARY migraphx
-               HINTS /opt/rocm/lib/migraphx/lib /opt/rocm/lib
-               PATH_SUFFIXES lib lib64)
-  
-  find_library(MIGRAPHX_GPU_LIBRARY migraphx_gpu
-               HINTS /opt/rocm/lib/migraphx/lib /opt/rocm/lib
-               PATH_SUFFIXES lib lib64)
-  
-  if(NOT MIGRAPHX_CXX_INCLUDE_DIR)
-    message(FATAL_ERROR "MIGraphX C++ headers not found. Please install MIGraphX.")
-  endif()
-  
-  if(NOT MIGRAPHX_LIBRARY)
-    message(FATAL_ERROR "MIGraphX library not found. Please install MIGraphX.")
-  endif()
-
-  message(STATUS "MIGraphX C++ include: ${MIGRAPHX_CXX_INCLUDE_DIR}")
-  message(STATUS "MIGraphX include: ${MIGRAPHX_INCLUDE_DIR}")
-  message(STATUS "MIGraphX library: ${MIGRAPHX_LIBRARY}")
-  if(MIGRAPHX_GPU_LIBRARY)
-    message(STATUS "MIGraphX GPU library: ${MIGRAPHX_GPU_LIBRARY}")
-  endif()
-
-  # Source files for MIGraphX backend
-  set(NEURALNET_BACKEND_SOURCES
-    neuralnet/migraphxbackend.cpp
-  )
-  
-  # Include directories (both locations needed)
-  include_directories(SYSTEM ${MIGRAPHX_CXX_INCLUDE_DIR})
-  if(MIGRAPHX_INCLUDE_DIR)
-    include_directories(SYSTEM ${MIGRAPHX_INCLUDE_DIR})
-  endif()
-  
-  # Add ROCm lib directory for linking
-  link_directories(/opt/rocm/lib)
 
 elseif(USE_BACKEND STREQUAL "")
   message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
@@ -866,33 +810,7 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
       message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
     endif()
   endif()
-elseif(USE_BACKEND STREQUAL "MIGRAPHX")
-  target_compile_definitions(katago PRIVATE USE_MIGRAPHX_BACKEND)
-  
-  # Link MIGraphX libraries
-  target_link_libraries(katago ${MIGRAPHX_LIBRARY})
-  if(MIGRAPHX_GPU_LIBRARY)
-    target_link_libraries(katago ${MIGRAPHX_GPU_LIBRARY})
-  endif()
-  
-  # Link HIP runtime
-  find_library(AMDHIP64_LIBRARY amdhip64
-               HINTS /opt/rocm/lib
-               PATH_SUFFIXES lib lib64)
-  if(NOT AMDHIP64_LIBRARY)
-    message(FATAL_ERROR "Required library 'amdhip64' not found. Install ROCm and ensure /opt/rocm/lib is accessible, or pass -DCMAKE_PREFIX_PATH=/opt/rocm.")
-  endif()
-  target_link_libraries(katago ${AMDHIP64_LIBRARY})
-  
-  # Link HIP runtime compiler (required)
-  find_library(HIPRTC_LIBRARY hiprtc
-               HINTS /opt/rocm/lib
-               PATH_SUFFIXES lib lib64)
-  if(NOT HIPRTC_LIBRARY)
-    message(FATAL_ERROR "Required library 'hiprtc' not found. Install ROCm and ensure /opt/rocm/lib is accessible, or pass -DCMAKE_PREFIX_PATH=/opt/rocm.")
-  endif()
-  target_link_libraries(katago ${HIPRTC_LIBRARY})
-  
+
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)
