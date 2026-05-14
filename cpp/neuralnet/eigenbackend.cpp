@@ -730,6 +730,8 @@ struct BatchNormLayer {
       output->chip(c, 0) = (*mask == 1.0f).select(x.cwiseMax(0.0f), z);
     else if(activation == ACTIVATION_MISH)
       output->chip(c, 0) = (*mask == 1.0f).select(x * (x.cwiseMin(20.0f).exp().log1p() + (x.cwiseMax(20.0f) - 20.0f)).tanh(), z);
+    else if(activation == ACTIVATION_SILU)
+      output->chip(c, 0) = (*mask == 1.0f).select(x / ((-x).exp() + 1.0f), z);
     else if(activation == ACTIVATION_MISH_SCALE8)
       testAssert(false); // Eigen does not use scaled mish activations due to no fp16
     else
@@ -761,6 +763,8 @@ struct ActivationLayer {
       *output = input->cwiseMax(0.0f);
     else if(activation == ACTIVATION_MISH)
       *output = (*input) * ((input->cwiseMin(20.0f)).exp().log1p() + (input->cwiseMax(20.0f) - 20.0f)).tanh();
+    else if(activation == ACTIVATION_SILU)
+      *output = (*input) / ((-*input).exp() + 1.0f);
     else if(activation == ACTIVATION_MISH_SCALE8)
       testAssert(false); // Eigen does not use scaled mish activations due to no fp16
     else
@@ -774,6 +778,8 @@ struct ActivationLayer {
       *output = input->cwiseMax(0.0f);
     else if(activation == ACTIVATION_MISH)
       *output = (*input) * ((input->cwiseMin(20.0f)).exp().log1p() + (input->cwiseMax(20.0f) - 20.0f)).tanh();
+    else if(activation == ACTIVATION_SILU)
+      *output = (*input) / ((-*input).exp() + 1.0f);
     else if(activation == ACTIVATION_MISH_SCALE8)
       testAssert(false); // Eigen does not use scaled mish activations due to no fp16
     else
@@ -828,6 +834,161 @@ struct MatBiasLayer {
     for(int n = 0; n < mat->dimension(1); n++) {
       for(int c = 0; c < mat->dimension(0); c++) {
         (*mat)(c, n) += weights[c];
+      }
+    }
+  }
+};
+
+// --------------------------------------------------------------------------------------------------------------
+
+// Lightweight RMSNorm used inside transformer blocks (weight only, no bias)
+struct TransformerRMSNormLayer {
+  const string name;
+  const int numChannels;
+  vector<float> weight;
+
+  TransformerRMSNormLayer() = delete;
+  TransformerRMSNormLayer(const TransformerRMSNormLayer&) = delete;
+  TransformerRMSNormLayer& operator=(const TransformerRMSNormLayer&) = delete;
+
+  TransformerRMSNormLayer(const TransformerRMSNormDesc& desc)
+    : name(desc.name),
+      numChannels(desc.numChannels),
+      weight(desc.weight)
+  {}
+
+  // Apply RMSNorm: for each spatial position, normalize across channels, scale by weight, mask output.
+  // Input/output are NHWC layout as (C,W,H,N).
+  void apply(
+    CONSTTENSORMAP4* input,
+    TENSORMAP4* output,
+    CONSTTENSORMAP3* mask
+  ) const {
+    int batchSize = input->dimension(3);
+    int nnYLen = input->dimension(2);
+    int nnXLen = input->dimension(1);
+
+    for(int n = 0; n < batchSize; n++) {
+      for(int h = 0; h < nnYLen; h++) {
+        for(int w = 0; w < nnXLen; w++) {
+          float maskVal = (*mask)(w, h, n);
+          if(maskVal == 0.0f) {
+            for(int c = 0; c < numChannels; c++)
+              (*output)(c, w, h, n) = 0.0f;
+            continue;
+          }
+          // Compute sum of squares
+          float sumSq = 0.0f;
+          for(int c = 0; c < numChannels; c++) {
+            float v = (*input)(c, w, h, n);
+            sumSq += v * v;
+          }
+          float rms = 1.0f / sqrtf(sumSq / (float)numChannels + 1e-6f);
+          for(int c = 0; c < numChannels; c++) {
+            (*output)(c, w, h, n) = (*input)(c, w, h, n) * rms * weight[c];
+          }
+        }
+      }
+    }
+  }
+};
+
+// --------------------------------------------------------------------------------------------------------------
+
+// Full-featured RMSNorm for trunk tip, with gamma/beta, spatial mode, and optional activation.
+struct RMSNormLayer {
+  const string name;
+  const int numChannels;
+  const bool spatial;
+  const int activation;
+  vector<float> gamma;
+  vector<float> beta;
+
+  RMSNormLayer() = delete;
+  RMSNormLayer(const RMSNormLayer&) = delete;
+  RMSNormLayer& operator=(const RMSNormLayer&) = delete;
+
+  RMSNormLayer(const RMSNormLayerDesc& desc, int activation_)
+    : name(desc.name),
+      numChannels(desc.numChannels),
+      spatial(desc.spatial),
+      activation(activation_),
+      gamma(desc.gamma),
+      beta(desc.beta)
+  {}
+
+  void apply(
+    CONSTTENSORMAP4* input,
+    TENSORMAP4* output,
+    CONSTTENSORMAP3* mask,
+    const float* maskSum
+  ) const {
+    int batchSize = input->dimension(3);
+    int nnYLen = input->dimension(2);
+    int nnXLen = input->dimension(1);
+
+    if(!spatial) {
+      // Non-spatial: per-position RMSNorm across channels (same as TransformerRMSNormLayer but with gamma+beta+activation)
+      for(int n = 0; n < batchSize; n++) {
+        for(int h = 0; h < nnYLen; h++) {
+          for(int w = 0; w < nnXLen; w++) {
+            float maskVal = (*mask)(w, h, n);
+            if(maskVal == 0.0f) {
+              for(int c = 0; c < numChannels; c++)
+                (*output)(c, w, h, n) = 0.0f;
+              continue;
+            }
+            float sumSq = 0.0f;
+            for(int c = 0; c < numChannels; c++) {
+              float v = (*input)(c, w, h, n);
+              sumSq += v * v;
+            }
+            float rms = 1.0f / sqrtf(sumSq / (float)numChannels + 1e-6f);
+            for(int c = 0; c < numChannels; c++) {
+              float v = (*input)(c, w, h, n) * rms * gamma[c] + beta[c];
+              if(activation == ACTIVATION_SILU)
+                v = v / (1.0f + expf(-v));
+              (*output)(c, w, h, n) = v;
+            }
+          }
+        }
+      }
+    }
+    else {
+      // Spatial: RMSNorm over all channels AND spatial positions for each batch element
+      for(int n = 0; n < batchSize; n++) {
+        float sumSq = 0.0f;
+        int count = 0;
+        for(int h = 0; h < nnYLen; h++) {
+          for(int w = 0; w < nnXLen; w++) {
+            float maskVal = (*mask)(w, h, n);
+            if(maskVal == 0.0f)
+              continue;
+            for(int c = 0; c < numChannels; c++) {
+              float v = (*input)(c, w, h, n);
+              sumSq += v * v;
+            }
+            count++;
+          }
+        }
+        float totalElts = (float)count * (float)numChannels;
+        float rms = 1.0f / sqrtf(sumSq / totalElts + 1e-6f);
+        for(int h = 0; h < nnYLen; h++) {
+          for(int w = 0; w < nnXLen; w++) {
+            float maskVal = (*mask)(w, h, n);
+            if(maskVal == 0.0f) {
+              for(int c = 0; c < numChannels; c++)
+                (*output)(c, w, h, n) = 0.0f;
+              continue;
+            }
+            for(int c = 0; c < numChannels; c++) {
+              float v = (*input)(c, w, h, n) * rms * gamma[c] + beta[c];
+              if(activation == ACTIVATION_SILU)
+                v = v / (1.0f + expf(-v));
+              (*output)(c, w, h, n) = v;
+            }
+          }
+        }
       }
     }
   }
@@ -1116,6 +1277,382 @@ struct NestedBottleneckResidualBlock final : public ResidualBlockIntf {
 
 // --------------------------------------------------------------------------------------------------------------
 
+struct TransformerAttentionBlock final : public ResidualBlockIntf {
+  const string name;
+  const int numHeads;
+  const int numKVHeads;
+  const int qHeadDim;
+  const int vHeadDim;
+  const bool useRope;
+  const bool learnableRope;
+  const int inChannels;
+
+  const TransformerRMSNormLayer preLN;
+  const MatMulLayer qProj;
+  const MatMulLayer kProj;
+  const MatMulLayer vProj;
+  const MatMulLayer outProj;
+
+  // Precomputed RoPE cos/sin tables
+  vector<float> ropeCosTable;
+  vector<float> ropeSinTable;
+  int ropeNumPairs;
+
+  TransformerAttentionBlock() = delete;
+  TransformerAttentionBlock(const TransformerAttentionBlock&) = delete;
+  TransformerAttentionBlock& operator=(const TransformerAttentionBlock&) = delete;
+
+  ~TransformerAttentionBlock(){}
+
+  TransformerAttentionBlock(const TransformerAttentionDesc& desc, int nnX, int nnY)
+    : name(desc.name),
+      numHeads(desc.numHeads),
+      numKVHeads(desc.numKVHeads),
+      qHeadDim(desc.qHeadDim),
+      vHeadDim(desc.vHeadDim),
+      useRope(desc.useRope),
+      learnableRope(desc.learnableRope),
+      inChannels(desc.qProj.inChannels),
+      preLN(desc.preLN),
+      qProj(desc.qProj),
+      kProj(desc.kProj),
+      vProj(desc.vProj),
+      outProj(desc.outProj),
+      ropeNumPairs(0)
+  {
+    if(useRope) {
+      ropeNumPairs = qHeadDim / 2;
+      int paddedNNXYLen = nnX * nnY;
+      desc.computeRopeCosSin(nnX, nnY, paddedNNXYLen, ropeCosTable, ropeSinTable);
+    }
+  }
+
+  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const override {
+    (void)maxBatchSize;
+    return 0;
+  }
+
+  void apply(
+    ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
+    TENSORMAP4* trunk,
+    TENSORMAP4* trunkScratch,
+    CONSTTENSORMAP3* mask,
+    const float* maskSum,
+    float* convWorkspace
+  ) const override {
+    (void)maskSum;
+    (void)convWorkspace;
+    int batchSize = trunk->dimension(3);
+    int nnXLen = handle->nnXLen;
+    int nnYLen = handle->nnYLen;
+    int seqLen = nnXLen * nnYLen;
+
+    int qTotalDim = numHeads * qHeadDim;
+    int kTotalDim = numKVHeads * qHeadDim;
+    int vTotalDim = numKVHeads * vHeadDim;
+
+    // Step 1: RMSNorm: trunk -> trunkScratch
+    preLN.apply(trunk, trunkScratch, mask);
+
+    // Step 2: Q/K/V projections
+    // trunkScratch is (C, W, H, N) in NHWC Eigen layout.
+    // We treat the spatial dims as sequence: reshape to (C, seqLen*N) for matmul.
+    SizedBuf<float*> qBuf(scratch->allocator, scratch->getBufSizeXY(qTotalDim));
+    SizedBuf<float*> kBuf(scratch->allocator, scratch->getBufSizeXY(kTotalDim));
+    SizedBuf<float*> vBuf(scratch->allocator, scratch->getBufSizeXY(vTotalDim));
+
+    {
+      TENSORMAP2 trunkFlat(trunkScratch->data(), inChannels, seqLen * batchSize);
+      TENSORMAP2 qFlat(qBuf.buf, qTotalDim, seqLen * batchSize);
+      TENSORMAP2 kFlat(kBuf.buf, kTotalDim, seqLen * batchSize);
+      TENSORMAP2 vFlat(vBuf.buf, vTotalDim, seqLen * batchSize);
+      qProj.apply(&trunkFlat, &qFlat);
+      kProj.apply(&trunkFlat, &kFlat);
+      vProj.apply(&trunkFlat, &vFlat);
+    }
+
+    // Step 3: Apply RoPE to Q and K
+    if(useRope) {
+      // Q is (qTotalDim, seqLen*N) = (numHeads*qHeadDim, seqLen*N)
+      // View as: for each n,head: qHeadDim values at each seqLen position
+      // Apply rotation to pairs of adjacent values
+      auto applyRoPE = [&](float* data, int numH) {
+        for(int n = 0; n < batchSize; n++) {
+          for(int h = 0; h < numH; h++) {
+            for(int xy = 0; xy < seqLen; xy++) {
+              for(int p = 0; p < ropeNumPairs; p++) {
+                // data layout is (totalDim, seqLen*N), column-major
+                // For head h, pair p: channels are h*qHeadDim + 2*p and h*qHeadDim + 2*p + 1
+                int c0 = h * qHeadDim + 2 * p;
+                int c1 = c0 + 1;
+                int col = n * seqLen + xy;
+                int idx0 = c0 + col * (numH * qHeadDim);
+                int idx1 = c1 + col * (numH * qHeadDim);
+
+                // Look up cos/sin - indexing depends on learnable vs fixed
+                int tableIdx;
+                if(learnableRope) {
+                  // Learnable: per KV head. For Q heads, map to corresponding KV head.
+                  int kvh = (numH == numKVHeads) ? h : (h * numKVHeads / numHeads);
+                  tableIdx = (kvh * ropeNumPairs + p) * seqLen + xy;
+                } else {
+                  tableIdx = p * seqLen + xy;
+                }
+                float cosVal = ropeCosTable[tableIdx];
+                float sinVal = ropeSinTable[tableIdx];
+
+                float x0 = data[idx0];
+                float x1 = data[idx1];
+                data[idx0] = x0 * cosVal - x1 * sinVal;
+                data[idx1] = x0 * sinVal + x1 * cosVal;
+              }
+            }
+          }
+        }
+      };
+
+      applyRoPE(qBuf.buf, numHeads);
+      applyRoPE(kBuf.buf, numKVHeads);
+    }
+
+    // Step 4: Scaled dot-product attention (two-pass softmax)
+    // Q: (numHeads*qHeadDim, seqLen*N), K: (numKVHeads*qHeadDim, seqLen*N), V: (numKVHeads*vHeadDim, seqLen*N)
+    // Output: (numHeads*vHeadDim, seqLen*N)
+    SizedBuf<float*> attnOutBuf(scratch->allocator, scratch->getBufSizeXY(numHeads * vHeadDim));
+
+    {
+      float scale = 1.0f / sqrtf((float)qHeadDim);
+      int kvGroupSize = numHeads / numKVHeads;
+
+      // Precompute flat mask for this batch: maskFlat[n*seqLen + xy]
+      vector<float> maskFlat(batchSize * seqLen);
+      for(int n = 0; n < batchSize; n++)
+        for(int xy = 0; xy < seqLen; xy++)
+          maskFlat[n * seqLen + xy] = (*mask)(xy % nnXLen, xy / nnXLen, n);
+
+      // For each batch and head, compute attention using Eigen matmul for Q*K^T and softmax*V
+      // scores = Q^T * K (seqLen x seqLen) for one head of one batch element
+      // We allocate a scores buffer once and reuse it
+      vector<float> scoresBuf(seqLen * seqLen);
+
+      for(int n = 0; n < batchSize; n++) {
+        for(int h = 0; h < numHeads; h++) {
+          int kvh = h / kvGroupSize;
+
+          // Q_h for this (n,h): qHeadDim x seqLen, starting at column n*seqLen, rows h*qHeadDim
+          // In memory: qBuf is (qTotalDim, seqLen*N) column-major
+          // Q_h row d, col s => qBuf[(h*qHeadDim + d) + (n*seqLen + s) * qTotalDim]
+          // K_kvh similarly from kBuf
+          // Q and K for this (n, h): qHeadDim x seqLen, with stride qTotalDim between columns
+          auto qStrided = Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>,
+                                     Eigen::Unaligned, Eigen::Stride<Eigen::Dynamic,1>>(
+            qBuf.buf + (size_t)n * seqLen * qTotalDim + h * qHeadDim,
+            qHeadDim, seqLen,
+            Eigen::Stride<Eigen::Dynamic,1>(qTotalDim, 1)
+          );
+          auto kStrided = Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>,
+                                     Eigen::Unaligned, Eigen::Stride<Eigen::Dynamic,1>>(
+            kBuf.buf + (size_t)n * seqLen * kTotalDim + kvh * qHeadDim,
+            qHeadDim, seqLen,
+            Eigen::Stride<Eigen::Dynamic,1>(kTotalDim, 1)
+          );
+
+          // scores = Q^T * K  (seqLen x seqLen), scores[qi][ki] = dot(Q[:,qi], K[:,ki])
+          auto scoresMap = Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>>(
+            scoresBuf.data(), seqLen, seqLen
+          );
+          scoresMap.noalias() = qStrided.transpose() * kStrided;
+          scoresMap *= scale;
+
+          // Apply mask and softmax row-wise (each row qi is a query)
+          const float* maskN = maskFlat.data() + n * seqLen;
+          for(int qi = 0; qi < seqLen; qi++) {
+            if(maskN[qi] == 0.0f) {
+              // Zero out this row's contribution
+              for(int ki = 0; ki < seqLen; ki++)
+                scoresBuf[qi + ki * seqLen] = 0.0f;
+              continue;
+            }
+
+            // Find max (excluding masked keys)
+            float maxVal = -1e30f;
+            for(int ki = 0; ki < seqLen; ki++) {
+              if(maskN[ki] != 0.0f)
+                maxVal = std::max(maxVal, scoresBuf[qi + ki * seqLen]);
+            }
+
+            // Compute exp and sum
+            float sumExp = 0.0f;
+            for(int ki = 0; ki < seqLen; ki++) {
+              if(maskN[ki] != 0.0f) {
+                float e = expf(scoresBuf[qi + ki * seqLen] - maxVal);
+                scoresBuf[qi + ki * seqLen] = e;
+                sumExp += e;
+              } else {
+                scoresBuf[qi + ki * seqLen] = 0.0f;
+              }
+            }
+
+            // Normalize
+            float invSum = 1.0f / sumExp;
+            for(int ki = 0; ki < seqLen; ki++)
+              scoresBuf[qi + ki * seqLen] *= invSum;
+          }
+
+          // attnOut = V * scores^T = V * softmax_weights
+          // V_kvh: vHeadDim x seqLen (strided in vBuf)
+          // scores: seqLen x seqLen (row qi gives weights over ki)
+          // We want: out[:,qi] = sum_ki scores[qi,ki] * V[:,ki] = V * scores[qi,:]^T
+          // i.e. out = V * scores^T  (vHeadDim x seqLen)
+          auto vStrided = Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>,
+                                     Eigen::Unaligned, Eigen::Stride<Eigen::Dynamic,1>>(
+            vBuf.buf + (size_t)n * seqLen * vTotalDim + kvh * vHeadDim,
+            vHeadDim, seqLen,
+            Eigen::Stride<Eigen::Dynamic,1>(vTotalDim, 1)
+          );
+          auto outStrided = Eigen::Map<Eigen::Matrix<float,Eigen::Dynamic,Eigen::Dynamic,Eigen::ColMajor>,
+                                       Eigen::Unaligned, Eigen::Stride<Eigen::Dynamic,1>>(
+            attnOutBuf.buf + (size_t)n * seqLen * (numHeads * vHeadDim) + h * vHeadDim,
+            vHeadDim, seqLen,
+            Eigen::Stride<Eigen::Dynamic,1>(numHeads * vHeadDim, 1)
+          );
+          outStrided.noalias() = vStrided * scoresMap.transpose();
+        }
+      }
+    }
+
+    // Step 5: Output projection
+    {
+      int outC = outProj.outChannels;
+      TENSORMAP2 attnFlat(attnOutBuf.buf, numHeads * vHeadDim, seqLen * batchSize);
+      TENSORMAP2 outFlat(trunkScratch->data(), outC, seqLen * batchSize);
+      outProj.apply(&attnFlat, &outFlat);
+    }
+
+    // Step 6: Residual addition + mask
+    for(int n = 0; n < batchSize; n++) {
+      for(int h = 0; h < nnYLen; h++) {
+        for(int w = 0; w < nnXLen; w++) {
+          float maskVal = (*mask)(w, h, n);
+          for(int c = 0; c < inChannels; c++) {
+            (*trunk)(c, w, h, n) += (*trunkScratch)(c, w, h, n) * maskVal;
+          }
+        }
+      }
+    }
+  }
+};
+
+// --------------------------------------------------------------------------------------------------------------
+
+struct TransformerFFNBlock final : public ResidualBlockIntf {
+  const string name;
+  const int numChannels;
+  const int ffnChannels;
+  const bool useSwiGLU;
+
+  const TransformerRMSNormLayer preLN;
+  const MatMulLayer linear1;
+  std::unique_ptr<MatMulLayer> linearGate;
+  const MatMulLayer linear2;
+
+  TransformerFFNBlock() = delete;
+  TransformerFFNBlock(const TransformerFFNBlock&) = delete;
+  TransformerFFNBlock& operator=(const TransformerFFNBlock&) = delete;
+
+  ~TransformerFFNBlock(){}
+
+  TransformerFFNBlock(const TransformerFFNDesc& desc)
+    : name(desc.name),
+      numChannels(desc.numChannels),
+      ffnChannels(desc.ffnChannels),
+      useSwiGLU(desc.useSwiGLU),
+      preLN(desc.preLN),
+      linear1(desc.linear1),
+      linear2(desc.linear2)
+  {
+    if(useSwiGLU) {
+      linearGate = std::make_unique<MatMulLayer>(desc.linearGate);
+    }
+    if(!useSwiGLU) {
+      throw StringError("Non-SwiGLU transformer FFN is not yet supported in Eigen backend");
+    }
+  }
+
+  size_t requiredConvWorkspaceElts(size_t maxBatchSize) const override {
+    (void)maxBatchSize;
+    return 0;
+  }
+
+  void apply(
+    ComputeHandleInternal* handle,
+    ScratchBuffers* scratch,
+    TENSORMAP4* trunk,
+    TENSORMAP4* trunkScratch,
+    CONSTTENSORMAP3* mask,
+    const float* maskSum,
+    float* convWorkspace
+  ) const override {
+    (void)maskSum;
+    (void)convWorkspace;
+    int batchSize = trunk->dimension(3);
+    int nnXLen = handle->nnXLen;
+    int nnYLen = handle->nnYLen;
+    int seqLen = nnXLen * nnYLen;
+
+    // Step 1: RMSNorm
+    preLN.apply(trunk, trunkScratch, mask);
+
+    // Step 2: linear1 projection
+    SizedBuf<float*> ffnBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
+    {
+      TENSORMAP2 trunkFlat(trunkScratch->data(), numChannels, seqLen * batchSize);
+      TENSORMAP2 ffnFlat(ffnBuf.buf, ffnChannels, seqLen * batchSize);
+      linear1.apply(&trunkFlat, &ffnFlat);
+    }
+
+    // Step 3: SwiGLU
+    {
+      SizedBuf<float*> gateBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
+      {
+        TENSORMAP2 trunkFlat(trunkScratch->data(), numChannels, seqLen * batchSize);
+        TENSORMAP2 gateFlat(gateBuf.buf, ffnChannels, seqLen * batchSize);
+        linearGate->apply(&trunkFlat, &gateFlat);
+      }
+
+      // SwiGLU: output = SiLU(linear1_out) * gate
+      int totalSize = ffnChannels * seqLen * batchSize;
+      for(int i = 0; i < totalSize; i++) {
+        float a = ffnBuf.buf[i];
+        float silu_a = a / (1.0f + expf(-a));
+        ffnBuf.buf[i] = silu_a * gateBuf.buf[i];
+      }
+    }
+
+    // Step 4: linear2 projection
+    {
+      TENSORMAP2 ffnFlat(ffnBuf.buf, ffnChannels, seqLen * batchSize);
+      TENSORMAP2 outFlat(trunkScratch->data(), numChannels, seqLen * batchSize);
+      linear2.apply(&ffnFlat, &outFlat);
+    }
+
+    // Step 5: Residual addition + mask
+    for(int n = 0; n < batchSize; n++) {
+      for(int h = 0; h < nnYLen; h++) {
+        for(int w = 0; w < nnXLen; w++) {
+          float maskVal = (*mask)(w, h, n);
+          for(int c = 0; c < numChannels; c++) {
+            (*trunk)(c, w, h, n) += (*trunkScratch)(c, w, h, n) * maskVal;
+          }
+        }
+      }
+    }
+  }
+};
+
+// --------------------------------------------------------------------------------------------------------------
+
 BlockStack::BlockStack(
   const std::vector<std::pair<int, unique_ptr_void>>& descBlocks,
   int nBlocks,
@@ -1140,9 +1677,15 @@ BlockStack::BlockStack(
       std::unique_ptr<NestedBottleneckResidualBlock> block = std::make_unique<NestedBottleneckResidualBlock>(*blockDesc,nnX,nnY);
       blocks.emplace_back(NESTED_BOTTLENECK_BLOCK_KIND, std::move(block));
     }
-    else if(descBlocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
-            descBlocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
-      throw StringError("Transformer blocks are not yet supported by the Eigen backend");
+    else if(descBlocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      TransformerAttentionDesc* blockDesc = (TransformerAttentionDesc*)descBlocks[i].second.get();
+      std::unique_ptr<TransformerAttentionBlock> block = std::make_unique<TransformerAttentionBlock>(*blockDesc,nnX,nnY);
+      blocks.emplace_back(TRANSFORMER_ATTENTION_BLOCK_KIND, std::move(block));
+    }
+    else if(descBlocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      TransformerFFNDesc* blockDesc = (TransformerFFNDesc*)descBlocks[i].second.get();
+      std::unique_ptr<TransformerFFNBlock> block = std::make_unique<TransformerFFNBlock>(*blockDesc);
+      blocks.emplace_back(TRANSFORMER_FFN_BLOCK_KIND, std::move(block));
     }
     else {
       ASSERT_UNREACHABLE;
@@ -1238,12 +1781,14 @@ struct SGFMetadataEncoder {
 struct Trunk {
   const string name;
   const int modelVersion;
+  const int trunkNormKind;
 
   const ConvLayer initialConv;
   const MatMulLayer initialMatMul;
   std::unique_ptr<SGFMetadataEncoder> sgfMetadataEncoder;
   const BlockStack blocks;
-  const BatchNormLayer trunkTipBN;
+  std::unique_ptr<BatchNormLayer> trunkTipBN;
+  std::unique_ptr<RMSNormLayer> trunkTipRMSNorm;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -1252,13 +1797,17 @@ struct Trunk {
   Trunk(const TrunkDesc& desc, int nnX, int nnY)
     : name(desc.name),
       modelVersion(desc.modelVersion),
+      trunkNormKind(desc.trunkNormKind),
       initialConv(desc.initialConv,nnX,nnY),
       initialMatMul(desc.initialMatMul),
-      blocks(desc.blocks,desc.numBlocks,nnX,nnY),
-      trunkTipBN(desc.trunkTipBN,desc.trunkTipActivation)
+      blocks(desc.blocks,desc.numBlocks,nnX,nnY)
   {
-    if(desc.trunkNormKind != TRUNK_NORM_KIND_STANDARD)
-      throw StringError("Trunk RMSNorm is not yet supported by the Eigen backend");
+    if(desc.trunkNormKind == TRUNK_NORM_KIND_STANDARD) {
+      trunkTipBN = std::make_unique<BatchNormLayer>(desc.trunkTipBN, desc.trunkTipActivation);
+    }
+    else {
+      trunkTipRMSNorm = std::make_unique<RMSNormLayer>(desc.trunkTipRMSNorm, desc.trunkTipActivation.activation);
+    }
     if(desc.metaEncoderVersion > 0) {
       sgfMetadataEncoder = std::make_unique<SGFMetadataEncoder>(desc.sgfMetadataEncoder);
       testAssert(sgfMetadataEncoder->mul3.outChannels == initialMatMul.outChannels);
@@ -1306,8 +1855,13 @@ struct Trunk {
 
     // Flip trunkBuf and trunkScratchBuf so that the result gets accumulated in trunkScratchBuf
     blocks.apply(handle,scratch,&trunkScratch,trunk,mask,maskSum,convWorkspace);
-    // And now with the final BN port it from trunkScratchBuf to trunkBuf.
-    trunkTipBN.apply(&trunkScratch, trunk, mask);
+    // And now with the final normalization port it from trunkScratchBuf to trunkBuf.
+    if(trunkNormKind == TRUNK_NORM_KIND_STANDARD) {
+      trunkTipBN->apply(&trunkScratch, trunk, mask);
+    }
+    else {
+      trunkTipRMSNorm->apply(&trunkScratch, trunk, mask, maskSum);
+    }
   }
 };
 
