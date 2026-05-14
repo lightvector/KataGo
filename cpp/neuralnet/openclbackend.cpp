@@ -2595,8 +2595,11 @@ struct TransformerAttentionBlock {
       cl_int err;
       if(attnKernels->useTiled) {
         int blockQ = attnKernels->attnBlockQ;
+        int qPerThread = handle->tuneParams.transformer.Q_PER_THREAD;
+        int totalQPerWG = blockQ * qPerThread;
+        size_t numQGroups = ((size_t)seqLen + totalQPerWG - 1) / totalQPerWG;
         size_t globalSizes[2] = {
-          (size_t)roundUpToMultiple((size_t)seqLen, (size_t)blockQ),
+          numQGroups * (size_t)blockQ,
           (size_t)(batchSize * numHeads)
         };
         size_t localSizes[2] = {(size_t)blockQ, 1};

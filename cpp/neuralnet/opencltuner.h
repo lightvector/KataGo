@@ -159,8 +159,9 @@ namespace OpenCLParams {
 
   struct TransformerParams {
     // Attention kernel parameters
-    int ATTN_BLOCK_Q = 32;   // query positions per workgroup
+    int ATTN_BLOCK_Q = 32;   // query positions per workgroup (= workgroup size)
     int ATTN_BLOCK_KV = 32;  // key/value tile size
+    int Q_PER_THREAD = 1;    // query positions per thread (workgroup handles ATTN_BLOCK_Q * Q_PER_THREAD total)
     int USE_TILED_ATTN = 1;  // 1 = tiled (shared memory), 0 = naive (one work-item per query)
 
     std::string desc() const;

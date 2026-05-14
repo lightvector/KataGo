@@ -1359,8 +1359,9 @@ __kernel void transformerApplyRoPE(
 //   computes its dot products against the shared tile.
 //
 // Compile-time defines:
-// ATTN_BLOCK_Q  - number of query positions per workgroup (= local size dim 0)
+// ATTN_BLOCK_Q  - number of threads per workgroup (= local size dim 0)
 // ATTN_BLOCK_KV - tile size for key/value iteration
+// Q_PER_THREAD  - query positions per thread (workgroup handles ATTN_BLOCK_Q * Q_PER_THREAD total)
 // ATTN_HEAD_DIM - the head dimension for Q/K
 // ATTN_V_HEAD_DIM - the head dimension for V
 string OpenCLKernels::transformerScaledDotProductAttention = R"%%(
@@ -1378,7 +1379,10 @@ string OpenCLKernels::transformerScaledDotProductAttention = R"%%(
   #define STORE(__buf,__x,__y) ((__buf)[(__x)] = (__y))
 #endif
 
-// Local memory for K and V tiles
+#ifndef Q_PER_THREAD
+  #define Q_PER_THREAD 1
+#endif
+
 __kernel void scaledDotProductAttention(
   __global realstore* Q,       // (N*numHeads, headDim, seqLen)
   __global realstore* K,       // (N*numKVHeads, headDim, seqLen)
@@ -1391,7 +1395,7 @@ __kernel void scaledDotProductAttention(
   float scale                  // 1/sqrt(headDim)
 ) {
   const int localIdx = get_local_id(0);   // 0..ATTN_BLOCK_Q-1
-  const int qBlockStart = get_group_id(0) * ATTN_BLOCK_Q;
+  const int qBlockStart = get_group_id(0) * (ATTN_BLOCK_Q * Q_PER_THREAD);
   const int bh = get_global_id(1);        // batch * numHeads + head
 
   const int n = bh / numHeads;
@@ -1399,31 +1403,34 @@ __kernel void scaledDotProductAttention(
   const int kvh = h / (numHeads / numKVHeads);
   const int kvBase = n * numKVHeads + kvh;
 
-  const int qPos = qBlockStart + localIdx;
-
   // Local memory for K and V tiles
   __local float kTile[ATTN_BLOCK_KV * ATTN_HEAD_DIM];
   __local float vTile[ATTN_BLOCK_KV * ATTN_V_HEAD_DIM];
   __local float kMaskTile[ATTN_BLOCK_KV];
 
-  // Load query vector into private registers
-  float q[ATTN_HEAD_DIM];
-  float qMask = 0.0f;
-  if(qPos < seqLen) {
-    qMask = LOAD(mask, n * seqLen + qPos);
-    if(qMask != 0.0f) {
-      for(int d = 0; d < ATTN_HEAD_DIM; d++) {
-        q[d] = LOAD(Q, (bh * ATTN_HEAD_DIM + d) * seqLen + qPos);
+  // Load query vectors and masks for all Q_PER_THREAD positions into private registers
+  float q[Q_PER_THREAD * ATTN_HEAD_DIM];
+  float qMask[Q_PER_THREAD];
+  float runningMax[Q_PER_THREAD];
+  float runningSum[Q_PER_THREAD];
+  float acc[Q_PER_THREAD * ATTN_V_HEAD_DIM];
+
+  for(int qi = 0; qi < Q_PER_THREAD; qi++) {
+    int qPos = qBlockStart + qi * ATTN_BLOCK_Q + localIdx;
+    qMask[qi] = 0.0f;
+    if(qPos < seqLen) {
+      qMask[qi] = LOAD(mask, n * seqLen + qPos);
+      if(qMask[qi] != 0.0f) {
+        for(int d = 0; d < ATTN_HEAD_DIM; d++) {
+          q[qi * ATTN_HEAD_DIM + d] = LOAD(Q, (bh * ATTN_HEAD_DIM + d) * seqLen + qPos);
+        }
       }
     }
-  }
-
-  // Online softmax state per query position
-  float runningMax = -1e30f;
-  float runningSum = 0.0f;
-  float acc[ATTN_V_HEAD_DIM];
-  for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
-    acc[d] = 0.0f;
+    runningMax[qi] = -1e30f;
+    runningSum[qi] = 0.0f;
+    for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+      acc[qi * ATTN_V_HEAD_DIM + d] = 0.0f;
+    }
   }
 
   // Iterate over key/value positions in tiles
@@ -1464,35 +1471,37 @@ __kernel void scaledDotProductAttention(
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    // Each work-item computes dot products for its query against the tile
-    if(qPos < seqLen && qMask != 0.0f) {
-      int kvEnd = min(ATTN_BLOCK_KV, seqLen - kvStart);
-      for(int tileK = 0; tileK < kvEnd; tileK++) {
-        if(kMaskTile[tileK] == 0.0f)
-          continue;
+    int kvEnd = min(ATTN_BLOCK_KV, seqLen - kvStart);
 
-        // Dot product Q . K
-        float dot = 0.0f;
-        for(int d = 0; d < ATTN_HEAD_DIM; d++) {
-          dot += q[d] * kTile[tileK * ATTN_HEAD_DIM + d];
-        }
-        dot *= scale;
+    // Each thread processes Q_PER_THREAD query positions against the shared KV tile
+    for(int qi = 0; qi < Q_PER_THREAD; qi++) {
+      int qPos = qBlockStart + qi * ATTN_BLOCK_Q + localIdx;
+      if(qPos < seqLen && qMask[qi] != 0.0f) {
+        for(int tileK = 0; tileK < kvEnd; tileK++) {
+          if(kMaskTile[tileK] == 0.0f)
+            continue;
 
-        // Online softmax update
-        float newMax = fmax(runningMax, dot);
-        float expOldMax = exp(runningMax - newMax);
-        float expCur = exp(dot - newMax);
+          // Dot product Q . K
+          float dot = 0.0f;
+          for(int d = 0; d < ATTN_HEAD_DIM; d++) {
+            dot += q[qi * ATTN_HEAD_DIM + d] * kTile[tileK * ATTN_HEAD_DIM + d];
+          }
+          dot *= scale;
 
-        // Rescale existing accumulator
-        for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
-          acc[d] *= expOldMax;
-        }
-        runningSum = runningSum * expOldMax + expCur;
-        runningMax = newMax;
+          // Online softmax update
+          float newMax = fmax(runningMax[qi], dot);
+          float expOldMax = exp(runningMax[qi] - newMax);
+          float expCur = exp(dot - newMax);
 
-        // Accumulate value
-        for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
-          acc[d] += expCur * vTile[tileK * ATTN_V_HEAD_DIM + d];
+          for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+            acc[qi * ATTN_V_HEAD_DIM + d] *= expOldMax;
+          }
+          runningSum[qi] = runningSum[qi] * expOldMax + expCur;
+          runningMax[qi] = newMax;
+
+          for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+            acc[qi * ATTN_V_HEAD_DIM + d] += expCur * vTile[tileK * ATTN_V_HEAD_DIM + d];
+          }
         }
       }
     }
@@ -1500,17 +1509,20 @@ __kernel void scaledDotProductAttention(
     barrier(CLK_LOCAL_MEM_FENCE);
   }
 
-  // Write output
-  if(qPos < seqLen) {
-    if(qMask == 0.0f) {
-      for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
-        STORE(output, (bh * ATTN_V_HEAD_DIM + d) * seqLen + qPos, 0.0f);
-      }
-    } else {
-      float invSum = (runningSum > 0.0f) ? (1.0f / runningSum) : 0.0f;
-      for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
-        float result = acc[d] * invSum;
-        STORE(output, (bh * ATTN_V_HEAD_DIM + d) * seqLen + qPos, result);
+  // Write output for all Q_PER_THREAD positions
+  for(int qi = 0; qi < Q_PER_THREAD; qi++) {
+    int qPos = qBlockStart + qi * ATTN_BLOCK_Q + localIdx;
+    if(qPos < seqLen) {
+      if(qMask[qi] == 0.0f) {
+        for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+          STORE(output, (bh * ATTN_V_HEAD_DIM + d) * seqLen + qPos, 0.0f);
+        }
+      } else {
+        float invSum = (runningSum[qi] > 0.0f) ? (1.0f / runningSum[qi]) : 0.0f;
+        for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+          float result = acc[qi * ATTN_V_HEAD_DIM + d] * invSum;
+          STORE(output, (bh * ATTN_V_HEAD_DIM + d) * seqLen + qPos, result);
+        }
       }
     }
   }

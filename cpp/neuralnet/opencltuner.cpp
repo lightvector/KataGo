@@ -556,6 +556,7 @@ string OpenCLParams::TransformerParams::desc() const {
   string s;
   s += "ATTN_BLOCK_Q=" + Global::intToString(ATTN_BLOCK_Q);
   s += " ATTN_BLOCK_KV=" + Global::intToString(ATTN_BLOCK_KV);
+  s += " Q_PER_THREAD=" + Global::intToString(Q_PER_THREAD);
   s += " USE_TILED_ATTN=" + Global::intToString(USE_TILED_ATTN);
   return s;
 }
@@ -563,12 +564,14 @@ string OpenCLParams::TransformerParams::compileOptions() const {
   string s;
   s += "-DATTN_BLOCK_Q=" + Global::intToString(ATTN_BLOCK_Q);
   s += " -DATTN_BLOCK_KV=" + Global::intToString(ATTN_BLOCK_KV);
+  s += " -DQ_PER_THREAD=" + Global::intToString(Q_PER_THREAD);
   return s;
 }
 void OpenCLParams::TransformerParams::fillFromDesc(const string& fileName, const string& desc) {
   map<string,int> kvs = readDescKeyValues(fileName, desc);
   ATTN_BLOCK_Q = getInt(kvs,"ATTN_BLOCK_Q",ATTN_BLOCK_Q);
   ATTN_BLOCK_KV = getInt(kvs,"ATTN_BLOCK_KV",ATTN_BLOCK_KV);
+  Q_PER_THREAD = getInt(kvs,"Q_PER_THREAD",Q_PER_THREAD);
   USE_TILED_ATTN = getInt(kvs,"USE_TILED_ATTN",USE_TILED_ATTN);
 }
 bool OpenCLParams::TransformerParams::isValid() const {
@@ -578,8 +581,10 @@ bool OpenCLParams::TransformerParams::isValid() const {
   if((ATTN_BLOCK_Q & (ATTN_BLOCK_Q-1)) != 0) return false;
   if((ATTN_BLOCK_KV & (ATTN_BLOCK_KV-1)) != 0) return false;
   // Reasonable limits
-  if(ATTN_BLOCK_Q > 128) return false;
+  if(ATTN_BLOCK_Q > 256) return false;
   if(ATTN_BLOCK_KV > 128) return false;
+  if(Q_PER_THREAD < 1 || Q_PER_THREAD > 8) return false;
+  if((Q_PER_THREAD & (Q_PER_THREAD-1)) != 0) return false;
   if(USE_TILED_ATTN != 0 && USE_TILED_ATTN != 1) return false;
   return true;
 }
@@ -3051,13 +3056,15 @@ static void tuneTransformerAttention(
   // Add tiled configs with different block sizes
   if(full) {
     addConfigs(configs, SETTER(transformer.USE_TILED_ATTN), {0, 1});
-    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_Q), {8, 16, 32, 64});
-    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_KV), {8, 16, 32, 64});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_Q), {8, 16, 32, 64, 128, 256});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_KV), {8, 16, 32, 64, 128});
+    addConfigs(configs, SETTER(transformer.Q_PER_THREAD), {1, 2, 4, 8});
   }
   else {
     addConfigs(configs, SETTER(transformer.USE_TILED_ATTN), {0, 1});
-    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_Q), {16, 32, 64});
-    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_KV), {16, 32, 64});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_Q), {16, 32, 64, 128, 256});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_KV), {16, 32, 64, 128});
+    addConfigs(configs, SETTER(transformer.Q_PER_THREAD), {1, 2, 4});
   }
 
   filterConfigs(configs, ISVALID(transformer));
@@ -3067,6 +3074,7 @@ static void tuneTransformerAttention(
   OpenCLTuneParams referenceConfig = currentConfig;
   referenceConfig.transformer.ATTN_BLOCK_Q = untunedConfig.transformer.ATTN_BLOCK_Q;
   referenceConfig.transformer.ATTN_BLOCK_KV = untunedConfig.transformer.ATTN_BLOCK_KV;
+  referenceConfig.transformer.Q_PER_THREAD = untunedConfig.transformer.Q_PER_THREAD;
   referenceConfig.transformer.USE_TILED_ATTN = untunedConfig.transformer.USE_TILED_ATTN;
 
   auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.transformer.desc(); };
@@ -3128,6 +3136,7 @@ static void tuneTransformerAttention(
     if(cfg.transformer.USE_TILED_ATTN) {
       compileOpts += " -DATTN_BLOCK_Q=" + Global::intToString(cfg.transformer.ATTN_BLOCK_Q);
       compileOpts += " -DATTN_BLOCK_KV=" + Global::intToString(cfg.transformer.ATTN_BLOCK_KV);
+      compileOpts += " -DQ_PER_THREAD=" + Global::intToString(cfg.transformer.Q_PER_THREAD);
     }
 
     string kernelSource = cfg.transformer.USE_TILED_ATTN
@@ -3191,8 +3200,11 @@ static void tuneTransformerAttention(
       cl_event event;
       if(cfg.transformer.USE_TILED_ATTN) {
         int blockQ = cfg.transformer.ATTN_BLOCK_Q;
+        int qPerThread = cfg.transformer.Q_PER_THREAD;
+        int totalQPerWG = blockQ * qPerThread;
+        size_t numQGroups = ((size_t)seqLen + totalQPerWG - 1) / totalQPerWG;
         size_t globalSizes[2] = {
-          roundUpToMultiple((size_t)seqLen, (size_t)blockQ),
+          numQGroups * (size_t)blockQ,
           (size_t)(batchSize * numHeads)
         };
         size_t localSizes[2] = {(size_t)blockQ, 1};
