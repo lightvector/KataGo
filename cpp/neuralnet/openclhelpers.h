@@ -302,6 +302,7 @@ namespace OpenCLHelpers {
     cl_command_queue commandQueue,
     const OpenCLTuneParams& tuneParams,
     int batchSize, int cSize, int xySize,
+    float epsilon,
     cl_mem input, cl_mem output,
     cl_mem gamma, cl_mem beta,
     cl_mem mask, cl_mem maskSum, cl_mem sumSqBuf,

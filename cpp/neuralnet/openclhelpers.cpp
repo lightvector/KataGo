@@ -1302,6 +1302,7 @@ cl_int OpenCLHelpers::doSpatialRMSNormApply(
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
   int batchSize, int cSize, int xySize,
+  float epsilon,
   cl_mem input, cl_mem output,
   cl_mem gamma, cl_mem beta,
   cl_mem mask, cl_mem maskSum, cl_mem sumSqBuf,
@@ -1317,6 +1318,7 @@ cl_int OpenCLHelpers::doSpatialRMSNormApply(
   clSetKernelArg(kernel, 7, sizeof(int), (const void *)&batchSize);
   clSetKernelArg(kernel, 8, sizeof(int), (const void *)&cSize);
   clSetKernelArg(kernel, 9, sizeof(int), (const void *)&xySize);
+  clSetKernelArg(kernel, 10, sizeof(float), (const void *)&epsilon);
 
   int totalElems = cSize * xySize;
   int eltsPerThread = tuneParams.spatialRMSNorm.APPLY_ELTS_PER_THREAD;

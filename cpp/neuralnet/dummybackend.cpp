@@ -89,6 +89,12 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   return false;
 }
 
+bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
+  (void)handle;
+  (void)isWarmup;
+  return false;
+}
+
 void NeuralNet::printDevices() {
 }
 

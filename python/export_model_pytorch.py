@@ -252,6 +252,7 @@ def main(args):
     def write_rmsnorm(name,rmsnormmask):
         writeln(name)
         writeln(rmsnormmask.c_in)
+        writeln(rmsnormmask.eps)
         writeln(1 if rmsnormmask.spatial else 0)
         cgroup_size = rmsnormmask.cgroup_size if rmsnormmask.cgroup_size is not None else 0
         writeln(cgroup_size)
@@ -305,9 +306,21 @@ def main(args):
         writeln(name)
         num_channels = rmsnorm.weight.shape[0]
         writeln(num_channels)
+        writeln(rmsnorm.eps)
         write_weights(rmsnorm.weight)
 
     def write_transformer_attention_block(name,block):
+        assert not getattr(block, 'use_qk_norm', False), \
+            f"{name}: QK normalization is not yet supported for export"
+        assert not getattr(block, 'use_gab', False), \
+            f"{name}: GAB attention bias is not yet supported for export"
+        assert not getattr(block, 'use_tab', False), \
+            f"{name}: TAB attention bias is not yet supported for export"
+        assert not getattr(block, 'inline_registers', False), \
+            f"{name}: Inline registers are not yet supported for export"
+        assert getattr(block, 'num_rw_registers', 0) == 0, \
+            f"{name}: RW registers are not yet supported for export"
+
         writeln("transformer_attention_block")
         writeln(name)
         writeln(block.num_heads)
@@ -338,6 +351,13 @@ def main(args):
                 writeln(block.rope_theta)
 
     def write_transformer_ffn_block(name,block):
+        assert not getattr(block, 'use_depthwise_conv', False), \
+            f"{name}: FFN depthwise conv is not yet supported for export"
+        assert not getattr(block, 'inline_registers', False), \
+            f"{name}: Inline registers are not yet supported for export"
+        assert getattr(block, 'num_rw_registers', 0) == 0, \
+            f"{name}: RW registers are not yet supported for export"
+
         writeln("transformer_ffn_block")
         writeln(name)
         writeln(block.c_main)

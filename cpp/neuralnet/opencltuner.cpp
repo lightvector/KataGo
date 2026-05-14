@@ -3874,6 +3874,7 @@ static void tuneTransformerRMSNorm(
       default: weight2 = 1; break;
       }
 
+      float tunerEpsilon2 = 1e-6f;
       clSetKernelArg(kernel, 0, sizeof(cl_mem), &input);
       clSetKernelArg(kernel, 1, sizeof(cl_mem), &output);
       clSetKernelArg(kernel, 2, sizeof(cl_mem), &weight);
@@ -3881,6 +3882,7 @@ static void tuneTransformerRMSNorm(
       clSetKernelArg(kernel, 4, sizeof(int), &batchSize);
       clSetKernelArg(kernel, 5, sizeof(int), &numChannels);
       clSetKernelArg(kernel, 6, sizeof(int), &paddedNNXYLen);
+      clSetKernelArg(kernel, 7, sizeof(float), &tunerEpsilon2);
 
       size_t globalSizes[2] = {(size_t)(wgCSize * wgXYSize) * (size_t)numXYGroups, (size_t)batchSize};
       size_t localSizes[2] = {(size_t)(wgCSize * wgXYSize), 1};
@@ -4135,10 +4137,12 @@ static void tuneSpatialRMSNorm(
 
       // Kernel 3: Apply
       cl_event event;
+      float tunerEpsilon = 1e-6f;
       err = OpenCLHelpers::doSpatialRMSNormApply(
         applyKernel, commandQueue,
         cfg,
         batchSize, numChannels, xySize,
+        tunerEpsilon,
         input, output, gamma, beta,
         mask, maskSum, finalSumBuf, &event
       );

@@ -86,6 +86,12 @@ namespace NeuralNet {
 
   bool isUsingFP16(const ComputeHandle* computeHandle);
 
+  // Set whether the handle is currently being used in a warmup mode, returning the previous value.
+  // Currently only used during maybeWarmupComputeHandle to indicate for the CUDA backend that failures should
+  // be a bit more lenient: during warmup a failed cudnn SDPA execution falls back to the custom kernel and
+  // disables SDPA going forward, whereas outside of warmup such a failure is fatal.
+  bool setIsWarmup(const ComputeHandle* computeHandle, bool isWarmup);
+
   //Input Buffers ---------------------------------------------------------------
 
   InputBuffers* createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen);

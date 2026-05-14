@@ -551,6 +551,12 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   return handle->useFP16;
 }
 
+bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
+  (void)handle;
+  (void)isWarmup;
+  return false;
+}
+
 //------------------------------------------------------------------------------
 
 /**

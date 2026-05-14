@@ -14,6 +14,7 @@
 
 #include "../core/simpleallocator.h"
 #include "../core/test.h"
+#include "../neuralnet/debugprint.h"
 
 //------------------------
 #include "../core/using.h"
@@ -859,41 +860,39 @@ static void performValueHeadPool(ComputeHandleInternal* handle, int batchSize, i
 static void debugPrint2D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize) {
   vector<float> values;
   blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize, values);
-  cout << "=========================================================" << endl;
-  cout << name << endl;
-  int i = 0;
-  for(int n = 0; n<batchSize; n++) {
-    cout << "-(n=" << n << ")--------------------" << endl;
-    for(int c = 0; c<cSize; c++)
-      cout << values[i++] << " ";
-    cout << endl;
-  }
-  cout << endl;
-  cout << "=========================================================" << endl;
+  DebugPrint::print2DSummary(name, values.data(), batchSize, cSize);
+#ifdef DEBUG_INTERMEDIATE_VALUES_VERBOSE
+  DebugPrint::print2DVerbose(name, values.data(), batchSize, cSize);
+#endif
 }
 
-// Print spatial NCHW tensor. Buffer has paddedNNXYLen stride per channel; only the valid nnYLen*nnXLen region is printed.
-static void debugPrint3D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize) {
+// Print spatial NCHW tensor with padded spatial dimension.
+// If maskBuf is provided, reads it from device for stats. Otherwise builds mask from valid region.
+static void debugPrint3D(const string& name, ComputeHandleInternal* handle, cl_mem deviceBuf, int batchSize, int cSize, cl_mem maskBuf = NULL) {
   int paddedNNXYLen = handle->paddedNNXYLen;
-  int nnXLen = handle->nnXLen;
-  int nnYLen = handle->nnYLen;
+  bool useFP16 = handle->usingFP16Storage;
   vector<float> values;
-  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize * paddedNNXYLen, values);
-  cout << "=========================================================" << endl;
-  cout << name << endl;
-  for(int n = 0; n<batchSize; n++) {
-    cout << "-(n=" << n << ")--------------------" << endl;
-    for(int c = 0; c<cSize; c++) {
-      cout << "(c=" << c << ")" << endl;
-      for(int y = 0; y<nnYLen; y++) {
-        for(int x = 0; x<nnXLen; x++)
-          cout << values[(n * cSize + c) * paddedNNXYLen + y * nnXLen + x] << " ";
-        cout << endl;
-      }
-      cout << endl;
-    }
+  blockingReadBuffer(handle->commandQueue, deviceBuf, batchSize * cSize * paddedNNXYLen, values, useFP16);
+
+  vector<float> mask;
+  if(maskBuf != NULL) {
+    blockingReadBuffer(handle->commandQueue, maskBuf, batchSize * paddedNNXYLen, mask, useFP16);
   }
-  cout << "=========================================================" << endl;
+  else {
+    // Build mask from valid region
+    int nnXLen = handle->nnXLen;
+    int nnYLen = handle->nnYLen;
+    mask.resize(batchSize * paddedNNXYLen, 0.0f);
+    for(int n = 0; n < batchSize; n++)
+      for(int y = 0; y < nnYLen; y++)
+        for(int x = 0; x < nnXLen; x++)
+          mask[n * paddedNNXYLen + y * nnXLen + x] = 1.0f;
+  }
+
+  DebugPrint::print3DSummary(name, values.data(), batchSize, cSize, paddedNNXYLen, "NCS", batchSize, paddedNNXYLen, mask.data());
+#ifdef DEBUG_INTERMEDIATE_VALUES_VERBOSE
+  DebugPrint::print3DVerbose(name, values.data(), batchSize, cSize, paddedNNXYLen, "NCS");
+#endif
 }
 #endif
 
@@ -1991,6 +1990,7 @@ struct NestedBottleneckResidualBlock {
 struct TransformerRMSNormLayer {
   const string name;
   const int numChannels;
+  const float epsilon;
   const int paddedNNXYLen;
   cl_mem weightBuf;
 
@@ -2000,6 +2000,7 @@ struct TransformerRMSNormLayer {
   ) :
     name(desc->name),
     numChannels(desc->numChannels),
+    epsilon(desc->epsilon),
     paddedNNXYLen(handle->paddedNNXYLen)
   {
     testAssert(desc->weight.size() == numChannels);
@@ -2022,6 +2023,7 @@ struct TransformerRMSNormLayer {
     clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
     clSetKernelArg(kernel, 5, sizeof(int), (const void *)&numChannels);
     clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
+    clSetKernelArg(kernel, 7, sizeof(float), (const void *)&epsilon);
 
     cl_int err;
     int wgCSize = handle->tuneParams.transformerRMSNorm.WG_C_SIZE;
@@ -2049,6 +2051,7 @@ struct TransformerRMSNormLayer {
 struct RMSNormLayer {
   const string name;
   const int numChannels;
+  const float epsilon;
   const bool spatial;
   const int paddedNNXYLen;
   const int activation;
@@ -2067,6 +2070,7 @@ struct RMSNormLayer {
   ) :
     name(desc->name),
     numChannels(desc->numChannels),
+    epsilon(desc->epsilon),
     spatial(desc->spatial),
     paddedNNXYLen(handle->paddedNNXYLen),
     activation(activation_),
@@ -2129,6 +2133,7 @@ struct RMSNormLayer {
       clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
       clSetKernelArg(kernel, 5, sizeof(int), (const void *)&numChannels);
       clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
+      clSetKernelArg(kernel, 7, sizeof(float), (const void *)&epsilon);
 
       cl_int err;
       int wgCSize = handle->tuneParams.transformerRMSNorm.WG_C_SIZE;
@@ -2193,6 +2198,7 @@ struct RMSNormLayer {
           handle->commandQueue,
           handle->tuneParams,
           batchSize, numChannels, paddedNNXYLen,
+          epsilon,
           input, output,
           gammaBuf, betaBuf,
           mask, maskSum, convWorkspace2,
@@ -2511,6 +2517,10 @@ struct TransformerAttentionBlock {
     // preLN: trunk -> trunkScratch (normalized)
     preLN.apply(handle, batchSize, trunk, trunkScratch, mask);
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint3D("OPENCL Attn RMSNorm out", handle, trunkScratch, batchSize, inChannels, mask);
+#endif
+
     // Step 2: Q/K/V projections using tuned xgemm (same as 1x1 conv)
     SizedBuf<cl_mem> qBuf(scratch->allocator, scratch->getBufSizeXY(qTotalDim));
     SizedBuf<cl_mem> kBuf(scratch->allocator, scratch->getBufSizeXY(kTotalDim));
@@ -2519,6 +2529,10 @@ struct TransformerAttentionBlock {
     qProj.apply(handle, batchSize, trunkScratch, qBuf.buf, mask, convWorkspace);
     kProj.apply(handle, batchSize, trunkScratch, kBuf.buf, mask, convWorkspace);
     vProj.apply(handle, batchSize, trunkScratch, vBuf.buf, mask, convWorkspace);
+
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint3D("OPENCL Attn Q", handle, qBuf.buf, batchSize, qTotalDim, mask);
+#endif
 
     // Step 3: Apply RoPE to Q and K
     if(useRope) {
@@ -2531,10 +2545,11 @@ struct TransformerAttentionBlock {
       clSetKernelArg(ropeKernel, 2, sizeof(cl_mem), (const void *)&ropeSinTable);
       clSetKernelArg(ropeKernel, 3, sizeof(int), (const void *)&batchSize);
       clSetKernelArg(ropeKernel, 4, sizeof(int), (const void *)&numHeads);
-      clSetKernelArg(ropeKernel, 5, sizeof(int), (const void *)&qHeadDim);
-      clSetKernelArg(ropeKernel, 6, sizeof(int), (const void *)&seqLen);
-      clSetKernelArg(ropeKernel, 7, sizeof(int), (const void *)&ropeNumPairs);
-      clSetKernelArg(ropeKernel, 8, sizeof(int), (const void *)&learnableInt);
+      clSetKernelArg(ropeKernel, 5, sizeof(int), (const void *)&numKVHeads);
+      clSetKernelArg(ropeKernel, 6, sizeof(int), (const void *)&qHeadDim);
+      clSetKernelArg(ropeKernel, 7, sizeof(int), (const void *)&seqLen);
+      clSetKernelArg(ropeKernel, 8, sizeof(int), (const void *)&ropeNumPairs);
+      clSetKernelArg(ropeKernel, 9, sizeof(int), (const void *)&learnableInt);
 
       size_t* localSizes = NULL;
       {
@@ -2556,6 +2571,7 @@ struct TransformerAttentionBlock {
       // Apply to K
       clSetKernelArg(ropeKernel, 0, sizeof(cl_mem), (const void *)&kBuf.buf);
       clSetKernelArg(ropeKernel, 4, sizeof(int), (const void *)&numKVHeads);
+      clSetKernelArg(ropeKernel, 5, sizeof(int), (const void *)&numKVHeads);
 
       {
         cl_int err;
@@ -2630,8 +2646,16 @@ struct TransformerAttentionBlock {
     // Step 5: Output projection: attnOut (N, numHeads*vHeadDim, H, W) -> trunkScratch (N, C, H, W)
     outProj.apply(handle, batchSize, attnOut.buf, trunkScratch, mask, convWorkspace);
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint3D("OPENCL Attn outProj", handle, trunkScratch, batchSize, inChannels, mask);
+#endif
+
     // Step 6: Add residual: trunk += trunkScratch
     addPointWise(handle, trunk, trunkScratch, batchSize * inChannels * paddedNNXYLen);
+
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint3D("OPENCL Attn residual", handle, trunk, batchSize, inChannels, mask);
+#endif
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
@@ -2699,6 +2723,10 @@ struct TransformerFFNBlock {
     // Step 1: RMSNorm
     preLN.apply(handle, batchSize, trunk, trunkScratch, mask);
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint3D("OPENCL FFN RMSNorm out", handle, trunkScratch, batchSize, numChannels, mask);
+#endif
+
     // Step 2: linear1 projection -> ffn buffer
     SizedBuf<cl_mem> ffnBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
     linear1.apply(handle, batchSize, trunkScratch, ffnBuf.buf, mask, convWorkspace);
@@ -2721,16 +2749,22 @@ struct TransformerFFNBlock {
       MAYBE_FREE_EVENT;
     }
     else {
-      // Non-SwiGLU transformer FFN is not used in any current KataGo transformer config
-      // (all use ffnsg = SwiGLU). Throw if encountered.
       throw StringError("Non-SwiGLU transformer FFN is not yet supported in OpenCL backend");
     }
+
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint3D("OPENCL FFN SwiGLU", handle, ffnBuf.buf, batchSize, ffnChannels, mask);
+#endif
 
     // Step 4: linear2 projection: ffnBuf (N, ffnC, H, W) -> trunkScratch (N, C, H, W)
     linear2.apply(handle, batchSize, ffnBuf.buf, trunkScratch, mask, convWorkspace);
 
     // Step 5: Add residual
     addPointWise(handle, trunk, trunkScratch, batchSize * numChannels * paddedNNXYLen);
+
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    debugPrint3D("OPENCL FFN residual", handle, trunk, batchSize, numChannels, mask);
+#endif
   }
 
   ConvWorkspaceEltsNeeded requiredConvWorkspaceElts(ComputeHandleInternal* handle, size_t maxBatchSize) const {
@@ -2872,7 +2906,7 @@ void BlockStack::apply(
 ) const {
   for(int i = 0; i<blocks.size(); i++) {
 #ifdef DEBUG_INTERMEDIATE_VALUES
-    debugPrint3D(string("Blockstack before block " + Global::intToString(i)), handle, trunkScratch, batchSize, trunkNumChannels);
+    debugPrint3D("OPENCL Blockstack block " + Global::intToString(i), handle, trunk, batchSize, trunkNumChannels, mask);
 #endif
 
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
@@ -3753,6 +3787,12 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
     handle->handle->usingFP16TensorCores ||
     handle->handle->usingFP16TensorCoresFor1x1
   );
+}
+
+bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
+  (void)handle;
+  (void)isWarmup;
+  return false;
 }
 
 //------------------------------------------------------------------------------

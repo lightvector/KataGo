@@ -196,6 +196,9 @@ struct NestedBottleneckResidualBlockDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  //True if this block contains any transformer (attention or ffn) block, including ones nested
+  //inside further nested-bottleneck children.
+  bool hasAnyTransformerBlocks() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
@@ -208,6 +211,7 @@ constexpr int TRUNK_NORM_KIND_RMSNORM = 1;  // RMSNorm (spatial vs non-spatial d
 struct RMSNormLayerDesc {
   std::string name;
   int numChannels;
+  float epsilon;
   bool spatial;
   int cgroupSize;  // 0 if not grouped
   std::vector<float> gamma;
@@ -227,6 +231,7 @@ struct RMSNormLayerDesc {
 struct TransformerRMSNormDesc {
   std::string name;
   int numChannels;
+  float epsilon;
   std::vector<float> weight;
 
   TransformerRMSNormDesc();
@@ -362,6 +367,9 @@ struct TrunkDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  //True if any block in the trunk is a transformer (attention or ffn) block, including ones nested
+  //inside nested-bottleneck blocks.
+  bool hasAnyTransformerBlocks() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
@@ -479,6 +487,9 @@ struct ModelDesc {
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   int maxConvChannels(int convXSize, int convYSize) const;
   double getTrunkSpatialConvDepth() const;
+  //True if the model's trunk contains any transformer (attention or ffn) block. Useful for callers
+  //that want to report model stats or special-case transformer-only behavior (e.g. graph warmup).
+  bool hasAnyTransformerBlocks() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();

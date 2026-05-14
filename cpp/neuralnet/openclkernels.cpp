@@ -1097,7 +1097,8 @@ __kernel void transformerRMSNorm(
   __global realstore* mask,    // N, H, W
   int nSize,
   int cSize,
-  int xySize
+  int xySize,
+  float epsilon
 ) {
   // Thread decomposition: adjacent threads get adjacent xy for coalesced NCHW access
   const int lid = get_local_id(0);
@@ -1132,7 +1133,7 @@ __kernel void transformerRMSNorm(
       partials[lid_xy * WG_C_SIZE + lid_c] += partials[lid_xy * WG_C_SIZE + lid_c + span];
   }
   barrier(CLK_LOCAL_MEM_FENCE);
-  float rms = rsqrt(partials[lid_xy * WG_C_SIZE] / (float)cSize + 1e-6f);
+  float rms = rsqrt(partials[lid_xy * WG_C_SIZE] / (float)cSize + epsilon);
 
   // Phase 3: Apply normalization
   for(int base = lid_c * C_PER_THREAD; base < cSize; base += WG_C_SIZE * C_PER_THREAD) {
@@ -1269,14 +1270,15 @@ __kernel void transformerSpatialRMSNormApply(
   __global float* sumSqBuf,    // N (final sum of squares from reduction)
   int nSize,
   int cSize,
-  int xySize
+  int xySize,
+  float epsilon
 ) {
   const int n = get_group_id(1);
   if(n >= nSize) return;
 
   float mSum = maskSum[n];
   float denom = mSum * (float)cSize;
-  float rms = rsqrt(sumSqBuf[n] / denom + 1e-6f);
+  float rms = rsqrt(sumSqBuf[n] / denom + epsilon);
 
   const int totalElems = cSize * xySize;
   int idx = (int)get_group_id(0) * (int)get_local_size(0) * APPLY_ELTS_PER_THREAD + (int)get_local_id(0);
@@ -1302,11 +1304,12 @@ __kernel void transformerSpatialRMSNormApply(
 // Rotation: for each pair (x0, x1): out0 = x0*cos - x1*sin, out1 = x0*sin + x1*cos
 string OpenCLKernels::transformerApplyRoPE = OpenCLKernels::common + R"%%(
 __kernel void transformerApplyRoPE(
-  __global realstore* data,     // N, numHeads, headDim, HW - modified in place
-  __global float* cosTable,     // numHeads, numPairs, HW (learnable) or numPairs, HW (fixed)
+  __global realstore* data,     // N, numBufHeads, headDim, HW - modified in place
+  __global float* cosTable,     // numKVHeads, numPairs, HW (learnable) or numPairs, HW (fixed)
   __global float* sinTable,     // same layout as cosTable
   int nSize,
-  int numHeads,
+  int numBufHeads,
+  int numKVHeads,
   int headDim,
   int xySize,
   int numPairs,
@@ -1314,21 +1317,22 @@ __kernel void transformerApplyRoPE(
 ) {
   const int xy = get_global_id(0);
   const int pairIdx = get_global_id(1);  // which pair within headDim (0..numPairs-1)
-  const int nh = get_global_id(2);       // n * numHeads + h
+  const int nh = get_global_id(2);       // n * numBufHeads + h
 
-  int n = nh / numHeads;
-  int h = nh % numHeads;
+  int n = nh / numBufHeads;
+  int h = nh % numBufHeads;
 
   if(n < nSize && pairIdx < numPairs && xy < xySize) {
-    int idx0 = ((n * numHeads + h) * headDim + pairIdx * 2) * xySize + xy;
-    int idx1 = ((n * numHeads + h) * headDim + pairIdx * 2 + 1) * xySize + xy;
+    int idx0 = ((n * numBufHeads + h) * headDim + pairIdx * 2) * xySize + xy;
+    int idx1 = ((n * numBufHeads + h) * headDim + pairIdx * 2 + 1) * xySize + xy;
 
     float x0 = LOAD(data, idx0);
     float x1 = LOAD(data, idx1);
 
     int tableIdx;
     if(learnableRope) {
-      tableIdx = (h * numPairs + pairIdx) * xySize + xy;
+      int kvh = h * numKVHeads / numBufHeads;
+      tableIdx = (kvh * numPairs + pairIdx) * xySize + xy;
     } else {
       tableIdx = pairIdx * xySize + xy;
     }

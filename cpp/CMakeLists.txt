@@ -64,6 +64,12 @@ if(USE_BACKEND STREQUAL "CUDA")
     neuralnet/cudautils.cpp
     neuralnet/cudahelpers.cu
   )
+  # The vendored header-only cudnn_frontend library trips GCC's -Wnull-dereference from its -O2
+  # interprocedural analysis (no source location, so an in-file #pragma can't suppress it). It's
+  # benign third-party code; silence it just for the one source that includes cudnn_frontend.h.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set_source_files_properties(neuralnet/cudabackend.cpp PROPERTIES COMPILE_OPTIONS "-Wno-null-dereference")
+  endif()
 # https://en.wikipedia.org/wiki/CUDA#GPUs_supported
   if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
     set(CMAKE_CUDA_ARCHITECTURES 75 80 86 87 88 89 90 100 110 103 120 121)
@@ -257,6 +263,7 @@ add_executable(katago
   neuralnet/modelversion.cpp
   neuralnet/nneval.cpp
   neuralnet/desc.cpp
+  neuralnet/debugprint.cpp
   ${NEURALNET_BACKEND_SOURCES}
   book/book.cpp
   book/bookcssjs.cpp
@@ -346,7 +353,10 @@ if(USE_BACKEND STREQUAL "CUDA")
   endif()
   find_library(CUDNN_LIBRARY cudnn HINTS ${CUDNN_ROOT_DIR} ${CUDAToolkit_LIBRARY_DIR} PATH_SUFFIXES lib64)
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
-  target_link_libraries(katago CUDA::cublas ${CUDNN_LIBRARY})
+  include_directories(SYSTEM external/cudnn-frontend/include) #SYSTEM suppresses warnings inside the vendored header-only cudnn_frontend library
+  # cudnn_frontend's experimental OSS engine headers reference NVRTC symbols at link time
+  # (we don't actually use those engines, but the references are pulled in by the header-only includes).
+  target_link_libraries(katago CUDA::cublas ${CUDNN_LIBRARY} CUDA::nvrtc)
 elseif(USE_BACKEND STREQUAL "TENSORRT")
   target_compile_definitions(katago PRIVATE USE_TENSORRT_BACKEND)
   find_package(CUDAToolkit REQUIRED)

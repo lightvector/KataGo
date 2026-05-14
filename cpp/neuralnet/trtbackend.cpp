@@ -1509,6 +1509,12 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* gpuHandle) {
   return gpuHandle->usingFP16;
 }
 
+bool NeuralNet::setIsWarmup(const ComputeHandle* gpuHandle, bool isWarmup) {
+  (void)gpuHandle;
+  (void)isWarmup;
+  return false;
+}
+
 void NeuralNet::printDevices() {
   int numDevices = 0;
   CUDA_ERR("printDevices", cudaGetDeviceCount(&numDevices));

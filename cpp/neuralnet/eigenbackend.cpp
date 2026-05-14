@@ -21,6 +21,10 @@
 
 #include "../core/simpleallocator.h"
 #include "../core/test.h"
+#include "../neuralnet/debugprint.h"
+
+//Define this to print out some of the intermediate values of the neural net
+//#define DEBUG_INTERMEDIATE_VALUES
 
 using namespace std;
 using Eigen::Tensor;
@@ -67,6 +71,24 @@ void printTensorShape(const string& name, const T* t) {
 #else
 #define DSHAPE(n, x)
 #define DTENSOR(n, x)
+#endif
+
+#ifdef DEBUG_INTERMEDIATE_VALUES
+// Debug print helpers for the Eigen backend. Data is already on the host.
+// 3D spatial: data is [N, S, C] (Eigen NHWC col-major), mask is [N, S].
+static void eigenDebugPrint3D(const string& name, const float* data, int batchSize, int seqLen, int cSize, const float* mask) {
+  DebugPrint::print3DSummary(name, data, batchSize, seqLen, cSize, "NSC", batchSize, seqLen, mask);
+#ifdef DEBUG_INTERMEDIATE_VALUES_VERBOSE
+  DebugPrint::print3DVerbose(name, data, batchSize, seqLen, cSize, "NSC");
+#endif
+}
+// 2D non-spatial: data is [N, C].
+static void eigenDebugPrint2D(const string& name, const float* data, int nSize, int cSize) {
+  DebugPrint::print2DSummary(name, data, nSize, cSize);
+#ifdef DEBUG_INTERMEDIATE_VALUES_VERBOSE
+  DebugPrint::print2DVerbose(name, data, nSize, cSize);
+#endif
+}
 #endif
 
 // LoadedModel / ModelDesc ---------------------------------------------------------------------------------------------
@@ -845,6 +867,7 @@ struct MatBiasLayer {
 struct TransformerRMSNormLayer {
   const string name;
   const int numChannels;
+  const float epsilon;
   vector<float> weight;
 
   TransformerRMSNormLayer() = delete;
@@ -854,6 +877,7 @@ struct TransformerRMSNormLayer {
   TransformerRMSNormLayer(const TransformerRMSNormDesc& desc)
     : name(desc.name),
       numChannels(desc.numChannels),
+      epsilon(desc.epsilon),
       weight(desc.weight)
   {}
 
@@ -883,7 +907,7 @@ struct TransformerRMSNormLayer {
             float v = (*input)(c, w, h, n);
             sumSq += v * v;
           }
-          float rms = 1.0f / sqrtf(sumSq / (float)numChannels + 1e-6f);
+          float rms = 1.0f / sqrtf(sumSq / (float)numChannels + epsilon);
           for(int c = 0; c < numChannels; c++) {
             (*output)(c, w, h, n) = (*input)(c, w, h, n) * rms * weight[c];
           }
@@ -899,6 +923,7 @@ struct TransformerRMSNormLayer {
 struct RMSNormLayer {
   const string name;
   const int numChannels;
+  const float epsilon;
   const bool spatial;
   const int activation;
   vector<float> gamma;
@@ -911,6 +936,7 @@ struct RMSNormLayer {
   RMSNormLayer(const RMSNormLayerDesc& desc, int activation_)
     : name(desc.name),
       numChannels(desc.numChannels),
+      epsilon(desc.epsilon),
       spatial(desc.spatial),
       activation(activation_),
       gamma(desc.gamma),
@@ -926,6 +952,7 @@ struct RMSNormLayer {
     int batchSize = input->dimension(3);
     int nnYLen = input->dimension(2);
     int nnXLen = input->dimension(1);
+    (void)maskSum;
 
     if(!spatial) {
       // Non-spatial: per-position RMSNorm across channels (same as TransformerRMSNormLayer but with gamma+beta+activation)
@@ -943,7 +970,7 @@ struct RMSNormLayer {
               float v = (*input)(c, w, h, n);
               sumSq += v * v;
             }
-            float rms = 1.0f / sqrtf(sumSq / (float)numChannels + 1e-6f);
+            float rms = 1.0f / sqrtf(sumSq / (float)numChannels + epsilon);
             for(int c = 0; c < numChannels; c++) {
               float v = (*input)(c, w, h, n) * rms * gamma[c] + beta[c];
               if(activation == ACTIVATION_SILU)
@@ -972,7 +999,7 @@ struct RMSNormLayer {
           }
         }
         float totalElts = (float)count * (float)numChannels;
-        float rms = 1.0f / sqrtf(sumSq / totalElts + 1e-6f);
+        float rms = 1.0f / sqrtf(sumSq / totalElts + epsilon);
         for(int h = 0; h < nnYLen; h++) {
           for(int w = 0; w < nnXLen; w++) {
             float maskVal = (*mask)(w, h, n);
@@ -1355,6 +1382,10 @@ struct TransformerAttentionBlock final : public ResidualBlockIntf {
     // Step 1: RMSNorm: trunk -> trunkScratch
     preLN.apply(trunk, trunkScratch, mask);
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    eigenDebugPrint3D("EIGEN Attn RMSNorm out", trunkScratch->data(), batchSize, seqLen, inChannels, mask->data());
+#endif
+
     // Step 2: Q/K/V projections
     // trunkScratch is (C, W, H, N) in NHWC Eigen layout.
     // We treat the spatial dims as sequence: reshape to (C, seqLen*N) for matmul.
@@ -1372,14 +1403,18 @@ struct TransformerAttentionBlock final : public ResidualBlockIntf {
       vProj.apply(&trunkFlat, &vFlat);
     }
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    eigenDebugPrint2D("EIGEN Attn Q", qBuf.buf, batchSize * seqLen, qTotalDim);
+#endif
+
     // Step 3: Apply RoPE to Q and K
     if(useRope) {
       // Q is (qTotalDim, seqLen*N) = (numHeads*qHeadDim, seqLen*N)
       // View as: for each n,head: qHeadDim values at each seqLen position
       // Apply rotation to pairs of adjacent values
-      auto applyRoPE = [&](float* data, int numH) {
+      auto applyRoPE = [&](float* data, int numBufHeads) {
         for(int n = 0; n < batchSize; n++) {
-          for(int h = 0; h < numH; h++) {
+          for(int h = 0; h < numBufHeads; h++) {
             for(int xy = 0; xy < seqLen; xy++) {
               for(int p = 0; p < ropeNumPairs; p++) {
                 // data layout is (totalDim, seqLen*N), column-major
@@ -1387,14 +1422,14 @@ struct TransformerAttentionBlock final : public ResidualBlockIntf {
                 int c0 = h * qHeadDim + 2 * p;
                 int c1 = c0 + 1;
                 int col = n * seqLen + xy;
-                int idx0 = c0 + col * (numH * qHeadDim);
-                int idx1 = c1 + col * (numH * qHeadDim);
+                int idx0 = c0 + col * (numBufHeads * qHeadDim);
+                int idx1 = c1 + col * (numBufHeads * qHeadDim);
 
                 // Look up cos/sin - indexing depends on learnable vs fixed
                 int tableIdx;
                 if(learnableRope) {
                   // Learnable: per KV head. For Q heads, map to corresponding KV head.
-                  int kvh = (numH == numKVHeads) ? h : (h * numKVHeads / numHeads);
+                  int kvh = h * numKVHeads / numBufHeads;
                   tableIdx = (kvh * ropeNumPairs + p) * seqLen + xy;
                 } else {
                   tableIdx = p * seqLen + xy;
@@ -1530,6 +1565,10 @@ struct TransformerAttentionBlock final : public ResidualBlockIntf {
       outProj.apply(&attnFlat, &outFlat);
     }
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    eigenDebugPrint3D("EIGEN Attn outProj", trunkScratch->data(), batchSize, seqLen, inChannels, mask->data());
+#endif
+
     // Step 6: Residual addition + mask
     for(int n = 0; n < batchSize; n++) {
       for(int h = 0; h < nnYLen; h++) {
@@ -1541,6 +1580,10 @@ struct TransformerAttentionBlock final : public ResidualBlockIntf {
         }
       }
     }
+
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    eigenDebugPrint3D("EIGEN Attn residual", trunk->data(), batchSize, seqLen, inChannels, mask->data());
+#endif
   }
 };
 
@@ -1604,6 +1647,10 @@ struct TransformerFFNBlock final : public ResidualBlockIntf {
     // Step 1: RMSNorm
     preLN.apply(trunk, trunkScratch, mask);
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    eigenDebugPrint3D("EIGEN FFN RMSNorm out", trunkScratch->data(), batchSize, seqLen, numChannels, mask->data());
+#endif
+
     // Step 2: linear1 projection
     SizedBuf<float*> ffnBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
     {
@@ -1630,6 +1677,10 @@ struct TransformerFFNBlock final : public ResidualBlockIntf {
       }
     }
 
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    eigenDebugPrint2D("EIGEN FFN SwiGLU", ffnBuf.buf, batchSize * seqLen, ffnChannels);
+#endif
+
     // Step 4: linear2 projection
     {
       TENSORMAP2 ffnFlat(ffnBuf.buf, ffnChannels, seqLen * batchSize);
@@ -1648,6 +1699,10 @@ struct TransformerFFNBlock final : public ResidualBlockIntf {
         }
       }
     }
+
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    eigenDebugPrint3D("EIGEN FFN residual", trunk->data(), batchSize, seqLen, numChannels, mask->data());
+#endif
   }
 };
 
@@ -1713,7 +1768,21 @@ void BlockStack::apply(
   const float* maskSum,
   float* convWorkspace
 ) const {
+  int blockIdx = 0;
   for(auto& block : blocks) {
+#ifdef DEBUG_INTERMEDIATE_VALUES
+    {
+      int numChannels = trunk->dimension(0);
+      int nnXLen = handle->nnXLen;
+      int nnYLen = handle->nnYLen;
+      int batchSize = trunk->dimension(3);
+      int seqLen = nnXLen * nnYLen;
+      // Eigen NHWC: trunk is (C, W, H, N) col-major = [N, H, W, C] row-major = [N, S, C]
+      // mask is (W, H, N) col-major = [N, S]
+      eigenDebugPrint3D("EIGEN Blockstack block " + Global::intToString(blockIdx),
+        trunk->data(), batchSize, seqLen, numChannels, mask->data());
+    }
+#endif
     block.second->apply(
       handle,
       scratch,
@@ -1723,6 +1792,7 @@ void BlockStack::apply(
       maskSum,
       convWorkspace
     );
+    blockIdx++;
   }
 }
 
@@ -2357,6 +2427,12 @@ void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
 
 bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   (void)handle;
+  return false;
+}
+
+bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
+  (void)handle;
+  (void)isWarmup;
   return false;
 }
 

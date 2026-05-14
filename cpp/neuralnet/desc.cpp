@@ -903,11 +903,12 @@ void NestedBottleneckResidualBlockDesc::applyScale8ToReduceActivations() {
 
 //-----------------------------------------------------------------------------
 
-RMSNormLayerDesc::RMSNormLayerDesc() : numChannels(0), spatial(false), cgroupSize(0) {}
+RMSNormLayerDesc::RMSNormLayerDesc() : numChannels(0), epsilon(0), spatial(false), cgroupSize(0) {}
 
 RMSNormLayerDesc::RMSNormLayerDesc(istream& in, bool binaryFloats) {
   in >> name;
   in >> numChannels;
+  in >> epsilon;
   int spatialInt;
   in >> spatialInt;
   spatial = (spatialInt != 0);
@@ -915,6 +916,8 @@ RMSNormLayerDesc::RMSNormLayerDesc(istream& in, bool binaryFloats) {
 
   if(in.fail())
     throw StringError(name + ": rmsnorm layer failed to parse parameters");
+  if(epsilon <= 0 || epsilon > 1.0f)
+    throw StringError(name + ": rmsnorm epsilon (" + Global::doubleToString(epsilon) + ") is not positive or is too large");
   if(numChannels < 1)
     throw StringError(name + ": rmsnorm numChannels (" + Global::intToString(numChannels) + ") < 1");
   if(cgroupSize != 0)
@@ -937,6 +940,7 @@ RMSNormLayerDesc::RMSNormLayerDesc(RMSNormLayerDesc&& other) {
 RMSNormLayerDesc& RMSNormLayerDesc::operator=(RMSNormLayerDesc&& other) {
   name = std::move(other.name);
   numChannels = other.numChannels;
+  epsilon = other.epsilon;
   spatial = other.spatial;
   cgroupSize = other.cgroupSize;
   gamma = std::move(other.gamma);
@@ -946,16 +950,19 @@ RMSNormLayerDesc& RMSNormLayerDesc::operator=(RMSNormLayerDesc&& other) {
 
 //-----------------------------------------------------------------------------
 
-TransformerRMSNormDesc::TransformerRMSNormDesc() : numChannels(0) {}
+TransformerRMSNormDesc::TransformerRMSNormDesc() : numChannels(0), epsilon(0) {}
 
 TransformerRMSNormDesc::TransformerRMSNormDesc(istream& in, bool binaryFloats) {
   in >> name;
   in >> numChannels;
+  in >> epsilon;
 
   if(in.fail())
     throw StringError(name + ": transformer rmsnorm failed to parse parameters");
   if(numChannels < 1)
     throw StringError(name + ": transformer rmsnorm numChannels (" + Global::intToString(numChannels) + ") < 1");
+  if(epsilon <= 0 || epsilon > 1.0f)
+    throw StringError(name + ": transformer rmsnorm epsilon (" + Global::doubleToString(epsilon) + ") is not positive or is too large");
 
   vector<float> floats;
   readFloats(in, (size_t)numChannels, binaryFloats, name, floats);
@@ -972,6 +979,7 @@ TransformerRMSNormDesc::TransformerRMSNormDesc(TransformerRMSNormDesc&& other) {
 TransformerRMSNormDesc& TransformerRMSNormDesc::operator=(TransformerRMSNormDesc&& other) {
   name = std::move(other.name);
   numChannels = other.numChannels;
+  epsilon = other.epsilon;
   weight = std::move(other.weight);
   return *this;
 }
@@ -2248,6 +2256,16 @@ static bool blocksContainTransformerRecursive(const std::vector<std::pair<int, u
     }
   }
   return false;
+}
+
+bool NestedBottleneckResidualBlockDesc::hasAnyTransformerBlocks() const {
+  return blocksContainTransformerRecursive(blocks);
+}
+bool TrunkDesc::hasAnyTransformerBlocks() const {
+  return blocksContainTransformerRecursive(blocks);
+}
+bool ModelDesc::hasAnyTransformerBlocks() const {
+  return trunk.hasAnyTransformerBlocks();
 }
 
 void ModelDesc::applyScale8ToReduceActivations() {
