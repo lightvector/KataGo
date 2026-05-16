@@ -79,6 +79,46 @@ def zeropower_via_polar_express(G, steps: int):
     return X
 
 
+def _aurora_polar(update, ns_steps=5, pp_iterations=2, pp_beta=0.5, eps=1e-7, use_polar_express=False):
+    """
+    Leverage-uniform polar factor for Aurora optimizer.
+    For non-square matrices, iteratively applies diagonal preconditioning to equalize
+    row norms before orthogonalization. For square matrices, falls back to standard polar.
+    See https://tilderesearch.com/blog/aurora
+    """
+    m, n = update.size(-2), update.size(-1)
+    if m == n:
+        # Square: no leverage freedom to exploit, standard polar.
+        if use_polar_express:
+            return zeropower_via_polar_express(update, steps=ns_steps)
+        else:
+            return zeropower_via_newtonschulz5(update, steps=ns_steps)
+
+    # For wide matrices, transpose to tall, apply, transpose back.
+    transposed = m < n
+    if transposed:
+        update = update.mT
+        m, n = n, m
+
+    G32 = update.to(torch.float32)
+    target_row_sq = n / m
+    row_norm = G32.norm(dim=-1, keepdim=True).clamp_(min=eps)
+    D = 1.0 / row_norm
+    for k in range(pp_iterations):
+        scaled = D * G32
+        if use_polar_express:
+            U = zeropower_via_polar_express(scaled, steps=ns_steps)
+        else:
+            U = zeropower_via_newtonschulz5(scaled, steps=ns_steps)
+        if k < pp_iterations - 1:
+            row_sq = U.to(torch.float32).pow(2).sum(dim=-1, keepdim=True).clamp_(min=eps * eps)
+            D = D * (target_row_sq / row_sq).pow(pp_beta)
+
+    if transposed:
+        U = U.mT
+    return U
+
+
 def muon_update(grad, momentum, ns_steps=5, beta=0.95, nesterov=True, adjust_lr_fn="match_rms_adamw",
                 normuon_v=None, normuon_beta2=0.95, normuon_eps=1e-8, use_polar_express=False):
     """
@@ -131,6 +171,47 @@ def muon_update(grad, momentum, ns_steps=5, beta=0.95, nesterov=True, adjust_lr_
     return update
 
 
+def aurora_update(grad, momentum, ns_steps=5, beta=0.95, nesterov=True, adjust_lr_fn="match_rms_adamw",
+                  pp_iterations=2, pp_beta=0.5, eps=1e-7, use_polar_express=False):
+    """
+    Compute the Aurora update for a single parameter.
+    Aurora is a leverage-aware optimizer that extends Muon with diagonal preconditioning
+    to achieve uniform row norms in the polar factor for non-square matrices, preventing
+    neuron death in MLP layers.
+    See https://tilderesearch.com/blog/aurora
+
+    Args:
+        grad: The gradient tensor.
+        momentum: The first-order momentum buffer (updated in-place).
+        ns_steps: Number of Newton-Schulz iterations per polar call.
+        beta: First-order momentum decay.
+        nesterov: Whether to use Nesterov momentum.
+        adjust_lr_fn: Learning rate scaling mode.
+        pp_iterations: Number of preconditioning-polar iterations (K in the paper).
+        pp_beta: Damping parameter for the diagonal preconditioner EMA.
+        eps: Epsilon for numerical stability.
+        use_polar_express: Use Polar Express iteration instead of standard NS5.
+    """
+    momentum.lerp_(grad, 1 - beta)
+    update = grad.lerp_(momentum, beta) if nesterov else momentum
+    if update.ndim == 4:  # for the case of conv filters
+        update = update.view(len(update), -1)
+
+    update = _aurora_polar(update, ns_steps=ns_steps, pp_iterations=pp_iterations,
+                           pp_beta=pp_beta, eps=eps, use_polar_express=use_polar_express)
+
+    if adjust_lr_fn == "match_rms_adamw":
+        if use_polar_express:
+            update *= 0.1825 * max(update.size(-2), update.size(-1))**0.5
+        else:
+            update *= 0.2 * max(update.size(-2), update.size(-1))**0.5
+    elif adjust_lr_fn == "original":
+        update *= max(1, update.size(-2) / update.size(-1))**0.5
+    else:
+        raise AssertionError(f"Unexpected value {adjust_lr_fn=}")
+    return update
+
+
 def adam_update(grad, buf1, buf2, step, betas, eps):
     buf1.lerp_(grad, 1 - betas[0])
     buf2.lerp_(grad.square(), 1 - betas[1])
@@ -152,6 +233,10 @@ class MuonWithAuxAdam(torch.optim.Optimizer):
     Set use_normuon=True to enable NorMuon (neuron-wise normalized Muon), which adds row-wise
     adaptive learning rates after orthogonalization. See https://arxiv.org/abs/2510.05491
 
+    Set use_aurora=True to enable Aurora (leverage-aware optimizer), which uses diagonal
+    preconditioning to achieve uniform row norms in the polar factor for non-square matrices.
+    See https://tilderesearch.com/blog/aurora
+
     You can see an example usage below:
 
     https://github.com/KellerJordan/modded-nanogpt/blob/master/records/052525_MuonWithAuxAdamExample/b01550f9-03d8-4a9c-86fe-4ab434f1c5e0.txt#L470
@@ -171,10 +256,15 @@ class MuonWithAuxAdam(torch.optim.Optimizer):
     """
     def __init__(self, param_groups, adjust_lr_fn="match_rms_adamw", adam_betas=(0.95, 0.995), adam_eps=1e-6,
                  use_normuon=False, normuon_beta2=0.95, normuon_eps=1e-8,
+                 use_aurora=False, aurora_pp_iterations=2, aurora_pp_beta=0.5, aurora_eps=1e-7,
                  ns_steps=5, use_polar_express=False):
         self.use_normuon = use_normuon
         self.normuon_beta2 = normuon_beta2
         self.normuon_eps = normuon_eps
+        self.use_aurora = use_aurora
+        self.aurora_pp_iterations = aurora_pp_iterations
+        self.aurora_pp_beta = aurora_pp_beta
+        self.aurora_eps = aurora_eps
         self.ns_steps = ns_steps
         self.use_polar_express = use_polar_express
         for group in param_groups:
@@ -217,14 +307,24 @@ class MuonWithAuxAdam(torch.optim.Optimizer):
                             state["momentum_buffer"] = torch.zeros_like(p)
                             if self.use_normuon:
                                 state["normuon_v"] = torch.zeros(p.shape[0], device=p.device, dtype=p.dtype)
-                        update = muon_update(
-                            p.grad, state["momentum_buffer"],
-                            ns_steps=self.ns_steps,
-                            beta=group["momentum"], adjust_lr_fn=group["adjust_lr_fn"],
-                            normuon_v=state.get("normuon_v"),
-                            normuon_beta2=self.normuon_beta2, normuon_eps=self.normuon_eps,
-                            use_polar_express=self.use_polar_express,
-                        )
+                        if self.use_aurora:
+                            update = aurora_update(
+                                p.grad, state["momentum_buffer"],
+                                ns_steps=self.ns_steps,
+                                beta=group["momentum"], adjust_lr_fn=group["adjust_lr_fn"],
+                                pp_iterations=self.aurora_pp_iterations,
+                                pp_beta=self.aurora_pp_beta, eps=self.aurora_eps,
+                                use_polar_express=self.use_polar_express,
+                            )
+                        else:
+                            update = muon_update(
+                                p.grad, state["momentum_buffer"],
+                                ns_steps=self.ns_steps,
+                                beta=group["momentum"], adjust_lr_fn=group["adjust_lr_fn"],
+                                normuon_v=state.get("normuon_v"),
+                                normuon_beta2=self.normuon_beta2, normuon_eps=self.normuon_eps,
+                                use_polar_express=self.use_polar_express,
+                            )
                         p.mul_(1 - group["lr"] * group["weight_decay"])
                         p.add_(update.reshape(p.shape), alpha=-group["lr"])
                     dist.all_gather(params_pad[base_i:base_i + dist.get_world_size()], params_pad[base_i + dist.get_rank()])
@@ -253,10 +353,15 @@ class SingleDeviceMuonWithAuxAdam(torch.optim.Optimizer):
     """
     def __init__(self, param_groups, adjust_lr_fn="match_rms_adamw", adam_betas=(0.95, 0.995), adam_eps=1e-6,
                  use_normuon=False, normuon_beta2=0.95, normuon_eps=1e-8,
+                 use_aurora=False, aurora_pp_iterations=2, aurora_pp_beta=0.5, aurora_eps=1e-7,
                  ns_steps=5, use_polar_express=False):
         self.use_normuon = use_normuon
         self.normuon_beta2 = normuon_beta2
         self.normuon_eps = normuon_eps
+        self.use_aurora = use_aurora
+        self.aurora_pp_iterations = aurora_pp_iterations
+        self.aurora_pp_beta = aurora_pp_beta
+        self.aurora_eps = aurora_eps
         self.ns_steps = ns_steps
         self.use_polar_express = use_polar_express
         for group in param_groups:
@@ -294,14 +399,24 @@ class SingleDeviceMuonWithAuxAdam(torch.optim.Optimizer):
                         state["momentum_buffer"] = torch.zeros_like(p)
                         if self.use_normuon:
                             state["normuon_v"] = torch.zeros(p.shape[0], device=p.device, dtype=p.dtype)
-                    update = muon_update(
-                        p.grad, state["momentum_buffer"],
-                        ns_steps=self.ns_steps,
-                        beta=group["momentum"], adjust_lr_fn=group["adjust_lr_fn"],
-                        normuon_v=state.get("normuon_v"),
-                        normuon_beta2=self.normuon_beta2, normuon_eps=self.normuon_eps,
-                        use_polar_express=self.use_polar_express,
-                    )
+                    if self.use_aurora:
+                        update = aurora_update(
+                            p.grad, state["momentum_buffer"],
+                            ns_steps=self.ns_steps,
+                            beta=group["momentum"], adjust_lr_fn=group["adjust_lr_fn"],
+                            pp_iterations=self.aurora_pp_iterations,
+                            pp_beta=self.aurora_pp_beta, eps=self.aurora_eps,
+                            use_polar_express=self.use_polar_express,
+                        )
+                    else:
+                        update = muon_update(
+                            p.grad, state["momentum_buffer"],
+                            ns_steps=self.ns_steps,
+                            beta=group["momentum"], adjust_lr_fn=group["adjust_lr_fn"],
+                            normuon_v=state.get("normuon_v"),
+                            normuon_beta2=self.normuon_beta2, normuon_eps=self.normuon_eps,
+                            use_polar_express=self.use_polar_express,
+                        )
                     p.mul_(1 - group["lr"] * group["weight_decay"])
                     p.add_(update.reshape(p.shape), alpha=-group["lr"])
             else:
