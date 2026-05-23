@@ -133,6 +133,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * AppleClang and Swift compilers: `xcode-select --install`.
       * If using the Metal backend, [Ninja](https://ninja-build.org): `brew install ninja`
       * If using the Metal backend, protobuf and abseil: `brew install protobuf abseil`
+      * If using the MLX backend (Apple Silicon only): `brew install mlx` (≥0.18). Requires CMake ≥3.27. KataGo finds MLX via CMake's default search (Homebrew installs it at `/opt/homebrew/share/cmake/MLX/`); override with `-DMLX_ROOT=/path/to/mlx/cmake` if needed.
       * libzip: `brew install libzip`.
       * If you want to do self-play training and research, probably Google perftools `brew install gperftools` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
       * If compiling to contribute to public distributed training runs, OpenSSL is required (`brew install openssl`).
@@ -140,7 +141,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * `git clone https://github.com/lightvector/KataGo.git`
    * Compile using CMake and make in the cpp directory:
       * `cd KataGo/cpp`
-      * `cmake . -G Ninja -DUSE_BACKEND=METAL` or `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=EIGEN` depending on which backend you want.
+      * `cmake . -G Ninja -DUSE_BACKEND=METAL` or `cmake . -DUSE_BACKEND=MLX` or `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=EIGEN` depending on which backend you want.
          * Specify also `-DUSE_TCMALLOC=1` if using TCMalloc.
          * Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
          * Specify `-DUSE_AVX2=1` to also compile Eigen with AVX2 and FMA support, which will make it incompatible with old CPUs but much faster. Intel-based Macs with new processors support AVX2, but Apple Silicon Macs do not support AVX2 natively. (If you want to go further, you can also add `-DCMAKE_CXX_FLAGS='-march=native'` which will specialize to precisely your machine's CPU, but the exe might not run on other machines at all).
