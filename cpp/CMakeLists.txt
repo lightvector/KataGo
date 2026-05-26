@@ -18,7 +18,7 @@ if(USE_BACKEND STREQUAL "MLX")
   cmake_policy(VERSION 3.27)
 endif()
 
-if(USE_BACKEND STREQUAL "METAL")
+if(USE_BACKEND STREQUAL "METAL" OR USE_BACKEND STREQUAL "MLX")
   project(katago LANGUAGES CXX Swift)
 else()
   project(katago)
@@ -178,7 +178,7 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
     neuralnet/eigenbackend.cpp
     )
 elseif(USE_BACKEND STREQUAL "MLX")
-  message(STATUS "-DUSE_BACKEND=MLX, using MLX backend for Apple Silicon.")
+  message(STATUS "-DUSE_BACKEND=MLX, using MLX backend (with CoreML/ANE MUX) for Apple Silicon.")
 
   if(NOT APPLE)
     message(FATAL_ERROR "USE_BACKEND=MLX is only supported on macOS. Detected: ${CMAKE_SYSTEM_NAME}")
@@ -190,6 +190,30 @@ elseif(USE_BACKEND STREQUAL "MLX")
   elseif(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
     message(FATAL_ERROR "USE_BACKEND=MLX requires Apple Silicon (arm64). Detected: ${CMAKE_SYSTEM_PROCESSOR}")
   endif()
+
+  # CoreML/ANE MUX prerequisites — same constraints the METAL branch above
+  # enforces (same wording for grep parity).
+  if(NOT "${CMAKE_GENERATOR}" STREQUAL "Ninja")
+    message(FATAL_ERROR "Bidirectional C++ Interop requires Ninja generator. Have ${CMAKE_GENERATOR}")
+  endif()
+  if("${CMAKE_Swift_COMPILER_VERSION}" VERSION_LESS 5.9)
+    message(FATAL_ERROR "Bidirectional C++ Interop requires Swift 5.9 or greater. Have ${CMAKE_Swift_COMPILER_VERSION}")
+  endif()
+  if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
+    message(FATAL_ERROR "Project requires building with AppleClang. Have ${CMAKE_CXX_COMPILER_ID}")
+  endif()
+
+  # katagocoreml provides the native CoreML conversion C++ library used by the ANE mux.
+  add_subdirectory(external/katagocoreml)
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/macos/cmake/modules")
+
+  if (NOT CMAKE_OSX_SYSROOT)
+    execute_process(COMMAND xcrun --show-sdk-path OUTPUT_VARIABLE CMAKE_OSX_SYSROOT OUTPUT_STRIP_TRAILING_WHITESPACE)
+  endif()
+
+  include(InitializeSwift)
+  include(AddSwift)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
 
   set(MLX_MIN_VERSION "0.18")
   set(MLX_ROOT "" CACHE PATH "Optional path to MLX's CMake package; leave empty to use CMake's default search (e.g. Homebrew's /opt/homebrew/share/cmake/MLX/)")
@@ -204,6 +228,20 @@ elseif(USE_BACKEND STREQUAL "MLX")
     neuralnet/mlxwinotuner.cpp
     neuralnet/mlxtests.cpp
     )
+
+  # Build the KataGoSwift static library. Same lines as the METAL branch above,
+  # kept inline to leave the Metal branch untouched. The library exposes
+  # CoreMLComputeHandle to C++ via the generated KataGoSwift-swift.h.
+  add_library(KataGoSwift STATIC
+    neuralnet/metalbackend.swift
+    neuralnet/metallayers.swift)
+  _swift_generate_cxx_header(
+    KataGoSwift
+    "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h")
+  target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
+  set_target_properties(KataGoSwift PROPERTIES Swift_MODULE_NAME "KataGoSwift")
+  target_compile_options(KataGoSwift PUBLIC
+    "$<$<COMPILE_LANGUAGE:Swift>:-cxx-interoperability-mode=default>")
 elseif(USE_BACKEND STREQUAL "")
   message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=MLX or -DUSE_BACKEND=METAL to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
@@ -544,7 +582,8 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   endif()
 elseif(USE_BACKEND STREQUAL "MLX")
   target_compile_definitions(katago PRIVATE USE_MLX_BACKEND)
-  target_link_libraries(katago mlx)
+  target_link_libraries(katago mlx KataGoSwift katagocoreml
+    ${KATAGOCOREML_DEP_LDFLAGS})
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)

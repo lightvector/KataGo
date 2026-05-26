@@ -21,17 +21,23 @@
 #include "../core/test.h"
 
 #include <mlx/mlx.h>
+#include <KataGoSwift/KataGoSwift-swift.h>
+#include <katagocoreml/KataGoConverter.hpp>
+#include <ghc/filesystem.hpp>
+#include <chrono>
+#include <unistd.h>  // For getpid()
 #include <iostream>
 #include <cstring>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <map>
 #include <tuple>
 #include <random>
 #include <array>
 #include <cmath>
 
-// Test-only free functions, both defined in mlxtests.cpp. Invoked once per
+// Test-only free functions, defined in mlxtests.cpp. Invoked once per
 // process from testEvaluateConv via the ranMLXAuxTests guard.
 void runMLXWinogradTests();
 void runMLXWinotunerTests();
@@ -45,14 +51,111 @@ using CompiledInferenceFunc = std::function<std::vector<mx::array>(const std::ve
 using CompileCacheKey = std::tuple<int, int, int, bool, bool, bool>;
 using namespace std;
 
+// MUX modes: gpuIdx selects per-thread execution path.
+// Same convention the Metal backend uses (METAL_MUX_GPU / METAL_MUX_ANE).
+static constexpr int MLX_MUX_GPU = 0;    // MLX/GPU - default
+static constexpr int MLX_MUX_ANE = 100;  // CoreML on CPU+ANE via katagocoreml + KataGoSwift
+
+// Serializes ComputeHandle construction across server threads. The CoreML
+// converter (katagocoreml::KataGoConverter::convert) holds process-global
+// MIL writer state that is not reentrant; without this lock, 2+ ANE threads
+// racing at startup corrupt the .mlpackage and throw "Metadata written to
+// different offset than expected." Mirrors metalbackend.cpp's
+// computeHandleMutex.
+static std::mutex computeHandleMutex;
+
+//------------------------------------------------------------------------------
+// CoreML Model Conversion - reuses katagocoreml library, mirrors metalbackend.cpp
+//------------------------------------------------------------------------------
+
+namespace gfs = ghc::filesystem;
+
+namespace CoreMLConversion {
+
+// Get temp directory for model conversion. Identical path to Metal's
+// getTempDirectory() in metalbackend.cpp so a .mlpackage produced by either
+// backend can be reused by the other on a same-model run.
+static string getTempDirectory() {
+  gfs::path tempDir = gfs::temp_directory_path() / "katago_coreml";
+  std::error_code ec;
+  gfs::create_directories(tempDir, ec);
+  if(ec) {
+    throw runtime_error("Failed to create temp directory: " + ec.message());
+  }
+  return tempDir.string();
+}
+
+// Generate unique temporary path for model conversion
+static string generateTempPath(int serverThreadIdx) {
+  auto now = chrono::steady_clock::now().time_since_epoch().count();
+  return getTempDirectory() + "/model_" + to_string(getpid()) + "_" +
+         to_string(serverThreadIdx) + "_" + to_string(now) + ".mlpackage";
+}
+
+// CoreML model metadata constants
+static const string COREML_MODEL_AUTHOR = "KataGo";
+static const string COREML_MODEL_LICENSE = "See original model file for license terms";
+
+// Convert KataGo model to CoreML in temp directory, returns path to .mlpackage.
+// The caller (Swift side) is responsible for deleting the temp file after loading:
+// see deleteSourceModel in metalbackend.swift, invoked via `defer` from
+// createCoreMLComputeHandle.
+static string convertModelToTemp(
+  const string& modelPath,
+  int boardX,
+  int boardY,
+  bool useFP16,
+  bool optimizeMask,
+  int maxBatchSize,
+  int serverThreadIdx
+) {
+  // maxBatchSize is validated upstream: cfg.getInt("nnMaxBatchSize", 1, 65536) in setup.cpp
+  // and NNEvaluator constructor throws if maxBatchSize <= 0. Assert for defensive documentation.
+  assert(maxBatchSize >= 1);
+
+  string tempPath = generateTempPath(serverThreadIdx);
+  cerr << "MLX backend " << serverThreadIdx << ": Converting model to " << tempPath << endl;
+
+  katagocoreml::ConversionOptions opts;
+  opts.board_x_size = boardX;
+  opts.board_y_size = boardY;
+  opts.compute_precision = useFP16 ? "FLOAT16" : "FLOAT32";
+  opts.optimize_identity_mask = optimizeMask;
+  opts.min_batch_size = 1;
+  opts.max_batch_size = maxBatchSize;
+  opts.author = COREML_MODEL_AUTHOR;
+  opts.license = COREML_MODEL_LICENSE;
+
+  try {
+    katagocoreml::KataGoConverter::convert(modelPath, tempPath, opts);
+  } catch(const exception& e) {
+    // Clean up partial conversion on failure
+    std::error_code ec;
+    gfs::remove_all(tempPath, ec);
+    if(ec) {
+      cerr << "MLX backend " << serverThreadIdx << ": Warning: Failed to clean up partial conversion at " << tempPath << ": " << ec.message() << endl;
+    }
+    throw runtime_error(string("MLX backend ") + to_string(serverThreadIdx) + ": Core ML model conversion failed: " + e.what());
+  }
+
+  cerr << "MLX backend " << serverThreadIdx << ": Conversion completed" << endl;
+  return tempPath;
+}
+
+}  // namespace CoreMLConversion
 
 // LoadedModel / ModelDesc ---------------------------------------------------------------------------------------------
 
 struct LoadedModel {
   ModelDesc modelDesc;
+  // Source path of the .bin.gz, retained for CoreML/ANE mux: the katagocoreml
+  // converter needs the on-disk source to produce a .mlpackage. The MLX GPU
+  // path does not read this field.
+  string modelPath;
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+    modelPath = fileName;
   }
 
   LoadedModel() = delete;
@@ -97,9 +200,30 @@ static mx::array convertConvWeightsOIHWtoOHWI(const vector<float>& weights,
   return mx::array(converted.data(), shape, mx::float32);
 }
 
-// Convert array to compute dtype
+// Convert array to compute dtype. Lazy form for the inference hot path
+// (each call's astype goes into the compiled trace; evaluating eagerly
+// would force a stream sync per inference).
 static mx::array toComputeDtype(const mx::array& arr, bool useFP16) {
   return useFP16 ? mx::astype(arr, mx::float16) : arr;
+}
+
+// Convert array to compute dtype and materialize the result.
+//
+// Use this for STATIC layer weights cached on a shared Model (the
+// `cachedModels` map below shares a single Model instance across all
+// MLX/GPU server threads). Without the eval, fp16 weights are
+// unevaluated AsType primitives stamped with the constructor thread's
+// MLX Stream; any other thread that later evals a compiled graph that
+// captures these weights throws "There is no Stream(gpu, N) in current
+// thread." with N = the constructor thread's stream index. MLX
+// 0.31.2's command encoders live in `thread_local` storage inside
+// mlx-core's metal/device.cpp, so a stream created on thread A is
+// unreachable from thread B.
+static mx::array toComputeDtypeMaterialized(const mx::array& arr, bool useFP16) {
+  if(!useFP16) return arr;
+  mx::array result = mx::astype(arr, mx::float16);
+  mx::eval(result);
+  return result;
 }
 
 // Mish activation: x * tanh(softplus(x)) = x * tanh(log(1 + exp(x)))
@@ -109,8 +233,8 @@ static mx::array toComputeDtype(const mx::array& arr, bool useFP16) {
 // LogAddExp). The exp argument is always in (-inf, 0], so exp(-|x|) lies in
 // (0, 1] and cannot overflow in either FP32 or FP16. This is why MLX does
 // not need the ACTIVATION_MISH_SCALE8 variant that CUDA/OpenCL/TensorRT apply
-// at model load (desc.cpp:applyScale8ToReduceActivations, cudabackend.cpp:2128,
-// trtbackend.cpp:86, openclbackend.cpp:116) to keep Mish inside FP16
+// at model load (each backend calls modelDesc.applyScale8ToReduceActivations,
+// implemented in desc.cpp) to keep Mish inside FP16
 // representable range: those backends compute softplus via a path that
 // overflows for x >~ 11 in FP16 (since exp(11.09) >~ 65504 = FP16 max).
 // Cross-backend validation against an Eigen FP32 reference confirms FP16
@@ -231,7 +355,7 @@ struct ConvLayer {
       useWinograd(mlxWinogradEnabled()
                   && convYSize==3 && convXSize==3
                   && dilationY==1 && dilationX==1),
-      weights(useWinograd ? mx::array(0.0f) : toComputeDtype(convertConvWeightsOIHWtoOHWI(desc.weights, outChannels, inChannels, convYSize, convXSize), useFP16_)),
+      weights(useWinograd ? mx::array(0.0f) : toComputeDtypeMaterialized(convertConvWeightsOIHWtoOHWI(desc.weights, outChannels, inChannels, convYSize, convXSize), useFP16_)),
       winogradWeights(useWinograd
         ? MLXWinograd::makeWinogradWeights(desc.weights, outChannels, inChannels, useFP16_)
         : mx::array(0.0f))
@@ -349,7 +473,7 @@ struct MatMulLayer {
       // Original weights: [inC, outC] (column-major)
       mx::Shape shape = {desc.inChannels, desc.outChannels};
       mx::array arr = mx::array(desc.weights.data(), shape, mx::float32);
-      return toComputeDtype(arr, useFP16);
+      return toComputeDtypeMaterialized(arr, useFP16);
     }
     std::vector<float> dummy = {0.0f};
     mx::Shape shape = {1};
@@ -382,7 +506,7 @@ struct MatBiasLayer {
   static mx::array createBias(const MatBiasLayerDesc& desc, bool useFP16) {
     mx::Shape shape = {desc.numChannels};
     mx::array arr = mx::array(desc.weights.data(), shape, mx::float32);
-    return toComputeDtype(arr, useFP16);
+    return toComputeDtypeMaterialized(arr, useFP16);
   }
 
   MatBiasLayer(const MatBiasLayerDesc& desc, bool useFP16 = false)
@@ -765,6 +889,15 @@ struct PolicyHead {
   const BatchNormLayer p1BN;
   const ConvLayer p2Conv;
   const MatMulLayer gpoolToPassMul;
+  // v15+ two-layer pass head: gpoolToPassMul (input -> hidden) ->
+  // gpoolToPassBias -> passActivation -> gpoolToPassMul2 (hidden -> output).
+  // Pre-v15 models use a single matmul (gpoolToPassMul: input -> output) and
+  // these three fields stay empty / zero. Mirrors the v15+ branch of
+  // PolicyHeadDesc::PolicyHeadDesc in desc.cpp and Metal's
+  // policyHeadDescToSwift in metalbackend.cpp.
+  const std::optional<MatBiasLayer> gpoolToPassBias;
+  const int passActivationType;
+  const std::optional<MatMulLayer> gpoolToPassMul2;
 
   PolicyHead() = delete;
   PolicyHead(const PolicyHead&) = delete;
@@ -782,7 +915,14 @@ struct PolicyHead {
       gpoolToBiasMul(desc.gpoolToBiasMul, useFP16),
       p1BN(desc.p1BN, desc.p1Activation.activation, useFP16),
       p2Conv(desc.p2Conv, inCfg, outCfg, useFP16),
-      gpoolToPassMul(desc.gpoolToPassMul, useFP16)
+      gpoolToPassMul(desc.gpoolToPassMul, useFP16),
+      gpoolToPassBias(desc.modelVersion >= 15
+        ? std::optional<MatBiasLayer>(std::in_place, desc.gpoolToPassBias, useFP16)
+        : std::nullopt),
+      passActivationType(desc.modelVersion >= 15 ? desc.passActivation.activation : 0),
+      gpoolToPassMul2(desc.modelVersion >= 15
+        ? std::optional<MatMulLayer>(std::in_place, desc.gpoolToPassMul2, useFP16)
+        : std::nullopt)
   {}
 
   std::pair<mx::array, mx::array> apply(
@@ -812,8 +952,16 @@ struct PolicyHead {
     // Final policy conv
     mx::array policy = p2Conv.apply(p1Out);
 
-    // Pass policy
+    // Pass policy: pre-v15 is a single matmul (pooled -> output). v15+ is a
+    // two-layer MLP (pooled -> hidden, + bias, activation, hidden -> output).
+    // Mirrors the v15+ branch of PolicyHeadDesc::PolicyHeadDesc in desc.cpp
+    // and Metal's policyHeadDescToSwift in metalbackend.cpp.
     mx::array policyPass = gpoolToPassMul.apply(pooledFlat);
+    if(modelVersion >= 15) {
+      policyPass = gpoolToPassBias->apply(policyPass);
+      policyPass = applyActivation(policyPass, passActivationType);
+      policyPass = gpoolToPassMul2->apply(policyPass);
+    }
 
     return {policyPass, policy};
   }
@@ -891,11 +1039,18 @@ struct Model {
   const int numInputGlobalChannels;
   const int numInputMetaChannels;
   const int numPolicyChannels;
-  // Pass-policy output width — `gpoolToPassMul.outChannels` may exceed
-  // numPolicyChannels for human-SL nets (humanv0: 48 vs 2). Only the first 1-2
-  // values are consumed by NNOutput, but the per-row stride in our buffers
-  // must match the real tensor width, otherwise batched memcpy and extraction
-  // truncate and misalign rows beyond row 0.
+  // Pass-policy output width. For v15+ models the pass head is two-layer:
+  // gpoolToPassMul (input -> hidden) -> bias -> activation -> gpoolToPassMul2
+  // (hidden -> output). The actual final output width — and the per-row stride
+  // extractOutputs in metalbackend.swift uses for its writes
+  // (batchIndex * numPolicyChannels) — is gpoolToPassMul2.outChannels, which
+  // PolicyHeadDesc::PolicyHeadDesc in desc.cpp validates equals
+  // numPolicyChannels. Pre-v15 models have a single matmul (gpoolToPassMul:
+  // input -> output) and the output width is gpoolToPassMul.outChannels =
+  // numPolicyChannels (also validated in PolicyHeadDesc::PolicyHeadDesc).
+  // Using gpoolToPassMul.outChannels for v15+ was the prior bug: it is the
+  // hidden width, not the output width, and rows >= 1 in batched ANE reads
+  // landed on uninitialized memory.
   const int numPolicyPassChannels;
   const int numValueChannels;
   const int numScoreValueChannels;
@@ -917,7 +1072,9 @@ struct Model {
       numInputGlobalChannels(desc.numInputGlobalChannels),
       numInputMetaChannels(desc.numInputMetaChannels),
       numPolicyChannels(desc.numPolicyChannels),
-      numPolicyPassChannels(desc.policyHead.gpoolToPassMul.outChannels),
+      numPolicyPassChannels(desc.modelVersion >= 15
+                              ? desc.policyHead.gpoolToPassMul2.outChannels
+                              : desc.policyHead.gpoolToPassMul.outChannels),
       numValueChannels(desc.numValueChannels),
       numScoreValueChannels(desc.numScoreValueChannels),
       numOwnershipChannels(desc.numOwnershipChannels),
@@ -1114,6 +1271,41 @@ struct Model {
   }
 };
 
+// Forward declaration needed by the helpers below (struct is defined in the
+// "ComputeContext and ComputeHandle" section that follows).
+struct ComputeContext;
+
+//------------------------------------------------------------------------------
+// CoreML/ANE compute handle helpers - mirrors convertAndCreateCoreMLOnlyHandle
+// in metalbackend.cpp
+//------------------------------------------------------------------------------
+
+// Note: KataGoSwift::MetalComputeContext is the Swift-side context type. Its
+// name is misleading in this file (MLX, not Metal) but we reuse it as-is per
+// the design decision to leave KataGoSwift unchanged. It carries only
+// (nnXLen, nnYLen, useFP16).
+
+// Helper: convert model and create CoreML-only compute handle (for mux ANE thread)
+static swift::Optional<KataGoSwift::CoreMLComputeHandle> convertAndCreateCoreMLOnlyHandleMLX(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int maxBatchSize,
+  int serverThreadIdx
+);
+
+// Helper: create CoreML-only handle when gpuIdx == MLX_MUX_ANE.
+// Returns Optional::none() for the GPU path. Emits the same FP16-only-ANE
+// warning Metal emits when useFP16=false is combined with the ANE mux.
+static swift::Optional<KataGoSwift::CoreMLComputeHandle> createCoreMLOnlyHandleIfNeededMLX(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int maxBatchSize,
+  int gpuIdx,
+  int serverThreadIdx
+);
+
 // ComputeContext and ComputeHandle ------------------------------------------------------------------------------------
 
 struct ComputeContext {
@@ -1153,13 +1345,29 @@ struct ComputeHandle {
   bool inputsUseNHWC;
   bool requireExactNNLen;
   bool useFP16;
+  int gpuIdx;
   std::string modelCacheKey;  // assigned in ctor body after loadOrAutoTune
   std::shared_ptr<const Model> model;
   const int modelVersion;
 
-  // Compiled function cache - keyed by (batchSize, nnXLen, nnYLen, useMask, hasMeta, useFP16)
+  // ModelDesc fields cached on both paths so getOutput does not have to
+  // dereference `model` (which is nullptr on the ANE path). Populated in
+  // the constructor body for both MLX_MUX_GPU and MLX_MUX_ANE.
+  int numInputChannels;
+  int numPolicyChannels;
+  int numPolicyPassChannels;
+  int numValueChannels;
+  int numScoreValueChannels;
+  int numOwnershipChannels;
+
+  // Compiled function cache - keyed by (batchSize, nnXLen, nnYLen, useMask, hasMeta, useFP16).
+  // Populated only on the MLX/GPU path; the ANE path uses coremlOnlyHandle instead.
   mutable std::mutex compiledFuncsMutex;
   mutable std::map<CompileCacheKey, CompiledInferenceFunc> compiledFuncs;
+
+  // CoreML-only handle (Swift). Populated iff gpuIdx == MLX_MUX_ANE; otherwise none().
+  // Exactly one of {model populated (MLX/GPU path) OR coremlOnlyHandle has value (ANE path)}.
+  swift::Optional<KataGoSwift::CoreMLComputeHandle> coremlOnlyHandle;
 
   ComputeHandle() = delete;
   ComputeHandle(const ComputeHandle&) = delete;
@@ -1181,20 +1389,57 @@ struct ComputeHandle {
       + "x"   + std::to_string(tuneParams.outputUntransform.wpt);
   }
 
-  ComputeHandle(ComputeContext* ctx, const LoadedModel& loadedModel, bool iNHWC, bool requireExactNNLen_, bool useFP16_)
+  ComputeHandle(ComputeContext* ctx,
+                const LoadedModel& loadedModel,
+                bool iNHWC,
+                bool requireExactNNLen_,
+                bool useFP16_,
+                int gpuIdx_,
+                int maxBatchSize,
+                int serverThreadIdx)
     : context(ctx),
       inputsUseNHWC(iNHWC),
       requireExactNNLen(requireExactNNLen_),
       useFP16(useFP16_),
+      gpuIdx(gpuIdx_),
       modelCacheKey(),
       model(nullptr),
       modelVersion(loadedModel.modelDesc.modelVersion),
       compiledFuncsMutex(),
-      compiledFuncs()
+      compiledFuncs(),
+      coremlOnlyHandle(createCoreMLOnlyHandleIfNeededMLX(
+        ctx, &loadedModel, requireExactNNLen_, maxBatchSize, gpuIdx_, serverThreadIdx))
   {
-    // Determine tuner params: either run the autotuner, or use baked defaults.
-    // Tuner runs at every precision so fp16 gets its own cache file
-    // (_fp16.txt suffix).
+    // Cache ModelDesc fields used by both paths in getOutput.
+    numInputChannels = loadedModel.modelDesc.numInputChannels;
+    numPolicyChannels = loadedModel.modelDesc.numPolicyChannels;
+    // See Model::numPolicyPassChannels comment for the v15+ two-layer pass head
+    // rationale: the per-row stride must match the *final* pass output width
+    // (gpoolToPassMul2.outChannels for v15+, gpoolToPassMul.outChannels otherwise),
+    // not the hidden width.
+    numPolicyPassChannels =
+      loadedModel.modelDesc.modelVersion >= 15
+        ? loadedModel.modelDesc.policyHead.gpoolToPassMul2.outChannels
+        : loadedModel.modelDesc.policyHead.gpoolToPassMul.outChannels;
+    numValueChannels = loadedModel.modelDesc.numValueChannels;
+    numScoreValueChannels = loadedModel.modelDesc.numScoreValueChannels;
+    numOwnershipChannels = loadedModel.modelDesc.numOwnershipChannels;
+
+    if(gpuIdx_ == MLX_MUX_ANE) {
+      // ANE path: MLX inference state is intentionally left uninitialized.
+      // Enforce the "exactly one path" invariant.
+      bool hasMLX = (model != nullptr);
+      bool hasCoreML = static_cast<bool>(coremlOnlyHandle);
+      if(hasMLX == hasCoreML) {
+        throw runtime_error(
+          string("MLX backend: Logic error - expected exactly one compute handle, got ") +
+          (hasMLX && hasCoreML ? "both" : "neither") +
+          " (gpuIdx=" + to_string(gpuIdx_) + ")");
+      }
+      return;
+    }
+
+    // GPU path: initialize MLX tuner + compile cache + weights as before.
     MLXWinogradTuneParams tuneParams;
     if(mlxWinogradEnabled() && mlxWinotunerEnabled()) {
       // Shape diagnostic: print the model's 3x3 conv shape distribution before
@@ -1240,9 +1485,25 @@ struct ComputeHandle {
     }
     model = context->cachedModels[modelCacheKey];
     context->cachedModelsRefCount[modelCacheKey] += 1;
+
+    // GPU path invariant check.
+    bool hasMLX = (model != nullptr);
+    bool hasCoreML = static_cast<bool>(coremlOnlyHandle);
+    if(hasMLX == hasCoreML) {
+      throw runtime_error(
+        string("MLX backend: Logic error - expected exactly one compute handle, got ") +
+        (hasMLX && hasCoreML ? "both" : "neither") +
+        " (gpuIdx=" + to_string(gpuIdx_) + ")");
+    }
   }
 
   ~ComputeHandle() {
+    // Only the GPU path populated the cachedModels map; ANE path's destructor
+    // is a no-op for the MLX-side state. Swift ARC releases coremlOnlyHandle
+    // automatically when the swift::Optional member is destroyed.
+    if(gpuIdx == MLX_MUX_ANE)
+      return;
+
     std::lock_guard<std::mutex> lock(context->cachedModelsMutex);
     context->cachedModelsRefCount[modelCacheKey] -= 1;
     assert(context->cachedModelsRefCount[modelCacheKey] >= 0);
@@ -1252,8 +1513,10 @@ struct ComputeHandle {
     }
   }
 
-  // Get or create compiled inference function for the given configuration
+  // Get or create compiled inference function for the given configuration.
+  // GPU path only — must not be called on an ANE-mux handle.
   const CompiledInferenceFunc& getCompiledFunc(int batchSize, int nnXLen, int nnYLen, bool useMask, bool hasMeta) const {
+    assert(gpuIdx == MLX_MUX_GPU);
     CompileCacheKey key = std::make_tuple(batchSize, nnXLen, nnYLen, useMask, hasMeta, useFP16);
 
     std::lock_guard<std::mutex> lock(compiledFuncsMutex);
@@ -1282,10 +1545,19 @@ struct InputBuffers {
   size_t singleValueResultElts;
   size_t singleScoreValueResultElts;
   size_t singleOwnershipResultElts;
+  size_t singleMaskElts;
 
   std::vector<float> spatialInput;
   std::vector<float> globalInput;
   std::vector<float> metaInput;
+  std::vector<float> userInputMaskBuffer;
+  // NCHW staging buffer for the ANE/CoreML dispatch path. The Swift
+  // CoreMLComputeHandle.apply() allocates MLMultiArray with shape
+  // [1, C, H, W] and memcpys each row's bytes, so it strictly requires
+  // NCHW. spatialInput stays NHWC for the MLX/GPU path; rows are
+  // transposed into this buffer inside getOutput before dispatch. The
+  // MLX/GPU path never reads this buffer.
+  std::vector<float> userInputBufferNCHW;
   std::vector<float> policyResults;
   std::vector<float> policyPassResults;
   std::vector<float> valueResults;
@@ -1300,11 +1572,18 @@ struct InputBuffers {
     singleInputGlobalElts = m.numInputGlobalChannels;
     singleInputMetaElts = m.numInputMetaChannels;
 
-    singlePolicyPassResultElts = (size_t)(m.policyHead.gpoolToPassMul.outChannels);
+    // See Model::numPolicyPassChannels comment: pass output width is
+    // gpoolToPassMul2.outChannels for v15+, gpoolToPassMul.outChannels otherwise.
+    // Must match ComputeHandle::numPolicyPassChannels (assertion in getOutput).
+    singlePolicyPassResultElts = (size_t)(
+      m.modelVersion >= 15
+        ? m.policyHead.gpoolToPassMul2.outChannels
+        : m.policyHead.gpoolToPassMul.outChannels);
     singlePolicyResultElts = (size_t)(m.numPolicyChannels * nnXLen * nnYLen);
     singleValueResultElts = (size_t)m.numValueChannels;
     singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
     singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
+    singleMaskElts = (size_t)nnXLen * nnYLen;
 
     assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
     assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
@@ -1324,6 +1603,8 @@ struct InputBuffers {
     valueResults.resize(singleValueResultElts * maxBatchSize);
     scoreValueResults.resize(singleScoreValueResultElts * maxBatchSize);
     ownershipResults.resize(singleOwnershipResultElts * maxBatchSize);
+    userInputMaskBuffer.resize(singleMaskElts * maxBatchSize);
+    userInputBufferNCHW.resize(singleInputElts * maxBatchSize);
   }
 
   ~InputBuffers() {}
@@ -1349,6 +1630,81 @@ void NeuralNet::globalInitialize() {
 
 void NeuralNet::globalCleanup() {
   // MLX cleans up automatically
+}
+
+// Helper implementations (forward-declared before ComputeContext; defined here
+// after ComputeContext and LoadedModel are both fully visible).
+
+static swift::Optional<KataGoSwift::CoreMLComputeHandle> convertAndCreateCoreMLOnlyHandleMLX(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int maxBatchSize,
+  int serverThreadIdx
+) {
+  int nnXLen = context->nnXLen;
+  int nnYLen = context->nnYLen;
+  bool useFP16 = (context->useFP16Mode != enabled_t::False);
+  bool optimizeMask = requireExactNNLen;
+
+  // Convert model to CoreML format in temp directory
+  string coremlModelPath = CoreMLConversion::convertModelToTemp(
+    loadedModel->modelPath,
+    nnXLen,
+    nnYLen,
+    useFP16,
+    optimizeMask,
+    maxBatchSize,
+    serverThreadIdx
+  );
+
+  // The Swift createCoreMLComputeHandle entry point expects a
+  // MetalComputeContext. Construct one on-the-fly from MLX's context values.
+  auto swiftContext = KataGoSwift::createMetalComputeContext(
+    static_cast<int32_t>(nnXLen),
+    static_cast<int32_t>(nnYLen),
+    useFP16);
+
+  // Create CoreML-only compute handle (CPU+ANE) — same Swift entry point Metal uses.
+  return KataGoSwift::createCoreMLComputeHandle(
+    swift::String(coremlModelPath),
+    serverThreadIdx,
+    requireExactNNLen,
+    loadedModel->modelDesc.numInputChannels,
+    loadedModel->modelDesc.numInputGlobalChannels,
+    loadedModel->modelDesc.numInputMetaChannels,
+    loadedModel->modelDesc.numPolicyChannels,
+    loadedModel->modelDesc.numValueChannels,
+    loadedModel->modelDesc.numScoreValueChannels,
+    loadedModel->modelDesc.numOwnershipChannels,
+    swiftContext
+  );
+}
+
+static swift::Optional<KataGoSwift::CoreMLComputeHandle> createCoreMLOnlyHandleIfNeededMLX(
+  ComputeContext* context,
+  const LoadedModel* loadedModel,
+  bool requireExactNNLen,
+  int maxBatchSize,
+  int gpuIdx,
+  int serverThreadIdx
+) {
+  if(gpuIdx != MLX_MUX_ANE) {
+    return swift::Optional<KataGoSwift::CoreMLComputeHandle>::none();
+  }
+
+  if(context->useFP16Mode == enabled_t::False) {
+    // Honor the user's explicit FP32 request even on an ANE thread: the ANE
+    // is FP16-only, so CoreML falls back to CPU. Result is correct (and
+    // deterministic) FP32 CoreML inference, just much slower than GPU.
+    cerr << "MLX backend " << serverThreadIdx << ": Note: ANE thread with mlxUseFP16=false: "
+         << "the ANE is FP16-only, so CoreML will run this thread on CPU (FP32). "
+         << "This is significantly slower than the GPU path; if you wanted ANE acceleration, "
+         << "remove mlxUseFP16=false." << endl;
+  }
+
+  cerr << "MLX backend " << serverThreadIdx << ": Mux ANE mode - using CoreML (CPU+ANE)" << endl;
+  return convertAndCreateCoreMLOnlyHandleMLX(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx);
 }
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -1398,19 +1754,31 @@ ComputeHandle* NeuralNet::createComputeHandle(
   // explicitly.
   bool useFP16 = (context->useFP16Mode != enabled_t::False);
 
+  // gpuIdx == -1 is the "no preference" sentinel from upstream; map to default GPU.
+  int gpuIdx = (gpuIdxForThisThread == -1) ? MLX_MUX_GPU : gpuIdxForThisThread;
+  if(gpuIdx != MLX_MUX_GPU && gpuIdx != MLX_MUX_ANE) {
+    throw StringError(
+      "MLX backend: Invalid mlxDeviceToUseThread value " + std::to_string(gpuIdx) +
+      " for server thread " + std::to_string(serverThreadIdx) +
+      ". The MLX backend only supports " + std::to_string(MLX_MUX_GPU) +
+      " (GPU via MLX) or " + std::to_string(MLX_MUX_ANE) +
+      " (ANE via CoreML).");
+  }
+
   if(logger != NULL) {
     logger->write("MLX backend thread " + Global::intToString(serverThreadIdx) + ": Model version " + Global::intToString(loadedModel->modelDesc.modelVersion));
     logger->write("MLX backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name);
     logger->write("MLX backend thread " + Global::intToString(serverThreadIdx) + ": FP16 = " + (useFP16 ? "true" : "false"));
+    logger->write("MLX backend thread " + Global::intToString(serverThreadIdx) + ": gpuIdx = " + Global::intToString(gpuIdx));
   }
-
-  (void)maxBatchSize;
-  (void)gpuIdxForThisThread;
 
   if(!inputsUseNHWC)
     throw StringError("MLX backend: inputsUseNHWC = false unsupported");
 
-  return new ComputeHandle(context, *loadedModel, inputsUseNHWC, requireExactNNLen, useFP16);
+  // Serialize handle construction: see computeHandleMutex declaration above.
+  std::lock_guard<std::mutex> lock(computeHandleMutex);
+  return new ComputeHandle(context, *loadedModel, inputsUseNHWC, requireExactNNLen, useFP16,
+                           gpuIdx, maxBatchSize, serverThreadIdx);
 }
 
 void NeuralNet::freeComputeHandle(ComputeHandle* gpuHandle) {
@@ -1438,10 +1806,10 @@ void NeuralNet::getOutput(
   const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
   const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
   const int numMetaFeatures = inputBuffers->singleInputMetaElts;
-  assert(numSpatialFeatures == computeHandle->model->numInputChannels);
+  assert(numSpatialFeatures == computeHandle->numInputChannels);
   assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
   assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
-  const int numPolicyChannels = computeHandle->model->numPolicyChannels;
+  const int numPolicyChannels = computeHandle->numPolicyChannels;
 
   // Copy input data to buffers
   for(int nIdx = 0; nIdx < batchSize; nIdx++) {
@@ -1466,30 +1834,86 @@ void NeuralNet::getOutput(
     }
 
     SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, computeHandle->inputsUseNHWC, inputBufs[nIdx]->symmetry);
+
+    // ANE/CoreML path needs an NCHW spatial buffer because the Swift
+    // CoreMLComputeHandle.apply() allocates MLMultiArray with shape
+    // [1, C, H, W] and raw memcpys C*H*W floats per row. spatialInput
+    // is NHWC (required by the MLX/GPU path's mx::array shape), so we
+    // transpose each row into userInputBufferNCHW here. The validity
+    // mask (channel 0) sits at the start of the converted row, so it
+    // collapses to a contiguous memcpy into userInputMaskBuffer.
+    //
+    // When the mlpackage was converted with optimize_identity_mask=true
+    // (i.e., requireExactNNLen=true) the ANE model ignores the mask
+    // buffer, but populating it unconditionally costs essentially
+    // nothing (one memcpy of H*W floats) and avoids a silent-
+    // misprediction footgun when optimize_identity_mask=false.
+    //
+    // The MLX/GPU path slices channel 0 itself via mx::slice and does
+    // not read userInputMaskBuffer or userInputBufferNCHW.
+    if(computeHandle->coremlOnlyHandle) {
+      const int C = computeHandle->numInputChannels;
+      const size_t HW = inputBuffers->singleMaskElts;  // nnXLen * nnYLen
+      float* rowNCHW = inputBuffers->userInputBufferNCHW.data()
+                     + inputBuffers->singleInputElts * nIdx;
+      const float* rowNHWC = rowSpatialInput;  // [H*W, C]
+      for(int c = 0; c < C; c++) {
+        float* dstCh = rowNCHW + (size_t)c * HW;
+        for(size_t hw = 0; hw < HW; hw++) {
+          dstCh[hw] = rowNHWC[hw * C + c];
+        }
+      }
+      float* dstMask = inputBuffers->userInputMaskBuffer.data()
+                     + inputBuffers->singleMaskElts * nIdx;
+      std::memcpy(dstMask, rowNCHW, HW * sizeof(float));
+    }
   }
 
-  // Run model using compiled function
-  const bool useMask = !computeHandle->requireExactNNLen;
-  const bool hasMeta = (numMetaFeatures > 0);
-  const CompiledInferenceFunc& compiledFunc = computeHandle->getCompiledFunc(batchSize, nnXLen, nnYLen, useMask, hasMeta);
+  // Dispatch to appropriate path based on mux mode.
+  if(computeHandle->coremlOnlyHandle) {
+    // ANE path: dispatch through the Swift CoreMLComputeHandle. Swift
+    // creates MLMultiArray(shape: [1, C, H, W]) per row and memcpys
+    // C*H*W floats — strict NCHW. We pass userInputBufferNCHW (rows
+    // transposed from NHWC in the loop above) instead of spatialInput.
+    // The mask is the contiguous H*W float prefix of each NCHW row,
+    // already lifted into userInputMaskBuffer above. The mlpackage
+    // ignores the mask buffer iff it was converted with
+    // optimize_identity_mask=true.
+    computeHandle->coremlOnlyHandle.get().apply(
+      inputBuffers->userInputBufferNCHW.data(),
+      inputBuffers->globalInput.data(),
+      inputBuffers->metaInput.data(),  // always non-null (resized to at least 1 in InputBuffers ctor)
+      inputBuffers->userInputMaskBuffer.data(),
+      inputBuffers->policyResults.data(),
+      inputBuffers->policyPassResults.data(),
+      inputBuffers->valueResults.data(),
+      inputBuffers->scoreValueResults.data(),
+      inputBuffers->ownershipResults.data(),
+      batchSize);
+  } else {
+    // GPU path: run the MLX compiled function exactly as before.
+    const bool useMask = !computeHandle->requireExactNNLen;
+    const bool hasMeta = (numMetaFeatures > 0);
+    const CompiledInferenceFunc& compiledFunc = computeHandle->getCompiledFunc(batchSize, nnXLen, nnYLen, useMask, hasMeta);
 
-  computeHandle->model->applyCompiled(
-    compiledFunc,
-    inputBuffers->spatialInput.data(),
-    inputBuffers->globalInput.data(),
-    (numMetaFeatures > 0 ? inputBuffers->metaInput.data() : nullptr),
-    batchSize,
-    nnXLen,
-    nnYLen,
-    computeHandle->requireExactNNLen,
-    inputBuffers->policyResults.data(),
-    inputBuffers->policyPassResults.data(),
-    inputBuffers->valueResults.data(),
-    inputBuffers->scoreValueResults.data(),
-    inputBuffers->ownershipResults.data()
-  );
+    computeHandle->model->applyCompiled(
+      compiledFunc,
+      inputBuffers->spatialInput.data(),
+      inputBuffers->globalInput.data(),
+      (numMetaFeatures > 0 ? inputBuffers->metaInput.data() : nullptr),
+      batchSize,
+      nnXLen,
+      nnYLen,
+      computeHandle->requireExactNNLen,
+      inputBuffers->policyResults.data(),
+      inputBuffers->policyPassResults.data(),
+      inputBuffers->valueResults.data(),
+      inputBuffers->scoreValueResults.data(),
+      inputBuffers->ownershipResults.data()
+    );
+  }
 
-  assert(inputBuffers->singlePolicyPassResultElts == (size_t)computeHandle->model->numPolicyPassChannels);
+  assert(inputBuffers->singlePolicyPassResultElts == (size_t)computeHandle->numPolicyPassChannels);
   assert(inputBuffers->singlePolicyResultElts == numPolicyChannels * nnXLen * nnYLen);
   assert(outputs.size() == batchSize);
 
@@ -1507,16 +1931,27 @@ void NeuralNet::getOutput(
     assert(output->nnYLen == nnYLen);
     float policyOptimism = (float)inputBufs[row]->policyOptimism;
 
-    const float* policyPassSrcBuf = policyPassData + row * computeHandle->model->numPolicyPassChannels;
+    const float* policyPassSrcBuf = policyPassData + row * computeHandle->numPolicyPassChannels;
     const float* policySrcBuf = policyData + row * numPolicyChannels * nnXLen * nnYLen;
     float* policyProbs = output->policyProbs;
 
-    // Handle policy optimism (version >= 12)
+    // Handle policy optimism (version >= 12). The optimism mix uses
+    // channel 0 (p) and channel 1 (pOpt) of the policy output; v16+
+    // channels 2-3 are ignored here, matching MetalProcess::processOptimism
+    // in metalbackend.cpp.
+    //
+    // MLX/GPU writes NHWC: channels are interleaved per spatial position.
+    // CoreML/ANE writes NCHW (MLMultiArray shape [1, C, H, W], contiguous
+    // memcpy in metalbackend.swift copyMultiArray): channel 0 occupies the
+    // first HW floats, channel 1 the next HW, etc. Stride differs per path.
     if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
-      // MLX output is NHWC
-      for(int i = 0; i < nnXLen * nnYLen; i++) {
-        float p = policySrcBuf[i * numPolicyChannels];
-        float pOpt = policySrcBuf[i * numPolicyChannels + 1];
+      const int HW = nnXLen * nnYLen;
+      const bool isNCHW = (bool)computeHandle->coremlOnlyHandle;
+      const int strideI   = isNCHW ? 1  : numPolicyChannels;
+      const int strideOpt = isNCHW ? HW : 1;
+      for(int i = 0; i < HW; i++) {
+        float p    = policySrcBuf[i * strideI];
+        float pOpt = policySrcBuf[i * strideI + strideOpt];
         policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
       }
       SymmetryHelpers::copyOutputsWithSymmetry(policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
@@ -1528,7 +1963,7 @@ void NeuralNet::getOutput(
       policyProbs[inputBuffers->singlePolicyResultElts] = policyPassSrcBuf[0];
     }
 
-    int numValueChannels = computeHandle->model->numValueChannels;
+    int numValueChannels = computeHandle->numValueChannels;
     assert(numValueChannels == 3);
     output->whiteWinProb = valueData[row * numValueChannels];
     output->whiteLossProb = valueData[row * numValueChannels + 1];
@@ -1536,12 +1971,12 @@ void NeuralNet::getOutput(
 
     if(output->whiteOwnerMap != NULL) {
       const float* ownershipSrcBuf = ownershipData + row * nnXLen * nnYLen;
-      assert(computeHandle->model->numOwnershipChannels == 1);
+      assert(computeHandle->numOwnershipChannels == 1);
       SymmetryHelpers::copyOutputsWithSymmetry(ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
     }
 
     if(modelVersion >= 9) {
-      int numScoreValueChannels = computeHandle->model->numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->numScoreValueChannels;
       assert(numScoreValueChannels == 6);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
@@ -1551,7 +1986,7 @@ void NeuralNet::getOutput(
       output->shorttermScoreError = scoreValueData[row * numScoreValueChannels + 5];
     }
     else if(modelVersion >= 8) {
-      int numScoreValueChannels = computeHandle->model->numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->numScoreValueChannels;
       assert(numScoreValueChannels == 4);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
@@ -1561,7 +1996,7 @@ void NeuralNet::getOutput(
       output->shorttermScoreError = 0;
     }
     else if(modelVersion >= 4) {
-      int numScoreValueChannels = computeHandle->model->numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->numScoreValueChannels;
       assert(numScoreValueChannels == 2);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
@@ -1571,7 +2006,7 @@ void NeuralNet::getOutput(
       output->shorttermScoreError = 0;
     }
     else if(modelVersion >= 3) {
-      int numScoreValueChannels = computeHandle->model->numScoreValueChannels;
+      int numScoreValueChannels = computeHandle->numScoreValueChannels;
       assert(numScoreValueChannels == 1);
       output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
       output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
@@ -1747,7 +2182,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 // Declared here because BatchNormLayer is not in any public header.
 // Called from runMLXWinogradTests() in mlxtests.cpp.
 void runMLXBatchNormFP16Test() {
-  namespace mxc = mx;  // reuse the file-scope alias from line 29
+  namespace mxc = mx;  // reuse the file-scope `mx` alias
   using std::cout;
   using std::endl;
 
@@ -1784,7 +2219,7 @@ void runMLXBatchNormFP16Test() {
 // Declared here because ConvLayer is not in any public header.
 // Called from runMLXWinogradTests() in mlxtests.cpp.
 void runMLXConvLayerFP16WinogradTest() {
-  namespace mxc = mx;  // reuse the file-scope alias from line 29
+  namespace mxc = mx;  // reuse the file-scope `mx` alias
   using std::cout;
   using std::endl;
 

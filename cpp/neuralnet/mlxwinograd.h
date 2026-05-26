@@ -154,7 +154,17 @@ inline mx::array makeWinogradWeights(const std::vector<float>& wOIHW,
   }
   mx::Shape shape = {16, Cin, Cout};
   mx::array arr(U.data(), shape, mx::float32);
-  if(useFP16) return mx::astype(arr, mx::float16);
+  if(useFP16) {
+    mx::array casted = mx::astype(arr, mx::float16);
+    // Realize on the constructor thread so the resulting array is a
+    // materialized constant. Without this, a model cached and shared
+    // across threads carries an unevaluated AsType primitive that is
+    // stamped with the constructor thread's stream — calling thread's
+    // mx::eval then fails with "There is no Stream(gpu, N) in current
+    // thread." for the constructor thread's stream index.
+    mx::eval(casted);
+    return casted;
+  }
   return arr;
 }
 

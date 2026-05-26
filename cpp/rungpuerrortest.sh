@@ -8,7 +8,7 @@
 MODE="${1:-gpu}"
 case "$MODE" in
     gpu) EXTRA_OVERRIDE=""; SUFFIX="" ;;
-    ane) EXTRA_OVERRIDE=", metalDeviceToUseThread0=100"; SUFFIX="_ane" ;;
+    ane) EXTRA_OVERRIDE=", deviceToUseThread0=100"; SUFFIX="_ane" ;;
     *)   echo "Usage: $0 [gpu|ane]" >&2; exit 1 ;;
 esac
 

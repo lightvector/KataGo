@@ -585,10 +585,10 @@ void runMLXWinotunerTests() {
   {
     // buildConv3x3HistogramsFromConvs — pure-function test on the conv
     // filter+histogram. Constructs ConvLayerDesc instances directly
-    // (default-constructible per desc.h:25). ConvLayerDesc has a deleted
-    // copy ctor (desc.h:29), so we build the descriptors in a deque
-    // (stable addresses, no copies on growth) and pass pointers to the
-    // helper. Does not touch ModelDesc.
+    // (ConvLayerDesc is default-constructible but has a deleted copy ctor;
+    // see desc.h), so we build the descriptors in a deque (stable addresses,
+    // no copies on growth) and pass pointers to the helper. Does not touch
+    // ModelDesc.
 
     auto initConv = [](ConvLayerDesc& c, int kY, int kX, int inC, int outC) {
       c.convYSize  = kY;
