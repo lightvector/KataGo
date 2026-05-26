@@ -379,6 +379,7 @@ int MainCmds::runtinynntests(const vector<string>& args) {
       std::vector<int>(),
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
+      1,
       numSearchThreads
     );
     istringstream in(cfgStr);

@@ -51,6 +51,24 @@ static const int64_t defaultMaxVisits = 800;
 static constexpr double defaultSecondsPerGameMove = 5.0;
 static const int ternarySearchInitialMax = 32;
 
+static vector<int> getNNServerThreadsToTest(int baseNumNNServerThreads) {
+  testAssert(baseNumNNServerThreads >= 1);
+  vector<int> ret;
+  const int maxNumNNServerThreadsToTry = std::max(baseNumNNServerThreads,4);
+  const int multipliers[] = {1,2,4};
+  for(int multiplier: multipliers) {
+    int numThreads = baseNumNNServerThreads * multiplier;
+    if(numThreads > maxNumNNServerThreadsToTry)
+      break;
+    ret.push_back(numThreads);
+  }
+  return ret;
+}
+
+static double getNNEvalsPerSecond(const PlayUtils::BenchmarkResults& result) {
+  return result.numNNEvals / (result.totalSeconds + 0.00001);
+}
+
 int MainCmds::benchmark(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
@@ -632,6 +650,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   vector<int> configDeviceIdxs;
   int configNNCacheSizePowerOfTwo = 20;
   int configNNMutexPoolSizePowerOfTwo = 16;
+  int configNumNNServerThreadsPerModel = 1;
   int configNumSearchThreads = 6;
 
   cout << endl;
@@ -783,6 +802,8 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
         }
       });
   }
+  if(configDeviceIdxs.size() > 0)
+    configNumNNServerThreadsPerModel = (int)configDeviceIdxs.size();
 #endif
 
   {
@@ -825,9 +846,12 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   bool skipThreadTuning = false;
   if(FileUtils::exists(outputFile)) {
     int oldConfigNumSearchThreads = -1;
+    int oldConfigNumNNServerThreadsPerModel = -1;
     try {
       ConfigParser oldCfg(outputFile);
       oldConfigNumSearchThreads = oldCfg.getInt("numSearchThreads",1,4096);
+      if(oldCfg.contains("numNNServerThreadsPerModel"))
+        oldConfigNumNNServerThreadsPerModel = oldCfg.getInt("numNNServerThreadsPerModel",1,1024);
     }
     catch(const StringError&) {
       cout << "NOTE: Overwritten config does not specify numSearchThreads or otherwise could not be parsed." << endl;
@@ -842,6 +866,8 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
       );
       if(skipThreadTuning) {
         configNumSearchThreads = oldConfigNumSearchThreads;
+        if(oldConfigNumNNServerThreadsPerModel > 0)
+          configNumNNServerThreadsPerModel = oldConfigNumNNServerThreadsPerModel;
       }
     }
   }
@@ -857,6 +883,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
       configDeviceIdxs,
       configNNCacheSizePowerOfTwo,
       configNNMutexPoolSizePowerOfTwo,
+      configNumNNServerThreadsPerModel,
       configNumSearchThreads
     );
   };
@@ -968,6 +995,72 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     configNumSearchThreads = results[bestIdx].numThreads;
 
     delete nnEval;
+    nnEval = NULL;
+
+#ifndef USE_EIGEN_BACKEND
+    {
+      int baseNumNNServerThreads = configDeviceIdxs.size() > 0 ? (int)configDeviceIdxs.size() : 1;
+      vector<int> numNNServerThreadsToTest = getNNServerThreadsToTest(baseNumNNServerThreads);
+
+      if(numNNServerThreadsToTest.size() > 1) {
+        cout << endl;
+        cout << "=========================================================================" << endl;
+        cout << "TUNING NEURAL NET SERVER THREADS NOW" << endl;
+        cout << "Tuning numNNServerThreadsPerModel using nnEvals/s at "
+             << configNumSearchThreads << " numSearchThreads." << endl;
+
+        int bestNumNNServerThreads = configNumNNServerThreadsPerModel;
+        double bestNNEvalsPerSecond = -1.0;
+
+        for(int numNNServerThreads: numNNServerThreadsToTest) {
+          configNumNNServerThreadsPerModel = numNNServerThreads;
+          updateConfigContents();
+
+          istringstream nnServerInConfig(configFileContents);
+          ConfigParser nnServerCfg(nnServerInConfig);
+          Logger nnServerLogger(&nnServerCfg, logToStdOut);
+          Setup::initializeSession(nnServerCfg);
+
+          SearchParams nnServerParams = Setup::loadSingleParams(nnServerCfg,Setup::SETUP_FOR_BENCHMARK);
+          nnServerParams.maxVisits = maxVisits;
+          nnServerParams.maxPlayouts = maxVisits;
+          nnServerParams.maxTime = 1e20;
+          nnServerParams.searchFactorAfterOnePass = 1.0;
+          nnServerParams.searchFactorAfterTwoPass = 1.0;
+
+          int maxNumThreadsForBatch = std::max(configNumSearchThreads,numNNServerThreads);
+          NNEvaluator* nnServerEval = createNNEval(maxNumThreadsForBatch, *sgf, modelFile, nnServerLogger, nnServerCfg, nnServerParams);
+          auto getNNServerDesiredBatchSize = [&](int currentNumThreads) {
+            (void)currentNumThreads;
+            return nnServerEval->getMaxBatchSize();
+          };
+
+          vector<int> numThreads = {configNumSearchThreads};
+          vector<PlayUtils::BenchmarkResults> nnServerResults = doFixedTuneThreads(
+            nnServerParams,*sgf,numPositionsPerGame,nnServerEval,nnServerLogger,secondsPerGameMove,numThreads,false,getNNServerDesiredBatchSize
+          );
+          testAssert(nnServerResults.size() == 1);
+          double nnEvalsPerSecond = getNNEvalsPerSecond(nnServerResults[0]);
+          cout << "numNNServerThreadsPerModel = " << numNNServerThreads
+               << ": nnEvals/s = " << Global::strprintf("%.2f",nnEvalsPerSecond)
+               << " visits/s = " << Global::strprintf("%.2f",nnServerResults[0].totalVisits / (nnServerResults[0].totalSeconds + 0.00001))
+               << " avgBatchSize = " << Global::strprintf("%.2f",nnServerResults[0].avgBatchSize)
+               << endl;
+
+          if(nnEvalsPerSecond > bestNNEvalsPerSecond) {
+            bestNNEvalsPerSecond = nnEvalsPerSecond;
+            bestNumNNServerThreads = numNNServerThreads;
+          }
+
+          delete nnServerEval;
+        }
+
+        configNumNNServerThreadsPerModel = bestNumNNServerThreads;
+        cout << "Using " << configNumNNServerThreadsPerModel
+             << " numNNServerThreadsPerModel based on nnEvals/s!" << endl;
+      }
+    }
+#endif
   }
 
   updateConfigContents();
