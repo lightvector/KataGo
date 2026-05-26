@@ -265,12 +265,17 @@ searchFactorWhenWinningThreshold = 0.95
 # Maximum number of positions to send to a single GPU at once. The default
 # value is roughly equal to numSearchThreads, but can be specified manually
 # if running out of memory, or using multiple GPUs that expect to share work.
-# nnMaxBatchSize = <integer>
+$$NN_MAX_BATCH_SIZE
 #
 # Number of neural net server threads per model. Usually this is the number of
 # GPUs, but genconfig may tune this higher to run multiple backend contexts on
 # the same GPU when that improves nnEvals/s.
 # numNNServerThreadsPerModel = 1
+#
+# TensorRT users who repeatedly run genconfig or benchmark with the same
+# model/GPU/batch settings may greatly reduce startup time by building with
+# CMake option -DUSE_CACHE_TENSORRT_PLAN=1. This is not recommended for
+# distributed clients, which update models frequently.
 
 # Controls the neural network cache size, which is the primary RAM/memory use.
 # KataGo will cache up to (2 ** nnCacheSizePowerOfTwo) many neural net
@@ -471,6 +476,7 @@ string GTPConfig::makeConfig(
   double maxTime,
   double maxPonderTime,
   const std::vector<int>& deviceIdxs,
+  int nnMaxBatchSize,
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerOfTwo,
   int numNNServerThreadsPerModel,
@@ -525,6 +531,8 @@ string GTPConfig::makeConfig(
   else                                 replace("$$PONDERING", "ponderingEnabled = true\n# maxTimePondering = 60.0");
 
   replace("$$NUM_SEARCH_THREADS", Global::intToString(numSearchThreads));
+  if(nnMaxBatchSize > 0) replace("$$NN_MAX_BATCH_SIZE", "nnMaxBatchSize = " + Global::intToString(nnMaxBatchSize));
+  else replace("$$NN_MAX_BATCH_SIZE", "# nnMaxBatchSize = <integer>");
   replace("$$NN_CACHE_SIZE_POWER_OF_TWO", Global::intToString(nnCacheSizePowerOfTwo));
   replace("$$NN_MUTEX_POOL_SIZE_POWER_OF_TWO", Global::intToString(nnMutexPoolSizePowerOfTwo));
 

@@ -18,7 +18,8 @@
 
 using namespace std;
 
-static NNEvaluator* createNNEval(int maxNumThreads, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params);
+static NNEvaluator* createNNEval(int expectedConcurrentEvals, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params);
+static NNEvaluator* createNNEvalWithBatchSize(int expectedConcurrentEvals, int defaultMaxBatchSize, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params);
 
 static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   const SearchParams& params,
@@ -51,6 +52,20 @@ static const int64_t defaultMaxVisits = 800;
 static constexpr double defaultSecondsPerGameMove = 5.0;
 static const int ternarySearchInitialMax = 32;
 
+static int getDefaultMaxBatchSize(int expectedConcurrentEvals) {
+  return std::max(8,((expectedConcurrentEvals+3)/4)*4);
+}
+
+static void addUniqueInt(vector<int>& values, int value) {
+  if(value <= 0 || value > 65536)
+    return;
+  for(int x: values) {
+    if(x == value)
+      return;
+  }
+  values.push_back(value);
+}
+
 static vector<int> getNNServerThreadsToTest(int baseNumNNServerThreads) {
   testAssert(baseNumNNServerThreads >= 1);
   vector<int> ret;
@@ -62,6 +77,20 @@ static vector<int> getNNServerThreadsToTest(int baseNumNNServerThreads) {
       break;
     ret.push_back(numThreads);
   }
+  return ret;
+}
+
+static vector<int> getNNMaxBatchSizesToTest(int numSearchThreads) {
+  testAssert(numSearchThreads >= 1);
+  const int defaultMaxBatchSize = getDefaultMaxBatchSize(numSearchThreads);
+  vector<int> ret;
+  const int fixedCandidates[] = {8,16,32,64};
+  for(int batchSize: fixedCandidates)
+    addUniqueInt(ret,batchSize);
+  if(defaultMaxBatchSize >= 128)
+    addUniqueInt(ret,128);
+  addUniqueInt(ret,defaultMaxBatchSize);
+  sort(ret.begin(),ret.end());
   return ret;
 }
 
@@ -274,6 +303,7 @@ int MainCmds::benchmark(const vector<string>& args) {
   cout << "Your GTP config is currently set to trtUseFP16 = " << nnEval->getUsingFP16Mode().toString() << endl;
   if(nnEval->getUsingFP16Mode() == enabled_t::False)
     cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080) setting this to true may give a large performance boost." << endl;
+  cout << "For repeated TensorRT benchmark or genconfig runs with the same model/GPU/batch size, building with -DUSE_CACHE_TENSORRT_PLAN=1 can greatly reduce startup time." << endl;
 #endif
 #ifdef USE_METAL_BACKEND
   cout << "You are currently using the Metal version of KataGo." << endl;
@@ -338,10 +368,11 @@ static void warmStartNNEval(const CompactSgf& sgf, Logger& logger, const SearchP
   delete bot;
 }
 
-static NNEvaluator* createNNEval(int maxNumThreads, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
-  int expectedConcurrentEvals = maxNumThreads;
-  const int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
+static NNEvaluator* createNNEval(int expectedConcurrentEvals, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
+  return createNNEvalWithBatchSize(expectedConcurrentEvals,getDefaultMaxBatchSize(expectedConcurrentEvals),sgf,modelFile,logger,cfg,params);
+}
 
+static NNEvaluator* createNNEvalWithBatchSize(int expectedConcurrentEvals, int defaultMaxBatchSize, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
   Rand seedRand;
 
 #ifdef USE_EIGEN_BACKEND
@@ -650,6 +681,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   vector<int> configDeviceIdxs;
   int configNNCacheSizePowerOfTwo = 20;
   int configNNMutexPoolSizePowerOfTwo = 16;
+  int configNNMaxBatchSize = -1;
   int configNumNNServerThreadsPerModel = 1;
   int configNumSearchThreads = 6;
 
@@ -847,11 +879,14 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   if(FileUtils::exists(outputFile)) {
     int oldConfigNumSearchThreads = -1;
     int oldConfigNumNNServerThreadsPerModel = -1;
+    int oldConfigNNMaxBatchSize = -1;
     try {
       ConfigParser oldCfg(outputFile);
       oldConfigNumSearchThreads = oldCfg.getInt("numSearchThreads",1,4096);
       if(oldCfg.contains("numNNServerThreadsPerModel"))
         oldConfigNumNNServerThreadsPerModel = oldCfg.getInt("numNNServerThreadsPerModel",1,1024);
+      if(oldCfg.contains("nnMaxBatchSize"))
+        oldConfigNNMaxBatchSize = oldCfg.getInt("nnMaxBatchSize",1,65536);
     }
     catch(const StringError&) {
       cout << "NOTE: Overwritten config does not specify numSearchThreads or otherwise could not be parsed." << endl;
@@ -868,6 +903,8 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
         configNumSearchThreads = oldConfigNumSearchThreads;
         if(oldConfigNumNNServerThreadsPerModel > 0)
           configNumNNServerThreadsPerModel = oldConfigNumNNServerThreadsPerModel;
+        if(oldConfigNNMaxBatchSize > 0)
+          configNNMaxBatchSize = oldConfigNNMaxBatchSize;
       }
     }
   }
@@ -881,6 +918,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
       configMaxTime,
       configMaxPonderTime,
       configDeviceIdxs,
+      configNNMaxBatchSize,
       configNNCacheSizePowerOfTwo,
       configNNMutexPoolSizePowerOfTwo,
       configNumNNServerThreadsPerModel,
@@ -998,6 +1036,10 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     nnEval = NULL;
 
 #ifndef USE_EIGEN_BACKEND
+#ifdef USE_TENSORRT_BACKEND
+    cout << "Tip: For repeated TensorRT genconfig runs on the same model/GPU/batch size, a build with -DUSE_CACHE_TENSORRT_PLAN=1 can make startup much faster." << endl;
+#endif
+
     {
       int baseNumNNServerThreads = configDeviceIdxs.size() > 0 ? (int)configDeviceIdxs.size() : 1;
       vector<int> numNNServerThreadsToTest = getNNServerThreadsToTest(baseNumNNServerThreads);
@@ -1058,6 +1100,85 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
         configNumNNServerThreadsPerModel = bestNumNNServerThreads;
         cout << "Using " << configNumNNServerThreadsPerModel
              << " numNNServerThreadsPerModel based on nnEvals/s!" << endl;
+      }
+    }
+
+    {
+      vector<int> nnMaxBatchSizesToTest = getNNMaxBatchSizesToTest(configNumSearchThreads);
+
+      if(nnMaxBatchSizesToTest.size() > 1) {
+        cout << endl;
+        cout << "=========================================================================" << endl;
+        cout << "TUNING NEURAL NET MAX BATCH SIZE NOW" << endl;
+        cout << "Tuning nnMaxBatchSize using nnEvals/s at "
+             << configNumSearchThreads << " numSearchThreads and "
+             << configNumNNServerThreadsPerModel << " numNNServerThreadsPerModel." << endl;
+
+        int bestNNMaxBatchSize = getDefaultMaxBatchSize(configNumSearchThreads);
+        double bestNNEvalsPerSecond = -1.0;
+
+        for(int nnMaxBatchSize: nnMaxBatchSizesToTest) {
+          configNNMaxBatchSize = nnMaxBatchSize;
+          updateConfigContents();
+
+          double nnEvalsPerSecond = -1.0;
+          double visitsPerSecond = -1.0;
+          double avgBatchSize = -1.0;
+          NNEvaluator* batchEval = NULL;
+
+          try {
+            istringstream batchInConfig(configFileContents);
+            ConfigParser batchCfg(batchInConfig);
+            Logger batchLogger(&batchCfg, logToStdOut);
+            Setup::initializeSession(batchCfg);
+
+            SearchParams batchParams = Setup::loadSingleParams(batchCfg,Setup::SETUP_FOR_BENCHMARK);
+            batchParams.maxVisits = maxVisits;
+            batchParams.maxPlayouts = maxVisits;
+            batchParams.maxTime = 1e20;
+            batchParams.searchFactorAfterOnePass = 1.0;
+            batchParams.searchFactorAfterTwoPass = 1.0;
+
+            int expectedConcurrentEvals = std::max(configNumSearchThreads,configNumNNServerThreadsPerModel);
+            batchEval = createNNEvalWithBatchSize(expectedConcurrentEvals, nnMaxBatchSize, *sgf, modelFile, batchLogger, batchCfg, batchParams);
+            auto getBatchDesiredBatchSize = [&](int currentNumThreads) {
+              (void)currentNumThreads;
+              return batchEval->getMaxBatchSize();
+            };
+
+            vector<int> numThreads = {configNumSearchThreads};
+            vector<PlayUtils::BenchmarkResults> batchResults = doFixedTuneThreads(
+              batchParams,*sgf,numPositionsPerGame,batchEval,batchLogger,secondsPerGameMove,numThreads,false,getBatchDesiredBatchSize
+            );
+            testAssert(batchResults.size() == 1);
+
+            nnEvalsPerSecond = getNNEvalsPerSecond(batchResults[0]);
+            visitsPerSecond = batchResults[0].totalVisits / (batchResults[0].totalSeconds + 0.00001);
+            avgBatchSize = batchResults[0].avgBatchSize;
+
+            if(nnEvalsPerSecond > bestNNEvalsPerSecond) {
+              bestNNEvalsPerSecond = nnEvalsPerSecond;
+              bestNNMaxBatchSize = nnMaxBatchSize;
+            }
+          }
+          catch(const StringError& e) {
+            cout << "nnMaxBatchSize = " << nnMaxBatchSize << " failed: " << e.what() << endl;
+          }
+
+          delete batchEval;
+
+          if(nnEvalsPerSecond >= 0.0) {
+            cout << "nnMaxBatchSize = " << nnMaxBatchSize
+                 << ": nnEvals/s = " << Global::strprintf("%.2f",nnEvalsPerSecond)
+                 << " visits/s = " << Global::strprintf("%.2f",visitsPerSecond)
+                 << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
+                 << endl;
+          }
+        }
+
+        configNNMaxBatchSize = bestNNMaxBatchSize;
+        cout << "Using " << configNNMaxBatchSize
+             << " nnMaxBatchSize based on nnEvals/s!" << endl;
       }
     }
 #endif
