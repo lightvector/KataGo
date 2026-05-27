@@ -73,6 +73,7 @@ GTAGS
 
 cpp/external/httplib/cpp-httplib/
 cpp/external/nlohmann_json/nlohmann_json
+cpp/external/onnxruntime-win-x64-openvino
 gtp.cfg
 katago_contribute/
 tmpsgf/

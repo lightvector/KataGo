@@ -52,6 +52,7 @@ namespace MainCmds {
   int genposesfromselfplayinit(const std::vector<std::string>& args);
 
   int printclockinfo(const std::vector<std::string>& args);
+  int exportonnx(const std::vector<std::string>& args);
   int sampleinitializations(const std::vector<std::string>& args);
   int evalrandominits(const std::vector<std::string>& args);
   int searchentropyanalysis(const std::vector<std::string>& args);
