@@ -22,9 +22,11 @@ static NNEvaluator* startNNEval(
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   bool debugSkipNeuralNet = modelFile == "/dev/null";
-  const string openCLTunerFile = "";
   const string homeDataDirOverride = "";
-  bool openCLReTunePerBoardSize = false;
+  ConfigParser cfg;
+  //NHWC layout is no longer a generic NNEvaluator option; only the CUDA backend reads it (off cfg).
+  //Route the test's useNHWC param into a cudaUseNHWC override so it still drives the CUDA layout.
+  cfg.overrideKey("cudaUseNHWC", useNHWC ? "true" : "false");
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
 
@@ -42,17 +44,15 @@ static NNEvaluator* startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
-    openCLTunerFile,
     homeDataDirOverride,
-    openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
-    useNHWC ? enabled_t::True : enabled_t::False,
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
     seed,
     nnRandomize,
     defaultSymmetry,
-    false
+    false,
+    cfg
   );
 
   nnEval->spawnServerThreads();

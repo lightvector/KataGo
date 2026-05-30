@@ -91,17 +91,16 @@ class NNEvaluator {
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerofTwo,
     bool debugSkipNeuralNet,
-    const std::string& openCLTunerFile,
     const std::string& homeDataDirOverride,
-    bool openCLReTunePerBoardSize,
     enabled_t useFP16Mode,
-    enabled_t useNHWCMode,
     int numThreads,
     const std::vector<int>& gpuIdxByServerThread,
     const std::string& randSeed,
     bool doRandomize,
     int defaultSymmetry,
-    bool disableWarmup
+    bool disableWarmup,
+    // Consulted by the compute backend for its own custom options; not stored.
+    ConfigParser& cfg
   );
   ~NNEvaluator();
 
@@ -127,7 +126,6 @@ class NNEvaluator {
   int getModelVersion() const;
   double getTrunkSpatialConvDepth() const;
   enabled_t getUsingFP16Mode() const;
-  enabled_t getUsingNHWCMode() const;
 
   // Check if the loaded neural net supports shorttermError fields
   bool supportsShorttermError() const;
@@ -217,7 +215,6 @@ class NNEvaluator {
   const int policySize;
   const bool inputsUseNHWC;
   const enabled_t usingFP16Mode;
-  const enabled_t usingNHWCMode;
   int numThreads;
   std::vector<int> gpuIdxByServerThread;
   const std::string randSeed;

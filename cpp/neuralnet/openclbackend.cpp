@@ -30,7 +30,7 @@ using half_t = half_float::half;
 
   When using FP16...
   - Every "spatial" tensor is in FP16.
-  -- So, the NHWC tensors for the trunk, and the NHW tensor for the mask are FP16.
+  -- So, the NCHW tensors for the trunk, and the NHW tensor for the mask are FP16.
   - Additionally, batch norm scales and biases are in FP16.
   - But everything else is NOT in FP16. In particular:
   -- The initial matmul for the global features are FP32
@@ -398,7 +398,6 @@ struct ComputeContext {
   const int nnXLen;
   const int nnYLen;
   const enabled_t usingFP16Mode;
-  const enabled_t usingNHWCMode;
 
   DevicesContext* devicesContext;
   std::map<cl_device_id,CompiledPrograms*> compiledProgramsByDeviceId;
@@ -415,13 +414,11 @@ struct ComputeContext {
     int nnX,
     int nnY,
     enabled_t useFP16Mode,
-    enabled_t useNHWCMode,
     const std::function<OpenCLTuneParams(const string&,int)>& getParamsForDeviceName
   ) :
     nnXLen(nnX),
     nnYLen(nnY),
-    usingFP16Mode(useFP16Mode),
-    usingNHWCMode(useNHWCMode)
+    usingFP16Mode(useFP16Mode)
   {
     vector<DeviceInfo> allDeviceInfos = DeviceInfo::getAllDeviceInfosOnSystem(logger);
     devicesContext = new DevicesContext(allDeviceInfos,gIdxs,logger,liveProfilingKernels);
@@ -485,11 +482,9 @@ static ComputeContext* createComputeContextForTesting(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  bool useFP16,
-  bool useNHWC
+  bool useFP16
 ) {
   enabled_t useFP16Mode = useFP16 ? enabled_t::True : enabled_t::False;
-  enabled_t useNHWCMode = useNHWC ? enabled_t::True : enabled_t::False;
 
   std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
     [](const string& name, int gpuIdxForTuning) noexcept {
@@ -500,7 +495,7 @@ static ComputeContext* createComputeContextForTesting(
     //params.shouldUseFP16TensorCores = true;
     return params;
   };
-  return new ComputeContext(gpuIdxs,logger,nnXLen,nnYLen,useFP16Mode,useNHWCMode,getParamsForDeviceName);
+  return new ComputeContext(gpuIdxs,logger,nnXLen,nnYLen,useFP16Mode,getParamsForDeviceName);
 }
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -508,15 +503,21 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel
+  const LoadedModel* loadedModel,
+  ConfigParser& cfg
 ) {
   if(gpuIdxs.size() <= 0)
     throw StringError("NeuralNet::createComputeContext - specified no gpus to use");
+
+  // OpenCL-specific options, read directly off of the config.
+  string openCLTunerFile;
+  if(cfg.contains("openclTunerFile"))
+    openCLTunerFile = cfg.getString("openclTunerFile");
+  bool openCLReTunePerBoardSize = false;
+  if(cfg.contains("openclReTunePerBoardSize"))
+    openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
 
   std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
     [&openCLTunerFile,&homeDataDirOverride,openCLReTunePerBoardSize,logger,nnXLen,nnYLen,useFP16Mode,loadedModel](const string& name, int gpuIdxForTuning) {
@@ -534,7 +535,7 @@ ComputeContext* NeuralNet::createComputeContext(
       full
     );
   };
-  return new ComputeContext(gpuIdxs,logger,nnXLen,nnYLen,useFP16Mode,useNHWCMode,getParamsForDeviceName);
+  return new ComputeContext(gpuIdxs,logger,nnXLen,nnYLen,useFP16Mode,getParamsForDeviceName);
 }
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
@@ -615,7 +616,7 @@ struct ComputeHandleInternal {
   vector<std::function<void()>> profileCallbacks;
   vector<std::function<void()>> profileResultPrinters;
 
-  ComputeHandleInternal(ComputeContext* ctx, int gpuIdx, bool inputsUseNHWC, bool useNHWC) {
+  ComputeHandleInternal(ComputeContext* ctx, int gpuIdx, bool inputsUseNHWC) {
     computeContext = ctx;
     attnKernelSet = nullptr;
 
@@ -632,8 +633,6 @@ struct ComputeHandleInternal {
 
     if(inputsUseNHWC != false)
       throw StringError("OpenCL backend: inputsUseNHWC = false required, other configurations not supported");
-    if(useNHWC != false)
-      throw StringError("OpenCL backend: useNHWC = false required, other configurations not supported");
 
     usingFP16Storage = progs->usingFP16Storage;
     usingFP16Compute = progs->usingFP16Compute;
@@ -3724,8 +3723,7 @@ struct ComputeHandle {
     policySize(NNPos::getPolicySize(nnXLen, nnYLen)),
     inputsUseNHWC(inputsUseNHWC_)
   {
-    bool useNHWC = context->usingNHWCMode == enabled_t::True ? true : false;
-    handle = std::make_unique<ComputeHandleInternal>(context, gpuIdx, inputsUseNHWC, useNHWC);
+    handle = std::make_unique<ComputeHandleInternal>(context, gpuIdx, inputsUseNHWC);
     model = std::make_unique<Model>(handle.get(), &(loadedModel->modelDesc), maxBatchSize, nnXLen, nnYLen);
     scratch = std::make_unique<ScratchBuffers>(handle.get(), maxBatchSize);
     buffers = std::make_unique<Buffers>(handle.get(), *model);
@@ -4315,8 +4313,8 @@ bool NeuralNet::testEvaluateConv(
   if(useNHWC != false)
     return false;
 
-  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC);
+  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC);
 
   ConvLayer* layer = new ConvLayer(handle, desc, nnXLen, nnYLen, useFP16);
 
@@ -4368,8 +4366,8 @@ bool NeuralNet::testEvaluateBatchNorm(
   if(useNHWC != false)
     return false;
 
-  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC);
+  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC);
 
   ActivationLayerDesc actDesc;
   actDesc.activation = ACTIVATION_IDENTITY;
@@ -4420,8 +4418,8 @@ bool NeuralNet::testEvaluateResidualBlock(
   if(useNHWC != false)
     return false;
 
-  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC);
+  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC);
 
   ResidualBlock* layer = new ResidualBlock(handle, desc, nnXLen, nnYLen, useFP16);
 
@@ -4479,8 +4477,8 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   if(useNHWC != false)
     return false;
 
-  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16, useNHWC);
-  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC, useNHWC);
+  ComputeContext* context = createComputeContextForTesting({gpuIdx}, logger, nnXLen, nnYLen, useFP16);
+  ComputeHandleInternal* handle = new ComputeHandleInternal(context, gpuIdx, useNHWC);
 
   GlobalPoolingResidualBlock* layer = new GlobalPoolingResidualBlock(handle, desc, nnXLen, nnYLen, useFP16);
 

@@ -2322,27 +2322,21 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel
+  const LoadedModel* loadedModel,
+  ConfigParser& cfg
 ) {
   (void)gpuIdxs;
   (void)logger;
-  (void)openCLTunerFile;
   (void)homeDataDirOverride;
-  (void)openCLReTunePerBoardSize;
   (void)loadedModel;
+  (void)cfg;
 
   bool useFP16 = useFP16Mode == enabled_t::True ? true : false;
-  bool useNHWC = useNHWCMode == enabled_t::False ? false : true;
 
   if(useFP16)
     throw StringError("Eigen backend: useFP16 = true not supported");
-  if(!useNHWC)
-    throw StringError("Eigen backend: useNHWC = false not supported");
 
   ComputeContext* context = new ComputeContext(nnXLen,nnYLen);
   return context;

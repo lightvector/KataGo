@@ -50,22 +50,16 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel) {
+  const LoadedModel* loadedModel,
+  ConfigParser& cfg) {
   (void)gpuIdxs;
   (void)logger;
-  (void)openCLTunerFile;
-  (void)openCLReTunePerBoardSize;
   (void)loadedModel;
+  (void)cfg;
 
-  if(useNHWCMode == enabled_t::True) {
-    throw StringError("TensorRT backend: useNHWC = false required, other configurations not supported");
-  }
-
+  // TensorRT backend always uses NCHW.
   ComputeContext* context = new ComputeContext();
   context->nnXLen = nnXLen;
   context->nnYLen = nnYLen;

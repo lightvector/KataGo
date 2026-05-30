@@ -388,7 +388,7 @@ const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
 
 //------------------------------------------------------------------------------
 
-ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode):
+ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode):
 metalComputeContext(createMetalComputeContext(nnX, nnY)) {
   this->useFP16Mode = useFP16Mode;
 
@@ -396,11 +396,7 @@ metalComputeContext(createMetalComputeContext(nnX, nnY)) {
   (useFP16Mode == enabled_t::False) ? SWEnable::False() :
   (useFP16Mode == enabled_t::True) ? SWEnable::True() :
   SWEnable::Auto();
-
-  SWEnable swUseNHWCMode =
-  (useNHWCMode == enabled_t::False) ? SWEnable::False() :
-  (useNHWCMode == enabled_t::True) ? SWEnable::True() :
-  SWEnable::Auto();
+  (void)swUseFP16Mode;
 }
 
 ComputeContext::~ComputeContext() {
@@ -415,12 +411,10 @@ ComputeContext::~ComputeContext() {
  * @param logger (Unused) A pointer to a Logger object to use for logging messages.
  * @param nnXLen The width of the input tensor.
  * @param nnYLen The height of the input tensor.
- * @param openCLTunerFile (Unused) The name of a file containing OpenCL tuning parameters.
  * @param homeDataDirOverride (Unused) A directory to use for storing data.
- * @param openCLReTunePerBoardSize (Unused) Whether to re-tune OpenCL parameters for different board sizes.
  * @param useFP16Mode Whether to use half-precision floating-point (FP16) mode for computations.
- * @param useNHWCMode Whether to use the NHWC format for input tensors.
  * @param loadedModel (Unused) A pointer to a LoadedModel object containing a loaded neural network model.
+ * @param cfg (Unused) Config the backend may consult for custom options.
  * @return A pointer to the ComputeContext object created.
  */
 ComputeContext* NeuralNet::createComputeContext(
@@ -428,21 +422,18 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel) {
+  const LoadedModel* loadedModel,
+  ConfigParser& cfg) {
 
   (void)gpuIdxs;
   (void)logger;
-  (void)openCLTunerFile;
   (void)homeDataDirOverride;
-  (void)openCLReTunePerBoardSize;
   (void)loadedModel;
+  (void)cfg;
 
-  return new ComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
+  return new ComputeContext(nnXLen, nnYLen, useFP16Mode);
 }
 
 /**

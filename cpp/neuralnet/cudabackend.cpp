@@ -298,13 +298,16 @@ struct CudaHandles {
   // Set while warming up (see NNEvaluator::maybeWarmupComputeHandle). When true, a failed cudnn SDPA
   // execution is tolerated (fall back to the custom kernel); when false such a failure is fatal.
   bool isWarmup;
+  // If true, the cudnn graph SDPA path is skipped entirely and the custom attention kernel is always used.
+  bool cudaDisableGraphSDPA;
 
   CudaHandles(int major, int minor)
     : majorComputeCapability(major),
       minorComputeCapability(minor),
       sdpaCache(std::make_unique<SDPAGraphCache>()),
       logger(NULL),
-      isWarmup(false)
+      isWarmup(false),
+      cudaDisableGraphSDPA(false)
   {
     CUBLAS_ERR("CudaHandles",cublasCreate(&cublas));
     CUDNN_ERR("CudaHandles",cudnnCreate(&cudnn));
@@ -1730,7 +1733,7 @@ struct TransformerAttentionBlock {
     bool usedSDPA = false;
 #if KATAGO_CUDA_HAS_SDPA
     SDPAGraphCache* sdpaCache = cudaHandles->sdpaCache.get();
-    if(usingFP16 && sdpaCache != NULL) {
+    if(usingFP16 && sdpaCache != NULL && !cudaHandles->cudaDisableGraphSDPA) {
       bool hasMask = (maskBuf != NULL);
       SDPAGraphKey sdpaKey = {numHeads, numKVHeads, qHeadDim, vHeadDim, seqLen, batchSize, hasMask, usingFP16};
       auto plan = sdpaCache->getOrBuildPlan(cudaHandles->cudnn, sdpaKey, cudaHandles->logger, cudaHandles->isWarmup);
@@ -3176,6 +3179,8 @@ struct ComputeContext {
   int nnYLen;
   enabled_t useFP16Mode;
   enabled_t useNHWCMode;
+  // If true, skip the cudnn graph SDPA path entirely and always use the custom attention kernel.
+  bool cudaDisableGraphSDPA;
 };
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -3183,25 +3188,26 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel
+  const LoadedModel* loadedModel,
+  ConfigParser& cfg
 ) {
   (void)gpuIdxs;
   (void)logger;
-  (void)openCLTunerFile;
   (void)homeDataDirOverride;
-  (void)openCLReTunePerBoardSize;
   (void)loadedModel;
 
   ComputeContext* context = new ComputeContext();
   context->nnXLen = nnXLen;
   context->nnYLen = nnYLen;
   context->useFP16Mode = useFP16Mode;
-  context->useNHWCMode = useNHWCMode;
+
+  // NHWC layout is a CUDA-specific option read directly off of cfg. Auto means "NHWC if FP16" (see below).
+  context->useNHWCMode =
+    cfg.contains("cudaUseNHWC") ? cfg.getEnabled("cudaUseNHWC") : enabled_t::Auto;
+  context->cudaDisableGraphSDPA =
+    cfg.contains("cudaDisableGraphSDPA") ? cfg.getBool("cudaDisableGraphSDPA") : false;
   return context;
 }
 
@@ -3333,6 +3339,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
     context,loadedModel,prop.major,prop.minor,maxBatchSize,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
   );
   gpuHandle->cudaHandles->logger = logger;
+  gpuHandle->cudaHandles->cudaDisableGraphSDPA = context->cudaDisableGraphSDPA;
   return gpuHandle;
 }
 

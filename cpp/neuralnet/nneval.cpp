@@ -58,17 +58,15 @@ NNEvaluator::NNEvaluator(
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerofTwo,
   bool skipNeuralNet,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
   int numThr,
   const vector<int>& gpuIdxByServerThr,
   const string& rSeed,
   bool doRandomize,
   int defaultSymmetry,
-  bool disableWarmup_
+  bool disableWarmup_,
+  ConfigParser& cfg
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -78,7 +76,6 @@ NNEvaluator::NNEvaluator(
    policySize(NNPos::getPolicySize(xLen,yLen)),
    inputsUseNHWC(iUseNHWC),
    usingFP16Mode(useFP16Mode),
-   usingNHWCMode(useNHWCMode),
    numThreads(numThr),
    gpuIdxByServerThread(gpuIdxByServerThr),
    randSeed(rSeed),
@@ -145,8 +142,8 @@ NNEvaluator::NNEvaluator(
     postProcessParams = desc.postProcessParams;
     computeContext = NeuralNet::createComputeContext(
       gpuIdxs,logger,nnXLen,nnYLen,
-      openCLTunerFile,homeDataDirOverride,openCLReTunePerBoardSize,
-      usingFP16Mode,usingNHWCMode,loadedModel
+      homeDataDirOverride,
+      usingFP16Mode,loadedModel,cfg
     );
   }
   else {
@@ -293,9 +290,6 @@ double NNEvaluator::getTrunkSpatialConvDepth() const {
 
 enabled_t NNEvaluator::getUsingFP16Mode() const {
   return usingFP16Mode;
-}
-enabled_t NNEvaluator::getUsingNHWCMode() const {
-  return usingNHWCMode;
 }
 
 bool NNEvaluator::supportsShorttermError() const {
