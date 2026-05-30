@@ -80,6 +80,15 @@ private:
                     const std::vector<float>& data,
                     const std::vector<int64_t>& shape);
 
+    // addConstOp registers a NON-OWNING view into `data` (see WeightEntry), so the
+    // backing storage must outlive serialization. Binding a temporary here would
+    // dangle. Deleted so such calls fail to compile; use addOwnedConstOp for
+    // derived/temporary tensors that KataGoOps should own instead.
+    void addConstOp(CoreML::Specification::MILSpec::Block* block,
+                    const std::string& name,
+                    std::vector<float>&& data,
+                    const std::vector<int64_t>& shape) = delete;
+
     void addOwnedConstOp(CoreML::Specification::MILSpec::Block* block,
                          const std::string& name,
                          std::vector<float>&& data,
