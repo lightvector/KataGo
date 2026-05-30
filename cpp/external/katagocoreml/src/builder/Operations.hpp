@@ -63,6 +63,13 @@ public:
                                const std::vector<int64_t>& shape,
                                bool is_fp32 = false);
 
+    /// The stored WeightEntry is a non-owning view into `data`, so a temporary
+    /// would leave it dangling. Deleted to reject such calls at compile time;
+    /// use registerOwnedWeight for tensors KataGoOps should own.
+    std::string registerWeight(const std::string& name,
+                               std::vector<float>&& data,
+                               const std::vector<int64_t>& shape) = delete;
+
     /// Register a derived/temporary weight; KataGoOps takes ownership so the
     /// view stays valid through serialization.
     std::string registerOwnedWeight(const std::string& name,
