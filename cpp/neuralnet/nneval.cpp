@@ -281,6 +281,9 @@ int NNEvaluator::getNNXLen() const {
 int NNEvaluator::getNNYLen() const {
   return nnYLen;
 }
+bool NNEvaluator::getRequireExactNNLen() const {
+  return requireExactNNLen;
+}
 int NNEvaluator::getModelVersion() const {
   return modelVersion;
 }

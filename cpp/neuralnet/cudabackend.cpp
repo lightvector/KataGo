@@ -300,6 +300,9 @@ struct CudaHandles {
   bool isWarmup;
   // If true, the cudnn graph SDPA path is skipped entirely and the custom attention kernel is always used.
   bool cudaDisableGraphSDPA;
+  // Set once we have logged that cudaDisableGraphSDPA actually suppressed an otherwise-usable SDPA path,
+  // so the message is emitted only a single time per handle rather than on every attention block.
+  bool loggedGraphSDPADisabled;
 
   CudaHandles(int major, int minor)
     : majorComputeCapability(major),
@@ -307,7 +310,8 @@ struct CudaHandles {
       sdpaCache(std::make_unique<SDPAGraphCache>()),
       logger(NULL),
       isWarmup(false),
-      cudaDisableGraphSDPA(false)
+      cudaDisableGraphSDPA(false),
+      loggedGraphSDPADisabled(false)
   {
     CUBLAS_ERR("CudaHandles",cublasCreate(&cublas));
     CUDNN_ERR("CudaHandles",cudnnCreate(&cudnn));
@@ -1733,6 +1737,14 @@ struct TransformerAttentionBlock {
     bool usedSDPA = false;
 #if KATAGO_CUDA_HAS_SDPA
     SDPAGraphCache* sdpaCache = cudaHandles->sdpaCache.get();
+    // Report once if cudaDisableGraphSDPA is the only reason we are not taking the cudnn graph SDPA path,
+    // i.e. FP16 and a cache are available so SDPA would otherwise have been used.
+    if(usingFP16 && sdpaCache != NULL && cudaHandles->cudaDisableGraphSDPA && !cudaHandles->loggedGraphSDPADisabled) {
+      cudaHandles->loggedGraphSDPADisabled = true;
+      if(cudaHandles->logger != NULL)
+        cudaHandles->logger->write(
+          "Cuda backend: cudaDisableGraphSDPA is set, using the custom attention kernel instead of the cudnn graph SDPA path that would otherwise have been used");
+    }
     if(usingFP16 && sdpaCache != NULL && !cudaHandles->cudaDisableGraphSDPA) {
       bool hasMask = (maskBuf != NULL);
       SDPAGraphKey sdpaKey = {numHeads, numKVHeads, qHeadDim, vHeadDim, seqLen, batchSize, hasMask, usingFP16};
@@ -1914,6 +1926,8 @@ struct TransformerFFNBlock {
       SizedBuf<void*> gateBuf(scratch->allocator, (size_t)ffnChannels * matBatchSize * bytesPerElt);
       linearGate->apply(cudaHandles, scratch, matBatchSize, trunkScratchBuf, gateBuf.buf, workspaceBuf, workspaceBytes);
 
+      if((size_t)ffnChannels * (size_t)matBatchSize >= (size_t)2147483647)
+        throw StringError("CUDA SwiGLU element count exceeds the 32-bit index limit used by the kernel");
       int totalSize = (int)((size_t)ffnChannels * matBatchSize);
       if(!usingFP16) {
         customCudaSwiGLU((const float*)ffnBuf.buf, (const float*)gateBuf.buf, (float*)ffnBuf.buf, totalSize);
@@ -3316,6 +3330,17 @@ ComputeHandle* NeuralNet::createComputeHandle(
       useFP16 = true;
     if(context->useNHWCMode == enabled_t::True || (context->useNHWCMode == enabled_t::Auto && useFP16))
       useNHWC = true;
+  }
+
+  //The CUDA transformer block implementation only supports NHWC (its channel projections, RoPE, and
+  //attention all assume the channel dim is contiguous per position). Unlike convnets, NHWC here is not
+  //tied to FP16/tensor-cores - the transformer kernels have FP32 paths too. So for transformer models
+  //force NHWC regardless of the FP16/NHWC-mode decision above, otherwise FP32 (or NHWC=false) would hit
+  //the "NCHW layout not supported" throw. No effect on convnets.
+  if(!useNHWC && loadedModel->modelDesc.trunk.hasAnyTransformerBlocks()) {
+    if(context->useNHWCMode == enabled_t::False)
+      throw StringError("CUDA backend: transformer models require NHWC, but cudaUseNHWC=false was set");
+    useNHWC = true;
   }
 
   if(logger != NULL) {

@@ -385,17 +385,28 @@ ActivationLayerDesc& ActivationLayerDesc::operator=(ActivationLayerDesc&& other)
   return *this;
 }
 
+// Scale 8 means that all activations in the relevant part of the net are divided by 8
+// and we adapt all functions so that the computations we do are equivalent in this space.
+// In particular, since we are transforming any input activation x => x/8, if the output
+// of a layer was f(x) before, it now needs to be f(x)/8.
+// Therefore, we need an activation function g s.t. g(x/8) => f(x)/8, or equivalently
+// g(x) = f(8x)/8
 void ActivationLayerDesc::applyScale8ToReduceActivations() {
   if(activation == ACTIVATION_IDENTITY) {
-    // pass
+    // pass. If f(x) = x, then g(x) = f(8x)/8 = 8x/8 = x = f(x)
   }
   else if(activation == ACTIVATION_RELU) {
-    // pass
+    // pass. If f(x) = max(x,0), then g(x) = f(8x)/8 = max(8x,0)/8 = max(x,0) = f(x)
   }
   else if(activation == ACTIVATION_MISH) {
+    // If f(x) = x * tanh(softplus(x)) then g(x) = f(8x)/8 = 8x * tanh(softplus(8x)) / 8 = x * tanh(softplus(8x))
+    // So we need a new activation function "mish_scale8" which we define as mish_scale8(x) = x * tanh(softplus(8x))
     activation = ACTIVATION_MISH_SCALE8;
   }
   else if(activation == ACTIVATION_SILU) {
+    // Not implemented right now, but if we wanted to, it would be:
+    // If f(x) = x / (1+exp(-x)) then g(x) = f(8x)/8 = 8x / (1+exp(-8x)) / 8 = x / (1+exp(-8x))
+    // So we need a new activation function "silu_scale8" which we define as silu_scale8(x) = x / (1+exp(-8x))
     throw StringError("applyScale8ToReduceActivations not supported for ACTIVATION_SILU");
   }
   else if(activation == ACTIVATION_MISH_SCALE8) {
@@ -790,10 +801,14 @@ double NestedBottleneckResidualBlockDesc::getSpatialConvDepth() const {
       depth += desc->getSpatialConvDepth();
     }
     else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
-      // Transformer attention blocks don't contribute spatial conv depth
+      // Transformer blocks don't technically contribute spatial conv depth but in practice
+      // we count it as 2 for things that want to get a crude idea of model size.
+      depth += 2;
     }
     else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
-      // Transformer FFN blocks don't contribute spatial conv depth
+      // Transformer blocks don't technically contribute spatial conv depth but in practice
+      // we count it as 2 for things that want to get a crude idea of model size.
+      depth += 2;
     }
     else {
       ASSERT_UNREACHABLE;
@@ -1015,6 +1030,11 @@ TransformerAttentionDesc::TransformerAttentionDesc(istream& in, bool binaryFloat
     throw StringError(name + ": numHeads must be divisible by numKVHeads");
   if(qHeadDim < 1 || vHeadDim < 1)
     throw StringError(name + ": head dims must be positive");
+  // RoPE rotates interleaved channel pairs (2p, 2p+1), so qHeadDim must be even when rope is used.
+  // All backends assume this (qHeadDim/2 pairs); guard here so an odd qHeadDim fails loudly at load
+  // rather than silently dropping the last channel.
+  if(useRope && qHeadDim % 2 != 0)
+    throw StringError(name + Global::strprintf(": qHeadDim (%d) must be even when RoPE is used", qHeadDim));
 
   preLN = TransformerRMSNormDesc(in, binaryFloats);
   qProj = MatMulLayerDesc(in, binaryFloats);
@@ -1615,10 +1635,14 @@ double TrunkDesc::getSpatialConvDepth() const {
       depth += desc->getSpatialConvDepth();
     }
     else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
-      // Transformer attention blocks don't contribute spatial conv depth
+      // Transformer blocks don't technically contribute spatial conv depth but in practice
+      // we count it as 2 for things that want to get a crude idea of model size.
+      depth += 2;
     }
     else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
-      // Transformer FFN blocks don't contribute spatial conv depth
+      // Transformer blocks don't technically contribute spatial conv depth but in practice
+      // we count it as 2 for things that want to get a crude idea of model size.
+      depth += 2;
     }
     else {
       ASSERT_UNREACHABLE;
@@ -2047,6 +2071,16 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
   in >> modelVersion;
   if(in.fail())
     throw StringError("Model failed to parse name or version. Is this a valid model file? You probably specified the wrong file.");
+
+  // The model name is embedded into on-disk cache filenames (e.g. the TensorRT plan cache), so keep
+  // it short and restricted to filesystem-safe characters: at most 96 chars of [A-Za-z0-9_-].
+  if(name.size() > 96)
+    throw StringError("Model name is too long (" + Global::intToString((int)name.size()) + " chars, max 96): " + name);
+  for(char c : name) {
+    bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+    if(!ok)
+      throw StringError("Model name must contain only alphanumeric characters, underscores, and hyphens: " + name);
+  }
 
   if(modelVersion < 0)
     throw StringError("This neural net has an invalid version, you probably specified the wrong file. Supposed model version: " + Global::intToString(modelVersion));

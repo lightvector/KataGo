@@ -1576,6 +1576,48 @@ b7c96h3tfrs = {
     "v2_size":64,
 }
 
+# Like b7c96h3tfrs but with grouped-query attention (6 query heads, 3 KV heads), explicit
+# query/key head dim 32 and value head dim 16, and learnable RoPE.
+b7c96h6kv3qk32v16tflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":96,
+    "mid_num_channels":96,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":256,
+    "transformer_heads":6,
+    "transformer_kv_heads":3,
+    "attention_query_head_dim":32,
+    "attention_value_head_dim":16,
+    "learnable_rope":True,
+    "block_kind": [
+        ["attn1","attnrope"],
+        ["ffn1","ffnsg"],
+        ["attn2","attnrope"],
+        ["ffn2","ffnsg"],
+        ["attn3","attnrope"],
+        ["ffn3","ffnsg"],
+        ["attn4","attnrope"],
+        ["ffn4","ffnsg"],
+        ["attn5","attnrope"],
+        ["ffn5","ffnsg"],
+        ["attn6","attnrope"],
+        ["ffn6","ffnsg"],
+        ["attn7","attnrope"],
+        ["ffn7","ffnsg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":48,
+    "num_scorebeliefs":4,
+    "v2_size":64,
+}
+
 b8c96h3tfrs = {
     "version":15,
     "norm_kind":"fixup",
@@ -3052,6 +3094,7 @@ base_config_of_name = {
     # Standard transformer models
     "b5c48h3tfr": b5c48h3tfr,  # Small, no swiglu, 16 channels per head, 5 blocks
     "b7c96h3tfrs": b7c96h3tfrs,
+    "b7c96h6kv3qk32v16tflrs": b7c96h6kv3qk32v16tflrs,
     "b8c96h3tfrs": b8c96h3tfrs,
     "b11c96h3tfrs": b11c96h3tfrs,
     "b14c192h6tfrs": b14c192h6tfrs,

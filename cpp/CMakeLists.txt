@@ -421,6 +421,31 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   endif()
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   target_link_libraries(katago CUDA::cudart_static ${TENSORRT_LIBRARY})
+
+  # The TensorRT backend builds networks by emitting an ONNX ModelProto and handing the
+  # serialized bytes to TensorRT's nvonnxparser. We compile the vendored ONNX schema
+  # (cpp/external/onnx/onnx.proto) with protoc and link against our own protobuf; this is
+  # symbol-isolated from the protobuf that TensorRT statically links into nvonnxparser, so
+  # there is no ABI contact between the two (the handoff is serialized bytes).
+  find_package(Protobuf REQUIRED)
+  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
+  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
+  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
+  # protoc-generated code is not ours to lint; silence its warnings to keep build output readable.
+  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
+  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
+  # Generated onnx.pb.h lands in the build dir; let backend code include it.
+  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
+
+  # nvonnxparser ships alongside nvinfer in the TensorRT lib dir. Derive that dir from the
+  # already-resolved TENSORRT_LIBRARY so this works both with TENSORRT_ROOT_DIR and with a
+  # directly-specified -DTENSORRT_LIBRARY
+  get_filename_component(TENSORRT_LIBRARY_DIR "${TENSORRT_LIBRARY}" DIRECTORY)
+  find_library(TENSORRT_ONNXPARSER_LIBRARY NAMES nvonnxparser nvonnxparser_${TENSORRT_VERSION_MAJOR} HINTS ${TENSORRT_ROOT_DIR} ${TENSORRT_LIBRARY_DIR} PATH_SUFFIXES lib)
+  if(NOT TENSORRT_ONNXPARSER_LIBRARY)
+    message(FATAL_ERROR "${ColorBoldRed} libnvonnxparser was NOT found in the TensorRT lib dir. ${ColorReset}")
+  endif()
+  target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY} ${Protobuf_LIBRARIES})
 elseif(USE_BACKEND STREQUAL "METAL")
   target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
   target_link_libraries(katago KataGoSwift)

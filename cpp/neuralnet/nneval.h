@@ -123,6 +123,7 @@ class NNEvaluator {
   std::set<int> getGpuIdxs() const;
   int getNNXLen() const;
   int getNNYLen() const;
+  bool getRequireExactNNLen() const;
   int getModelVersion() const;
   double getTrunkSpatialConvDepth() const;
   enabled_t getUsingFP16Mode() const;

@@ -522,8 +522,14 @@ ComputeContext* NeuralNet::createComputeContext(
   std::function<OpenCLTuneParams(const string&,int)> getParamsForDeviceName =
     [&openCLTunerFile,&homeDataDirOverride,openCLReTunePerBoardSize,logger,nnXLen,nnYLen,useFP16Mode,loadedModel](const string& name, int gpuIdxForTuning) {
     bool full = false;
-    enabled_t testFP16Mode = useFP16Mode;
-    enabled_t testFP16StorageMode = useFP16Mode;
+    // Always PROBE fp16 capabilities (Auto), regardless of the requested precision. The tuning file
+    // records hardware capabilities (canUseFP16*), which must not depend on whether this particular
+    // run wants fp16: otherwise a first-ever tune under useFP16=false would cache "no FP16 support"
+    // and a later fp16 run would silently inherit it (no tensor cores). Whether fp16 is actually USED
+    // is decided separately by the backend from the requested useFP16Mode (see ComputeContext ctor),
+    // so an fp32 run still runs fp32 even though the file now records fp16 as available.
+    enabled_t testFP16Mode = enabled_t::Auto;
+    enabled_t testFP16StorageMode = enabled_t::Auto;
     enabled_t testFP16ComputeMode = enabled_t::Auto;
     enabled_t testFP16TensorCoresMode = enabled_t::Auto;
 
@@ -811,6 +817,19 @@ static void addChannelBiases(ComputeHandleInternal* handle, cl_mem src, cl_mem b
   CHECK_ERR(err);
   MAYBE_PROFILE("AddChannelBiases");
   MAYBE_FREE_EVENT;
+}
+
+// The elementwise/transformer OpenCL kernels index buffers with 32-bit int. For every size KataGo
+// runs the total element count fits comfortably, but guard the product so an extreme size fails
+// loudly rather than silently overflowing into out-of-bounds access. Computes in int64, throws if it
+// would not fit in a positive int, and returns it as int for the kernel arg.
+static int checkedTotalElts(int64_t a, int64_t b, int64_t c, const char* whatKernel) {
+  int64_t total = a * b * c;
+  if(total >= (int64_t)2147483647)
+    throw StringError(
+      std::string(whatKernel) + ": total element count " + Global::int64ToString(total) +
+      " exceeds the 32-bit index limit used by this kernel");
+  return (int)total;
 }
 
 static void addPointWise(ComputeHandleInternal* handle, cl_mem acc, cl_mem value, int totalSize) {
@@ -1785,7 +1804,7 @@ struct ResidualBlock {
     SizedBuf<cl_mem> mid(scratch->allocator, scratch->getBufSizeXY(normActConv1.outChannels));
     normActConv1.apply(handle,batchSize,trunk,trunkScratch,mid.buf,mask,convWorkspace,convWorkspace2);
     normActConv2.apply(handle,batchSize,mid.buf,mid.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
-    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * paddedNNXYLen);
+    addPointWise(handle, trunk, trunkScratch, checkedTotalElts(batchSize, normActConv2.outChannels, paddedNNXYLen, "OpenCL addPointWise"));
   }
 
   ResidualBlock() = delete;
@@ -1873,7 +1892,7 @@ struct GlobalPoolingResidualBlock {
     //   cout << tmp[i] << endl;
 
     normActConv2.apply(handle,batchSize,regularOut.buf,regularOut.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
-    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * paddedNNXYLen);
+    addPointWise(handle, trunk, trunkScratch, checkedTotalElts(batchSize, normActConv2.outChannels, paddedNNXYLen, "OpenCL addPointWise"));
   }
 
   GlobalPoolingResidualBlock() = delete;
@@ -1975,7 +1994,7 @@ struct NestedBottleneckResidualBlock {
     normActConv1.apply(handle,batchSize,trunk,trunkScratch,mid.buf,mask,convWorkspace,convWorkspace2);
     blocks.apply(handle,scratch,batchSize,mid.buf,midScratch.buf,mask,maskSum,convWorkspace,convWorkspace2);
     normActConv2.apply(handle,batchSize,mid.buf,mid.buf,trunkScratch,mask,convWorkspace,convWorkspace2);
-    addPointWise(handle, trunk, trunkScratch, batchSize * normActConv2.outChannels * paddedNNXYLen);
+    addPointWise(handle, trunk, trunkScratch, checkedTotalElts(batchSize, normActConv2.outChannels, paddedNNXYLen, "OpenCL addPointWise"));
   }
 
   NestedBottleneckResidualBlock() = delete;
@@ -1992,6 +2011,7 @@ struct TransformerRMSNormLayer {
   const float epsilon;
   const int paddedNNXYLen;
   cl_mem weightBuf;
+  cl_mem zeroBetaBuf;  // TransformerRMSNorm has no bias; the shared kernel takes a per-channel beta, so pass zeros.
 
   TransformerRMSNormLayer(
     ComputeHandleInternal* handle,
@@ -2006,10 +2026,13 @@ struct TransformerRMSNormLayer {
     vector<float> weight = desc->weight;
     bool useFP16 = false;  // Keep weights in FP32
     weightBuf = createReadOnlyBuffer(handle, weight, useFP16);
+    vector<float> zeroBeta(numChannels, 0.0f);
+    zeroBetaBuf = createReadOnlyBuffer(handle, zeroBeta, useFP16);
   }
 
   ~TransformerRMSNormLayer() {
     clReleaseMemObject(weightBuf);
+    clReleaseMemObject(zeroBetaBuf);
   }
 
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask) const {
@@ -2018,11 +2041,12 @@ struct TransformerRMSNormLayer {
     clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
     clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
     clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&weightBuf);
-    clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mask);
-    clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
-    clSetKernelArg(kernel, 5, sizeof(int), (const void *)&numChannels);
-    clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
-    clSetKernelArg(kernel, 7, sizeof(float), (const void *)&epsilon);
+    clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&zeroBetaBuf);
+    clSetKernelArg(kernel, 4, sizeof(cl_mem), (const void *)&mask);
+    clSetKernelArg(kernel, 5, sizeof(int), (const void *)&batchSize);
+    clSetKernelArg(kernel, 6, sizeof(int), (const void *)&numChannels);
+    clSetKernelArg(kernel, 7, sizeof(int), (const void *)&paddedNNXYLen);
+    clSetKernelArg(kernel, 8, sizeof(float), (const void *)&epsilon);
 
     cl_int err;
     int wgCSize = handle->tuneParams.transformerRMSNorm.WG_C_SIZE;
@@ -2124,15 +2148,19 @@ struct RMSNormLayer {
   void apply(ComputeHandleInternal* handle, int batchSize, cl_mem input, cl_mem output, cl_mem mask, cl_mem maskSum, cl_mem convWorkspace, cl_mem convWorkspace2) const {
     if(!spatial) {
       // Non-spatial per-channel RMSNorm: normalize per position across channels, then apply gamma+beta.
+      // Gamma and beta are both per-channel; the kernel applies both, indexing by channel so
+      // it stays correct for every batch element (NOT batchSize*numChannels, which would read
+      // past the end of the per-channel beta buffer for batch elements beyond the first).
       cl_kernel kernel = handle->transformerRMSNormKernel;
       clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
       clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
       clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&gammaBuf);
-      clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&mask);
-      clSetKernelArg(kernel, 4, sizeof(int), (const void *)&batchSize);
-      clSetKernelArg(kernel, 5, sizeof(int), (const void *)&numChannels);
-      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&paddedNNXYLen);
-      clSetKernelArg(kernel, 7, sizeof(float), (const void *)&epsilon);
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&betaBuf);
+      clSetKernelArg(kernel, 4, sizeof(cl_mem), (const void *)&mask);
+      clSetKernelArg(kernel, 5, sizeof(int), (const void *)&batchSize);
+      clSetKernelArg(kernel, 6, sizeof(int), (const void *)&numChannels);
+      clSetKernelArg(kernel, 7, sizeof(int), (const void *)&paddedNNXYLen);
+      clSetKernelArg(kernel, 8, sizeof(float), (const void *)&epsilon);
 
       cl_int err;
       int wgCSize = handle->tuneParams.transformerRMSNorm.WG_C_SIZE;
@@ -2148,9 +2176,6 @@ struct RMSNormLayer {
       CHECK_ERR(err);
       MAYBE_PROFILE("RMSNorm");
       MAYBE_FREE_EVENT;
-
-      // Add beta bias
-      addChannelBiases(handle, output, betaBuf, batchSize * numChannels, paddedNNXYLen);
     }
     else {
       // Spatial RMSNorm: deterministic three-kernel approach
@@ -2650,7 +2675,7 @@ struct TransformerAttentionBlock {
 #endif
 
     // Step 6: Add residual: trunk += trunkScratch
-    addPointWise(handle, trunk, trunkScratch, batchSize * inChannels * paddedNNXYLen);
+    addPointWise(handle, trunk, trunkScratch, checkedTotalElts(batchSize, inChannels, paddedNNXYLen, "OpenCL addPointWise"));
 
 #ifdef DEBUG_INTERMEDIATE_VALUES
     debugPrint3D("OPENCL Attn residual", handle, trunk, batchSize, inChannels, mask);
@@ -2699,9 +2724,10 @@ struct TransformerFFNBlock {
     linear1(handle, &desc->linear1),
     linear2(handle, &desc->linear2)
   {
-    if(useSwiGLU) {
-      linearGate = std::make_unique<TransformerMatMulLayer>(handle, &desc->linearGate);
+    if(!useSwiGLU) {
+      throw StringError("Non-SwiGLU transformer FFN is not yet supported in OpenCL backend");
     }
+    linearGate = std::make_unique<TransformerMatMulLayer>(handle, &desc->linearGate);
   }
 
   ~TransformerFFNBlock() {
@@ -2730,26 +2756,22 @@ struct TransformerFFNBlock {
     SizedBuf<cl_mem> ffnBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
     linear1.apply(handle, batchSize, trunkScratch, ffnBuf.buf, mask, convWorkspace);
 
-    if(useSwiGLU) {
-      // Step 2b: gate projection
-      SizedBuf<cl_mem> gateBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
-      linearGate->apply(handle, batchSize, trunkScratch, gateBuf.buf, mask, convWorkspace);
+    // Non-SwiGLU FFN is rejected at construction, so useSwiGLU is guaranteed true here.
+    // Step 2b: gate projection
+    SizedBuf<cl_mem> gateBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
+    linearGate->apply(handle, batchSize, trunkScratch, gateBuf.buf, mask, convWorkspace);
 
-      // Step 3: SwiGLU: output = SiLU(linear1) * gate (no mask needed, inputs already masked)
-      int totalSize = batchSize * ffnChannels * paddedNNXYLen;
-      cl_int err;
-      MAYBE_EVENT;
-      err = OpenCLHelpers::doSwiGLU(
-        handle->transformerSwiGLUKernel, handle->commandQueue, handle->tuneParams,
-        ffnBuf.buf, gateBuf.buf, ffnBuf.buf, totalSize, MAYBE_EVENTREF
-      );
-      CHECK_ERR(err);
-      MAYBE_PROFILE("SwiGLU");
-      MAYBE_FREE_EVENT;
-    }
-    else {
-      throw StringError("Non-SwiGLU transformer FFN is not yet supported in OpenCL backend");
-    }
+    // Step 3: SwiGLU: output = SiLU(linear1) * gate (no mask needed, inputs already masked)
+    int totalSize = checkedTotalElts(batchSize, ffnChannels, paddedNNXYLen, "OpenCL SwiGLU");
+    cl_int err;
+    MAYBE_EVENT;
+    err = OpenCLHelpers::doSwiGLU(
+      handle->transformerSwiGLUKernel, handle->commandQueue, handle->tuneParams,
+      ffnBuf.buf, gateBuf.buf, ffnBuf.buf, totalSize, MAYBE_EVENTREF
+    );
+    CHECK_ERR(err);
+    MAYBE_PROFILE("SwiGLU");
+    MAYBE_FREE_EVENT;
 
 #ifdef DEBUG_INTERMEDIATE_VALUES
     debugPrint3D("OPENCL FFN SwiGLU", handle, ffnBuf.buf, batchSize, ffnChannels, mask);
@@ -2759,7 +2781,7 @@ struct TransformerFFNBlock {
     linear2.apply(handle, batchSize, ffnBuf.buf, trunkScratch, mask, convWorkspace);
 
     // Step 5: Add residual
-    addPointWise(handle, trunk, trunkScratch, batchSize * numChannels * paddedNNXYLen);
+    addPointWise(handle, trunk, trunkScratch, checkedTotalElts(batchSize, numChannels, paddedNNXYLen, "OpenCL addPointWise"));
 
 #ifdef DEBUG_INTERMEDIATE_VALUES
     debugPrint3D("OPENCL FFN residual", handle, trunk, batchSize, numChannels, mask);

@@ -5102,8 +5102,13 @@ void OpenCLTuner::autoTuneEverything(
   enabled_t useFP16Mode,
   bool full
 ) {
-  const enabled_t testFP16Mode = useFP16Mode;
-  const enabled_t testFP16StorageMode = useFP16Mode;
+  // Always probe fp16 capabilities (Auto), regardless of the requested precision: the tuning file
+  // records hardware capabilities, which must not depend on this run's fp16 preference. Otherwise a
+  // tune performed under useFP16=false caches "no FP16 support" and later fp16 runs silently inherit
+  // it. Actual fp16 usage is gated separately by the backend from useFP16Mode. (void useFP16Mode.)
+  (void)useFP16Mode;
+  const enabled_t testFP16Mode = enabled_t::Auto;
+  const enabled_t testFP16StorageMode = enabled_t::Auto;
   const enabled_t testFP16ComputeMode = enabled_t::Auto;
   const enabled_t testFP16TensorCoresMode = enabled_t::Auto;
 

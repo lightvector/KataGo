@@ -1093,7 +1093,8 @@ string OpenCLKernels::transformerRMSNorm = OpenCLKernels::common + R"%%(
 __kernel void transformerRMSNorm(
   __global realstore* input,   // N, C, H, W (NCHW)
   __global realstore* output,  // N, C, H, W (NCHW)
-  __global float* weight,      // C
+  __global float* weight,      // C (gamma)
+  __global float* beta,        // C (per-channel bias added after scaling)
   __global realstore* mask,    // N, H, W
   int nSize,
   int cSize,
@@ -1142,7 +1143,7 @@ __kernel void transformerRMSNorm(
       int c = base + dc;
       if(c < cSize && xy < xySize) {
         float val = LOAD(input, (n * cSize + c) * xySize + xy);
-        float result = val * rms * weight[c] * maskVal;
+        float result = (val * rms * weight[c] + beta[c]) * maskVal;
         STORE(output, (n * cSize + c) * xySize + xy, floatToReal(result));
       }
     }

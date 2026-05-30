@@ -2216,10 +2216,13 @@ class TransformerAttentionBlock(torch.nn.Module):
                     s_y = (s_idx // self.pos_len).float()  # row
                     s_x = (s_idx % self.pos_len).float()   # col
                 cos_k, sin_k = compute_learnable_rope_cos_sin(s_x, s_y, self.rope_freqs)  # ([B,] S, H_kv, P)
-                # For Q: expand kv head freqs to match num_heads if using multi-query attention
+                # For Q: expand kv head freqs to match num_heads if using grouped-query attention.
+                # cos_k/sin_k are ([B,] S, H_kv, P); repeat each kv head n_rep times along a new axis
+                # inserted right after the head axis, so query head h maps to kv head h // n_rep --
+                # matching the k/v expansion below and the C++ backends' kvh = h * num_kv / num_heads.
                 if self.n_rep > 1:
-                    cos_q = cos_k.unsqueeze(-3).expand(*cos_k.shape[:-2], self.n_rep, cos_k.shape[-1]).reshape(*cos_k.shape[:-2], self.num_heads, -1)
-                    sin_q = sin_k.unsqueeze(-3).expand(*sin_k.shape[:-2], self.n_rep, sin_k.shape[-1]).reshape(*sin_k.shape[:-2], self.num_heads, -1)
+                    cos_q = cos_k.unsqueeze(-2).expand(*cos_k.shape[:-1], self.n_rep, cos_k.shape[-1]).reshape(*cos_k.shape[:-2], self.num_heads, -1)
+                    sin_q = sin_k.unsqueeze(-2).expand(*sin_k.shape[:-1], self.n_rep, sin_k.shape[-1]).reshape(*sin_k.shape[:-2], self.num_heads, -1)
                 else:
                     cos_q = cos_k
                     sin_q = sin_k
