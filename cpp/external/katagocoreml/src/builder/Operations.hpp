@@ -5,15 +5,18 @@
 
 #include "../types/KataGoTypes.hpp"
 #include <cmath>
+#include <deque>
 #include <string>
 #include <vector>
 
 namespace katagocoreml {
 
-/// Weight entry for blob file storage
+/// Weight entry for blob file storage. `data`/`count` are a NON-OWNING view into
+/// the live KataGoModelDesc (or into KataGoOps::m_owned for derived tensors).
 struct WeightEntry {
     std::string name;
-    std::vector<float> data;
+    const float* data = nullptr;
+    size_t count = 0;
     std::vector<int64_t> shape;
     uint64_t blob_offset = 0;  // Set during serialization
     bool is_fp32 = false;      // Store as FP32 (set when the const was declared FP32, e.g. inside an
@@ -53,17 +56,24 @@ public:
     /// Get precomputed mask constants
     const MaskConstants& getMaskConstants() const { return m_mask_constants; }
 
-    /// Register a weight tensor and return its reference name. is_fp32 marks it for FP32 storage.
+    /// Register a weight that lives in the model (stored as a non-owning view).
+    /// is_fp32 marks it for FP32 storage.
     std::string registerWeight(const std::string& name,
                                const std::vector<float>& data,
                                const std::vector<int64_t>& shape,
                                bool is_fp32 = false);
 
-    /// Get all registered weights
-    const std::vector<WeightEntry>& getWeights() const { return m_weights; }
+    /// Register a derived/temporary weight; KataGoOps takes ownership so the
+    /// view stays valid through serialization.
+    std::string registerOwnedWeight(const std::string& name,
+                                    std::vector<float>&& data,
+                                    const std::vector<int64_t>& shape);
 
-    /// Clear all registered weights
-    void clearWeights() { m_weights.clear(); }
+    /// Get all registered weights (mutable; serialization sets blob_offset)
+    std::vector<WeightEntry>& getWeightsMutable() { return m_weights; }
+
+    /// Clear all registered weights (and their owned backing buffers)
+    void clearWeights() { m_weights.clear(); m_owned.clear(); }
 
     /// Generate unique operation name
     std::string genOpName(const std::string& prefix);
@@ -74,6 +84,7 @@ private:
     bool m_optimize_identity_mask;
     MaskConstants m_mask_constants;
     std::vector<WeightEntry> m_weights;
+    std::deque<std::vector<float>> m_owned;
     int m_op_counter = 0;
 };
 

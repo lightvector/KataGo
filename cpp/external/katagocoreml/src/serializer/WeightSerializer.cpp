@@ -21,18 +21,18 @@ size_t WeightSerializer::serialize(std::vector<WeightEntry>& weights,
         const bool store_fp16 = use_fp16 && !entry.is_fp32;
         if (store_fp16) {
             // Convert FP32 weights to FP16
-            std::vector<MILBlob::Fp16> fp16_data(entry.data.size());
-            for (size_t i = 0; i < entry.data.size(); ++i) {
+            std::vector<MILBlob::Fp16> fp16_data(entry.count);
+            for (size_t i = 0; i < entry.count; ++i) {
                 fp16_data[i] = MILBlob::Fp16::FromFloat(entry.data[i]);
             }
             MILBlob::Util::Span<const MILBlob::Fp16> span(fp16_data.data(), fp16_data.size());
             entry.blob_offset = writer.WriteData(span);
-            total_bytes += entry.data.size() * sizeof(MILBlob::Fp16);
+            total_bytes += entry.count * sizeof(MILBlob::Fp16);
         } else {
             // Write FP32 weights
-            MILBlob::Util::Span<const float> span(entry.data.data(), entry.data.size());
+            MILBlob::Util::Span<const float> span(entry.data, entry.count);
             entry.blob_offset = writer.WriteData(span);
-            total_bytes += entry.data.size() * sizeof(float);
+            total_bytes += entry.count * sizeof(float);
         }
     }
 

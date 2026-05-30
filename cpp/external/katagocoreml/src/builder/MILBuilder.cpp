@@ -269,11 +269,26 @@ void MILBuilder::addConstOp(CoreML::Specification::MILSpec::Block* block,
                             const std::string& name,
                             const std::vector<float>& data,
                             const std::vector<int64_t>& shape) {
-    // Register weight for blob storage. Mark FP32 storage when this const is declared FP32 (e.g.
-    // inside an FP32 sub-region of an otherwise-FP16 model) so storage matches the declared type.
+    // Register weight for blob storage (non-owning view into the model). Mark FP32 storage when this
+    // const is declared FP32 (e.g. inside an FP32 sub-region of an otherwise-FP16 model) so storage
+    // matches the declared type.
     m_ops.registerWeight(name, data, shape,
                          m_weight_dtype == CoreML::Specification::MILSpec::DataType::FLOAT32);
+    emitConstOp(block, name, shape);
+}
 
+void MILBuilder::addOwnedConstOp(CoreML::Specification::MILSpec::Block* block,
+                                 const std::string& name,
+                                 std::vector<float>&& data,
+                                 const std::vector<int64_t>& shape) {
+    // Register derived weight; KataGoOps takes ownership of the buffer
+    m_ops.registerOwnedWeight(name, std::move(data), shape);
+    emitConstOp(block, name, shape);
+}
+
+void MILBuilder::emitConstOp(CoreML::Specification::MILSpec::Block* block,
+                             const std::string& name,
+                             const std::vector<int64_t>& shape) {
     // Add const operation
     auto* op = block->add_operations();
     op->set_type("const");
@@ -1175,7 +1190,7 @@ void MILBuilder::addLinearOp(CoreML::Specification::MILSpec::Block* block,
 
     // Add transposed weight constant with shape [out_channels, in_channels]
     std::vector<int64_t> transposed_shape = {static_cast<int64_t>(out_ch), static_cast<int64_t>(in_ch)};
-    addConstOp(block, weight_name, transposed_weights, transposed_shape);
+    addOwnedConstOp(block, weight_name, std::move(transposed_weights), transposed_shape);
 
     // Add bias constant
     std::vector<int64_t> bias_shape = {static_cast<int64_t>(bias.num_channels)};
