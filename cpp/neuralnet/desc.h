@@ -389,6 +389,11 @@ struct ModelDesc {
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
   Rules getSupportedRules(const Rules& desiredRules, bool& supported) const;
 
+  // Frees all weight arrays (conv/matmul/bias/batchnorm), keeping scalar shape
+  // metadata intact. Safe once weights are no longer needed (e.g. CoreML/ANE
+  // inference, which reads weights from the compiled .mlmodelc).
+  void releaseWeights();
+
 };
 
 #endif  // #ifndef DESC_H

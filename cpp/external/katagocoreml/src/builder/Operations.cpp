@@ -17,9 +17,25 @@ std::string KataGoOps::registerWeight(const std::string& name,
                                        const std::vector<int64_t>& shape) {
     WeightEntry entry;
     entry.name = name;
-    entry.data = data;
+    entry.data = data.data();
+    entry.count = data.size();
     entry.shape = shape;
-    entry.blob_offset = 0;  // Will be set during serialization
+    entry.blob_offset = 0;
+    m_weights.push_back(std::move(entry));
+    return name;
+}
+
+std::string KataGoOps::registerOwnedWeight(const std::string& name,
+                                            std::vector<float>&& data,
+                                            const std::vector<int64_t>& shape) {
+    m_owned.push_back(std::move(data));
+    const std::vector<float>& stored = m_owned.back();
+    WeightEntry entry;
+    entry.name = name;
+    entry.data = stored.data();
+    entry.count = stored.size();
+    entry.shape = shape;
+    entry.blob_offset = 0;
     m_weights.push_back(std::move(entry));
     return name;
 }
