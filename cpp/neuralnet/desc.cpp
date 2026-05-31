@@ -2562,73 +2562,129 @@ void ModelDesc::applyScale8ToReduceActivations() {
   postProcessParams.outputScaleMultiplier *= 8.0f;
 }
 
-static void releaseVec(std::vector<float>& v) { std::vector<float>().swap(v); }
-
-static void releaseConv(ConvLayerDesc& c) { releaseVec(c.weights); }
-
-static void releaseBN(BatchNormLayerDesc& b) {
-  releaseVec(b.mean); releaseVec(b.variance); releaseVec(b.scale);
-  releaseVec(b.bias); releaseVec(b.mergedScale); releaseVec(b.mergedBias);
+void ConvLayerDesc::releaseWeights() {
+  std::vector<float>().swap(weights);
 }
 
-static void releaseMatMul(MatMulLayerDesc& m) { releaseVec(m.weights); }
-static void releaseMatBias(MatBiasLayerDesc& m) { releaseVec(m.weights); }
-
-static void releaseResidual(ResidualBlockDesc& b) {
-  releaseBN(b.preBN); releaseConv(b.regularConv);
-  releaseBN(b.midBN); releaseConv(b.finalConv);
+void BatchNormLayerDesc::releaseWeights() {
+  std::vector<float>().swap(mean);
+  std::vector<float>().swap(variance);
+  std::vector<float>().swap(scale);
+  std::vector<float>().swap(bias);
+  std::vector<float>().swap(mergedScale);
+  std::vector<float>().swap(mergedBias);
 }
 
-static void releaseGPool(GlobalPoolingResidualBlockDesc& b) {
-  releaseBN(b.preBN); releaseConv(b.regularConv); releaseConv(b.gpoolConv);
-  releaseBN(b.gpoolBN); releaseMatMul(b.gpoolToBiasMul);
-  releaseBN(b.midBN); releaseConv(b.finalConv);
+void MatMulLayerDesc::releaseWeights() {
+  std::vector<float>().swap(weights);
 }
 
-static void releaseBlocks(std::vector<std::pair<int, unique_ptr_void>>& blocks);
-
-static void releaseNested(NestedBottleneckResidualBlockDesc& b) {
-  releaseBN(b.preBN); releaseConv(b.preConv);
-  releaseBlocks(b.blocks);
-  releaseBN(b.postBN); releaseConv(b.postConv);
+void MatBiasLayerDesc::releaseWeights() {
+  std::vector<float>().swap(weights);
 }
 
-static void releaseBlocks(std::vector<std::pair<int, unique_ptr_void>>& blocks) {
-  for(size_t i = 0; i < blocks.size(); i++) {
-    if(blocks[i].first == ORDINARY_BLOCK_KIND)
-      releaseResidual(*(ResidualBlockDesc*)blocks[i].second.get());
-    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND)
-      releaseGPool(*(GlobalPoolingResidualBlockDesc*)blocks[i].second.get());
-    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND)
-      releaseNested(*(NestedBottleneckResidualBlockDesc*)blocks[i].second.get());
-    else
+void ResidualBlockDesc::releaseWeights() {
+  preBN.releaseWeights();
+  regularConv.releaseWeights();
+  midBN.releaseWeights();
+  finalConv.releaseWeights();
+}
+
+void GlobalPoolingResidualBlockDesc::releaseWeights() {
+  preBN.releaseWeights();
+  regularConv.releaseWeights();
+  gpoolConv.releaseWeights();
+  gpoolBN.releaseWeights();
+  gpoolToBiasMul.releaseWeights();
+  midBN.releaseWeights();
+  finalConv.releaseWeights();
+}
+
+void NestedBottleneckResidualBlockDesc::releaseWeights() {
+  preBN.releaseWeights();
+  preConv.releaseWeights();
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else {
       ASSERT_UNREACHABLE;
+    }
   }
+  postBN.releaseWeights();
+  postConv.releaseWeights();
 }
 
-static void releaseSGFEncoder(SGFMetadataEncoderDesc& e) {
-  releaseMatMul(e.mul1); releaseMatBias(e.bias1);
-  releaseMatMul(e.mul2); releaseMatBias(e.bias2);
-  releaseMatMul(e.mul3);
+void SGFMetadataEncoderDesc::releaseWeights() {
+  mul1.releaseWeights();
+  bias1.releaseWeights();
+  mul2.releaseWeights();
+  bias2.releaseWeights();
+  mul3.releaseWeights();
+}
+
+void TrunkDesc::releaseWeights() {
+  initialConv.releaseWeights();
+  initialMatMul.releaseWeights();
+  if(metaEncoderVersion > 0)
+    sgfMetadataEncoder.releaseWeights();
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  trunkTipBN.releaseWeights();
+}
+
+void PolicyHeadDesc::releaseWeights() {
+  p1Conv.releaseWeights();
+  g1Conv.releaseWeights();
+  g1BN.releaseWeights();
+  gpoolToBiasMul.releaseWeights();
+  p1BN.releaseWeights();
+  p2Conv.releaseWeights();
+  gpoolToPassMul.releaseWeights();
+  gpoolToPassBias.releaseWeights();
+  gpoolToPassMul2.releaseWeights();
+}
+
+void ValueHeadDesc::releaseWeights() {
+  v1Conv.releaseWeights();
+  v1BN.releaseWeights();
+  v2Mul.releaseWeights();
+  v2Bias.releaseWeights();
+  v3Mul.releaseWeights();
+  v3Bias.releaseWeights();
+  sv3Mul.releaseWeights();
+  sv3Bias.releaseWeights();
+  vOwnershipConv.releaseWeights();
 }
 
 void ModelDesc::releaseWeights() {
-  releaseConv(trunk.initialConv);
-  releaseMatMul(trunk.initialMatMul);
-  if(trunk.metaEncoderVersion > 0)
-    releaseSGFEncoder(trunk.sgfMetadataEncoder);
-  releaseBlocks(trunk.blocks);
-  releaseBN(trunk.trunkTipBN);
-  releaseConv(policyHead.p1Conv); releaseConv(policyHead.g1Conv);
-  releaseBN(policyHead.g1BN); releaseMatMul(policyHead.gpoolToBiasMul);
-  releaseBN(policyHead.p1BN); releaseConv(policyHead.p2Conv);
-  releaseMatMul(policyHead.gpoolToPassMul); releaseMatBias(policyHead.gpoolToPassBias);
-  releaseMatMul(policyHead.gpoolToPassMul2);
-  releaseConv(valueHead.v1Conv); releaseBN(valueHead.v1BN);
-  releaseMatMul(valueHead.v2Mul); releaseMatBias(valueHead.v2Bias);
-  releaseMatMul(valueHead.v3Mul); releaseMatBias(valueHead.v3Bias);
-  releaseMatMul(valueHead.sv3Mul); releaseMatBias(valueHead.sv3Bias);
-  releaseConv(valueHead.vOwnershipConv);
+  trunk.releaseWeights();
+  policyHead.releaseWeights();
+  valueHead.releaseWeights();
 }
 
 struct NonCopyingStreamBuf : public std::streambuf

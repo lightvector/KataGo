@@ -36,6 +36,8 @@ struct ConvLayerDesc {
   int64_t getNumParameters() const;
 
   void scaleOutputChannels(const std::vector<float>& scaling);
+
+  void releaseWeights();
 };
 
 struct BatchNormLayerDesc {
@@ -68,6 +70,8 @@ struct BatchNormLayerDesc {
   void extractChannelFactorsAbsLtOne(std::vector<float>& channelFactors);
   void extractChannelFactorsAbsLtOneWithInverses(std::vector<float>& channelFactors, std::vector<float>& invChannelFactors);
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ActivationLayerDesc {
@@ -105,6 +109,8 @@ struct MatMulLayerDesc {
   int64_t getNumParameters() const;
 
   void scaleOutputChannels(const std::vector<float>& scaling);
+
+  void releaseWeights();
 };
 
 struct MatBiasLayerDesc {
@@ -124,6 +130,8 @@ struct MatBiasLayerDesc {
   int64_t getNumParameters() const;
 
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ResidualBlockDesc {
@@ -150,6 +158,8 @@ struct ResidualBlockDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct GlobalPoolingResidualBlockDesc {
@@ -181,6 +191,8 @@ struct GlobalPoolingResidualBlockDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct NestedBottleneckResidualBlockDesc {
@@ -215,6 +227,8 @@ struct NestedBottleneckResidualBlockDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 // Trunk final normalization kind (stored in trunk header)
@@ -349,6 +363,7 @@ struct SGFMetadataEncoderDesc {
   SGFMetadataEncoderDesc& operator=(SGFMetadataEncoderDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 
@@ -397,6 +412,8 @@ struct TrunkDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct PolicyHeadDesc {
@@ -431,6 +448,8 @@ struct PolicyHeadDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ValueHeadDesc {
@@ -463,6 +482,8 @@ struct ValueHeadDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ModelPostProcessParams {
