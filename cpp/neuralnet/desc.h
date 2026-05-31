@@ -59,6 +59,7 @@ struct BatchNormLayerDesc {
 
   BatchNormLayerDesc& operator=(BatchNormLayerDesc&& other);
 
+  void computeMerged();
   void scaleInputChannels(const std::vector<float>& scaling);
   void extractChannelFactorsAbsLtOne(std::vector<float>& channelFactors);
   void extractChannelFactorsAbsLtOneWithInverses(std::vector<float>& channelFactors, std::vector<float>& invChannelFactors);

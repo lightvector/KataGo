@@ -1025,7 +1025,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
   std::vector<std::thread> threads;
   threads.reserve(numThreads);
   for(int i = 0; i < numThreads; i++) {
-    threads.emplace_back([this, &dirtyNodes, &mutexPool, visitedDoneValue, i]() {
+    threads.emplace_back([this, &dirtyNodes, &mutexPool, visitedDoneValue]() {
       Rand rand;
       bool allDirty = false;
       iterateDirtyNodesPostOrder(
@@ -1083,7 +1083,7 @@ void Book::recomputeMultiThreaded(const std::vector<SymBookNode>& newAndChangedN
 
   threads.clear();
   for(int i = 0; i < numThreads; i++) {
-    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts, i]() {
+    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts]() {
       Rand rand;
       iterateEntireBookPreOrder(
         [this, &mutexPool](BookNode* node) {
@@ -1142,7 +1142,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
   std::vector<std::thread> threads;
   threads.reserve(numThreads);
   for(int i = 0; i < numThreads; i++) {
-    threads.emplace_back([this, &mutexPool, visitedDoneValue, i]() {
+    threads.emplace_back([this, &mutexPool, visitedDoneValue]() {
       Rand rand;
       bool allDirty = true;
       iterateDirtyNodesPostOrder(
@@ -1200,7 +1200,7 @@ void Book::recomputeEverythingMultiThreaded(MutexPool& mutexPool, int numThreads
 
   threads.clear();
   for(int i = 0; i < numThreads; i++) {
-    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts, i]() {
+    threads.emplace_back([this, &mutexPool, visitedDoneValueForCosts]() {
       Rand rand;
       iterateEntireBookPreOrder(
         [this, &mutexPool](BookNode* node) {
@@ -2980,7 +2980,7 @@ int64_t Book::exportToHtmlDir(
   return numFilesWritten;
 }
 
-static const char BOARD_LINE_DELIMITER = '|';
+// static const char BOARD_LINE_DELIMITER = '|';
 
 static double roundDouble(double x, double invMinPrec) {
   return round(x * invMinPrec) / invMinPrec;

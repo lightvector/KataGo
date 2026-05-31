@@ -242,12 +242,7 @@ BatchNormLayerDesc::BatchNormLayerDesc(istream& in, bool binaryFloats) {
     throw StringError(
       name + ": bnlayer failed to parse expected number of batch norm mean, variance, bias, scale values");
 
-  mergedScale.resize(numChannels);
-  mergedBias.resize(numChannels);
-  for(int c = 0; c < numChannels; c++) {
-    mergedScale[c] = scale[c] / sqrt(variance[c] + epsilon);
-    mergedBias[c] = bias[c] - mergedScale[c] * mean[c];
-  }
+  computeMerged();
 }
 
 BatchNormLayerDesc::BatchNormLayerDesc(BatchNormLayerDesc&& other) {
@@ -269,6 +264,15 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
   return *this;
 }
 
+
+void BatchNormLayerDesc::computeMerged() {
+  mergedScale.resize(numChannels);
+  mergedBias.resize(numChannels);
+  for(int c = 0; c < numChannels; c++) {
+    mergedScale[c] = scale[c] / sqrt(variance[c] + epsilon);
+    mergedBias[c] = bias[c] - mergedScale[c] * mean[c];
+  }
+}
 
 void BatchNormLayerDesc::scaleInputChannels(const std::vector<float>& scaling) {
   testAssert(mergedScale.size() == numChannels);

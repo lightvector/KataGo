@@ -1015,7 +1015,7 @@ struct GTPEngine {
   ) {
     bool onMoveWasCalled = false;
     Loc genmoveMoveLoc = Board::NULL_LOC;
-    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled,this](Loc moveLoc, int searchId, Search* search) noexcept {
+    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled](Loc moveLoc, int searchId, Search* search) noexcept {
       (void)searchId;
       (void)search;
       onMoveWasCalled = true;
@@ -1967,7 +1967,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
     const double analysisWideRootNoise =
       config.contains("analysisWideRootNoise") ? config.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
-    const double analysisIgnorePreRootHistory =
+    const bool analysisIgnorePreRootHistory =
       config.contains("analysisIgnorePreRootHistory") ? config.getBool("analysisIgnorePreRootHistory") : Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY;
     const bool genmoveAntiMirror =
       config.contains("genmoveAntiMirror") ? config.getBool("genmoveAntiMirror") : config.contains("antiMirror") ? config.getBool("antiMirror") : true;
@@ -2213,7 +2213,7 @@ int MainCmds::gtp(const vector<string>& args) {
       }
     };
 
-    auto printGTPResponseNoHeader = [hasId,id,&logger,logAllGTPCommunication](const string& response, bool responseIsError) {
+    auto printGTPResponseNoHeader = [&logger,logAllGTPCommunication](const string& response, bool responseIsError) {
       //Postprocessing of response in the case where we already printed the "=" and a newline ahead of time via printGTPResponseHeader.
       if(!responseIsError) {
         cout << response << endl;

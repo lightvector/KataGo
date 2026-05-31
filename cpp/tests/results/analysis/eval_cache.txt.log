@@ -24,7 +24,7 @@ useEvalCache = true
 useGraphSearch = true
 
 : Analysis Engine starting...
-: KataGo v1.16.4
+: KataGo v1.16.5
 : nnRandSeed0 = analysisTest
 : After dedups: nnModelFile0 = tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz useFP16 false useNHWC false
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards

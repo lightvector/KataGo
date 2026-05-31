@@ -335,7 +335,7 @@ static void runAndUploadSingleGame(
         bool producedFile = false;
         gameTask.blackManager->withDataWriters(
           nnEvalBlack,
-          [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger,&shouldStopFunc,&posSample,&resultingFilename,&numDataRows,&producedFile](
+          [gameData,&resultingFilename,&numDataRows,&producedFile](
             TrainingDataWriter* tdataWriter, std::ofstream* sgfOut
           ) {
             (void)sgfOut;
@@ -784,7 +784,7 @@ int MainCmds::contribute(const vector<string>& args) {
 
   auto runGameLoop = [
     &logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,
-    &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
+    &numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
     &shouldStopFunc,&shouldStopGracefullyFunc,
     &shouldPause,
     &logGamesAsJson, &alwaysIncludeOwnership, &warnTaskUnusedKeys,

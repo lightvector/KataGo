@@ -2441,7 +2441,7 @@ int MainCmds::findbookbottlenecks(const vector<string>& args) {
 
       return cost;
     };
-    auto edgeCost = [&book,&group](ConstSymBookNode node, const BookMove& edgeMove) noexcept -> double {
+    auto edgeCost = [](ConstSymBookNode node, const BookMove& edgeMove) noexcept -> double {
       (void)node;
       (void)edgeMove;
       return 0.0;
