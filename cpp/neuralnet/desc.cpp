@@ -193,6 +193,10 @@ void ConvLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
   }
 }
 
+void ConvLayerDesc::releaseWeights() {
+  std::vector<float>().swap(weights);
+}
+
 //-----------------------------------------------------------------------------
 
 BatchNormLayerDesc::BatchNormLayerDesc() : numChannels(0), epsilon(0.001f), hasScale(false), hasBias(false) {}
@@ -377,6 +381,15 @@ ActivationLayerDesc::ActivationLayerDesc(istream& in, int modelVersion) {
   }
 }
 
+void BatchNormLayerDesc::releaseWeights() {
+  std::vector<float>().swap(mean);
+  std::vector<float>().swap(variance);
+  std::vector<float>().swap(scale);
+  std::vector<float>().swap(bias);
+  std::vector<float>().swap(mergedScale);
+  std::vector<float>().swap(mergedBias);
+}
+
 ActivationLayerDesc::ActivationLayerDesc(ActivationLayerDesc&& other) {
   *this = std::move(other);
 }
@@ -487,6 +500,10 @@ MatBiasLayerDesc::MatBiasLayerDesc(istream& in, bool binaryFloats) {
     throw StringError(name + ": matbiaslayer failed to parse expected number of matbias weights");
 }
 
+void MatMulLayerDesc::releaseWeights() {
+  std::vector<float>().swap(weights);
+}
+
 MatBiasLayerDesc::MatBiasLayerDesc(MatBiasLayerDesc&& other) {
   *this = std::move(other);
 }
@@ -502,6 +519,10 @@ void MatBiasLayerDesc::applyScale8ToReduceActivations() {
   for(int c = 0; c < numChannels; c++) {
     weights[c] *= 0.125f;
   }
+}
+
+void MatBiasLayerDesc::releaseWeights() {
+  std::vector<float>().swap(weights);
 }
 
 //-----------------------------------------------------------------------------
@@ -573,6 +594,13 @@ void ResidualBlockDesc::applyScale8ToReduceActivations() {
   preActivation.applyScale8ToReduceActivations();
   midBN.applyScale8ToReduceActivations();
   midActivation.applyScale8ToReduceActivations();
+}
+
+void ResidualBlockDesc::releaseWeights() {
+  preBN.releaseWeights();
+  regularConv.releaseWeights();
+  midBN.releaseWeights();
+  finalConv.releaseWeights();
 }
 
 //-----------------------------------------------------------------------------
@@ -683,6 +711,16 @@ void GlobalPoolingResidualBlockDesc::applyScale8ToReduceActivations() {
   gpoolActivation.applyScale8ToReduceActivations();
   midBN.applyScale8ToReduceActivations();
   midActivation.applyScale8ToReduceActivations();
+}
+
+void GlobalPoolingResidualBlockDesc::releaseWeights() {
+  preBN.releaseWeights();
+  regularConv.releaseWeights();
+  gpoolConv.releaseWeights();
+  gpoolBN.releaseWeights();
+  gpoolToBiasMul.releaseWeights();
+  midBN.releaseWeights();
+  finalConv.releaseWeights();
 }
 
 //-----------------------------------------------------------------------------
@@ -847,6 +885,30 @@ void NestedBottleneckResidualBlockDesc::applyScale8ToReduceActivations() {
   postActivation.applyScale8ToReduceActivations();
 }
 
+void NestedBottleneckResidualBlockDesc::releaseWeights() {
+  preBN.releaseWeights();
+  preConv.releaseWeights();
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  postBN.releaseWeights();
+  postConv.releaseWeights();
+}
+
 //-----------------------------------------------------------------------------
 
 static void parseResidualBlockStack(
@@ -1007,6 +1069,14 @@ SGFMetadataEncoderDesc& SGFMetadataEncoderDesc::operator=(SGFMetadataEncoderDesc
   act2 = std::move(other.act2);
   mul3 = std::move(other.mul3);
   return *this;
+}
+
+void SGFMetadataEncoderDesc::releaseWeights() {
+  mul1.releaseWeights();
+  bias1.releaseWeights();
+  mul2.releaseWeights();
+  bias2.releaseWeights();
+  mul3.releaseWeights();
 }
 
 //-----------------------------------------------------------------------------
@@ -1259,6 +1329,30 @@ void TrunkDesc::applyScale8ToReduceActivations() {
   }
 }
 
+void TrunkDesc::releaseWeights() {
+  initialConv.releaseWeights();
+  initialMatMul.releaseWeights();
+  if(metaEncoderVersion > 0)
+    sgfMetadataEncoder.releaseWeights();
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  trunkTipBN.releaseWeights();
+}
 
 //-----------------------------------------------------------------------------
 
@@ -1406,6 +1500,18 @@ void PolicyHeadDesc::applyScale8ToReduceActivations() {
   passActivation.applyScale8ToReduceActivations();
 }
 
+void PolicyHeadDesc::releaseWeights() {
+  p1Conv.releaseWeights();
+  g1Conv.releaseWeights();
+  g1BN.releaseWeights();
+  gpoolToBiasMul.releaseWeights();
+  p1BN.releaseWeights();
+  p2Conv.releaseWeights();
+  gpoolToPassMul.releaseWeights();
+  gpoolToPassBias.releaseWeights();
+  gpoolToPassMul2.releaseWeights();
+}
+
 //-----------------------------------------------------------------------------
 
 ValueHeadDesc::ValueHeadDesc() : modelVersion(-1) {}
@@ -1541,6 +1647,17 @@ void ValueHeadDesc::applyScale8ToReduceActivations() {
   sv3Bias.applyScale8ToReduceActivations();
 }
 
+void ValueHeadDesc::releaseWeights() {
+  v1Conv.releaseWeights();
+  v1BN.releaseWeights();
+  v2Mul.releaseWeights();
+  v2Bias.releaseWeights();
+  v3Mul.releaseWeights();
+  v3Bias.releaseWeights();
+  sv3Mul.releaseWeights();
+  sv3Bias.releaseWeights();
+  vOwnershipConv.releaseWeights();
+}
 
 //-----------------------------------------------------------------------------
 
@@ -1781,125 +1898,6 @@ void ModelDesc::applyScale8ToReduceActivations() {
   valueHead.applyScale8ToReduceActivations();
 
   postProcessParams.outputScaleMultiplier *= 8.0f;
-}
-
-void ConvLayerDesc::releaseWeights() {
-  std::vector<float>().swap(weights);
-}
-
-void BatchNormLayerDesc::releaseWeights() {
-  std::vector<float>().swap(mean);
-  std::vector<float>().swap(variance);
-  std::vector<float>().swap(scale);
-  std::vector<float>().swap(bias);
-  std::vector<float>().swap(mergedScale);
-  std::vector<float>().swap(mergedBias);
-}
-
-void MatMulLayerDesc::releaseWeights() {
-  std::vector<float>().swap(weights);
-}
-
-void MatBiasLayerDesc::releaseWeights() {
-  std::vector<float>().swap(weights);
-}
-
-void ResidualBlockDesc::releaseWeights() {
-  preBN.releaseWeights();
-  regularConv.releaseWeights();
-  midBN.releaseWeights();
-  finalConv.releaseWeights();
-}
-
-void GlobalPoolingResidualBlockDesc::releaseWeights() {
-  preBN.releaseWeights();
-  regularConv.releaseWeights();
-  gpoolConv.releaseWeights();
-  gpoolBN.releaseWeights();
-  gpoolToBiasMul.releaseWeights();
-  midBN.releaseWeights();
-  finalConv.releaseWeights();
-}
-
-void NestedBottleneckResidualBlockDesc::releaseWeights() {
-  preBN.releaseWeights();
-  preConv.releaseWeights();
-  for(int i = 0; i < blocks.size(); i++) {
-    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
-      desc->releaseWeights();
-    }
-    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
-      desc->releaseWeights();
-    }
-    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
-      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
-      desc->releaseWeights();
-    }
-    else {
-      ASSERT_UNREACHABLE;
-    }
-  }
-  postBN.releaseWeights();
-  postConv.releaseWeights();
-}
-
-void SGFMetadataEncoderDesc::releaseWeights() {
-  mul1.releaseWeights();
-  bias1.releaseWeights();
-  mul2.releaseWeights();
-  bias2.releaseWeights();
-  mul3.releaseWeights();
-}
-
-void TrunkDesc::releaseWeights() {
-  initialConv.releaseWeights();
-  initialMatMul.releaseWeights();
-  if(metaEncoderVersion > 0)
-    sgfMetadataEncoder.releaseWeights();
-  for(int i = 0; i < blocks.size(); i++) {
-    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
-      ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
-      desc->releaseWeights();
-    }
-    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
-      GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
-      desc->releaseWeights();
-    }
-    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
-      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
-      desc->releaseWeights();
-    }
-    else {
-      ASSERT_UNREACHABLE;
-    }
-  }
-  trunkTipBN.releaseWeights();
-}
-
-void PolicyHeadDesc::releaseWeights() {
-  p1Conv.releaseWeights();
-  g1Conv.releaseWeights();
-  g1BN.releaseWeights();
-  gpoolToBiasMul.releaseWeights();
-  p1BN.releaseWeights();
-  p2Conv.releaseWeights();
-  gpoolToPassMul.releaseWeights();
-  gpoolToPassBias.releaseWeights();
-  gpoolToPassMul2.releaseWeights();
-}
-
-void ValueHeadDesc::releaseWeights() {
-  v1Conv.releaseWeights();
-  v1BN.releaseWeights();
-  v2Mul.releaseWeights();
-  v2Bias.releaseWeights();
-  v3Mul.releaseWeights();
-  v3Bias.releaseWeights();
-  sv3Mul.releaseWeights();
-  sv3Bias.releaseWeights();
-  vOwnershipConv.releaseWeights();
 }
 
 void ModelDesc::releaseWeights() {
