@@ -187,12 +187,18 @@ struct ComputeHandle {
    */
   bool maskIdentityChecked = false;
 
-  // IMPORTANT (weight-release safety): mpsGraphOnlyHandle MUST be declared
-  // before coremlOnlyHandle. C++ initializes members in DECLARATION order, so
-  // createMPSGraphHandleIfNeeded (which reads modelDesc weights via
-  // modelDescToSwift) runs before createCoreMLOnlyHandleIfNeeded (which may call
-  // modelDesc.releaseWeights() on an ANE-only run). Reordering these would let a
-  // GPU handle read freed weights. Do not reorder.
+  // Weight-release safety is guaranteed by ComputeContext::aneOnly, NOT by the
+  // declaration order below: within a single ComputeHandle exactly one handle is
+  // built (the two paths are mutually exclusive on gpuIdx, enforced by the
+  // ctor's exactly-one check), and releaseWeights() only ever fires on an
+  // aneOnly context, where no MPSGraph handle is built for any thread.
+  // That said, keep mpsGraphOnlyHandle declared before coremlOnlyHandle. C++
+  // initializes members in DECLARATION order, so createMPSGraphHandleIfNeeded
+  // (which reads modelDesc weights via modelDescToSwift) is sequenced before
+  // createCoreMLOnlyHandleIfNeeded (which may call modelDesc.releaseWeights()).
+  // This ordering is belt-and-suspenders that preserves the natural read-then-
+  // release sequence should the aneOnly invariant ever be weakened; don't rely
+  // on it as the primary guarantee, but don't reorder it either.
   /**
    * @brief The MPSGraph-only handle instance from Swift (GPU-only mode).
    */
