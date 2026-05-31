@@ -2404,7 +2404,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
 ) {
   if(logger != NULL) {
     logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model version " + Global::intToString(loadedModel->modelDesc.modelVersion));
-    logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name);
+    logger->write("Eigen (CPU) backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name + " (" + loadedModel->modelDesc.getShortInfoString() + ")");
   }
 
   (void)requireExactNNLen; //We don't bother with mask optimizations if we know exact sizes right now.

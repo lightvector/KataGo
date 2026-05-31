@@ -1746,7 +1746,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
       " useFP16 = " + Global::boolToString(handle->usingFP16));
     logger->write(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) +
-      ": Model name: " + loadedModel->modelDesc.name);
+      ": Model name: " + loadedModel->modelDesc.name +
+      " (" + loadedModel->modelDesc.getShortInfoString() + ")");
   }
 
   return handle;

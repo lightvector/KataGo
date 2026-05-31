@@ -178,6 +178,10 @@ double ConvLayerDesc::getSpatialConvDepth() const {
   return (convYSize + convXSize - 2) / 4.0;
 }
 
+int64_t ConvLayerDesc::getNumParameters() const {
+  return (int64_t)weights.size();
+}
+
 void ConvLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
   testAssert(weights.size() == convYSize * convXSize * inChannels * outChannels);
   testAssert(scaling.size() == outChannels);
@@ -264,6 +268,12 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
   return *this;
 }
 
+
+int64_t BatchNormLayerDesc::getNumParameters() const {
+  // Count the learnable scale and bias (gamma/beta); mean and variance are running
+  // statistics rather than learned parameters.
+  return (int64_t)(hasScale ? numChannels : 0) + (int64_t)(hasBias ? numChannels : 0);
+}
 
 void BatchNormLayerDesc::computeMerged() {
   mergedScale.resize(numChannels);
@@ -468,6 +478,10 @@ MatMulLayerDesc& MatMulLayerDesc::operator=(MatMulLayerDesc&& other) {
 }
 
 
+int64_t MatMulLayerDesc::getNumParameters() const {
+  return (int64_t)weights.size();
+}
+
 void MatMulLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
   testAssert(weights.size() == inChannels * outChannels);
   testAssert(scaling.size() == outChannels);
@@ -512,6 +526,10 @@ MatBiasLayerDesc& MatBiasLayerDesc::operator=(MatBiasLayerDesc&& other) {
   numChannels = other.numChannels;
   weights = std::move(other.weights);
   return *this;
+}
+
+int64_t MatBiasLayerDesc::getNumParameters() const {
+  return (int64_t)weights.size();
 }
 
 void MatBiasLayerDesc::applyScale8ToReduceActivations() {
@@ -575,6 +593,14 @@ void ResidualBlockDesc::iterConvLayers(const std::function<void(const ConvLayerD
 
 double ResidualBlockDesc::getSpatialConvDepth() const {
   return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
+}
+
+int64_t ResidualBlockDesc::getNumParameters() const {
+  return
+    preBN.getNumParameters() +
+    regularConv.getNumParameters() +
+    midBN.getNumParameters() +
+    finalConv.getNumParameters();
 }
 
 void ResidualBlockDesc::transformToReduceActivations() {
@@ -674,6 +700,17 @@ void GlobalPoolingResidualBlockDesc::iterConvLayers(const std::function<void(con
 
 double GlobalPoolingResidualBlockDesc::getSpatialConvDepth() const {
   return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
+}
+
+int64_t GlobalPoolingResidualBlockDesc::getNumParameters() const {
+  return
+    preBN.getNumParameters() +
+    regularConv.getNumParameters() +
+    gpoolConv.getNumParameters() +
+    gpoolBN.getNumParameters() +
+    gpoolToBiasMul.getNumParameters() +
+    midBN.getNumParameters() +
+    finalConv.getNumParameters();
 }
 
 
@@ -822,6 +859,41 @@ double NestedBottleneckResidualBlockDesc::getSpatialConvDepth() const {
   return depth;
 }
 
+int64_t NestedBottleneckResidualBlockDesc::getNumParameters() const {
+  int64_t numParameters = 0;
+  numParameters += preBN.getNumParameters();
+  numParameters += preConv.getNumParameters();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      const TransformerAttentionDesc* desc = (const TransformerAttentionDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      const TransformerFFNDesc* desc = (const TransformerFFNDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  numParameters += postBN.getNumParameters();
+  numParameters += postConv.getNumParameters();
+  return numParameters;
+}
+
 static bool blocksContainTransformer(const std::vector<std::pair<int, unique_ptr_void>>& blocks) {
   for(size_t i = 0; i < blocks.size(); i++) {
     if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
@@ -967,6 +1039,10 @@ RMSNormLayerDesc& RMSNormLayerDesc::operator=(RMSNormLayerDesc&& other) {
   return *this;
 }
 
+int64_t RMSNormLayerDesc::getNumParameters() const {
+  return (int64_t)gamma.size() + (int64_t)beta.size();
+}
+
 //-----------------------------------------------------------------------------
 
 TransformerRMSNormDesc::TransformerRMSNormDesc() : numChannels(0), epsilon(0) {}
@@ -1001,6 +1077,10 @@ TransformerRMSNormDesc& TransformerRMSNormDesc::operator=(TransformerRMSNormDesc
   epsilon = other.epsilon;
   weight = std::move(other.weight);
   return *this;
+}
+
+int64_t TransformerRMSNormDesc::getNumParameters() const {
+  return (int64_t)weight.size();
 }
 
 //-----------------------------------------------------------------------------
@@ -1117,6 +1197,16 @@ TransformerAttentionDesc& TransformerAttentionDesc::operator=(TransformerAttenti
   ropeFreqs = std::move(other.ropeFreqs);
   ropeTheta = other.ropeTheta;
   return *this;
+}
+
+int64_t TransformerAttentionDesc::getNumParameters() const {
+  return
+    preLN.getNumParameters() +
+    qProj.getNumParameters() +
+    kProj.getNumParameters() +
+    vProj.getNumParameters() +
+    outProj.getNumParameters() +
+    (int64_t)ropeFreqs.size();  // learnable RoPE frequencies, empty for fixed/no RoPE
 }
 
 void TransformerAttentionDesc::computeRopeCosSin(int nnXLen, int nnYLen, int paddedNNXYLen, std::vector<float>& cosTable, std::vector<float>& sinTable) const {
@@ -1244,6 +1334,14 @@ TransformerFFNDesc& TransformerFFNDesc::operator=(TransformerFFNDesc&& other) {
   linearGate = std::move(other.linearGate);
   linear2 = std::move(other.linear2);
   return *this;
+}
+
+int64_t TransformerFFNDesc::getNumParameters() const {
+  return
+    preLN.getNumParameters() +
+    linear1.getNumParameters() +
+    linearGate.getNumParameters() +  // empty when not using SwiGLU
+    linear2.getNumParameters();
 }
 
 //-----------------------------------------------------------------------------
@@ -1441,6 +1539,15 @@ SGFMetadataEncoderDesc& SGFMetadataEncoderDesc::operator=(SGFMetadataEncoderDesc
   act2 = std::move(other.act2);
   mul3 = std::move(other.mul3);
   return *this;
+}
+
+int64_t SGFMetadataEncoderDesc::getNumParameters() const {
+  return
+    mul1.getNumParameters() +
+    bias1.getNumParameters() +
+    mul2.getNumParameters() +
+    bias2.getNumParameters() +
+    mul3.getNumParameters();
 }
 
 //-----------------------------------------------------------------------------
@@ -1653,6 +1760,44 @@ double TrunkDesc::getSpatialConvDepth() const {
     }
   }
   return depth;
+}
+
+int64_t TrunkDesc::getNumParameters() const {
+  int64_t numParameters = 0;
+  numParameters += initialConv.getNumParameters();
+  numParameters += initialMatMul.getNumParameters();
+  if(metaEncoderVersion > 0)
+    numParameters += sgfMetadataEncoder.getNumParameters();
+
+  for(int i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      const TransformerAttentionDesc* desc = (const TransformerAttentionDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      const TransformerFFNDesc* desc = (const TransformerFFNDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  // Whichever trunk tip norm is unused has empty parameter vectors, so summing both is safe.
+  numParameters += trunkTipBN.getNumParameters();
+  numParameters += trunkTipRMSNorm.getNumParameters();
+  return numParameters;
 }
 
 void TrunkDesc::transformToReduceActivations() {
@@ -1878,6 +2023,19 @@ void PolicyHeadDesc::iterConvLayers(const std::function<void(const ConvLayerDesc
   f(p2Conv);
 }
 
+int64_t PolicyHeadDesc::getNumParameters() const {
+  return
+    p1Conv.getNumParameters() +
+    g1Conv.getNumParameters() +
+    g1BN.getNumParameters() +
+    gpoolToBiasMul.getNumParameters() +
+    p1BN.getNumParameters() +
+    p2Conv.getNumParameters() +
+    gpoolToPassMul.getNumParameters() +
+    gpoolToPassBias.getNumParameters() +
+    gpoolToPassMul2.getNumParameters();  // empty for older model versions
+}
+
 
 void PolicyHeadDesc::transformToReduceActivations() {
   // Merge in any multiplications by values less than 1.0 to happen earlier.
@@ -2019,6 +2177,19 @@ ValueHeadDesc& ValueHeadDesc::operator=(ValueHeadDesc&& other) {
 void ValueHeadDesc::iterConvLayers(const std::function<void(const ConvLayerDesc& desc)>& f) const {
   f(v1Conv);
   f(vOwnershipConv);
+}
+
+int64_t ValueHeadDesc::getNumParameters() const {
+  return
+    v1Conv.getNumParameters() +
+    v1BN.getNumParameters() +
+    v2Mul.getNumParameters() +
+    v2Bias.getNumParameters() +
+    v3Mul.getNumParameters() +
+    v3Bias.getNumParameters() +
+    sv3Mul.getNumParameters() +
+    sv3Bias.getNumParameters() +
+    vOwnershipConv.getNumParameters();
 }
 
 void ValueHeadDesc::transformToReduceActivations() {
@@ -2274,6 +2445,27 @@ int ModelDesc::maxConvChannels(int convXSize, int convYSize) const {
 
 double ModelDesc::getTrunkSpatialConvDepth() const {
   return trunk.getSpatialConvDepth();
+}
+
+int64_t ModelDesc::getNumParameters() const {
+  return trunk.getNumParameters() + policyHead.getNumParameters() + valueHead.getNumParameters();
+}
+
+string ModelDesc::getShortInfoString() const {
+  bool isTransformer = hasAnyTransformerBlocks();
+  bool isNbt = false;
+  for(size_t i = 0; i < trunk.blocks.size(); i++) {
+    if(trunk.blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      isNbt = true;
+      break;
+    }
+  }
+  string kind;
+  if(isNbt)
+    kind = isTransformer ? "nbt transformer" : "nbt convnet";
+  else
+    kind = isTransformer ? "transformer" : "convnet";
+  return kind + ", " + Global::int64ToString(getNumParameters()) + " params";
 }
 
 void ModelDesc::transformToReduceActivations() {

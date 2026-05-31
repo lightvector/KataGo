@@ -3356,7 +3356,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
       " useNHWC = " + Global::boolToString(useNHWC)
     );
     logger->write(
-      "Cuda backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name
+      "Cuda backend thread " + Global::intToString(serverThreadIdx) + ": Model name: " + loadedModel->modelDesc.name +
+      " (" + loadedModel->modelDesc.getShortInfoString() + ")"
     );
   }
 

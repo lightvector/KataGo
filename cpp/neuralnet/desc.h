@@ -4,6 +4,7 @@
 #ifndef DESC_H
 #define DESC_H
 
+#include <cstdint>
 #include <istream>
 #include <string>
 #include <vector>
@@ -32,6 +33,7 @@ struct ConvLayerDesc {
   ConvLayerDesc& operator=(ConvLayerDesc&& other);
 
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
 
   void scaleOutputChannels(const std::vector<float>& scaling);
 };
@@ -58,6 +60,8 @@ struct BatchNormLayerDesc {
   BatchNormLayerDesc& operator=(const BatchNormLayerDesc&) = delete;
 
   BatchNormLayerDesc& operator=(BatchNormLayerDesc&& other);
+
+  int64_t getNumParameters() const;
 
   void computeMerged();
   void scaleInputChannels(const std::vector<float>& scaling);
@@ -98,6 +102,8 @@ struct MatMulLayerDesc {
 
   MatMulLayerDesc& operator=(MatMulLayerDesc&& other);
 
+  int64_t getNumParameters() const;
+
   void scaleOutputChannels(const std::vector<float>& scaling);
 };
 
@@ -114,6 +120,9 @@ struct MatBiasLayerDesc {
   MatBiasLayerDesc& operator=(const MatBiasLayerDesc&) = delete;
 
   MatBiasLayerDesc& operator=(MatBiasLayerDesc&& other);
+
+  int64_t getNumParameters() const;
+
   void applyScale8ToReduceActivations();
 };
 
@@ -137,6 +146,7 @@ struct ResidualBlockDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
@@ -167,6 +177,7 @@ struct GlobalPoolingResidualBlockDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
@@ -197,6 +208,7 @@ struct NestedBottleneckResidualBlockDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
   //True if this block contains any transformer (attention or ffn) block, including ones nested
   //inside further nested-bottleneck children.
   bool hasAnyTransformerBlocks() const;
@@ -226,6 +238,8 @@ struct RMSNormLayerDesc {
   RMSNormLayerDesc& operator=(const RMSNormLayerDesc&) = delete;
 
   RMSNormLayerDesc& operator=(RMSNormLayerDesc&& other);
+
+  int64_t getNumParameters() const;
 };
 
 // Lightweight RMSNorm used inside transformer blocks (weight only, no bias, no spatial modes)
@@ -243,6 +257,8 @@ struct TransformerRMSNormDesc {
   TransformerRMSNormDesc& operator=(const TransformerRMSNormDesc&) = delete;
 
   TransformerRMSNormDesc& operator=(TransformerRMSNormDesc&& other);
+
+  int64_t getNumParameters() const;
 };
 
 struct TransformerAttentionDesc {
@@ -277,6 +293,8 @@ struct TransformerAttentionDesc {
 
   TransformerAttentionDesc& operator=(TransformerAttentionDesc&& other);
 
+  int64_t getNumParameters() const;
+
   // Compute cos/sin tables for RoPE given board dimensions.
   // Output tables are indexed as:
   //   Learnable: (numKVHeads, numPairs, paddedNNXYLen) flattened
@@ -304,6 +322,8 @@ struct TransformerFFNDesc {
   TransformerFFNDesc& operator=(const TransformerFFNDesc&) = delete;
 
   TransformerFFNDesc& operator=(TransformerFFNDesc&& other);
+
+  int64_t getNumParameters() const;
 };
 
 struct SGFMetadataEncoderDesc {
@@ -327,6 +347,8 @@ struct SGFMetadataEncoderDesc {
   SGFMetadataEncoderDesc& operator=(const SGFMetadataEncoderDesc&) = delete;
 
   SGFMetadataEncoderDesc& operator=(SGFMetadataEncoderDesc&& other);
+
+  int64_t getNumParameters() const;
 };
 
 
@@ -368,6 +390,7 @@ struct TrunkDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
   //True if any block in the trunk is a transformer (attention or ffn) block, including ones nested
   //inside nested-bottleneck blocks.
   bool hasAnyTransformerBlocks() const;
@@ -404,6 +427,7 @@ struct PolicyHeadDesc {
   PolicyHeadDesc& operator=(PolicyHeadDesc&& other);
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
+  int64_t getNumParameters() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
@@ -435,6 +459,7 @@ struct ValueHeadDesc {
   ValueHeadDesc& operator=(ValueHeadDesc&& other);
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
+  int64_t getNumParameters() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
@@ -488,9 +513,15 @@ struct ModelDesc {
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   int maxConvChannels(int convXSize, int convYSize) const;
   double getTrunkSpatialConvDepth() const;
+  //Total count of learnable parameters across the whole model.
+  int64_t getNumParameters() const;
   //True if the model's trunk contains any transformer (attention or ffn) block. Useful for callers
   //that want to report model stats or special-case transformer-only behavior (e.g. graph warmup).
   bool hasAnyTransformerBlocks() const;
+
+  //Short human-readable summary of the model architecture kind and parameter count, e.g.
+  //"nbt transformer, 12345678 params". Backends can append this in parentheses after the model name.
+  std::string getShortInfoString() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
