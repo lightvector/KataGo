@@ -33,11 +33,11 @@ bool KataGoParser::isVersionSupported(int version) {
 // ============================================================================
 
 bool KataGoParser::refill() {
-    if(m_gz == nullptr) return false;
-    int n = gzread(m_gz, m_refill.data(), (unsigned)m_refill.size());
+    if(!m_gz) return false;
+    int n = gzread(m_gz.get(), m_refill.data(), (unsigned)m_refill.size());
     if(n < 0) {
         int errnum;
-        const char* errmsg = gzerror(m_gz, &errnum);
+        const char* errmsg = gzerror(m_gz.get(), &errnum);
         throw std::runtime_error("Error reading gzip stream: " + std::string(errmsg));
     }
     m_refillPos = 0;
@@ -72,27 +72,17 @@ void KataGoParser::readExact(uint8_t* dst, size_t n, const std::string& name) {
 // ============================================================================
 
 KataGoModelDesc KataGoParser::parse() {
-    // Allocate the refill buffer before opening the file so a bad_alloc here
-    // cannot leak an open gzFile handle.
+    // Allocate the refill buffer first; if this throws, no handle has been opened.
     m_refill.resize(1024 * 1024);
-    m_gz = gzopen(m_model_path.c_str(), "rb");
-    if(m_gz == nullptr)
+    m_gz.reset(gzopen(m_model_path.c_str(), "rb"));
+    if(!m_gz)
         throw std::runtime_error("Cannot open file: " + m_model_path);
     m_refillPos = 0;
     m_refillLen = 0;
     m_formatDetected = false;   // decided at first readFloats
     m_binary_floats = true;
-    KataGoModelDesc model;
-    try {
-        model = parseModel();
-    } catch(...) {
-        gzclose(m_gz);
-        m_gz = nullptr;
-        throw;
-    }
-    gzclose(m_gz);
-    m_gz = nullptr;
-    return model;
+    // ~GzHandle closes the file on normal return OR exception — no try/catch needed.
+    return parseModel();
 }
 
 // ============================================================================
