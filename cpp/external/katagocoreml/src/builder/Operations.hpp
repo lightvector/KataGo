@@ -11,12 +11,23 @@
 
 namespace katagocoreml {
 
-/// Weight entry for blob file storage. `data`/`count` are a NON-OWNING view into
-/// the live KataGoModelDesc (or into KataGoOps::m_owned for derived tensors).
+/// Minimal non-owning view over a contiguous float buffer. KataGo-local on
+/// purpose: keeps the MILBlob dependency out of this header (conversion to
+/// MILBlob::Util::Span happens only at the serializer boundary).
+struct FloatView {
+    const float* ptr = nullptr;
+    size_t len = 0;
+    const float* data() const { return ptr; }
+    size_t size() const { return len; }
+    bool empty() const { return len == 0; }
+    float operator[](size_t i) const { return ptr[i]; }
+};
+
+/// Weight entry for blob file storage. `data` is a NON-OWNING view into the live
+/// KataGoModelDesc (or into KataGoOps::m_owned for derived tensors).
 struct WeightEntry {
     std::string name;
-    const float* data = nullptr;
-    size_t count = 0;
+    FloatView data;            // non-owning view (replaces raw ptr + count)
     std::vector<int64_t> shape;
     uint64_t blob_offset = 0;  // Set during serialization
 };

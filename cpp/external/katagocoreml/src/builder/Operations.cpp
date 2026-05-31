@@ -17,8 +17,7 @@ std::string KataGoOps::registerWeight(const std::string& name,
                                        const std::vector<int64_t>& shape) {
     WeightEntry entry;
     entry.name = name;
-    entry.data = data.data();
-    entry.count = data.size();
+    entry.data = FloatView{data.data(), data.size()};
     entry.shape = shape;
     entry.blob_offset = 0;
     m_weights.push_back(std::move(entry));
@@ -32,8 +31,7 @@ std::string KataGoOps::registerOwnedWeight(const std::string& name,
     const std::vector<float>& stored = m_owned.back();
     WeightEntry entry;
     entry.name = name;
-    entry.data = stored.data();
-    entry.count = stored.size();
+    entry.data = FloatView{stored.data(), stored.size()};
     entry.shape = shape;
     entry.blob_offset = 0;
     m_weights.push_back(std::move(entry));
