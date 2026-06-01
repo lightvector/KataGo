@@ -68,6 +68,12 @@ if(USE_BACKEND STREQUAL "CUDA")
     neuralnet/cudautils.cpp
     neuralnet/cudahelpers.cu
   )
+  # The vendored header-only cudnn_frontend library trips GCC's -Wnull-dereference from its -O2
+  # interprocedural analysis (no source location, so an in-file #pragma can't suppress it). It's
+  # benign third-party code; silence it just for the one source that includes cudnn_frontend.h.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set_source_files_properties(neuralnet/cudabackend.cpp PROPERTIES COMPILE_OPTIONS "-Wno-null-dereference")
+  endif()
 # https://en.wikipedia.org/wiki/CUDA#GPUs_supported
   if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
     set(CMAKE_CUDA_ARCHITECTURES 75 80 86 87 88 89 90 100 110 103 120 121)
@@ -284,6 +290,7 @@ add_executable(katago
   neuralnet/modelversion.cpp
   neuralnet/nneval.cpp
   neuralnet/desc.cpp
+  neuralnet/debugprint.cpp
   ${NEURALNET_BACKEND_SOURCES}
   book/book.cpp
   book/bookcssjs.cpp
@@ -372,7 +379,10 @@ if(USE_BACKEND STREQUAL "CUDA")
   endif()
   find_library(CUDNN_LIBRARY cudnn HINTS ${CUDNN_ROOT_DIR} ${CUDAToolkit_LIBRARY_DIR} PATH_SUFFIXES lib64)
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
-  target_link_libraries(katago CUDA::cublas ${CUDNN_LIBRARY})
+  include_directories(SYSTEM external/cudnn-frontend/include) #SYSTEM suppresses warnings inside the vendored header-only cudnn_frontend library
+  # cudnn_frontend's experimental OSS engine headers reference NVRTC symbols at link time
+  # (we don't actually use those engines, but the references are pulled in by the header-only includes).
+  target_link_libraries(katago CUDA::cublas ${CUDNN_LIBRARY} CUDA::nvrtc)
 elseif(USE_BACKEND STREQUAL "TENSORRT")
   target_compile_definitions(katago PRIVATE USE_TENSORRT_BACKEND)
   find_package(CUDAToolkit REQUIRED)
@@ -437,6 +447,31 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   endif()
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   target_link_libraries(katago CUDA::cudart_static ${TENSORRT_LIBRARY})
+
+  # The TensorRT backend builds networks by emitting an ONNX ModelProto and handing the
+  # serialized bytes to TensorRT's nvonnxparser. We compile the vendored ONNX schema
+  # (cpp/external/onnx/onnx.proto) with protoc and link against our own protobuf; this is
+  # symbol-isolated from the protobuf that TensorRT statically links into nvonnxparser, so
+  # there is no ABI contact between the two (the handoff is serialized bytes).
+  find_package(Protobuf REQUIRED)
+  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
+  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
+  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
+  # protoc-generated code is not ours to lint; silence its warnings to keep build output readable.
+  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
+  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
+  # Generated onnx.pb.h lands in the build dir; let backend code include it.
+  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
+
+  # nvonnxparser ships alongside nvinfer in the TensorRT lib dir. Derive that dir from the
+  # already-resolved TENSORRT_LIBRARY so this works both with TENSORRT_ROOT_DIR and with a
+  # directly-specified -DTENSORRT_LIBRARY
+  get_filename_component(TENSORRT_LIBRARY_DIR "${TENSORRT_LIBRARY}" DIRECTORY)
+  find_library(TENSORRT_ONNXPARSER_LIBRARY NAMES nvonnxparser nvonnxparser_${TENSORRT_VERSION_MAJOR} HINTS ${TENSORRT_ROOT_DIR} ${TENSORRT_LIBRARY_DIR} PATH_SUFFIXES lib)
+  if(NOT TENSORRT_ONNXPARSER_LIBRARY)
+    message(FATAL_ERROR "${ColorBoldRed} libnvonnxparser was NOT found in the TensorRT lib dir. ${ColorReset}")
+  endif()
+  target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY} ${Protobuf_LIBRARIES})
 elseif(USE_BACKEND STREQUAL "METAL")
   target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
   target_link_libraries(katago KataGoSwift katagocoreml

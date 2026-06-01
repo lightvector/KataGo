@@ -1504,6 +1504,41 @@ sandbox = {
 # "h6" = 6 heads (traditional MHA, Q,K,V have same number of heads)
 # "tfrs" = transformer with RoPE and SwiGLU
 
+# Like b7c96h3tfrs but smaller: 5 blocks, 48 trunk/mid channels (16 channels per head with 3 heads),
+# and swiglu disabled (ffng instead of ffnsg).
+b5c48h3tfr = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":48,
+    "mid_num_channels":48,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":128,
+    "transformer_heads":3,
+    "transformer_kv_heads":3,
+    "block_kind": [
+        ["attn1","attnrope"],
+        ["ffn1","ffng"],
+        ["attn2","attnrope"],
+        ["ffn2","ffng"],
+        ["attn3","attnrope"],
+        ["ffn3","ffng"],
+        ["attn4","attnrope"],
+        ["ffn4","ffng"],
+        ["attn5","attnrope"],
+        ["ffn5","ffng"],
+    ],
+    "p1_num_channels":16,
+    "g1_num_channels":16,
+    "v1_num_channels":16,
+    "sbv2_num_channels":32,
+    "num_scorebeliefs":4,
+    "v2_size":48,
+}
+
 b7c96h3tfrs = {
     "version":15,
     "norm_kind":"fixup",
@@ -1517,6 +1552,48 @@ b7c96h3tfrs = {
     "transformer_ffn_channels":256,
     "transformer_heads":3,
     "transformer_kv_heads":3,
+    "block_kind": [
+        ["attn1","attnrope"],
+        ["ffn1","ffnsg"],
+        ["attn2","attnrope"],
+        ["ffn2","ffnsg"],
+        ["attn3","attnrope"],
+        ["ffn3","ffnsg"],
+        ["attn4","attnrope"],
+        ["ffn4","ffnsg"],
+        ["attn5","attnrope"],
+        ["ffn5","ffnsg"],
+        ["attn6","attnrope"],
+        ["ffn6","ffnsg"],
+        ["attn7","attnrope"],
+        ["ffn7","ffnsg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":48,
+    "num_scorebeliefs":4,
+    "v2_size":64,
+}
+
+# Like b7c96h3tfrs but with grouped-query attention (6 query heads, 3 KV heads), explicit
+# query/key head dim 32 and value head dim 16, and learnable RoPE.
+b7c96h6kv3qk32v16tflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":96,
+    "mid_num_channels":96,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":256,
+    "transformer_heads":6,
+    "transformer_kv_heads":3,
+    "attention_query_head_dim":32,
+    "attention_value_head_dim":16,
+    "learnable_rope":True,
     "block_kind": [
         ["attn1","attnrope"],
         ["ffn1","ffnsg"],
@@ -1821,6 +1898,34 @@ b6c384h6nbttfrs = {
     "sbv2_num_channels":80,
     "num_scorebeliefs":8,
     "v2_size":96,
+}
+
+b4c256h4nbttflrs = {
+    "version":15,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":256,
+    "mid_num_channels":128,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":384,
+    "transformer_heads":4,
+    "transformer_kv_heads":4,
+    "learnable_rope":True,
+    "block_kind": [
+        ["block1","bottlenest2transformerropesg"],
+        ["block2","bottlenest2transformerropesg"],
+        ["block3","bottlenest2transformerropesg"],
+        ["block4","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":64,
+    "num_scorebeliefs":6,
+    "v2_size":80,
 }
 
 b5c384h6nbttflrs = {
@@ -2987,7 +3092,9 @@ base_config_of_name = {
     "b40c768nbt": b40c768nbt,
 
     # Standard transformer models
+    "b5c48h3tfr": b5c48h3tfr,  # Small, no swiglu, 16 channels per head, 5 blocks
     "b7c96h3tfrs": b7c96h3tfrs,
+    "b7c96h6kv3qk32v16tflrs": b7c96h6kv3qk32v16tflrs,
     "b8c96h3tfrs": b8c96h3tfrs,
     "b11c96h3tfrs": b11c96h3tfrs,
     "b14c192h6tfrs": b14c192h6tfrs,
@@ -3050,6 +3157,7 @@ base_config_of_name = {
     # Nested bottleneck transformers
     "b5c192h3nbttfrs": b5c192h3nbttfrs,
     "b6c384h6nbttfrs": b6c384h6nbttfrs,
+    "b4c256h4nbttflrs": b4c256h4nbttflrs, # Learnable RoPE, 4 blocks, lightweight test model
     "b5c384h6nbttflrs": b5c384h6nbttflrs, # Learnable RoPE, 5 blocks
     "b6c384h6nbttflrs": b6c384h6nbttflrs, # Learnable RoPE
     "b7c384h6nbttflrs": b7c384h6nbttflrs, # Learnable RoPE, 7 blocks
