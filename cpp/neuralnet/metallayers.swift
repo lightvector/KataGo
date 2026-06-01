@@ -1401,11 +1401,19 @@ struct TransformerAttentionBlock {
 
     /// Repeat each KV head groupSize times along the head axis: [B,numKVHeads,seq,dim] -> [B,numKVHeads*groupSize,seq,dim].
     static func repeatKVHeads(_ graph: MPSGraph, _ x: MPSGraphTensor, numKVHeads: Int, groupSize: Int, seq: Int, headDim: Int) -> MPSGraphTensor {
-        // Insert a group axis then broadcast: [B,kv,1,seq,dim] -> [B,kv,group,seq,dim] -> [B,kv*group,seq,dim]
-        let expanded = graph.reshape(x, shape: [-1, numKVHeads as NSNumber, 1, seq as NSNumber, headDim as NSNumber], name: nil)
-        let targetShape: [NSNumber] = [-1, numKVHeads as NSNumber, groupSize as NSNumber, seq as NSNumber, headDim as NSNumber]
-        let broadcast = graph.broadcast(expanded, shape: targetShape, name: nil)
-        return graph.reshape(broadcast, shape: [-1, (numKVHeads * groupSize) as NSNumber, seq as NSNumber, headDim as NSNumber], name: nil)
+        // Repeat each KV head groupSize times consecutively so query head h uses kv = h / groupSize,
+        // matching the Eigen reference (kvh = h / kvGroupSize). We slice each KV head and concat the
+        // copies along the head axis. Note: MPSGraph.broadcast(_:shape:) does NOT infer -1, so a
+        // reshape+broadcast approach with a dynamic batch dim triggers an NDArray INT_MAX assertion;
+        // slice+concat is shape-safe with no -1 broadcast.
+        var heads: [MPSGraphTensor] = []
+        heads.reserveCapacity(numKVHeads * groupSize)
+        for kv in 0..<numKVHeads {
+            for _ in 0..<groupSize {
+                heads.append(graph.sliceTensor(x, dimension: 1, start: kv, length: 1, name: nil))  // [B,1,seq,dim]
+            }
+        }
+        return graph.concatTensors(heads, dimension: 1, name: nil)
     }
 
     /// Apply interleaved-pair RoPE to [B, nHeads, seq, headDim] using cos/sin tables [1,nHeads,seq,numPairs].
