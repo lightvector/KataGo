@@ -315,6 +315,8 @@ ActivationLayerDesc KataGoParser::parseActivationLayer(int model_version) {
             layer.activation_type = ActivationType::ReLU;
         } else if (activation_str == "ACTIVATION_MISH") {
             layer.activation_type = ActivationType::Mish;
+        } else if (activation_str == "ACTIVATION_SILU") {
+            layer.activation_type = ActivationType::Silu;
         } else {
             throw std::runtime_error("Unknown activation type: " + activation_str);
         }
@@ -420,6 +422,98 @@ static void checkBlockChannels(const std::string& block_name, const std::string&
     }
 }
 
+TransformerRMSNormDesc KataGoParser::parseTransformerRMSNorm() {
+    TransformerRMSNormDesc layer;
+    layer.name = readString();
+    layer.num_channels = readInt();
+    layer.epsilon = readFloat();
+    if (layer.num_channels < 1) {
+        throw std::runtime_error(layer.name + ": transformer rmsnorm numChannels must be >= 1");
+    }
+    layer.weight = readFloats(layer.num_channels, layer.name + "/weight");
+    return layer;
+}
+
+RMSNormLayerDesc KataGoParser::parseRMSNormLayer() {
+    RMSNormLayerDesc layer;
+    layer.name = readString();
+    layer.num_channels = readInt();
+    layer.epsilon = readFloat();
+    layer.spatial = (readInt() != 0);
+    layer.cgroup_size = readInt();
+    if (layer.num_channels < 1) {
+        throw std::runtime_error(layer.name + ": rmsnorm numChannels must be >= 1");
+    }
+    if (layer.cgroup_size != 0) {
+        throw std::runtime_error(layer.name + ": grouped spatial RMSNorm is not supported");
+    }
+    layer.gamma = readFloats(layer.num_channels, layer.name + "/gamma");
+    layer.beta = readFloats(layer.num_channels, layer.name + "/beta");
+    return layer;
+}
+
+TransformerAttentionBlockDesc KataGoParser::parseTransformerAttentionBlock(int model_version) {
+    TransformerAttentionBlockDesc block;
+    block.name = readString();
+    block.num_heads = readInt();
+    block.num_kv_heads = readInt();
+    block.q_head_dim = readInt();
+    block.v_head_dim = readInt();
+    block.use_rope = (readInt() != 0);
+    block.learnable_rope = (readInt() != 0);
+
+    if (block.num_heads < 1 || block.num_kv_heads < 1 || (block.num_heads % block.num_kv_heads != 0)) {
+        throw std::runtime_error(block.name + ": invalid numHeads/numKVHeads");
+    }
+    if (block.use_rope && (block.q_head_dim % 2 != 0)) {
+        throw std::runtime_error(block.name + ": qHeadDim must be even when RoPE is used");
+    }
+
+    block.pre_ln = parseTransformerRMSNorm();
+    block.q_proj = parseMatMulLayer();
+    block.k_proj = parseMatMulLayer();
+    block.v_proj = parseMatMulLayer();
+    block.out_proj = parseMatMulLayer();
+
+    if (block.use_rope) {
+        if (block.learnable_rope) {
+            readString();  // ropeFreqs name
+            block.rope_num_kv_heads = readInt();
+            block.rope_num_pairs = readInt();
+            int rope_dim2 = readInt();
+            if (block.rope_num_kv_heads != block.num_kv_heads ||
+                block.rope_num_pairs != block.q_head_dim / 2 || rope_dim2 != 2) {
+                throw std::runtime_error(block.name + ": invalid learnable rope header");
+            }
+            block.rope_freqs = readFloats(
+                static_cast<size_t>(block.rope_num_kv_heads) * block.rope_num_pairs * 2,
+                block.name + "/rope_freqs");
+        } else {
+            readString();  // ropeTheta name
+            block.rope_theta = readFloat();
+        }
+    }
+    return block;
+}
+
+TransformerFFNBlockDesc KataGoParser::parseTransformerFFNBlock(int model_version) {
+    TransformerFFNBlockDesc block;
+    block.name = readString();
+    block.num_channels = readInt();
+    block.ffn_channels = readInt();
+    block.use_swiglu = (readInt() != 0);
+    if (block.num_channels < 1 || block.ffn_channels < 1) {
+        throw std::runtime_error(block.name + ": transformer ffn channels must be positive");
+    }
+    block.pre_ln = parseTransformerRMSNorm();
+    block.linear1 = parseMatMulLayer();
+    if (block.use_swiglu) {
+        block.linear_gate = parseMatMulLayer();
+    }
+    block.linear2 = parseMatMulLayer();
+    return block;
+}
+
 std::vector<BlockEntry> KataGoParser::parseBlockStack(int model_version, int num_blocks, int trunk_num_channels) {
     std::vector<BlockEntry> blocks;
     blocks.reserve(num_blocks);
@@ -448,6 +542,14 @@ std::vector<BlockEntry> KataGoParser::parseBlockStack(int model_version, int num
             checkBlockChannels(desc.name, "nested_bottleneck_block",
                                desc.pre_bn.num_channels,
                                desc.post_conv.out_channels, trunk_num_channels);
+            entry.block = std::make_shared<BlockDesc>(std::move(desc));
+        } else if (block_kind_name == "transformer_attention_block") {
+            entry.block_kind = TRANSFORMER_ATTENTION_BLOCK_KIND;
+            auto desc = parseTransformerAttentionBlock(model_version);
+            entry.block = std::make_shared<BlockDesc>(std::move(desc));
+        } else if (block_kind_name == "transformer_ffn_block") {
+            entry.block_kind = TRANSFORMER_FFN_BLOCK_KIND;
+            auto desc = parseTransformerFFNBlock(model_version);
             entry.block = std::make_shared<BlockDesc>(std::move(desc));
         } else {
             throw std::runtime_error("Unknown block kind: " + block_kind_name);
@@ -505,10 +607,16 @@ TrunkDesc KataGoParser::parseTrunk(int model_version, int meta_encoder_version) 
                                  std::to_string(trunk.gpool_num_channels) + ")");
     }
 
-    // Version >= 15 has 6 unused int parameters
+    // Version >= 15: first int is trunkNormKind, followed by 5 unused ints.
     if (model_version >= 15) {
-        for (int i = 0; i < 6; i++) {
+        trunk.trunk_norm_kind = readInt();
+        for (int i = 0; i < 5; i++) {
             readInt();
+        }
+        if (trunk.trunk_norm_kind != TRUNK_NORM_KIND_STANDARD &&
+            trunk.trunk_norm_kind != TRUNK_NORM_KIND_RMSNORM) {
+            throw std::runtime_error(trunk.name + ": unknown trunk norm kind: " +
+                                     std::to_string(trunk.trunk_norm_kind));
         }
     }
 
@@ -548,14 +656,24 @@ TrunkDesc KataGoParser::parseTrunk(int model_version, int meta_encoder_version) 
     // Parse residual blocks
     trunk.blocks = parseBlockStack(model_version, trunk.num_blocks, trunk.trunk_num_channels);
 
-    trunk.trunk_tip_bn = parseBatchNormLayer();
-    trunk.trunk_tip_activation = parseActivationLayer(model_version);
-    if (trunk.trunk_tip_bn.num_channels != trunk.trunk_num_channels) {
-        throw std::runtime_error(trunk.name + ": trunkTipBN.numChannels (" +
-                                 std::to_string(trunk.trunk_tip_bn.num_channels) +
-                                 ") != trunkNumChannels (" +
-                                 std::to_string(trunk.trunk_num_channels) + ")");
+    if (trunk.trunk_norm_kind == TRUNK_NORM_KIND_STANDARD) {
+        trunk.trunk_tip_bn = parseBatchNormLayer();
+        if (trunk.trunk_tip_bn.num_channels != trunk.trunk_num_channels) {
+            throw std::runtime_error(trunk.name + ": trunkTipBN.numChannels (" +
+                                     std::to_string(trunk.trunk_tip_bn.num_channels) +
+                                     ") != trunkNumChannels (" +
+                                     std::to_string(trunk.trunk_num_channels) + ")");
+        }
+    } else {
+        trunk.trunk_tip_rms_norm = parseRMSNormLayer();
+        if (trunk.trunk_tip_rms_norm.num_channels != trunk.trunk_num_channels) {
+            throw std::runtime_error(trunk.name + ": trunkTipRMSNorm.numChannels (" +
+                                     std::to_string(trunk.trunk_tip_rms_norm.num_channels) +
+                                     ") != trunkNumChannels (" +
+                                     std::to_string(trunk.trunk_num_channels) + ")");
+        }
     }
+    trunk.trunk_tip_activation = parseActivationLayer(model_version);
 
     return trunk;
 }

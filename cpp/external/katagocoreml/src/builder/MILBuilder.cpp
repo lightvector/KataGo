@@ -4,6 +4,7 @@
 #include "MILBuilder.hpp"
 #include "MILBlob/Fp16.hpp"
 #include <stdexcept>
+#include <cmath>
 
 // Include generated protobuf headers
 #include "MIL.pb.h"
@@ -732,6 +733,63 @@ void MILBuilder::addBatchNormActivationOps(CoreML::Specification::MILSpec::Block
         setTensorOutput4D(op, output, bn.num_channels, m_board_y_size, m_board_x_size);
     } else if (act.activation_type == ActivationType::Mish) {
         addMishOps(block, bn_output, output, 4, bn.num_channels);
+    } else if (act.activation_type == ActivationType::Silu) {
+        addSiluOps(block, bn_output, output, 4, bn.num_channels);
+    }
+}
+
+void MILBuilder::addSiluOps(CoreML::Specification::MILSpec::Block* block,
+                            const std::string& input,
+                            const std::string& output,
+                            int rank,
+                            int channels) {
+    // SiLU / Swish: x * sigmoid(x)
+    auto setOutputType = [this, rank, channels](CoreML::Specification::MILSpec::Operation* op, const std::string& name) {
+        auto* out = op->add_outputs();
+        out->set_name(name);
+        auto* out_type = out->mutable_type()->mutable_tensortype();
+        out_type->set_datatype(m_weight_dtype);
+        out_type->set_rank(rank);
+        setBatchDimension(out_type);
+        out_type->add_dimensions()->mutable_constant()->set_size(channels);
+        if (rank == 4) {
+            out_type->add_dimensions()->mutable_constant()->set_size(m_board_y_size);
+            out_type->add_dimensions()->mutable_constant()->set_size(m_board_x_size);
+        }
+    };
+
+    std::string sig = output + "_sigmoid";
+    {
+        auto* op = block->add_operations();
+        op->set_type("sigmoid");
+        auto& inputs = *op->mutable_inputs();
+        inputs["x"].add_arguments()->set_name(input);
+        setOutputType(op, sig);
+    }
+    {
+        auto* op = block->add_operations();
+        op->set_type("mul");
+        auto& inputs = *op->mutable_inputs();
+        inputs["x"].add_arguments()->set_name(input);
+        inputs["y"].add_arguments()->set_name(sig);
+        setOutputType(op, output);
+    }
+}
+
+void MILBuilder::setShape(CoreML::Specification::MILSpec::Operation* op,
+                          const std::string& name,
+                          const std::vector<int64_t>& dims) {
+    auto* out = op->add_outputs();
+    out->set_name(name);
+    auto* t = out->mutable_type()->mutable_tensortype();
+    t->set_datatype(m_weight_dtype);
+    t->set_rank(static_cast<int64_t>(dims.size()));
+    for (int64_t d : dims) {
+        auto* dim = t->add_dimensions();
+        if (d < 0)
+            dim->mutable_unknown()->set_variadic(false);
+        else
+            dim->mutable_constant()->set_size(d);
     }
 }
 
@@ -1637,6 +1695,522 @@ void MILBuilder::addGlobalPoolingValueOps(CoreML::Specification::MILSpec::Block*
 // Network Component Builders
 // ============================================================================
 
+// ---------------------------------------------------------------------------
+// Transformer blocks (MIL). Layout is NCHW [B, C, H, W]; spatial positions
+// (H*W, ordered y*W+x) are treated as the attention sequence. RoPE is applied
+// via a fixed pair-rotation matmul plus host-precomputed cos/sin tables, which
+// keeps every tensor rank <= 4 (ANE-friendly).
+// ---------------------------------------------------------------------------
+
+std::string MILBuilder::addTransformerRMSNorm(CoreML::Specification::MILSpec::Block* block,
+                                              const std::string& input,
+                                              const TransformerRMSNormDesc& desc,
+                                              const std::string& mask,
+                                              const std::string& prefix) {
+    const int C = desc.num_channels;
+    const int H = m_board_y_size, W = m_board_x_size;
+    auto emit2 = [&](const std::string& type, const std::string& x, const std::string& y,
+                     const std::string& out, const std::vector<int64_t>& dims) {
+        auto* op = block->add_operations();
+        op->set_type(type);
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        setShape(op, out, dims);
+    };
+
+    std::string sq = genVarName(prefix + "_sq");
+    emit2("mul", input, input, sq, {-1, C, H, W});
+    // meanSq = reduce_mean(sq, axes=[1]) over channels. reduce_mean (not reduce_sum) is used so
+    // the accumulator stays ~O(activation^2) instead of summing hundreds of channels, which can
+    // overflow FP16 (and the FP16 accumulation on ANE) for large activations.
+    std::string meanSq = genVarName(prefix + "_meansq");
+    {
+        std::string axesName = meanSq + "_axes";
+        std::string keepName = meanSq + "_keep";
+        addIntArrayConstOp(block, axesName, {1});
+        addBoolScalarConstOp(block, keepName, true);
+        auto* op = block->add_operations();
+        op->set_type("reduce_mean");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(sq);
+        (*op->mutable_inputs())["axes"].add_arguments()->set_name(axesName);
+        (*op->mutable_inputs())["keep_dims"].add_arguments()->set_name(keepName);
+        setShape(op, meanSq, {-1, 1, H, W});
+    }
+    // MIL rsqrt computes 1/sqrt(x + epsilon); supply epsilon directly.
+    std::string epsName = prefix + "_eps";
+    addFloatScalarConstOp(block, epsName, desc.epsilon);
+    std::string inv = genVarName(prefix + "_inv");
+    {
+        auto* op = block->add_operations();
+        op->set_type("rsqrt");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(meanSq);
+        (*op->mutable_inputs())["epsilon"].add_arguments()->set_name(epsName);
+        setShape(op, inv, {-1, 1, H, W});
+    }
+    std::string normalized = genVarName(prefix + "_norm");
+    emit2("mul", input, inv, normalized, {-1, C, H, W});
+    std::string weightName = prefix + "_weight";
+    addConstOp(block, weightName, desc.weight, {1, static_cast<int64_t>(C), 1, 1});
+    std::string scaled = genVarName(prefix + "_scaled");
+    emit2("mul", normalized, weightName, scaled, {-1, C, H, W});
+    std::string out = genVarName(prefix + "_out");
+    emit2("mul", scaled, mask, out, {-1, C, H, W});
+    return out;
+}
+
+std::string MILBuilder::addTrunkRMSNorm(CoreML::Specification::MILSpec::Block* block,
+                                        const std::string& input,
+                                        const RMSNormLayerDesc& desc,
+                                        const ActivationLayerDesc& act,
+                                        const std::string& mask,
+                                        const std::string& prefix) {
+    const int C = desc.num_channels;
+    const int H = m_board_y_size, W = m_board_x_size;
+    auto emit2 = [&](const std::string& type, const std::string& x, const std::string& y,
+                     const std::string& out, const std::vector<int64_t>& dims) {
+        auto* op = block->add_operations();
+        op->set_type(type);
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        setShape(op, out, dims);
+    };
+    auto reduceSum = [&](const std::string& x, const std::string& out, const std::vector<int32_t>& axes,
+                         const std::vector<int64_t>& dims) {
+        std::string axesName = out + "_axes";
+        std::string keepName = out + "_keep";
+        addIntArrayConstOp(block, axesName, axes);
+        addBoolScalarConstOp(block, keepName, true);
+        auto* op = block->add_operations();
+        op->set_type("reduce_sum");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["axes"].add_arguments()->set_name(axesName);
+        (*op->mutable_inputs())["keep_dims"].add_arguments()->set_name(keepName);
+        setShape(op, out, dims);
+    };
+
+    std::string masked = genVarName(prefix + "_premask");
+    emit2("mul", input, mask, masked, {-1, C, H, W});
+    std::string sq = genVarName(prefix + "_sq");
+    emit2("mul", masked, masked, sq, {-1, C, H, W});
+
+    std::string meanSq;
+    std::vector<int64_t> denomDims;
+    if (desc.spatial) {
+        // Mean of squares over valid positions and channels. A reduce_sum over C*H*W elements
+        // overflows FP16 (e.g. trunk tip with large activations on ANE -> inf -> rsqrt 0 ->
+        // collapse). Instead take reduce_mean over all of C,H,W (masked positions are zero) and
+        // rescale by totalPositions/validCount to restrict the mean to valid positions.
+        std::string meanAll = genVarName(prefix + "_meanall");
+        {
+            std::string axesName = meanAll + "_axes", keepName = meanAll + "_keep";
+            addIntArrayConstOp(block, axesName, {1, 2, 3});
+            addBoolScalarConstOp(block, keepName, true);
+            auto* op = block->add_operations();
+            op->set_type("reduce_mean");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(sq);
+            (*op->mutable_inputs())["axes"].add_arguments()->set_name(axesName);
+            (*op->mutable_inputs())["keep_dims"].add_arguments()->set_name(keepName);
+            setShape(op, meanAll, {-1, 1, 1, 1});
+        }
+        std::string count = genVarName(prefix + "_count");
+        reduceSum(mask, count, {1, 2, 3}, {-1, 1, 1, 1});  // valid positions (<= H*W, no overflow)
+        std::string totalPosName = prefix + "_totalpos";
+        addFloatScalarConstOp(block, totalPosName, static_cast<float>(H * W));
+        std::string scaleF = genVarName(prefix + "_scalef");
+        emit2("real_div", totalPosName, count, scaleF, {-1, 1, 1, 1});  // totalPos / validCount
+        meanSq = genVarName(prefix + "_meansq");
+        emit2("mul", meanAll, scaleF, meanSq, {-1, 1, 1, 1});
+        denomDims = {-1, 1, 1, 1};
+    } else {
+        meanSq = genVarName(prefix + "_meansq");
+        std::string axesName = meanSq + "_axes";
+        std::string keepName = meanSq + "_keep";
+        addIntArrayConstOp(block, axesName, {1});
+        addBoolScalarConstOp(block, keepName, true);
+        auto* op = block->add_operations();
+        op->set_type("reduce_mean");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(sq);
+        (*op->mutable_inputs())["axes"].add_arguments()->set_name(axesName);
+        (*op->mutable_inputs())["keep_dims"].add_arguments()->set_name(keepName);
+        setShape(op, meanSq, {-1, 1, H, W});
+        denomDims = {-1, 1, H, W};
+    }
+
+    // MIL rsqrt computes 1/sqrt(x + epsilon); supply epsilon directly.
+    std::string epsName = prefix + "_eps";
+    addFloatScalarConstOp(block, epsName, desc.epsilon);
+    std::string inv = genVarName(prefix + "_inv");
+    {
+        auto* op = block->add_operations();
+        op->set_type("rsqrt");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(meanSq);
+        (*op->mutable_inputs())["epsilon"].add_arguments()->set_name(epsName);
+        setShape(op, inv, denomDims);
+    }
+    std::string normalized = genVarName(prefix + "_norm");
+    emit2("mul", input, inv, normalized, {-1, C, H, W});
+    std::string gammaName = prefix + "_gamma";
+    std::string betaName = prefix + "_beta";
+    addConstOp(block, gammaName, desc.gamma, {1, static_cast<int64_t>(C), 1, 1});
+    addConstOp(block, betaName, desc.beta, {1, static_cast<int64_t>(C), 1, 1});
+    std::string scaled = genVarName(prefix + "_scaled");
+    emit2("mul", normalized, gammaName, scaled, {-1, C, H, W});
+    std::string biased = genVarName(prefix + "_biased");
+    emit2("add", scaled, betaName, biased, {-1, C, H, W});
+
+    std::string activated;
+    if (act.activation_type == ActivationType::Silu) {
+        activated = genVarName(prefix + "_act");
+        addSiluOps(block, biased, activated, 4, C);
+    } else if (act.activation_type == ActivationType::Mish) {
+        activated = genVarName(prefix + "_act");
+        addMishOps(block, biased, activated, 4, C);
+    } else if (act.activation_type == ActivationType::ReLU) {
+        activated = genVarName(prefix + "_act");
+        auto* op = block->add_operations();
+        op->set_type("relu");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(biased);
+        setShape(op, activated, {-1, C, H, W});
+    } else {
+        activated = biased;
+    }
+    std::string out = genVarName(prefix + "_out");
+    emit2("mul", activated, mask, out, {-1, C, H, W});
+    return out;
+}
+
+std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MILSpec::Block* block,
+                                                       const std::string& input,
+                                                       const TransformerAttentionBlockDesc& desc,
+                                                       const std::string& mask,
+                                                       const std::string& prefix) {
+    const int C = desc.q_proj.in_channels;
+    const int H = m_board_y_size, W = m_board_x_size;
+    const int seq = H * W;
+    const int numHeads = desc.num_heads, numKVHeads = desc.num_kv_heads;
+    const int qHeadDim = desc.q_head_dim, vHeadDim = desc.v_head_dim;
+    const int qTotal = numHeads * qHeadDim, kTotal = numKVHeads * qHeadDim, vTotal = numKVHeads * vHeadDim;
+
+    if (numKVHeads != numHeads) {
+        throw std::runtime_error(desc.name + ": GQA (numKVHeads != numHeads) not supported in CoreML backend");
+    }
+
+    auto reshape = [&](const std::string& in, const std::string& out, const std::vector<int32_t>& shapeVals,
+                       const std::vector<int64_t>& dims) {
+        std::string shapeName = out + "_shape";
+        addIntArrayConstOp(block, shapeName, shapeVals);
+        auto* op = block->add_operations();
+        op->set_type("reshape");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(in);
+        (*op->mutable_inputs())["shape"].add_arguments()->set_name(shapeName);
+        setShape(op, out, dims);
+    };
+    auto transpose = [&](const std::string& in, const std::string& out, const std::vector<int32_t>& perm,
+                         const std::vector<int64_t>& dims) {
+        std::string permName = out + "_perm";
+        addIntArrayConstOp(block, permName, perm);
+        auto* op = block->add_operations();
+        op->set_type("transpose");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(in);
+        (*op->mutable_inputs())["perm"].add_arguments()->set_name(permName);
+        setShape(op, out, dims);
+    };
+    auto matmul = [&](const std::string& x, const std::string& y, const std::string& out,
+                      const std::vector<int64_t>& dims, bool transX, bool transY) {
+        std::string txName = out + "_tx", tyName = out + "_ty";
+        addBoolScalarConstOp(block, txName, transX);
+        addBoolScalarConstOp(block, tyName, transY);
+        auto* op = block->add_operations();
+        op->set_type("matmul");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        (*op->mutable_inputs())["transpose_x"].add_arguments()->set_name(txName);
+        (*op->mutable_inputs())["transpose_y"].add_arguments()->set_name(tyName);
+        setShape(op, out, dims);
+    };
+    auto binary = [&](const std::string& type, const std::string& x, const std::string& y,
+                      const std::string& out, const std::vector<int64_t>& dims) {
+        auto* op = block->add_operations();
+        op->set_type(type);
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        setShape(op, out, dims);
+    };
+
+    std::string normed = addTransformerRMSNorm(block, input, desc.pre_ln, mask, prefix + "_ln");
+    std::string nhwc = genVarName(prefix + "_nhwc");
+    transpose(normed, nhwc, {0, 2, 3, 1}, {-1, H, W, C});
+    std::string x2d = genVarName(prefix + "_x2d");
+    reshape(nhwc, x2d, {-1, C}, {-1, C});
+    auto proj = [&](const MatMulLayerDesc& w, const std::string& nm, int total) {
+        std::string wName = nm + "_w";
+        addConstOp(block, wName, w.weights, w.getWeightShape());
+        std::string out = genVarName(nm);
+        matmul(x2d, wName, out, {-1, total}, false, false);
+        return out;
+    };
+    std::string q2d = proj(desc.q_proj, prefix + "_q", qTotal);
+    std::string k2d = proj(desc.k_proj, prefix + "_k", kTotal);
+    std::string v2d = proj(desc.v_proj, prefix + "_v", vTotal);
+    auto toHeads = [&](const std::string& in2d, const std::string& nm, int nh, int hd) {
+        std::string r = genVarName(nm + "_r");
+        reshape(in2d, r, {-1, seq, nh, hd}, {-1, seq, nh, hd});
+        std::string t = genVarName(nm + "_t");
+        transpose(r, t, {0, 2, 1, 3}, {-1, nh, seq, hd});
+        return t;
+    };
+    std::string qh = toHeads(q2d, prefix + "_qh", numHeads, qHeadDim);
+    std::string kh = toHeads(k2d, prefix + "_kh", numKVHeads, qHeadDim);
+    std::string vh = toHeads(v2d, prefix + "_vh", numKVHeads, vHeadDim);
+
+    if (desc.use_rope) {
+        const int numPairs = qHeadDim / 2;
+        const int numPairsPerDim = numPairs / 2;
+        const int dimHalf = qHeadDim / 2;
+        auto applyRope = [&](const std::string& x, int nh, const std::string& tag) {
+            std::vector<float> cosFull(static_cast<size_t>(nh) * seq * qHeadDim, 0.0f);
+            std::vector<float> sinFull(static_cast<size_t>(nh) * seq * qHeadDim, 0.0f);
+            for (int h = 0; h < nh; h++) {
+                int kvh = (h * numKVHeads) / nh;
+                for (int xy = 0; xy < seq; xy++) {
+                    int y = xy / W;
+                    int x = xy % W;
+                    for (int p = 0; p < numPairs; p++) {
+                        float angle = 0.0f;
+                        if (desc.learnable_rope) {
+                            float fx = desc.rope_freqs[(kvh * numPairs + p) * 2 + 0];
+                            float fy = desc.rope_freqs[(kvh * numPairs + p) * 2 + 1];
+                            angle = static_cast<float>(x) * fx + static_cast<float>(y) * fy;
+                        } else {
+                            if (p < numPairsPerDim) {
+                                float freq = 1.0f / std::pow(desc.rope_theta, static_cast<float>(2 * p) / dimHalf);
+                                angle = static_cast<float>(y) * freq;
+                            } else {
+                                int pAdj = p - numPairsPerDim;
+                                float freq = 1.0f / std::pow(desc.rope_theta, static_cast<float>(2 * pAdj) / dimHalf);
+                                angle = static_cast<float>(x) * freq;
+                            }
+                        }
+                        float c = std::cos(angle), s = std::sin(angle);
+                        size_t base = (static_cast<size_t>(h) * seq + xy) * qHeadDim + 2 * p;
+                        cosFull[base] = c; cosFull[base + 1] = c;
+                        sinFull[base] = s; sinFull[base + 1] = s;
+                    }
+                }
+            }
+            std::vector<float> R(static_cast<size_t>(qHeadDim) * qHeadDim, 0.0f);
+            for (int p = 0; p < numPairs; p++) {
+                R[(2 * p) * qHeadDim + (2 * p + 1)] = 1.0f;
+                R[(2 * p + 1) * qHeadDim + (2 * p)] = -1.0f;
+            }
+            std::string cosName = prefix + "_" + tag + "_cos";
+            std::string sinName = prefix + "_" + tag + "_sin";
+            std::string rName = prefix + "_" + tag + "_R";
+            addConstOp(block, cosName, cosFull, {1, nh, seq, qHeadDim});
+            addConstOp(block, sinName, sinFull, {1, nh, seq, qHeadDim});
+            // Rank-4 [1,1,qd,qd] so matmul batch dims broadcast cleanly against [B,nh,seq,qd].
+            addConstOp(block, rName, R, {1, 1, qHeadDim, qHeadDim});
+            std::string rotated = genVarName(prefix + "_" + tag + "_rot");
+            matmul(x, rName, rotated, {-1, nh, seq, qHeadDim}, false, false);
+            std::string xc = genVarName(prefix + "_" + tag + "_xc");
+            binary("mul", x, cosName, xc, {-1, nh, seq, qHeadDim});
+            std::string rs = genVarName(prefix + "_" + tag + "_rs");
+            binary("mul", rotated, sinName, rs, {-1, nh, seq, qHeadDim});
+            std::string out = genVarName(prefix + "_" + tag + "_rope");
+            binary("add", xc, rs, out, {-1, nh, seq, qHeadDim});
+            return out;
+        };
+        qh = applyRope(qh, numHeads, "q");
+        kh = applyRope(kh, numKVHeads, "k");
+    }
+
+    std::string scores = genVarName(prefix + "_scores");
+    matmul(qh, kh, scores, {-1, numHeads, seq, seq}, false, true);
+    std::string scaleName = prefix + "_scale";
+    addFloatScalarConstOp(block, scaleName, 1.0f / std::sqrt(static_cast<float>(qHeadDim)));
+    std::string scaled = genVarName(prefix + "_sc");
+    binary("mul", scores, scaleName, scaled, {-1, numHeads, seq, seq});
+
+    // mask [B,1,H,W] -> [B,1,1,seq] directly (contiguous reshape; H,W already trailing so the
+    // row-major flatten gives seq index xy=y*W+x). No transpose -> avoids the reshape-after-
+    // transpose issue, and is also correct for non-full boards.
+    std::string maskSeq = genVarName(prefix + "_mseq");
+    reshape(mask, maskSeq, {-1, 1, 1, seq}, {-1, 1, 1, seq});
+    std::string oneName = prefix + "_one";
+    addFloatScalarConstOp(block, oneName, 1.0f);
+    std::string mm1 = genVarName(prefix + "_mm1");
+    binary("sub", maskSeq, oneName, mm1, {-1, 1, 1, seq});
+    // Use an FP16-safe magnitude: 1e9 overflows FP16 to +inf, and for valid keys
+    // (maskSeq-1 == 0) the product 0 * inf becomes NaN, poisoning the whole softmax.
+    // 1e4 is well within FP16 range and exp(score - 1e4) still underflows to 0.
+    std::string bigName = prefix + "_big";
+    addFloatScalarConstOp(block, bigName, 1.0e4f);
+    std::string keyBias = genVarName(prefix + "_kb");
+    binary("mul", mm1, bigName, keyBias, {-1, 1, 1, seq});
+    std::string scoresMasked = genVarName(prefix + "_scm");
+    binary("add", scaled, keyBias, scoresMasked, {-1, numHeads, seq, seq});
+
+    std::string attn = genVarName(prefix + "_attn");
+    {
+        std::string axisName = attn + "_axis";
+        addIntScalarConstOp(block, axisName, 3);
+        auto* op = block->add_operations();
+        op->set_type("softmax");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(scoresMasked);
+        (*op->mutable_inputs())["axis"].add_arguments()->set_name(axisName);
+        setShape(op, attn, {-1, numHeads, seq, seq});
+    }
+
+    std::string attnOut = genVarName(prefix + "_ao");
+    matmul(attn, vh, attnOut, {-1, numHeads, seq, vHeadDim}, false, false);
+
+    // Output projection, done per-head to avoid reshape-after-transpose: CoreML's reshape
+    // ignores an immediately-preceding transpose, so merging [head,dim]->channels after a
+    // transpose scrambles the data. Instead slice each head from attnOut (head is the
+    // contiguous axis 1), reshape (leading-merge only), matmul its weight slice, and sum.
+    //   out[b,s,c] = sum_h sum_d attnOut[b,h,s,d] * outProj.weights[(h*vHeadDim+d)*outC + c]
+    const int outC = desc.out_proj.out_channels;
+    std::string proj2d;
+    for (int h = 0; h < numHeads; h++) {
+        std::string aoh = genVarName(prefix + "_aoh");
+        {
+            std::string beginName = aoh + "_begin", sizeName = aoh + "_size";
+            addIntArrayConstOp(block, beginName, {0, h, 0, 0});
+            addIntArrayConstOp(block, sizeName, {-1, 1, seq, vHeadDim});
+            auto* op = block->add_operations();
+            op->set_type("slice_by_size");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(attnOut);
+            (*op->mutable_inputs())["begin"].add_arguments()->set_name(beginName);
+            (*op->mutable_inputs())["size"].add_arguments()->set_name(sizeName);
+            setShape(op, aoh, {-1, 1, seq, vHeadDim});
+        }
+        std::string aoh2d = genVarName(prefix + "_aoh2d");
+        reshape(aoh, aoh2d, {-1, vHeadDim}, {-1, vHeadDim});  // [B*seq, vHeadDim]
+        std::string wh = prefix + "_ow" + std::to_string(h);
+        std::vector<float> whData(static_cast<size_t>(vHeadDim) * outC);
+        for (int d = 0; d < vHeadDim; d++)
+            for (int c = 0; c < outC; c++)
+                whData[d * outC + c] = desc.out_proj.weights[static_cast<size_t>(h * vHeadDim + d) * outC + c];
+        addConstOp(block, wh, whData, {vHeadDim, outC});
+        std::string contrib = genVarName(prefix + "_contrib");
+        matmul(aoh2d, wh, contrib, {-1, outC}, false, false);
+        if (h == 0) {
+            proj2d = contrib;
+        } else {
+            std::string acc = genVarName(prefix + "_acc");
+            binary("add", proj2d, contrib, acc, {-1, outC});
+            proj2d = acc;
+        }
+    }
+    std::string projNHWC = genVarName(prefix + "_pnhwc");
+    reshape(proj2d, projNHWC, {-1, H, W, C}, {-1, H, W, C});
+    std::string projNCHW = genVarName(prefix + "_pnchw");
+    transpose(projNHWC, projNCHW, {0, 3, 1, 2}, {-1, C, H, W});
+    std::string maskedOut = genVarName(prefix + "_masked");
+    binary("mul", projNCHW, mask, maskedOut, {-1, C, H, W});
+    std::string out = genVarName(prefix + "_out");
+    binary("add", input, maskedOut, out, {-1, C, H, W});
+    return out;
+}
+
+std::string MILBuilder::buildTransformerFFNBlock(CoreML::Specification::MILSpec::Block* block,
+                                                 const std::string& input,
+                                                 const TransformerFFNBlockDesc& desc,
+                                                 const std::string& mask,
+                                                 const std::string& prefix) {
+    const int C = desc.num_channels;
+    const int ffn = desc.ffn_channels;
+    const int H = m_board_y_size, W = m_board_x_size;
+
+    if (!desc.use_swiglu) {
+        throw std::runtime_error(desc.name + ": non-SwiGLU transformer FFN not supported in CoreML backend");
+    }
+
+    auto reshape = [&](const std::string& in, const std::string& out, const std::vector<int32_t>& shapeVals,
+                       const std::vector<int64_t>& dims) {
+        std::string shapeName = out + "_shape";
+        addIntArrayConstOp(block, shapeName, shapeVals);
+        auto* op = block->add_operations();
+        op->set_type("reshape");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(in);
+        (*op->mutable_inputs())["shape"].add_arguments()->set_name(shapeName);
+        setShape(op, out, dims);
+    };
+    auto transpose = [&](const std::string& in, const std::string& out, const std::vector<int32_t>& perm,
+                         const std::vector<int64_t>& dims) {
+        std::string permName = out + "_perm";
+        addIntArrayConstOp(block, permName, perm);
+        auto* op = block->add_operations();
+        op->set_type("transpose");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(in);
+        (*op->mutable_inputs())["perm"].add_arguments()->set_name(permName);
+        setShape(op, out, dims);
+    };
+    auto matmul = [&](const std::string& x, const std::string& y, const std::string& out,
+                      const std::vector<int64_t>& dims) {
+        std::string txName = out + "_tx", tyName = out + "_ty";
+        addBoolScalarConstOp(block, txName, false);
+        addBoolScalarConstOp(block, tyName, false);
+        auto* op = block->add_operations();
+        op->set_type("matmul");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        (*op->mutable_inputs())["transpose_x"].add_arguments()->set_name(txName);
+        (*op->mutable_inputs())["transpose_y"].add_arguments()->set_name(tyName);
+        setShape(op, out, dims);
+    };
+    auto binary = [&](const std::string& type, const std::string& x, const std::string& y,
+                      const std::string& out, const std::vector<int64_t>& dims) {
+        auto* op = block->add_operations();
+        op->set_type(type);
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        setShape(op, out, dims);
+    };
+
+    std::string normed = addTransformerRMSNorm(block, input, desc.pre_ln, mask, prefix + "_ln");
+    std::string nhwc = genVarName(prefix + "_nhwc");
+    transpose(normed, nhwc, {0, 2, 3, 1}, {-1, H, W, C});
+    std::string x2d = genVarName(prefix + "_x2d");
+    reshape(nhwc, x2d, {-1, C}, {-1, C});
+
+    std::string w1 = prefix + "_w1";
+    addConstOp(block, w1, desc.linear1.weights, desc.linear1.getWeightShape());
+    std::string a = genVarName(prefix + "_a");
+    matmul(x2d, w1, a, {-1, ffn});
+    std::string wg = prefix + "_wg";
+    addConstOp(block, wg, desc.linear_gate.weights, desc.linear_gate.getWeightShape());
+    std::string g = genVarName(prefix + "_g");
+    matmul(x2d, wg, g, {-1, ffn});
+
+    std::string sig = genVarName(prefix + "_sig");
+    {
+        auto* op = block->add_operations();
+        op->set_type("sigmoid");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(a);
+        setShape(op, sig, {-1, ffn});
+    }
+    std::string siluA = genVarName(prefix + "_silu");
+    binary("mul", a, sig, siluA, {-1, ffn});
+    std::string h = genVarName(prefix + "_h");
+    binary("mul", siluA, g, h, {-1, ffn});
+
+    std::string w2 = prefix + "_w2";
+    addConstOp(block, w2, desc.linear2.weights, desc.linear2.getWeightShape());
+    std::string o = genVarName(prefix + "_o");
+    matmul(h, w2, o, {-1, C});
+
+    std::string oNHWC = genVarName(prefix + "_onhwc");
+    reshape(o, oNHWC, {-1, H, W, C}, {-1, H, W, C});
+    std::string oNCHW = genVarName(prefix + "_onchw");
+    transpose(oNHWC, oNCHW, {0, 3, 1, 2}, {-1, C, H, W});
+    std::string maskedOut = genVarName(prefix + "_masked");
+    binary("mul", oNCHW, mask, maskedOut, {-1, C, H, W});
+    std::string out = genVarName(prefix + "_out");
+    binary("add", input, maskedOut, out, {-1, C, H, W});
+    return out;
+}
+
 std::string MILBuilder::buildTrunk(CoreML::Specification::MILSpec::Block* block,
                                    const std::string& spatial_input,
                                    const std::string& global_input,
@@ -1747,12 +2321,23 @@ std::string MILBuilder::buildTrunk(CoreML::Specification::MILSpec::Block* block,
         } else if (entry.block_kind == NESTED_BOTTLENECK_BLOCK_KIND) {
             const auto& block_desc = std::get<NestedBottleneckResidualBlockDesc>(*entry.block);
             x = buildNestedBottleneckBlock(block, x, block_desc, mask, prefix);
+        } else if (entry.block_kind == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+            const auto& block_desc = std::get<TransformerAttentionBlockDesc>(*entry.block);
+            x = buildTransformerAttentionBlock(block, x, block_desc, mask, prefix);
+        } else if (entry.block_kind == TRANSFORMER_FFN_BLOCK_KIND) {
+            const auto& block_desc = std::get<TransformerFFNBlockDesc>(*entry.block);
+            x = buildTransformerFFNBlock(block, x, block_desc, mask, prefix);
         }
     }
 
     // Trunk tip
-    std::string trunk_out = genVarName("trunk_tip");
-    addBatchNormActivationOps(block, x, trunk.trunk_tip_bn, trunk.trunk_tip_activation, mask, trunk_out);
+    std::string trunk_out;
+    if (trunk.trunk_norm_kind == TRUNK_NORM_KIND_STANDARD) {
+        trunk_out = genVarName("trunk_tip");
+        addBatchNormActivationOps(block, x, trunk.trunk_tip_bn, trunk.trunk_tip_activation, mask, trunk_out);
+    } else {
+        trunk_out = addTrunkRMSNorm(block, x, trunk.trunk_tip_rms_norm, trunk.trunk_tip_activation, mask, "trunk_tip_rms");
+    }
 
     return trunk_out;
 }
@@ -1898,6 +2483,12 @@ std::string MILBuilder::buildNestedBottleneckBlock(CoreML::Specification::MILSpe
         } else if (entry.block_kind == GLOBAL_POOLING_BLOCK_KIND) {
             const auto& nested = std::get<GlobalPoolingResidualBlockDesc>(*entry.block);
             x = buildGlobalPoolingResidualBlock(block, x, nested, mask, nested_prefix);
+        } else if (entry.block_kind == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+            const auto& nested = std::get<TransformerAttentionBlockDesc>(*entry.block);
+            x = buildTransformerAttentionBlock(block, x, nested, mask, nested_prefix);
+        } else if (entry.block_kind == TRANSFORMER_FFN_BLOCK_KIND) {
+            const auto& nested = std::get<TransformerFFNBlockDesc>(*entry.block);
+            x = buildTransformerFFNBlock(block, x, nested, mask, nested_prefix);
         }
     }
 

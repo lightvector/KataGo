@@ -120,6 +120,44 @@ private:
                     int rank,
                     int channels);
 
+    void addSiluOps(CoreML::Specification::MILSpec::Block* block,
+                    const std::string& input,
+                    const std::string& output,
+                    int rank,
+                    int channels);
+
+    // Generic output-shape setter: dims with -1 entries become unknown/dynamic dimensions.
+    void setShape(CoreML::Specification::MILSpec::Operation* op,
+                  const std::string& name,
+                  const std::vector<int64_t>& dims);
+
+    // Lightweight transformer RMSNorm (weight only, per-position over channels). NCHW in/out.
+    std::string addTransformerRMSNorm(CoreML::Specification::MILSpec::Block* block,
+                                      const std::string& input,
+                                      const TransformerRMSNormDesc& desc,
+                                      const std::string& mask,
+                                      const std::string& prefix);
+
+    // Full RMSNorm at trunk tip: gamma/beta, spatial or per-position, fused activation. NCHW in/out.
+    std::string addTrunkRMSNorm(CoreML::Specification::MILSpec::Block* block,
+                                const std::string& input,
+                                const RMSNormLayerDesc& desc,
+                                const ActivationLayerDesc& act,
+                                const std::string& mask,
+                                const std::string& prefix);
+
+    std::string buildTransformerAttentionBlock(CoreML::Specification::MILSpec::Block* block,
+                                               const std::string& input,
+                                               const TransformerAttentionBlockDesc& block_desc,
+                                               const std::string& mask,
+                                               const std::string& prefix);
+
+    std::string buildTransformerFFNBlock(CoreML::Specification::MILSpec::Block* block,
+                                         const std::string& input,
+                                         const TransformerFFNBlockDesc& block_desc,
+                                         const std::string& mask,
+                                         const std::string& prefix);
+
     void addGlobalPoolingOps(CoreML::Specification::MILSpec::Block* block,
                              const std::string& input,
                              const std::string& mask,

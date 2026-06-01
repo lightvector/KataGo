@@ -130,6 +130,8 @@ ActivationKind activationLayerDescToSwift(const ActivationLayerDesc* desc) {
       return ActivationKind::mish();
     case ACTIVATION_MISH_SCALE8:
       return ActivationKind::identity(); // Metal/CoreML does not use scaled mish
+    case ACTIVATION_SILU:
+      return ActivationKind::silu();
     case ACTIVATION_IDENTITY:
       return ActivationKind::identity();
     default:
@@ -217,6 +219,58 @@ SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(con
     postConv);
 }
 
+/// Convert a transformer RMSNorm description from C++ to Swift
+SWTransformerRMSNormDesc transformerRMSNormDescToSwift(const TransformerRMSNormDesc* desc) {
+  return createSWTransformerRMSNormDesc(
+    desc->numChannels,
+    desc->epsilon,
+    (float*)desc->weight.data());
+}
+
+/// Convert a transformer attention block description from C++ to Swift
+SWTransformerAttentionBlockDesc transformerAttentionBlockDescToSwift(const TransformerAttentionDesc* desc) {
+  SWTransformerRMSNormDesc preLN = transformerRMSNormDescToSwift(&desc->preLN);
+  SWMatMulLayerDesc qProj = matMulLayerDescToSwift(&desc->qProj);
+  SWMatMulLayerDesc kProj = matMulLayerDescToSwift(&desc->kProj);
+  SWMatMulLayerDesc vProj = matMulLayerDescToSwift(&desc->vProj);
+  SWMatMulLayerDesc outProj = matMulLayerDescToSwift(&desc->outProj);
+  float* ropeFreqs = desc->ropeFreqs.empty() ? nullptr : (float*)desc->ropeFreqs.data();
+
+  return createSWTransformerAttentionBlockDesc(
+    desc->numHeads,
+    desc->numKVHeads,
+    desc->qHeadDim,
+    desc->vHeadDim,
+    desc->useRope,
+    desc->learnableRope,
+    preLN,
+    qProj,
+    kProj,
+    vProj,
+    outProj,
+    desc->ropeNumKVHeads,
+    desc->ropeNumPairs,
+    ropeFreqs,
+    desc->ropeTheta);
+}
+
+/// Convert a transformer FFN block description from C++ to Swift
+SWTransformerFFNBlockDesc transformerFFNBlockDescToSwift(const TransformerFFNDesc* desc) {
+  SWTransformerRMSNormDesc preLN = transformerRMSNormDescToSwift(&desc->preLN);
+  SWMatMulLayerDesc linear1 = matMulLayerDescToSwift(&desc->linear1);
+  SWMatMulLayerDesc linearGate = matMulLayerDescToSwift(&desc->linearGate);
+  SWMatMulLayerDesc linear2 = matMulLayerDescToSwift(&desc->linear2);
+
+  return createSWTransformerFFNBlockDesc(
+    desc->numChannels,
+    desc->ffnChannels,
+    desc->useSwiGLU,
+    preLN,
+    linear1,
+    linearGate,
+    linear2);
+}
+
 /// Convert residual blocks from C++ to Swift
 swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks) {
   auto builder = createBlockDescriptorBuilder();
@@ -230,9 +284,12 @@ swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, uniqu
     } else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       BlockDescriptor descriptor = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
-    } else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
-              blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
-      throw StringError("Transformer blocks are not yet supported by the Metal backend");
+    } else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      BlockDescriptor descriptor = transformerAttentionBlockDescToSwift((TransformerAttentionDesc*)blockDesc);
+      builder.enque(descriptor);
+    } else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      BlockDescriptor descriptor = transformerFFNBlockDescToSwift((TransformerFFNDesc*)blockDesc);
+      builder.enque(descriptor);
     } else {
       BlockDescriptor descriptor = residualBlockDescToSwift((ResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
@@ -265,14 +322,24 @@ swift::Optional<SWSGFMetadataEncoderDesc> sGFMetadataEncoderDescToSwift(const SG
 }
 
 /// Convert a trunk description from C++ to Swift
+SWRMSNormLayerDesc rmsNormLayerDescToSwift(const RMSNormLayerDesc* desc) {
+  float* gamma = desc->gamma.empty() ? nullptr : (float*)desc->gamma.data();
+  float* beta = desc->beta.empty() ? nullptr : (float*)desc->beta.data();
+  return createSWRMSNormLayerDesc(
+    desc->numChannels,
+    desc->epsilon,
+    desc->spatial,
+    gamma,
+    beta);
+}
+
 SWTrunkDesc trunkDescToSwift(const TrunkDesc* trunk) {
   SWConvLayerDesc initialConv = convLayerDescToSwift(&trunk->initialConv);
   SWMatMulLayerDesc initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
   auto sgfMetadataEncoder = sGFMetadataEncoderDescToSwift(&trunk->sgfMetadataEncoder);
   auto swBlocks = residualBlocksToSwift(trunk->blocks);
-  if(trunk->trunkNormKind != TRUNK_NORM_KIND_STANDARD)
-    throw StringError("Trunk RMSNorm is not yet supported by the Metal backend");
   SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
+  SWRMSNormLayerDesc trunkTipRMSNorm = rmsNormLayerDescToSwift(&trunk->trunkTipRMSNorm);
   ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
 
   return createSWTrunkDesc(
@@ -285,7 +352,9 @@ SWTrunkDesc trunkDescToSwift(const TrunkDesc* trunk) {
     initialMatMul,
     sgfMetadataEncoder,
     swBlocks,
+    trunk->trunkNormKind,
     trunkTipBN,
+    trunkTipRMSNorm,
     trunkTipActivation);
 }
 
