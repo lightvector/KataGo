@@ -43,6 +43,14 @@ private:
     bool m_optimize_identity_mask;
     bool m_use_fp16;
     bool m_use_fp16_io;
+    // FP32 in FP16 mode follows KataGo's FP16 convention (spatial convs FP16, non-spatial FP32), but
+    // FP32 ops run off the FP16-only ANE, so convs are channel-gated to only the wide trunks that
+    // need it. RMSNorm reductions: always FP32 (cheap, needed by all). Non-spatial matmuls+pooling:
+    // always FP32 (every width needs it at some board size). Convs: FP32 only for wide trunks.
+    static constexpr int CONV_FP32_MIN_TRUNK_CHANNELS = 320;   // convs run FP32 at/above this width
+    static constexpr int FULL_FP32_MAX_TRUNK_CHANNELS = 256;   // trunks below this build fully FP32
+    bool m_nonspatial_fp32 = false;  // = m_use_fp16 (matmuls + global pooling)
+    bool m_conv_fp32 = false;        // = m_use_fp16 && trunk_channels >= CONV_FP32_MIN_...
     int m_min_batch_size;
     int m_max_batch_size;
     CoreML::Specification::MILSpec::DataType m_weight_dtype;
@@ -101,6 +109,14 @@ private:
                    const std::string& output,
                    const std::string& dtype,
                    const std::vector<int64_t>& shape);
+
+    // Cast to a tensor with FULLY-specified dims (no forced batch dim like addCastOp). Use for
+    // weight tensors (fixed [in,out] dims) when running an otherwise-FP16 op in FP32. Returns the
+    // new tensor name. dims use -1 for an unknown/batch dim, >=0 for a constant dim.
+    std::string castFixed(CoreML::Specification::MILSpec::Block* block,
+                          const std::string& input,
+                          const std::string& dtype,
+                          const std::vector<int64_t>& dims);
 
     void addConvOp(CoreML::Specification::MILSpec::Block* block,
                    const std::string& input,

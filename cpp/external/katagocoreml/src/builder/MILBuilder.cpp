@@ -31,7 +31,24 @@ MILBuilder::MILBuilder(const KataGoModelDesc& model,
           ? CoreML::Specification::MILSpec::DataType::FLOAT16
           : CoreML::Specification::MILSpec::DataType::FLOAT32)
     , m_ops(board_x_size, board_y_size, optimize_identity_mask)
-    , m_var_counter(0) {}
+    , m_var_counter(0) {
+    // Precision tiers in FP16 mode (the ANE accumulates FP16 in FP16; FP32 ops run off the FP16-only
+    // ANE). NARROW transformer trunks are unreliable on the FP16 ANE: their policy/value metrics sit
+    // right on the testgpuerror thresholds and no partial-FP32 config passes all board sizes (partial
+    // FP32 leaves a noisy FP16 spatial stream). So build narrow trunks FULLY in FP32 (off-ANE, but
+    // cheap since narrow models are small; correct because it equals the FP32 reference). Weights are
+    // stored FP32 via per-weight serialization. Wider trunks use partial FP32: non-spatial (matmuls +
+    // pooling) always FP32; convs FP32 only for very wide trunks (kept on the ANE for narrower ones).
+    const int trunkChannels = model.trunk.trunk_num_channels;
+    const bool full_fp32 = use_fp16 && trunkChannels < FULL_FP32_MAX_TRUNK_CHANNELS;
+    if (full_fp32) {
+        m_use_fp16 = false;
+        m_use_fp16_io = false;
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+    }
+    m_nonspatial_fp32 = m_use_fp16;
+    m_conv_fp32 = m_use_fp16 && trunkChannels >= CONV_FP32_MIN_TRUNK_CHANNELS;
+}
 
 void MILBuilder::setBatchDimension(CoreML::Specification::MILSpec::TensorType* tensor_type) {
     auto* dim = tensor_type->add_dimensions();
@@ -213,8 +230,10 @@ void MILBuilder::addConstOp(CoreML::Specification::MILSpec::Block* block,
                             const std::string& name,
                             const std::vector<float>& data,
                             const std::vector<int64_t>& shape) {
-    // Register weight for blob storage
-    m_ops.registerWeight(name, data, shape);
+    // Register weight for blob storage. Mark FP32 storage when this const is declared FP32 (e.g.
+    // inside an FP32 sub-region of an otherwise-FP16 model) so storage matches the declared type.
+    m_ops.registerWeight(name, data, shape,
+                         m_weight_dtype == CoreML::Specification::MILSpec::DataType::FLOAT32);
 
     // Add const operation
     auto* op = block->add_operations();
@@ -329,7 +348,11 @@ void MILBuilder::addFloatScalarConstOp(CoreML::Specification::MILSpec::Block* bl
     val_type->set_datatype(m_weight_dtype);
     val_type->set_rank(0);
 
-    if (m_use_fp16) {
+    // Key the storage format off the DECLARED dtype (m_weight_dtype), not the global m_use_fp16:
+    // a temporarily-flipped FP32 sub-region (m_weight_dtype=FLOAT32 while m_use_fp16 stays true)
+    // must store FP32 floats, or CoreML rejects the model ("storage and type have different number
+    // of elements"). For all non-flipped calls m_weight_dtype tracks m_use_fp16, so this is a no-op.
+    if (m_weight_dtype == CoreML::Specification::MILSpec::DataType::FLOAT16) {
         // For FP16, use bytes storage with FP16 representation
         MILBlob::Fp16 fp16_val = MILBlob::Fp16::FromFloat(value);
         std::string bytes_data(reinterpret_cast<const char*>(&fp16_val.bytes), sizeof(fp16_val.bytes));
@@ -425,6 +448,42 @@ void MILBuilder::addCastOp(CoreML::Specification::MILSpec::Block* block,
     for (size_t i = 1; i < shape.size(); i++) {
         tt->add_dimensions()->mutable_constant()->set_size(shape[i]);
     }
+}
+
+std::string MILBuilder::castFixed(CoreML::Specification::MILSpec::Block* block,
+                                  const std::string& input,
+                                  const std::string& dtype,
+                                  const std::vector<int64_t>& dims) {
+    std::string out = genVarName(input + "_cast");
+    std::string dtName = out + "_dt";
+    {
+        auto* op = block->add_operations();
+        op->set_type("const");
+        auto& na = (*op->mutable_attributes())["name"];
+        na.mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+        na.mutable_immediatevalue()->mutable_tensor()->mutable_strings()->add_values(dtName);
+        auto& va = (*op->mutable_attributes())["val"];
+        va.mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+        va.mutable_immediatevalue()->mutable_tensor()->mutable_strings()->add_values(dtype);
+        auto* o = op->add_outputs();
+        o->set_name(dtName);
+        o->mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+    }
+    auto* op = block->add_operations();
+    op->set_type("cast");
+    (*op->mutable_inputs())["x"].add_arguments()->set_name(input);
+    (*op->mutable_inputs())["dtype"].add_arguments()->set_name(dtName);
+    auto* o = op->add_outputs();
+    o->set_name(out);
+    auto* tt = o->mutable_type()->mutable_tensortype();
+    tt->set_datatype(dtype == "fp32" ? CoreML::Specification::MILSpec::DataType::FLOAT32
+                                     : CoreML::Specification::MILSpec::DataType::FLOAT16);
+    tt->set_rank(static_cast<int64_t>(dims.size()));
+    for (int64_t d : dims) {
+        if (d < 0) tt->add_dimensions()->mutable_unknown()->set_variadic(false);
+        else tt->add_dimensions()->mutable_constant()->set_size(d);
+    }
+    return out;
 }
 
 void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
@@ -567,6 +626,21 @@ void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
         tt->add_dimensions()->mutable_constant()->set_size(4);
     }
 
+    // Channel-gated FP32 convs. The ANE accumulates FP16 convs in FP16, which loses too much
+    // precision for WIDE trunks and fails testgpuerror at large board sizes (validated: 384ch
+    // fails, <=256ch is fine FP16-on-ANE). For wide trunks (>= threshold) run convs in FP32 (weights
+    // cast up at runtime, stored fp16). FP32 convs can't run on the fp16-only ANE, so only the wide
+    // models that actually need it pay that off-ANE cost; narrow models keep convs on the ANE.
+    const bool convFp32 = m_conv_fp32;
+    std::string convX = input, convW = weight_name, convOut = output;
+    auto savedConvDtype = m_weight_dtype;
+    if (convFp32) {
+        convX = castFixed(block, input, "fp32", {-1, layer.in_channels, m_board_y_size, m_board_x_size});
+        convW = castFixed(block, weight_name, "fp32", layer.getWeightShape());
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+        convOut = output + "_cf32";
+    }
+
     // Add conv operation referencing all const parameters
     auto* op = block->add_operations();
     op->set_type("conv");
@@ -578,12 +652,12 @@ void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
     inputs["pad"].add_arguments()->set_name(pad_name);
     inputs["pad_type"].add_arguments()->set_name(pad_type_name);
     inputs["strides"].add_arguments()->set_name(strides_name);
-    inputs["weight"].add_arguments()->set_name(weight_name);
-    inputs["x"].add_arguments()->set_name(input);
+    inputs["weight"].add_arguments()->set_name(convW);
+    inputs["x"].add_arguments()->set_name(convX);
 
     // Output with dimensions [batch, out_channels, height, width]
     auto* out = op->add_outputs();
-    out->set_name(output);
+    out->set_name(convOut);
     auto* out_type = out->mutable_type()->mutable_tensortype();
     out_type->set_datatype(m_weight_dtype);
     out_type->set_rank(4);
@@ -591,6 +665,11 @@ void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
     out_type->add_dimensions()->mutable_constant()->set_size(layer.out_channels);
     out_type->add_dimensions()->mutable_constant()->set_size(m_board_y_size);
     out_type->add_dimensions()->mutable_constant()->set_size(m_board_x_size);
+
+    if (convFp32) {
+        m_weight_dtype = savedConvDtype;
+        addCastOp(block, convOut, output, "fp16", {-1, layer.out_channels, m_board_y_size, m_board_x_size});
+    }
 }
 
 // Helper: Set output tensor type with 4D shape [batch, C, H, W]
@@ -945,23 +1024,38 @@ void MILBuilder::addMatMulOp(CoreML::Specification::MILSpec::Block* block,
             CoreML::Specification::MILSpec::DataType::BOOL);
     }
 
+    // Non-spatial matmul in FP32 (KataGo FP16 convention; weights cast up at runtime, stored fp16).
+    std::string mmIn = input, mmW = weight_name, mmOut = output;
+    auto savedMmDtype = m_weight_dtype;
+    if (m_nonspatial_fp32) {
+        mmIn = castFixed(block, input, "fp32", {-1, layer.in_channels});
+        mmW = castFixed(block, weight_name, "fp32", layer.getWeightShape());
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+        mmOut = output + "_mmf32";
+    }
+
     // Add matmul operation
     auto* op = block->add_operations();
     op->set_type("matmul");
     auto& inputs = *op->mutable_inputs();
     inputs["transpose_x"].add_arguments()->set_name(transpose_x_name);
     inputs["transpose_y"].add_arguments()->set_name(transpose_y_name);
-    inputs["x"].add_arguments()->set_name(input);
-    inputs["y"].add_arguments()->set_name(weight_name);
+    inputs["x"].add_arguments()->set_name(mmIn);
+    inputs["y"].add_arguments()->set_name(mmW);
 
     // Output with 2D shape [batch, out_channels]
     auto* out = op->add_outputs();
-    out->set_name(output);
+    out->set_name(mmOut);
     auto* out_type = out->mutable_type()->mutable_tensortype();
     out_type->set_datatype(m_weight_dtype);
     out_type->set_rank(2);
     setBatchDimension(out_type);
     out_type->add_dimensions()->mutable_constant()->set_size(layer.out_channels);
+
+    if (m_nonspatial_fp32) {
+        m_weight_dtype = savedMmDtype;
+        addCastOp(block, mmOut, output, "fp16", {-1, layer.out_channels});
+    }
 }
 
 void MILBuilder::addMatBiasOp(CoreML::Specification::MILSpec::Block* block,
@@ -1022,7 +1116,9 @@ void MILBuilder::addLinearOp(CoreML::Specification::MILSpec::Block* block,
     std::vector<int64_t> bias_shape = {static_cast<int64_t>(bias.num_channels)};
     addConstOp(block, bias_name, bias.weights, bias_shape);
 
-    // Add linear operation
+    // NOTE: the MIL `linear` op requires const weight/bias, so the runtime-cast-to-FP32 trick can't
+    // be applied here (unlike `matmul`). Value-head linear stays FP16; if a model ever needs it in
+    // FP32, rewrite as matmul+add (matmul accepts cast inputs).
     auto* op = block->add_operations();
     op->set_type("linear");
     auto& inputs = *op->mutable_inputs();
@@ -1718,8 +1814,20 @@ std::string MILBuilder::addTransformerRMSNorm(CoreML::Specification::MILSpec::Bl
         setShape(op, out, dims);
     };
 
+    // RMSNorm reduction core: square -> mean over channels -> rsqrt. In FP16 mode compute this
+    // core in FP32 (cast input up, flip the working dtype so the core's op outputs + eps scalar are
+    // FP32, then cast 1/rms back down). The FP16 channel reduction loses too much precision on the
+    // ANE; only this core is FP32 - the scaling/weight/mask below stay FP16. No addConstOp lives in
+    // the flipped window, so weight serialization is unaffected.
+    auto savedDtype = m_weight_dtype;
+    std::string sqSrc = input;
+    if (m_use_fp16) {
+        sqSrc = genVarName(prefix + "_in32");
+        addCastOp(block, input, sqSrc, "fp32", {-1, C, H, W});
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+    }
     std::string sq = genVarName(prefix + "_sq");
-    emit2("mul", input, input, sq, {-1, C, H, W});
+    emit2("mul", sqSrc, sqSrc, sq, {-1, C, H, W});
     // meanSq = reduce_mean(sq, axes=[1]) over channels. reduce_mean (not reduce_sum) is used so
     // the accumulator stays ~O(activation^2) instead of summing hundreds of channels, which can
     // overflow FP16 (and the FP16 accumulation on ANE) for large activations.
@@ -1739,13 +1847,19 @@ std::string MILBuilder::addTransformerRMSNorm(CoreML::Specification::MILSpec::Bl
     // MIL rsqrt computes 1/sqrt(x + epsilon); supply epsilon directly.
     std::string epsName = prefix + "_eps";
     addFloatScalarConstOp(block, epsName, desc.epsilon);
-    std::string inv = genVarName(prefix + "_inv");
+    std::string invCore = genVarName(prefix + "_inv");
     {
         auto* op = block->add_operations();
         op->set_type("rsqrt");
         (*op->mutable_inputs())["x"].add_arguments()->set_name(meanSq);
         (*op->mutable_inputs())["epsilon"].add_arguments()->set_name(epsName);
-        setShape(op, inv, {-1, 1, H, W});
+        setShape(op, invCore, {-1, 1, H, W});
+    }
+    std::string inv = invCore;
+    if (m_use_fp16) {
+        m_weight_dtype = savedDtype;
+        inv = genVarName(prefix + "_inv16");
+        addCastOp(block, invCore, inv, "fp16", {-1, 1, H, W});
     }
     std::string normalized = genVarName(prefix + "_norm");
     emit2("mul", input, inv, normalized, {-1, C, H, W});
@@ -1788,8 +1902,22 @@ std::string MILBuilder::addTrunkRMSNorm(CoreML::Specification::MILSpec::Block* b
         setShape(op, out, dims);
     };
 
+    // Variance core (mask -> square -> reduce -> rsqrt) in FP32 when in FP16 mode. The trunk-tip
+    // norm in particular reduces over many elements and loses too much precision in FP16 on the
+    // ANE; compute the core in FP32 and cast 1/rms back to FP16. Only the core is FP32 - gamma/beta,
+    // the activation and the final mask below stay FP16. No addConstOp lives in the flipped window.
+    auto savedDtype = m_weight_dtype;
+    std::string tinput = input;
+    std::string tmask = mask;
+    if (m_use_fp16) {
+        tinput = genVarName(prefix + "_in32");
+        addCastOp(block, input, tinput, "fp32", {-1, C, H, W});
+        tmask = genVarName(prefix + "_mask32");
+        addCastOp(block, mask, tmask, "fp32", {-1, 1, H, W});
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+    }
     std::string masked = genVarName(prefix + "_premask");
-    emit2("mul", input, mask, masked, {-1, C, H, W});
+    emit2("mul", tinput, tmask, masked, {-1, C, H, W});
     std::string sq = genVarName(prefix + "_sq");
     emit2("mul", masked, masked, sq, {-1, C, H, W});
 
@@ -1813,7 +1941,7 @@ std::string MILBuilder::addTrunkRMSNorm(CoreML::Specification::MILSpec::Block* b
             setShape(op, meanAll, {-1, 1, 1, 1});
         }
         std::string count = genVarName(prefix + "_count");
-        reduceSum(mask, count, {1, 2, 3}, {-1, 1, 1, 1});  // valid positions (<= H*W, no overflow)
+        reduceSum(tmask, count, {1, 2, 3}, {-1, 1, 1, 1});  // valid positions (<= H*W, no overflow)
         std::string totalPosName = prefix + "_totalpos";
         addFloatScalarConstOp(block, totalPosName, static_cast<float>(H * W));
         std::string scaleF = genVarName(prefix + "_scalef");
@@ -1839,13 +1967,19 @@ std::string MILBuilder::addTrunkRMSNorm(CoreML::Specification::MILSpec::Block* b
     // MIL rsqrt computes 1/sqrt(x + epsilon); supply epsilon directly.
     std::string epsName = prefix + "_eps";
     addFloatScalarConstOp(block, epsName, desc.epsilon);
-    std::string inv = genVarName(prefix + "_inv");
+    std::string invCore = genVarName(prefix + "_inv");
     {
         auto* op = block->add_operations();
         op->set_type("rsqrt");
         (*op->mutable_inputs())["x"].add_arguments()->set_name(meanSq);
         (*op->mutable_inputs())["epsilon"].add_arguments()->set_name(epsName);
-        setShape(op, inv, denomDims);
+        setShape(op, invCore, denomDims);
+    }
+    std::string inv = invCore;
+    if (m_use_fp16) {
+        m_weight_dtype = savedDtype;
+        inv = genVarName(prefix + "_inv16");
+        addCastOp(block, invCore, inv, "fp16", denomDims);
     }
     std::string normalized = genVarName(prefix + "_norm");
     emit2("mul", input, inv, normalized, {-1, C, H, W});
@@ -1938,11 +2072,25 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
     transpose(normed, nhwc, {0, 2, 3, 1}, {-1, H, W, C});
     std::string x2d = genVarName(prefix + "_x2d");
     reshape(nhwc, x2d, {-1, C}, {-1, C});
+    // Q/K/V projection matmuls in FP32 (non-spatial, per KataGo's FP16 convention): they reduce over
+    // C channels and the ANE's FP16 accumulation loses too much precision for wide models. Weights
+    // stay fp16-stored (cast up at runtime); output cast back to FP16 for the FP16 head reshapes.
     auto proj = [&](const MatMulLayerDesc& w, const std::string& nm, int total) {
         std::string wName = nm + "_w";
         addConstOp(block, wName, w.weights, w.getWeightShape());
         std::string out = genVarName(nm);
-        matmul(x2d, wName, out, {-1, total}, false, false);
+        if (m_nonspatial_fp32) {
+            std::string x32 = castFixed(block, x2d, "fp32", {-1, C});
+            std::string w32 = castFixed(block, wName, "fp32", w.getWeightShape());
+            auto sd = m_weight_dtype;
+            m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+            std::string o32 = genVarName(nm + "_f32");
+            matmul(x32, w32, o32, {-1, total}, false, false);
+            m_weight_dtype = sd;
+            out = castFixed(block, o32, "fp16", {-1, total});
+        } else {
+            matmul(x2d, wName, out, {-1, total}, false, false);
+        }
         return out;
     };
     std::string q2d = proj(desc.q_proj, prefix + "_q", qTotal);
@@ -2218,14 +2366,29 @@ std::string MILBuilder::buildTransformerFFNBlock(CoreML::Specification::MILSpec:
     std::string x2d = genVarName(prefix + "_x2d");
     reshape(nhwc, x2d, {-1, C}, {-1, C});
 
+    // FFN matmuls in FP32 (weights cast up at runtime, stored fp16) — KataGo's FP16 convention is
+    // spatial(convs)=FP16, non-spatial(matmuls)=FP32 (see openclbackend.cpp). The ANE accumulates
+    // FP16 matmuls in FP16, which loses too much precision over C/ffn; run them in FP32 instead.
     std::string w1 = prefix + "_w1";
     addConstOp(block, w1, desc.linear1.weights, desc.linear1.getWeightShape());
-    std::string a = genVarName(prefix + "_a");
-    matmul(x2d, w1, a, {-1, ffn});
     std::string wg = prefix + "_wg";
     addConstOp(block, wg, desc.linear_gate.weights, desc.linear_gate.getWeightShape());
+    std::string w2 = prefix + "_w2";
+    addConstOp(block, w2, desc.linear2.weights, desc.linear2.getWeightShape());
+
+    auto savedDtype = m_weight_dtype;
+    std::string mx2d = x2d, mw1 = w1, mwg = wg, mw2 = w2;
+    if (m_nonspatial_fp32) {
+        mx2d = castFixed(block, x2d, "fp32", {-1, C});
+        mw1 = castFixed(block, w1, "fp32", desc.linear1.getWeightShape());
+        mwg = castFixed(block, wg, "fp32", desc.linear_gate.getWeightShape());
+        mw2 = castFixed(block, w2, "fp32", desc.linear2.getWeightShape());
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+    }
+    std::string a = genVarName(prefix + "_a");
+    matmul(mx2d, mw1, a, {-1, ffn});
     std::string g = genVarName(prefix + "_g");
-    matmul(x2d, wg, g, {-1, ffn});
+    matmul(mx2d, mwg, g, {-1, ffn});
 
     std::string sig = genVarName(prefix + "_sig");
     {
@@ -2239,10 +2402,13 @@ std::string MILBuilder::buildTransformerFFNBlock(CoreML::Specification::MILSpec:
     std::string h = genVarName(prefix + "_h");
     binary("mul", siluA, g, h, {-1, ffn});
 
-    std::string w2 = prefix + "_w2";
-    addConstOp(block, w2, desc.linear2.weights, desc.linear2.getWeightShape());
-    std::string o = genVarName(prefix + "_o");
-    matmul(h, w2, o, {-1, C});
+    std::string oCore = genVarName(prefix + "_o");
+    matmul(h, mw2, oCore, {-1, C});
+    std::string o = oCore;
+    if (m_nonspatial_fp32) {
+        m_weight_dtype = savedDtype;
+        o = castFixed(block, oCore, "fp16", {-1, C});
+    }
 
     std::string oNHWC = genVarName(prefix + "_onhwc");
     reshape(o, oNHWC, {-1, H, W, C}, {-1, H, W, C});
@@ -2443,9 +2609,25 @@ std::string MILBuilder::buildGlobalPoolingResidualBlock(CoreML::Specification::M
     std::string gpool_bn_out = genVarName(prefix + "_gpool_bn");
     addBatchNormActivationOps(block, gpool_conv_out, block_desc.gpool_bn, block_desc.gpool_activation, mask, gpool_bn_out);
 
-    // Global pooling
+    // Global pooling. Non-spatial per KataGo's FP16 convention -> FP32 (openclbackend.cpp: pooling
+    // an FP16 tensor produces FP32 pooled values). The spatial sum over H*W loses too much precision
+    // in FP16 at larger board sizes, corrupting the bias fed back into the whole trunk. No
+    // addConstOp in the pooling -> flipping m_weight_dtype is safe.
     std::string gpool_features = genVarName(prefix + "_gpool_features");
-    addGlobalPoolingOps(block, gpool_bn_out, mask, block_desc.gpool_conv.out_channels, gpool_features);
+    if (m_nonspatial_fp32) {
+        auto savedDtype = m_weight_dtype;
+        std::string gpIn32 = castFixed(block, gpool_bn_out, "fp32", {-1, block_desc.gpool_conv.out_channels, m_board_y_size, m_board_x_size});
+        std::string gpMask = mask;
+        if (!m_optimize_identity_mask)
+            gpMask = castFixed(block, mask, "fp32", {-1, 1, m_board_y_size, m_board_x_size});
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+        std::string gpOut32 = genVarName(prefix + "_gpool_features_f32");
+        addGlobalPoolingOps(block, gpIn32, gpMask, block_desc.gpool_conv.out_channels, gpOut32);
+        m_weight_dtype = savedDtype;
+        gpool_features = castFixed(block, gpOut32, "fp16", {-1, block_desc.gpool_conv.out_channels * 3});
+    } else {
+        addGlobalPoolingOps(block, gpool_bn_out, mask, block_desc.gpool_conv.out_channels, gpool_features);
+    }
 
     // Project to bias
     std::string gpool_bias = genVarName(prefix + "_gpool_bias");
@@ -2577,9 +2759,22 @@ void MILBuilder::buildPolicyHead(CoreML::Specification::MILSpec::Block* block,
     std::string g1 = genVarName("policy_g1");
     addBatchNormActivationOps(block, g1_conv, ph.g1_bn, ph.g1_activation, mask, g1);
 
-    // Global pooling on G1
+    // Global pooling on G1 — non-spatial per KataGo's FP16 convention -> FP32 (the FP16 spatial sum
+    // loses precision; feeds the policy bias, affecting policyKLDiv). No addConstOp in pooling.
     std::string g1_pooled = genVarName("policy_g1_pool");
-    addGlobalPoolingOps(block, g1, mask, ph.g1_conv.out_channels, g1_pooled);
+    if (m_nonspatial_fp32) {
+        auto savedDtype = m_weight_dtype;
+        std::string gpIn32 = castFixed(block, g1, "fp32", {-1, ph.g1_conv.out_channels, m_board_y_size, m_board_x_size});
+        std::string gpMask = m_optimize_identity_mask ? mask
+            : castFixed(block, mask, "fp32", {-1, 1, m_board_y_size, m_board_x_size});
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+        std::string gpOut32 = genVarName("policy_g1_pool_f32");
+        addGlobalPoolingOps(block, gpIn32, gpMask, ph.g1_conv.out_channels, gpOut32);
+        m_weight_dtype = savedDtype;
+        addCastOp(block, gpOut32, g1_pooled, "fp16", {-1, ph.g1_conv.out_channels * 3});
+    } else {
+        addGlobalPoolingOps(block, g1, mask, ph.g1_conv.out_channels, g1_pooled);
+    }
 
     // Project to spatial bias
     std::string gpool_bias = genVarName("policy_gpool_bias");
@@ -2669,9 +2864,21 @@ void MILBuilder::buildValueHead(CoreML::Specification::MILSpec::Block* block,
     std::string v1 = genVarName("value_v1");
     addBatchNormActivationOps(block, v1_conv, vh.v1_bn, vh.v1_activation, mask, v1);
 
-    // Global pooling (value head version)
+    // Global pooling (value head version) — non-spatial -> FP32 (KataGo FP16 convention).
     std::string v1_pooled = genVarName("value_v1_pool");
-    addGlobalPoolingValueOps(block, v1, mask, vh.v1_conv.out_channels, v1_pooled);
+    if (m_nonspatial_fp32) {
+        auto savedDtype = m_weight_dtype;
+        std::string vpIn32 = castFixed(block, v1, "fp32", {-1, vh.v1_conv.out_channels, m_board_y_size, m_board_x_size});
+        std::string vpMask = m_optimize_identity_mask ? mask
+            : castFixed(block, mask, "fp32", {-1, 1, m_board_y_size, m_board_x_size});
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+        std::string vpOut32 = genVarName("value_v1_pool_f32");
+        addGlobalPoolingValueOps(block, vpIn32, vpMask, vh.v1_conv.out_channels, vpOut32);
+        m_weight_dtype = savedDtype;
+        addCastOp(block, vpOut32, v1_pooled, "fp16", {-1, vh.v1_conv.out_channels * 3});
+    } else {
+        addGlobalPoolingValueOps(block, v1, mask, vh.v1_conv.out_channels, v1_pooled);
+    }
 
     // V2: linear + activation (fused matmul+bias -> linear)
     std::string v2_bias = genVarName("value_v2_bias");
