@@ -13,7 +13,7 @@ class KataGoConverter {
 public:
     /// Supported KataGo model versions
     static constexpr int MIN_SUPPORTED_VERSION = 8;
-    static constexpr int MAX_SUPPORTED_VERSION = 16;
+    static constexpr int MAX_SUPPORTED_VERSION = 17;
 
     /// Convert KataGo model file to Core ML mlpackage
     ///

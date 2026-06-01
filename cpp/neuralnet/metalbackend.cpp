@@ -706,9 +706,14 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
 
-  testAssert(((m.modelVersion < 16) || (policyResultChannels == 4)) &&
-         ((m.modelVersion >= 16) || (m.modelVersion < 12) || (policyResultChannels == 2)) &&
-         ((m.modelVersion >= 12) || (policyResultChannels == 1)));
+  if(m.modelVersion >= 17)
+    testAssert(policyResultChannels == 2 || policyResultChannels == 4);
+  else if(m.modelVersion >= 16)
+    testAssert(policyResultChannels == 4);
+  else if(m.modelVersion >= 12)
+    testAssert(policyResultChannels == 2);
+  else
+    testAssert(policyResultChannels == 1);
 
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * nnXLen * nnYLen;

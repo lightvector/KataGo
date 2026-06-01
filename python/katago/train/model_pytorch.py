@@ -2427,8 +2427,15 @@ class PolicyHead(torch.nn.Module):
             self.num_policy_outputs = 4
         elif config["version"] <= 15:
             self.num_policy_outputs = 6
+        elif config["version"] <= 16:
+            self.num_policy_outputs = 8  # version 16 has predict_q_values implied
+        elif config["version"] <= 17:
+            if config.get("predict_q_values"):
+                self.num_policy_outputs = 8
+            else:
+                self.num_policy_outputs = 6
         else:
-            self.num_policy_outputs = 8
+            raise Exception("Unexpected version: " + str(config["version"]))
         # Output 0: policy prediction
         # Output 1: opponent reply policy prediction
         # Output 2: soft policy prediction

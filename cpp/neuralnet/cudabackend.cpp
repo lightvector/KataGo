@@ -3128,7 +3128,9 @@ struct Buffers {
       inputMetaBuf = NULL;
     }
 
-    if(m.modelVersion >= 16)
+    if(m.modelVersion >= 17)
+      testAssert(m.policyHead->p2Channels == 2 || m.policyHead->p2Channels == 4);
+    else if(m.modelVersion >= 16)
       testAssert(m.policyHead->p2Channels == 4);
     else if(m.modelVersion >= 12)
       testAssert(m.policyHead->p2Channels == 2);
@@ -3671,7 +3673,7 @@ void NeuralNet::getOutput(
     // Also we don't fill in the nnHash here either
     // Handle version >= 12 policy optimism
     if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
-       if(gpuHandle->usingNHWC) {
+      if(gpuHandle->usingNHWC) {
         for(int i = 0; i<nnXLen*nnYLen; i++) {
           float p = policySrcBuf[i*numPolicyChannels];
           float pOpt = policySrcBuf[i*numPolicyChannels+1];
