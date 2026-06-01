@@ -2593,6 +2593,8 @@ void MILBuilder::buildPolicyHead(CoreML::Specification::MILSpec::Block* block,
             setTensorOutput2D(op, pass_activated, ph.gpool_to_pass_mul.out_channels);
         } else if (ph.pass_activation->activation_type == ActivationType::Mish) {
             addMishOps(block, pass_biased, pass_activated, 2, ph.gpool_to_pass_mul.out_channels);
+        } else if (ph.pass_activation->activation_type == ActivationType::Silu) {
+            addSiluOps(block, pass_biased, pass_activated, 2, ph.gpool_to_pass_mul.out_channels);
         } else {
             pass_activated = pass_biased;
         }
@@ -2640,6 +2642,8 @@ void MILBuilder::buildValueHead(CoreML::Specification::MILSpec::Block* block,
         setTensorOutput2D(op, v2, vh.v2_mul.out_channels);
     } else if (vh.v2_activation.activation_type == ActivationType::Mish) {
         addMishOps(block, v2_bias, v2, 2, vh.v2_mul.out_channels);
+    } else if (vh.v2_activation.activation_type == ActivationType::Silu) {
+        addSiluOps(block, v2_bias, v2, 2, vh.v2_mul.out_channels);
     } else {
         v2 = v2_bias;
     }
@@ -2676,6 +2680,8 @@ std::string MILBuilder::buildSGFMetadataEncoder(CoreML::Specification::MILSpec::
         setTensorOutput2D(op, act1, encoder.mul1.out_channels);
     } else if (encoder.act1.activation_type == ActivationType::Mish) {
         addMishOps(block, bias1, act1, 2, encoder.mul1.out_channels);
+    } else if (encoder.act1.activation_type == ActivationType::Silu) {
+        addSiluOps(block, bias1, act1, 2, encoder.mul1.out_channels);
     } else {
         // Identity activation - create identity op to preserve type information
         auto* op = block->add_operations();
@@ -2698,6 +2704,8 @@ std::string MILBuilder::buildSGFMetadataEncoder(CoreML::Specification::MILSpec::
         setTensorOutput2D(op, act2, encoder.mul2.out_channels);
     } else if (encoder.act2.activation_type == ActivationType::Mish) {
         addMishOps(block, bias2, act2, 2, encoder.mul2.out_channels);
+    } else if (encoder.act2.activation_type == ActivationType::Silu) {
+        addSiluOps(block, bias2, act2, 2, encoder.mul2.out_channels);
     } else {
         // Identity activation - create identity op to preserve type information
         auto* op = block->add_operations();
