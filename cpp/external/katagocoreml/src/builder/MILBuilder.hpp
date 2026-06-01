@@ -118,6 +118,15 @@ private:
                           const std::string& dtype,
                           const std::vector<int64_t>& dims);
 
+    // Emit global pooling, running it in FP32 when m_nonspatial_fp32 (cast input/mask up, pool,
+    // cast the pooled features back to FP16). valueVariant selects the value-head pooling variant.
+    void addGlobalPoolingFp32(CoreML::Specification::MILSpec::Block* block,
+                              const std::string& input,
+                              const std::string& mask,
+                              int channels,
+                              const std::string& output,
+                              bool valueVariant);
+
     void addConvOp(CoreML::Specification::MILSpec::Block* block,
                    const std::string& input,
                    const ConvLayerDesc& layer,

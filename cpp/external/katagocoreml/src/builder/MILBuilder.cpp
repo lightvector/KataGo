@@ -11,6 +11,20 @@
 
 namespace katagocoreml {
 
+namespace {
+// RAII: set a dtype slot to FLOAT32 for the current scope and restore it on exit. Used to emit a
+// sub-region of ops in FP32 inside an otherwise-FP16 model.
+struct ScopedFp32 {
+    CoreML::Specification::MILSpec::DataType& slot;
+    CoreML::Specification::MILSpec::DataType saved;
+    explicit ScopedFp32(CoreML::Specification::MILSpec::DataType& s)
+        : slot(s), saved(s) { s = CoreML::Specification::MILSpec::DataType::FLOAT32; }
+    ~ScopedFp32() { slot = saved; }
+    ScopedFp32(const ScopedFp32&) = delete;
+    ScopedFp32& operator=(const ScopedFp32&) = delete;
+};
+}  // namespace
+
 MILBuilder::MILBuilder(const KataGoModelDesc& model,
                        int board_x_size,
                        int board_y_size,
@@ -484,6 +498,32 @@ std::string MILBuilder::castFixed(CoreML::Specification::MILSpec::Block* block,
         else tt->add_dimensions()->mutable_constant()->set_size(d);
     }
     return out;
+}
+
+void MILBuilder::addGlobalPoolingFp32(CoreML::Specification::MILSpec::Block* block,
+                                      const std::string& input,
+                                      const std::string& mask,
+                                      int channels,
+                                      const std::string& output,
+                                      bool valueVariant) {
+    auto pool = [&](const std::string& in, const std::string& msk, const std::string& out) {
+        if (valueVariant) addGlobalPoolingValueOps(block, in, msk, channels, out);
+        else              addGlobalPoolingOps(block, in, msk, channels, out);
+    };
+    // Non-spatial per KataGo's FP16 convention -> FP32 (the FP16 spatial sum over H*W loses too much
+    // precision at larger board sizes). No addConstOp in the pooling, so flipping m_weight_dtype is
+    // safe. Cast input/mask up, pool in FP32, cast the [N, channels*3] features back to FP16.
+    if (!m_nonspatial_fp32) {
+        pool(input, mask, output);
+        return;
+    }
+    std::string in32 = castFixed(block, input, "fp32", {-1, channels, m_board_y_size, m_board_x_size});
+    std::string mask32 = m_optimize_identity_mask
+        ? mask
+        : castFixed(block, mask, "fp32", {-1, 1, m_board_y_size, m_board_x_size});
+    std::string out32 = genVarName(output + "_f32");
+    { ScopedFp32 g(m_weight_dtype); pool(in32, mask32, out32); }
+    addCastOp(block, out32, output, "fp16", {-1, channels * 3});
 }
 
 void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
@@ -2609,25 +2649,11 @@ std::string MILBuilder::buildGlobalPoolingResidualBlock(CoreML::Specification::M
     std::string gpool_bn_out = genVarName(prefix + "_gpool_bn");
     addBatchNormActivationOps(block, gpool_conv_out, block_desc.gpool_bn, block_desc.gpool_activation, mask, gpool_bn_out);
 
-    // Global pooling. Non-spatial per KataGo's FP16 convention -> FP32 (openclbackend.cpp: pooling
-    // an FP16 tensor produces FP32 pooled values). The spatial sum over H*W loses too much precision
-    // in FP16 at larger board sizes, corrupting the bias fed back into the whole trunk. No
-    // addConstOp in the pooling -> flipping m_weight_dtype is safe.
+    // Global pooling (FP32 when m_nonspatial_fp32 -- see addGlobalPoolingFp32). Feeds a bias back
+    // into the whole trunk, so the FP16 spatial sum must not lose precision for wide trunks.
     std::string gpool_features = genVarName(prefix + "_gpool_features");
-    if (m_nonspatial_fp32) {
-        auto savedDtype = m_weight_dtype;
-        std::string gpIn32 = castFixed(block, gpool_bn_out, "fp32", {-1, block_desc.gpool_conv.out_channels, m_board_y_size, m_board_x_size});
-        std::string gpMask = mask;
-        if (!m_optimize_identity_mask)
-            gpMask = castFixed(block, mask, "fp32", {-1, 1, m_board_y_size, m_board_x_size});
-        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
-        std::string gpOut32 = genVarName(prefix + "_gpool_features_f32");
-        addGlobalPoolingOps(block, gpIn32, gpMask, block_desc.gpool_conv.out_channels, gpOut32);
-        m_weight_dtype = savedDtype;
-        gpool_features = castFixed(block, gpOut32, "fp16", {-1, block_desc.gpool_conv.out_channels * 3});
-    } else {
-        addGlobalPoolingOps(block, gpool_bn_out, mask, block_desc.gpool_conv.out_channels, gpool_features);
-    }
+    addGlobalPoolingFp32(block, gpool_bn_out, mask, block_desc.gpool_conv.out_channels, gpool_features,
+                         /*valueVariant=*/false);
 
     // Project to bias
     std::string gpool_bias = genVarName(prefix + "_gpool_bias");
@@ -2759,22 +2785,9 @@ void MILBuilder::buildPolicyHead(CoreML::Specification::MILSpec::Block* block,
     std::string g1 = genVarName("policy_g1");
     addBatchNormActivationOps(block, g1_conv, ph.g1_bn, ph.g1_activation, mask, g1);
 
-    // Global pooling on G1 — non-spatial per KataGo's FP16 convention -> FP32 (the FP16 spatial sum
-    // loses precision; feeds the policy bias, affecting policyKLDiv). No addConstOp in pooling.
+    // Global pooling on G1 (FP32 when m_nonspatial_fp32; feeds the policy bias / policyKLDiv).
     std::string g1_pooled = genVarName("policy_g1_pool");
-    if (m_nonspatial_fp32) {
-        auto savedDtype = m_weight_dtype;
-        std::string gpIn32 = castFixed(block, g1, "fp32", {-1, ph.g1_conv.out_channels, m_board_y_size, m_board_x_size});
-        std::string gpMask = m_optimize_identity_mask ? mask
-            : castFixed(block, mask, "fp32", {-1, 1, m_board_y_size, m_board_x_size});
-        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
-        std::string gpOut32 = genVarName("policy_g1_pool_f32");
-        addGlobalPoolingOps(block, gpIn32, gpMask, ph.g1_conv.out_channels, gpOut32);
-        m_weight_dtype = savedDtype;
-        addCastOp(block, gpOut32, g1_pooled, "fp16", {-1, ph.g1_conv.out_channels * 3});
-    } else {
-        addGlobalPoolingOps(block, g1, mask, ph.g1_conv.out_channels, g1_pooled);
-    }
+    addGlobalPoolingFp32(block, g1, mask, ph.g1_conv.out_channels, g1_pooled, /*valueVariant=*/false);
 
     // Project to spatial bias
     std::string gpool_bias = genVarName("policy_gpool_bias");
@@ -2864,21 +2877,9 @@ void MILBuilder::buildValueHead(CoreML::Specification::MILSpec::Block* block,
     std::string v1 = genVarName("value_v1");
     addBatchNormActivationOps(block, v1_conv, vh.v1_bn, vh.v1_activation, mask, v1);
 
-    // Global pooling (value head version) — non-spatial -> FP32 (KataGo FP16 convention).
+    // Global pooling (value head version; FP32 when m_nonspatial_fp32).
     std::string v1_pooled = genVarName("value_v1_pool");
-    if (m_nonspatial_fp32) {
-        auto savedDtype = m_weight_dtype;
-        std::string vpIn32 = castFixed(block, v1, "fp32", {-1, vh.v1_conv.out_channels, m_board_y_size, m_board_x_size});
-        std::string vpMask = m_optimize_identity_mask ? mask
-            : castFixed(block, mask, "fp32", {-1, 1, m_board_y_size, m_board_x_size});
-        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
-        std::string vpOut32 = genVarName("value_v1_pool_f32");
-        addGlobalPoolingValueOps(block, vpIn32, vpMask, vh.v1_conv.out_channels, vpOut32);
-        m_weight_dtype = savedDtype;
-        addCastOp(block, vpOut32, v1_pooled, "fp16", {-1, vh.v1_conv.out_channels * 3});
-    } else {
-        addGlobalPoolingValueOps(block, v1, mask, vh.v1_conv.out_channels, v1_pooled);
-    }
+    addGlobalPoolingFp32(block, v1, mask, vh.v1_conv.out_channels, v1_pooled, /*valueVariant=*/true);
 
     // V2: linear + activation (fused matmul+bias -> linear)
     std::string v2_bias = genVarName("value_v2_bias");
