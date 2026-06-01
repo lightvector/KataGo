@@ -65,6 +65,17 @@ void customCudaApplyRoPE(
   half* buf, const half* cosTable, const half* sinTable,
   int batchSize, int seqLen, int numBufHeads, int numKVHeads, int qHeadDim, int numPairs, bool learnableRope);
 
+//Table-free learnable RoPE: recompute cos/sin in-kernel from the per-head frequencies instead of
+//reading a precomputed cos/sin table (which is numKVHeads-times larger than the fixed-RoPE table and
+//spills L2 for many heads). freqs has shape [numKVHeads, numPairs, 2] flattened (FP32 even for the
+//half buf, since it is tiny and used for full-precision angle accumulation).
+void customCudaApplyRoPELearnableRecompute(
+  float* buf, const float* freqs,
+  int batchSize, int seqLen, int numBufHeads, int numKVHeads, int qHeadDim, int numPairs, int nnXLen);
+void customCudaApplyRoPELearnableRecompute(
+  half* buf, const float* freqs,
+  int batchSize, int seqLen, int numBufHeads, int numKVHeads, int qHeadDim, int numPairs, int nnXLen);
+
 //Convert a [batchSize, seqLen] mask (0/1) into a fully-materialized additive attention bias of shape
 //[batchSize, seqLen, seqLen] suitable for cuDNN SDPA's [B, 1, S, S] bias input:
 //  bias[b, q, k] = (mask[b, k] != 0 ? 0 : -1e4).

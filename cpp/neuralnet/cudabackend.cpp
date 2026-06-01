@@ -1597,10 +1597,13 @@ struct TransformerAttentionBlock {
   const MatMulLayer vProj;
   const MatMulLayer outProj;
 
-  // Precomputed RoPE cos/sin tables on device
+  // Fixed RoPE: precomputed cos/sin tables on device (NULL for learnable RoPE).
+  // Learnable RoPE: per-head frequencies on device (ropeFreqsBuf, FP32), cos/sin recomputed in-kernel.
   void* ropeCosTable;
   void* ropeSinTable;
+  float* ropeFreqsBuf;
   int ropeNumPairs;
+  int ropeNumKVHeads;
 
   TransformerAttentionBlock() = delete;
   TransformerAttentionBlock(const TransformerAttentionBlock&) = delete;
@@ -1633,25 +1636,39 @@ struct TransformerAttentionBlock {
     outProj(cudaHandles, &desc->outProj, useFP16),
     ropeCosTable(NULL),
     ropeSinTable(NULL),
-    ropeNumPairs(0)
+    ropeFreqsBuf(NULL),
+    ropeNumPairs(0),
+    ropeNumKVHeads(0)
   {
     if(!useNHWC) {
       throw StringError("Transformer blocks with NCHW layout are not yet supported by the CUDA backend");
     }
     if(useRope) {
       ropeNumPairs = qHeadDim / 2;
-      int seqLen = nnXLen * nnYLen;
-      vector<float> cosTableData;
-      vector<float> sinTableData;
-      desc->computeRopeCosSin(nnXLen, nnYLen, seqLen, cosTableData, sinTableData);
-      CudaUtils::mallocAndCopyToDevice(name + ":ropeCos", cosTableData.data(), (int)cosTableData.size(), ropeCosTable, useFP16);
-      CudaUtils::mallocAndCopyToDevice(name + ":ropeSin", sinTableData.data(), (int)sinTableData.size(), ropeSinTable, useFP16);
+      ropeNumKVHeads = numKVHeads;
+      if(learnableRope) {
+        // Table-free: upload the tiny per-head frequencies (FP32) and recompute cos/sin in-kernel.
+        // Avoids the numKVHeads-times-larger cos/sin table that otherwise spills L2 (see kernel comment).
+        testAssert(desc->ropeFreqs.size() == (size_t)(numKVHeads * ropeNumPairs * 2));
+        void* freqsVoid = NULL;
+        CudaUtils::mallocAndCopyToDevice(name + ":ropeFreqs", desc->ropeFreqs.data(), (int)desc->ropeFreqs.size(), freqsVoid, false);
+        ropeFreqsBuf = (float*)freqsVoid;
+      }
+      else {
+        int seqLen = nnXLen * nnYLen;
+        vector<float> cosTableData;
+        vector<float> sinTableData;
+        desc->computeRopeCosSin(nnXLen, nnYLen, seqLen, cosTableData, sinTableData);
+        CudaUtils::mallocAndCopyToDevice(name + ":ropeCos", cosTableData.data(), (int)cosTableData.size(), ropeCosTable, useFP16);
+        CudaUtils::mallocAndCopyToDevice(name + ":ropeSin", sinTableData.data(), (int)sinTableData.size(), ropeSinTable, useFP16);
+      }
     }
   }
 
   ~TransformerAttentionBlock() {
     if(ropeCosTable != NULL) cudaFree(ropeCosTable);
     if(ropeSinTable != NULL) cudaFree(ropeSinTable);
+    if(ropeFreqsBuf != NULL) cudaFree(ropeFreqsBuf);
   }
 
   size_t requiredWorkspaceBytes(
@@ -1711,17 +1728,34 @@ struct TransformerAttentionBlock {
     // Step 3: Apply RoPE to Q and K
     // Q is [qTotalDim, seqLen*batchSize] column-major = [batchSize*seqLen, qTotalDim] row-major
     if(useRope) {
-      if(!usingFP16) {
-        customCudaApplyRoPE((float*)qBuf.buf, (const float*)ropeCosTable, (const float*)ropeSinTable,
-          batchSize, seqLen, numHeads, numKVHeads, qHeadDim, ropeNumPairs, learnableRope);
-        customCudaApplyRoPE((float*)kBuf.buf, (const float*)ropeCosTable, (const float*)ropeSinTable,
-          batchSize, seqLen, numKVHeads, numKVHeads, qHeadDim, ropeNumPairs, learnableRope);
+      if(learnableRope) {
+        // Table-free recompute path (cos/sin computed in-kernel from ropeFreqsBuf).
+        if(!usingFP16) {
+          customCudaApplyRoPELearnableRecompute((float*)qBuf.buf, ropeFreqsBuf,
+            batchSize, seqLen, numHeads, numKVHeads, qHeadDim, ropeNumPairs, nnXLen);
+          customCudaApplyRoPELearnableRecompute((float*)kBuf.buf, ropeFreqsBuf,
+            batchSize, seqLen, numKVHeads, numKVHeads, qHeadDim, ropeNumPairs, nnXLen);
+        }
+        else {
+          customCudaApplyRoPELearnableRecompute((half*)qBuf.buf, ropeFreqsBuf,
+            batchSize, seqLen, numHeads, numKVHeads, qHeadDim, ropeNumPairs, nnXLen);
+          customCudaApplyRoPELearnableRecompute((half*)kBuf.buf, ropeFreqsBuf,
+            batchSize, seqLen, numKVHeads, numKVHeads, qHeadDim, ropeNumPairs, nnXLen);
+        }
       }
       else {
-        customCudaApplyRoPE((half*)qBuf.buf, (const half*)ropeCosTable, (const half*)ropeSinTable,
-          batchSize, seqLen, numHeads, numKVHeads, qHeadDim, ropeNumPairs, learnableRope);
-        customCudaApplyRoPE((half*)kBuf.buf, (const half*)ropeCosTable, (const half*)ropeSinTable,
-          batchSize, seqLen, numKVHeads, numKVHeads, qHeadDim, ropeNumPairs, learnableRope);
+        if(!usingFP16) {
+          customCudaApplyRoPE((float*)qBuf.buf, (const float*)ropeCosTable, (const float*)ropeSinTable,
+            batchSize, seqLen, numHeads, numKVHeads, qHeadDim, ropeNumPairs, learnableRope);
+          customCudaApplyRoPE((float*)kBuf.buf, (const float*)ropeCosTable, (const float*)ropeSinTable,
+            batchSize, seqLen, numKVHeads, numKVHeads, qHeadDim, ropeNumPairs, learnableRope);
+        }
+        else {
+          customCudaApplyRoPE((half*)qBuf.buf, (const half*)ropeCosTable, (const half*)ropeSinTable,
+            batchSize, seqLen, numHeads, numKVHeads, qHeadDim, ropeNumPairs, learnableRope);
+          customCudaApplyRoPE((half*)kBuf.buf, (const half*)ropeCosTable, (const half*)ropeSinTable,
+            batchSize, seqLen, numKVHeads, numKVHeads, qHeadDim, ropeNumPairs, learnableRope);
+        }
       }
       CUDA_ERR(name.c_str(), cudaPeekAtLastError());
     }
