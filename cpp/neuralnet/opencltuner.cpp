@@ -3822,7 +3822,8 @@ static void tuneTransformerRMSNorm(
             float rms = 1.0f / sqrtf(sumSq / (float)numChannels + 1e-6f);
             for(int c = 0; c < numChannels; c++) {
               float val = inputVec[(n * numChannels + c) * xySize + xy];
-              retBase[(n * numChannels + c) * xySize + xy] = val * rms * weightVec[c]; // maskVal = 1.0
+              // Matches kernel: (val * rms * gamma + beta) * mask, with beta = 0 and maskVal = 1.0
+              retBase[(n * numChannels + c) * xySize + xy] = (val * rms * weightVec[c] + 0.0f);
             }
           }
         }
@@ -3856,6 +3857,9 @@ static void tuneTransformerRMSNorm(
     else
       mask = constantReadOnlyBufferFloat(context, batchSize * paddedNNXYLen, 1.0f);
     cl_mem weight = createReadOnlyBuffer(context, weightVec);
+    // The shared transformerRMSNorm kernel takes a per-channel beta (bias); this norm has none, so pass zeros.
+    vector<float> zeroBetaVec(numChannels, 0.0f);
+    cl_mem beta = createReadOnlyBuffer(context, zeroBetaVec);
     cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
 
     int wgCSize = cfg.transformerRMSNorm.WG_C_SIZE;
@@ -3875,14 +3879,17 @@ static void tuneTransformerRMSNorm(
       }
 
       float tunerEpsilon2 = 1e-6f;
+      // Arg order must match the transformerRMSNorm kernel signature:
+      // input, output, weight(gamma), beta, mask, nSize, cSize, xySize, epsilon
       clSetKernelArg(kernel, 0, sizeof(cl_mem), &input);
       clSetKernelArg(kernel, 1, sizeof(cl_mem), &output);
       clSetKernelArg(kernel, 2, sizeof(cl_mem), &weight);
-      clSetKernelArg(kernel, 3, sizeof(cl_mem), &mask);
-      clSetKernelArg(kernel, 4, sizeof(int), &batchSize);
-      clSetKernelArg(kernel, 5, sizeof(int), &numChannels);
-      clSetKernelArg(kernel, 6, sizeof(int), &paddedNNXYLen);
-      clSetKernelArg(kernel, 7, sizeof(float), &tunerEpsilon2);
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), &beta);
+      clSetKernelArg(kernel, 4, sizeof(cl_mem), &mask);
+      clSetKernelArg(kernel, 5, sizeof(int), &batchSize);
+      clSetKernelArg(kernel, 6, sizeof(int), &numChannels);
+      clSetKernelArg(kernel, 7, sizeof(int), &paddedNNXYLen);
+      clSetKernelArg(kernel, 8, sizeof(float), &tunerEpsilon2);
 
       size_t globalSizes[2] = {(size_t)(wgCSize * wgXYSize) * (size_t)numXYGroups, (size_t)batchSize};
       size_t localSizes[2] = {(size_t)(wgCSize * wgXYSize), 1};
@@ -3905,6 +3912,7 @@ static void tuneTransformerRMSNorm(
     clReleaseMemObject(input);
     clReleaseMemObject(mask);
     clReleaseMemObject(weight);
+    clReleaseMemObject(beta);
     clReleaseMemObject(output);
     clReleaseKernel(kernel);
     clReleaseProgram(program);
