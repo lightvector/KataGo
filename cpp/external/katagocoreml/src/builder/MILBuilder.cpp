@@ -1891,10 +1891,6 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
     const int qHeadDim = desc.q_head_dim, vHeadDim = desc.v_head_dim;
     const int qTotal = numHeads * qHeadDim, kTotal = numKVHeads * qHeadDim, vTotal = numKVHeads * vHeadDim;
 
-    if (numKVHeads != numHeads) {
-        throw std::runtime_error(desc.name + ": GQA (numKVHeads != numHeads) not supported in CoreML backend");
-    }
-
     auto reshape = [&](const std::string& in, const std::string& out, const std::vector<int32_t>& shapeVals,
                        const std::vector<int64_t>& dims) {
         std::string shapeName = out + "_shape";
@@ -2022,6 +2018,54 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
         };
         qh = applyRope(qh, numHeads, "q");
         kh = applyRope(kh, numKVHeads, "k");
+    }
+
+    // GQA: when numKVHeads < numHeads, repeat each KV head groupSize times along the head
+    // axis (axis 1) so query head h consumes kv head (h / groupSize). RoPE has already been
+    // applied above to the unexpanded kh (kh = applyRope(kh, numKVHeads, "k")), mirroring the
+    // GPU path (metallayers.swift repeatKVHeads runs AFTER applyRope). We slice each KV head
+    // and concat its copies consecutively, so the resulting head index is kv*groupSize + g;
+    // query head h then maps to kv = h/groupSize == (h*numKVHeads)/numHeads (exact divisor,
+    // the same formula the qh RoPE table uses) == Eigen's kvh = h/kvGroupSize. slice_by_size +
+    // concat (not reshape+broadcast) avoids the dynamic -1 batch broadcast pitfall, same as the
+    // GPU code. The repeat is required so the scores (qh@kh^T) and attnOut (attn@vh) matmuls see
+    // matching [B,numHeads,...] batch dims instead of numHeads vs numKVHeads (no broadcast).
+    if (numKVHeads != numHeads) {
+        const int groupSize = numHeads / numKVHeads;
+        auto repeatKVHeads = [&](const std::string& x, const std::string& tag, int headDim) {
+            std::vector<std::string> parts;
+            parts.reserve(static_cast<size_t>(numKVHeads) * groupSize);
+            for (int kv = 0; kv < numKVHeads; kv++) {
+                for (int g = 0; g < groupSize; g++) {
+                    std::string part = genVarName(prefix + "_" + tag + "_slc");
+                    std::string beginName = part + "_begin", sizeName = part + "_size";
+                    addIntArrayConstOp(block, beginName, {0, kv, 0, 0});
+                    addIntArrayConstOp(block, sizeName, {-1, 1, seq, headDim});
+                    auto* sop = block->add_operations();
+                    sop->set_type("slice_by_size");
+                    (*sop->mutable_inputs())["x"].add_arguments()->set_name(x);
+                    (*sop->mutable_inputs())["begin"].add_arguments()->set_name(beginName);
+                    (*sop->mutable_inputs())["size"].add_arguments()->set_name(sizeName);
+                    setShape(sop, part, {-1, 1, seq, headDim});
+                    parts.push_back(part);
+                }
+            }
+            std::string out = genVarName(prefix + "_" + tag + "_exp");
+            std::string axisName = out + "_axis", interleaveName = out + "_interleave";
+            addIntScalarConstOp(block, axisName, 1);
+            addBoolScalarConstOp(block, interleaveName, false);
+            auto* cop = block->add_operations();
+            cop->set_type("concat");
+            auto& cin = *cop->mutable_inputs();
+            for (const std::string& part : parts)
+                cin["values"].add_arguments()->set_name(part);
+            cin["axis"].add_arguments()->set_name(axisName);
+            cin["interleave"].add_arguments()->set_name(interleaveName);
+            setShape(cop, out, {-1, numHeads, seq, headDim});
+            return out;
+        };
+        kh = repeatKVHeads(kh, "khrep", qHeadDim);
+        vh = repeatKVHeads(vh, "vhrep", vHeadDim);
     }
 
     std::string scores = genVarName(prefix + "_scores");
