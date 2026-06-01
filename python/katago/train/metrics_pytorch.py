@@ -539,6 +539,7 @@ class Metrics:
         target_futurepos = target_value_nchw[:, 2:4, :, :]
         target_scoring = target_value_nchw[:, 4, :, :] / 120.0
 
+        predict_q_values = False
         if raw_model.config["version"] <= 11:
             assert raw_model.policy_head.num_policy_outputs == 4
             policy_opt_loss_scale = 1.000
@@ -549,11 +550,20 @@ class Metrics:
             policy_opt_loss_scale = 0.930
             long_policy_opt_loss_scale = 0.100
             short_policy_opt_loss_scale = 0.200
-        else:
+        elif raw_model.config["version"] <= 16:  # version 16 has predict_q_values implied
             assert raw_model.policy_head.num_policy_outputs == 8
             policy_opt_loss_scale = 0.930
             long_policy_opt_loss_scale = 0.100
             short_policy_opt_loss_scale = 0.200
+            predict_q_values = True
+        elif raw_model.config["version"] <= 17:
+            assert raw_model.policy_head.num_policy_outputs == 6 or raw_model.policy_head.num_policy_outputs == 8
+            policy_opt_loss_scale = 0.930
+            long_policy_opt_loss_scale = 0.100
+            short_policy_opt_loss_scale = 0.200
+            predict_q_values = bool(raw_model.config.get("predict_q_values"))
+        else:
+            raise RuntimeError("unsupported version: " + str(raw_model.config["version"]))
 
         loss_policy_player = self.loss_policy_player_samplewise(
             policy_logits[:, 0, :],
@@ -781,7 +791,7 @@ class Metrics:
             global_weight,
         ).sum()
 
-        if raw_model.config["version"] <= 15:
+        if not predict_q_values:
             target_weight_qvalues = torch.zeros_like(global_weight)
             loss_qvalues_winloss = torch.zeros_like(loss_policy_player)
             loss_qvalues_score = torch.zeros_like(loss_policy_player)

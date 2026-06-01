@@ -40,20 +40,21 @@ ModelConfig = Dict[str,Any]
 # version = 14 # V7 features, Squared softplus for error variance predictions
 # version = 15 # V7 features, Extra nonlinearity for pass output
 # version = 16 # V7 features, Q value predictions in the policy head
+# version = 17 # V7 features, dropped Q value predictions, introduced transformers and added guards to unused params
 
 def get_version(config: ModelConfig):
     return config["version"]
 
 def get_num_bin_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16 or version == 17:
         return 22
     else:
         assert(False)
 
 def get_num_global_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16 or version == 17:
         return 19
     else:
         assert(False)
@@ -1507,7 +1508,7 @@ sandbox = {
 # Like b7c96h3tfrs but smaller: 5 blocks, 48 trunk/mid channels (16 channels per head with 3 heads),
 # and swiglu disabled (ffng instead of ffnsg).
 b5c48h3tfr = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1540,7 +1541,7 @@ b5c48h3tfr = {
 }
 
 b7c96h3tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1579,7 +1580,7 @@ b7c96h3tfrs = {
 # Like b7c96h3tfrs but with grouped-query attention (6 query heads, 3 KV heads), explicit
 # query/key head dim 32 and value head dim 16, and learnable RoPE.
 b7c96h6kv3qk32v16tflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1619,7 +1620,7 @@ b7c96h6kv3qk32v16tflrs = {
 }
 
 b8c96h3tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1658,7 +1659,7 @@ b8c96h3tfrs = {
 }
 
 b2b10c96h3tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1703,7 +1704,7 @@ b2b10c96h3tfrs = {
 }
 
 b11c96h3tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1748,7 +1749,7 @@ b11c96h3tfrs = {
 }
 
 b9c96h3tgabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1794,7 +1795,7 @@ b9c96h3tgabs = {
 }
 
 b10c192h6tgabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1844,7 +1845,7 @@ b10c192h6tgabs = {
 # Nested bottleneck transformer configs
 # Naming: "b5c192h3nbttfrs" = 5 outer bottleneck blocks, 192ch trunk, nested bottleneck transformer
 b5c192h3nbttfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1872,7 +1873,7 @@ b5c192h3nbttfrs = {
 }
 
 b6c384h6nbttfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1901,7 +1902,7 @@ b6c384h6nbttfrs = {
 }
 
 b4c256h4nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1929,7 +1930,7 @@ b4c256h4nbttflrs = {
 }
 
 b5c384h6nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1958,7 +1959,7 @@ b5c384h6nbttflrs = {
 }
 
 b6c384h6nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1988,7 +1989,7 @@ b6c384h6nbttflrs = {
 }
 
 b7c384h6nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2019,7 +2020,7 @@ b7c384h6nbttflrs = {
 }
 
 b9c768h12nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2052,7 +2053,7 @@ b9c768h12nbttflrs = {
 }
 
 b15c512h8nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2091,7 +2092,7 @@ b15c512h8nbttflrs = {
 }
 
 b11c640h10nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2126,7 +2127,7 @@ b11c640h10nbttflrs = {
 }
 
 b9c768h8nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2159,7 +2160,7 @@ b9c768h8nbttflrs = {
 }
 
 b14c192h6tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2210,7 +2211,7 @@ b14c192h6tfrs = {
 }
 
 b2b13c192h6tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2261,7 +2262,7 @@ b2b13c192h6tfrs = {
 }
 
 b12c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2308,7 +2309,7 @@ b12c384h12tfrs = {
 }
 
 b24c256h8tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2379,7 +2380,7 @@ b24c256h8tfrs = {
 }
 
 b18c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2438,7 +2439,7 @@ b18c384h12tfrs = {
 }
 
 b40c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2541,7 +2542,7 @@ b40c384h12tfrs = {
 }
 
 b21c512h16tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2607,7 +2608,7 @@ b21c512h16tfrs = {
 
 # Vanilla baseline transformer ladder
 b16c256h8tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2629,7 +2630,7 @@ b16c256h8tfrs = {
 }
 
 b20c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2651,7 +2652,7 @@ b20c384h12tfrs = {
 }
 
 b30c512h16tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2674,7 +2675,7 @@ b30c512h16tfrs = {
 
 # b18c384nbt-comparable tier copies/variants
 b22c192h6tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2695,7 +2696,7 @@ b22c192h6tfrs = {
     "v2_size":96,
 }
 b10c384h6nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2730,7 +2731,7 @@ b10c384h6nbttflrs = {
 
 # b28c512nbt-comparable tier copies/variants
 b35c256h8tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2752,7 +2753,7 @@ b35c256h8tfrs = {
 }
 
 b26c320h10tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2774,7 +2775,7 @@ b26c320h10tfrs = {
 }
 
 b22c384h8tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2797,7 +2798,7 @@ b22c384h8tfrs = {
 
 # Cheaper-than-b40c768nbt tier copies/variants
 b45c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2819,7 +2820,7 @@ b45c384h12tfrs = {
 }
 
 b32c480h10tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2841,7 +2842,7 @@ b32c480h10tfrs = {
 }
 
 b18c768h16tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2863,7 +2864,7 @@ b18c768h16tfrs = {
 }
 
 b5c384h6nbttfgabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2896,7 +2897,7 @@ b5c384h6nbttfgabs = {
 }
 
 b5c384h6nbttftabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2931,7 +2932,7 @@ b5c384h6nbttftabs = {
 }
 
 b5c384h6nbttfrtabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2966,7 +2967,7 @@ b5c384h6nbttfrtabs = {
 }
 
 b5c384h6nbttflrtabcheaps = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -3003,7 +3004,7 @@ b5c384h6nbttflrtabcheaps = {
 
 
 b5c384h6nbttflrtab2cheaps = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
