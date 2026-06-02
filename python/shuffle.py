@@ -743,12 +743,18 @@ if __name__ == '__main__':
     desired_num_rows = min(desired_num_rows,max_rows) if max_rows is not None else desired_num_rows
     print("Desired num rows: %d / %d" % (desired_num_rows,num_rows_total), flush=True)
 
+    # add_to_data_rows accounts for data rows that are no longer present on disk (e.g. older data that was
+    # deleted or archived), conceptually sitting at the oldest end of the dataset before any surviving file.
+    # Offset the reported range by it so that the "range" output (used by train.py for logging/naming and the
+    # train-bucket row accounting) reflects the full conceptual dataset rather than just the surviving rows.
+    data_row_offset = int(add_to_data_rows)
+
     desired_input_files = []
-    min_start_row = num_rows_total
-    max_end_row = num_rows_total
+    min_start_row = num_rows_total + data_row_offset
+    max_end_row = num_rows_total + data_row_offset
     num_rows_used = 0
     print_stride = 1 + len(all_files) // 80
-    end_row = num_rows_total
+    end_row = num_rows_total + data_row_offset
     with TimeStuff("Computing desired rows"):
         for i in range(len(all_files)):
             (filename,mtime,num_rows) = all_files[i]
