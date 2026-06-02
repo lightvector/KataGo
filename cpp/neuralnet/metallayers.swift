@@ -2014,6 +2014,10 @@ class SGFMetadataEncoder {
 
 // MARK: - Trunk
 
+/// Trunk-tip normalization kind, mirroring desc.h TRUNK_NORM_KIND_* (the value is serialized in the model).
+let TRUNK_NORM_KIND_STANDARD = 0  // BatchNorm or BiasMask (existing)
+let TRUNK_NORM_KIND_RMSNORM = 1   // RMSNorm
+
 /// A class that describes a trunk for a neural network
 public class SWTrunkDesc {
     let version: Int
@@ -2184,9 +2188,8 @@ struct Trunk {
             nnYLen: nnYLen,
             optimizeIdentityMask: optimizeIdentityMask)
 
-        // TRUNK_NORM_KIND_RMSNORM == 1: trunk tip uses RMSNorm with a fused activation.
-        // Otherwise (standard): BatchNorm followed by a separate activation.
-        if descriptor.trunkNormKind == 1 {
+        // RMSNorm trunk tip uses a fused activation; standard uses BatchNorm followed by a separate activation.
+        if descriptor.trunkNormKind == TRUNK_NORM_KIND_RMSNORM {
             let trunkTipRMSNorm = TrunkRMSNormLayer(
                 graph: graph,
                 sourceTensor: blocks.resultTensor,
