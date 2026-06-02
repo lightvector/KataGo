@@ -1438,8 +1438,11 @@ struct TransformerAttentionBlock {
                                nHeads: Int, seq: Int, numPairs: Int, nnX: Int, nnY: Int, qHeadDim: Int,
                                dataType: MPSDataType, kvIndexForHead: (Int) -> Int) -> (MPSGraphTensor, MPSGraphTensor) {
         let count = nHeads * seq * numPairs
-        let cosBuf = UnsafeMutablePointer<Float32>.allocate(capacity: count)
-        let sinBuf = UnsafeMutablePointer<Float32>.allocate(capacity: count)
+        // Managed arrays (freed on return). Unlike the weight constants elsewhere, which point at
+        // C++-owned descriptor memory and so use floatsNoCopy, these tables have no persistent owner;
+        // we copy them into the Data below so MPSGraph owns the bytes (avoids a leak / use-after-free).
+        var cosBuf = [Float32](repeating: 0, count: count)
+        var sinBuf = [Float32](repeating: 0, count: count)
         let numPairsPerDim = numPairs / 2
         let dimHalf = qHeadDim / 2
         for h in 0..<nHeads {
@@ -1471,8 +1474,10 @@ struct TransformerAttentionBlock {
             }
         }
         let shape: [NSNumber] = [1, nHeads as NSNumber, seq as NSNumber, numPairs as NSNumber]
-        let cosTensor = graph.constant(Data(floatsNoCopy: cosBuf, shape: shape), shape: shape, dataType: dataType)
-        let sinTensor = graph.constant(Data(floatsNoCopy: sinBuf, shape: shape), shape: shape, dataType: dataType)
+        let cosData = cosBuf.withUnsafeBufferPointer { Data(buffer: $0) }
+        let sinData = sinBuf.withUnsafeBufferPointer { Data(buffer: $0) }
+        let cosTensor = graph.constant(cosData, shape: shape, dataType: dataType)
+        let sinTensor = graph.constant(sinData, shape: shape, dataType: dataType)
         return (cosTensor, sinTensor)
     }
 }
