@@ -23,6 +23,25 @@ struct ScopedFp32 {
     ScopedFp32(const ScopedFp32&) = delete;
     ScopedFp32& operator=(const ScopedFp32&) = delete;
 };
+
+// True if any block in this list is a transformer (attention/FFN), recursing into nested-bottleneck
+// blocks (which can themselves contain transformer blocks). Used to scope the off-ANE FP32
+// escalations to transformer trunks only.
+bool blocksContainTransformer(const std::vector<BlockEntry>& blocks) {
+    for (const auto& entry : blocks) {
+        if (entry.block_kind == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            entry.block_kind == TRANSFORMER_FFN_BLOCK_KIND) {
+            return true;
+        }
+        if (entry.block_kind == NESTED_BOTTLENECK_BLOCK_KIND) {
+            const auto& nbt = std::get<NestedBottleneckResidualBlockDesc>(*entry.block);
+            if (blocksContainTransformer(nbt.blocks)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 }  // namespace
 
 MILBuilder::MILBuilder(const KataGoModelDesc& model,
@@ -46,22 +65,28 @@ MILBuilder::MILBuilder(const KataGoModelDesc& model,
           : CoreML::Specification::MILSpec::DataType::FLOAT32)
     , m_ops(board_x_size, board_y_size, optimize_identity_mask)
     , m_var_counter(0) {
-    // Precision tiers in FP16 mode (the ANE accumulates FP16 in FP16; FP32 ops run off the FP16-only
-    // ANE). NARROW transformer trunks are unreliable on the FP16 ANE: their policy/value metrics sit
-    // right on the testgpuerror thresholds and no partial-FP32 config passes all board sizes (partial
-    // FP32 leaves a noisy FP16 spatial stream). So build narrow trunks FULLY in FP32 (off-ANE, but
-    // cheap since narrow models are small; correct because it equals the FP32 reference). Weights are
-    // stored FP32 via per-weight serialization. Wider trunks use partial FP32: non-spatial (matmuls +
-    // pooling) always FP32; convs FP32 only for very wide trunks (kept on the ANE for narrower ones).
+    // Precision in FP16 mode. The ANE accumulates FP16 in FP16, so any FP32 op runs OFF the FP16-only
+    // ANE (on CPU/GPU), breaking the ANE pipeline. These off-ANE FP32 escalations are applied ONLY to
+    // transformer trunks, whose attention blocks widen the activation range enough to overflow FP16
+    // accumulation. Plain convnets stay PURE FP16 on the ANE -- the long-standing pre-tier path, verified
+    // to pass testgpuerror (b18c384nbt, b28c512nbt) and ~2.6x faster than forcing their per-block global
+    // pooling and convs to FP32 (measured: the per-block pooling round-trips, not the convs, dominate the
+    // slowdown). For transformers:
+    //   - NARROW trunks (<256ch) build FULLY in FP32: their policy/value metrics sit right on the
+    //     testgpuerror thresholds and no partial-FP32 config passes all board sizes (partial FP32 leaves a
+    //     noisy FP16 spatial stream). Off-ANE but cheap since narrow; equals the FP32 reference. Weights
+    //     stored FP32 (per-weight serialization).
+    //   - WIDER trunks use partial FP32: non-spatial (matmuls + pooling) always, convs only for >=320ch.
     const int trunkChannels = model.trunk.trunk_num_channels;
-    const bool full_fp32 = use_fp16 && trunkChannels < FULL_FP32_MAX_TRUNK_CHANNELS;
+    const bool hasTransformer = blocksContainTransformer(model.trunk.blocks);
+    const bool full_fp32 = use_fp16 && hasTransformer && trunkChannels < FULL_FP32_MAX_TRUNK_CHANNELS;
     if (full_fp32) {
         m_use_fp16 = false;
         m_use_fp16_io = false;
         m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
     }
-    m_nonspatial_fp32 = m_use_fp16;
-    m_conv_fp32 = m_use_fp16 && trunkChannels >= CONV_FP32_MIN_TRUNK_CHANNELS;
+    m_nonspatial_fp32 = m_use_fp16 && hasTransformer;
+    m_conv_fp32 = m_use_fp16 && hasTransformer && trunkChannels >= CONV_FP32_MIN_TRUNK_CHANNELS;
 }
 
 void MILBuilder::setBatchDimension(CoreML::Specification::MILSpec::TensorType* tensor_type) {

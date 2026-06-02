@@ -43,14 +43,16 @@ private:
     bool m_optimize_identity_mask;
     bool m_use_fp16;
     bool m_use_fp16_io;
-    // FP32 in FP16 mode follows KataGo's FP16 convention (spatial convs FP16, non-spatial FP32), but
-    // FP32 ops run off the FP16-only ANE, so convs are channel-gated to only the wide trunks that
-    // need it. RMSNorm reductions: always FP32 (cheap, needed by all). Non-spatial matmuls+pooling:
-    // always FP32 (every width needs it at some board size). Convs: FP32 only for wide trunks.
-    static constexpr int CONV_FP32_MIN_TRUNK_CHANNELS = 320;   // convs run FP32 at/above this width
-    static constexpr int FULL_FP32_MAX_TRUNK_CHANNELS = 256;   // trunks below this build fully FP32
-    bool m_nonspatial_fp32 = false;  // = m_use_fp16 (matmuls + global pooling)
-    bool m_conv_fp32 = false;        // = m_use_fp16 && trunk_channels >= CONV_FP32_MIN_...
+    // FP32-in-FP16-mode escalations all run off the FP16-only ANE, so they apply ONLY to transformer
+    // trunks (attention widens activation range, overflowing FP16 conv/matmul/pooling accumulation).
+    // Plain convnets run pure FP16 on the ANE -- the long-standing pre-tier path, verified to pass
+    // testgpuerror (b18c384nbt) and ~2.3x faster than forcing their per-block global pooling to FP32.
+    // For transformers: narrow trunks (<256) build fully FP32; wider ones use non-spatial FP32 (matmuls +
+    // pooling) plus, for very wide trunks (>=320), conv FP32. RMSNorm reductions: FP32 when m_use_fp16.
+    static constexpr int CONV_FP32_MIN_TRUNK_CHANNELS = 320;   // transformer convs run FP32 at/above this width
+    static constexpr int FULL_FP32_MAX_TRUNK_CHANNELS = 256;   // transformer trunks below this build fully FP32
+    bool m_nonspatial_fp32 = false;  // = m_use_fp16 && hasTransformer (matmuls + global pooling)
+    bool m_conv_fp32 = false;        // = m_use_fp16 && hasTransformer && trunk_channels >= CONV_FP32_MIN_...
     int m_min_batch_size;
     int m_max_batch_size;
     CoreML::Specification::MILSpec::DataType m_weight_dtype;
