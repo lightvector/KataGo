@@ -224,12 +224,10 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     string homeDataDirOverride = loadHomeDataDirOverride(cfg);
 
-    string openCLTunerFile;
-    if(cfg.contains("openclTunerFile"))
-      openCLTunerFile = cfg.getString("openclTunerFile");
-    bool openCLReTunePerBoardSize = false;
-    if(cfg.contains("openclReTunePerBoardSize"))
-      openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
+    // Backend-specific options (e.g. openclTunerFile, cudaDisableGraphSDPA) are read directly by the
+    // relevant compute backend off of cfg (see createComputeContext). Because they follow the backend
+    // prefix convention, the getBackendPrefixes() loop above already marks them used for the backends
+    // that don't read them, so no explicit mark-used is needed here.
 
     enabled_t useFP16Mode = enabled_t::Auto;
     if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
@@ -241,16 +239,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("useFP16"))
       useFP16Mode = cfg.getEnabled("useFP16");
 
-    enabled_t useNHWCMode = enabled_t::Auto;
-    if(cfg.contains(backendPrefix+"UseNHWC"+idxStr))
-      useNHWCMode = cfg.getEnabled(backendPrefix+"UseNHWC"+idxStr);
-    else if(cfg.contains("useNHWC"+idxStr))
-      useNHWCMode = cfg.getEnabled("useNHWC"+idxStr);
-    else if(cfg.contains(backendPrefix+"UseNHWC"))
-      useNHWCMode = cfg.getEnabled(backendPrefix+"UseNHWC");
-    else if(cfg.contains("useNHWC"))
-      useNHWCMode = cfg.getEnabled("useNHWC");
-
     int forcedSymmetry = -1;
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
       forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,SymmetryHelpers::NUM_SYMMETRIES-1);
@@ -258,7 +246,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
       + " useFP16 " + useFP16Mode.toString()
-      + " useNHWC " + useNHWCMode.toString()
     );
 
     int nnCacheSizePowerOfTwo =
@@ -306,6 +293,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     if(disableFP16)
       useFP16Mode = enabled_t::False;
 
+    //Pre-warm lazily-compiled backend graphs (e.g. cuDNN SDPA plans for transformer models) when each
+    //server thread's handle is created, so the first searches aren't stalled. On by default.
+    bool disableWarmup =
+      cfg.contains("cudaDisableWarmup") ? cfg.getBool("cudaDisableWarmup") : false;
+
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
@@ -319,16 +311,15 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
-      openCLTunerFile,
       homeDataDirOverride,
-      openCLReTunePerBoardSize,
       useFP16Mode,
-      useNHWCMode,
       numNNServerThreadsPerModel,
       gpuIdxByServerThread,
       nnRandSeed,
       (forcedSymmetry >= 0 ? false : nnRandomize),
-      defaultSymmetry
+      defaultSymmetry,
+      disableWarmup,
+      cfg
     );
 
     nnEval->spawnServerThreads();

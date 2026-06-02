@@ -1,16 +1,21 @@
 #!/bin/bash -eux
 
-# Usage: $0 [gpu|ane]
+# Usage: $0 [gpu|ane] [extra-override]
 #   gpu (default) — run against the MPSGraph/GPU path of the Metal backend
 #   ane           — run against the CoreML/ANE path of the Metal backend
 # Result files are suffixed (_ane) so the two runs can coexist; reference files
 # under $REFERENCEDIR are backend-independent and shared.
+# Optional second argument: extra config overrides appended (comma-separated) to the
+# -override-config of every test entry below. E.g. ./rungpuerrortest.sh gpu "useFP16=true, useNHWC=true"
 MODE="${1:-gpu}"
 case "$MODE" in
     gpu) EXTRA_OVERRIDE=""; SUFFIX="" ;;
     ane) EXTRA_OVERRIDE=", deviceToUseThread0=100"; SUFFIX="_ane" ;;
-    *)   echo "Usage: $0 [gpu|ane]" >&2; exit 1 ;;
+    *)   echo "Usage: $0 [gpu|ane] [extra-override]" >&2; exit 1 ;;
 esac
+if [ -n "${2:-}" ]; then
+    EXTRA_OVERRIDE="${EXTRA_OVERRIDE}, $2"
+fi
 
 REFERENCEDIR="tests/results/gpu_error_reference_files"
 RESULTSDIR="tests/results/gpu_error_results"
@@ -34,6 +39,9 @@ MODEL6=models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz  # version 14
 MODEL7=models/kata1-b28c512nbt-s8326494464-d4628051565.bin.gz  # version 15
 MODEL8=models/b18c384nbt-humanv0.bin.gz # human SL model
 MODEL9=models/b5c192nbt-v16test.bin.gz  # version 16 model very slightly trained
+MODEL10=tests/models/b7c96h3tfrs-test5-cnorm.bin.gz  # small transformer, rope, rmsnorm tip
+MODEL11=tests/models/b4c256h4nbttflrs-fson-silu-rsnh.bin.gz # small nbt transformer, learnable rope, spatial rmsnorm tip
+MODEL12=tests/models/b7c96h6kv3qk32v16tflrs-fson-bnh.bin.gz # small gqa transformer, relu, learnable rope, batchnorm tip
 
 MODELBASE1=$(basename "$MODEL1")
 MODELBASE2=$(basename "$MODEL2")
@@ -44,6 +52,9 @@ MODELBASE6=$(basename "$MODEL6")
 MODELBASE7=$(basename "$MODEL7")
 MODELBASE8=$(basename "$MODEL8")
 MODELBASE9=$(basename "$MODEL9")
+MODELBASE10=$(basename "$MODEL10")
+MODELBASE11=$(basename "$MODEL11")
+MODELBASE12=$(basename "$MODEL12")
 
 ./katago testgpuerror -model "$MODEL1" -config configs/gtp_example.cfg -boardsize 9 \
          -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
@@ -147,5 +158,30 @@ MODELBASE9=$(basename "$MODEL9")
 ./katago testgpuerror -model "$MODEL9" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
          -reference-file "$REFERENCEDIR"/"$MODELBASE9"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE9"_size19${SUFFIX}.txt
+
+./katago testgpuerror -model "$MODEL10" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False, maxBatchSize=11${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE10"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE10"_sizerect${SUFFIX}.txt
+./katago testgpuerror -model "$MODEL10" -config configs/gtp_example.cfg -boardsize 19 \
+         -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE10"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE10"_size19${SUFFIX}.txt
+
+./katago testgpuerror -model "$MODEL11" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False, maxBatchSize=11${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE11"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE11"_sizerect${SUFFIX}.txt
+./katago testgpuerror -model "$MODEL11" -config configs/gtp_example.cfg -boardsize 19 \
+         -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE11"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE11"_size19${SUFFIX}.txt
+
+./katago testgpuerror -model "$MODEL12" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False, maxBatchSize=12${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE12"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE12"_sizerect${SUFFIX}.txt
+./katago testgpuerror -model "$MODEL12" -config configs/gtp_example.cfg -boardsize 19 \
+         -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE12"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE12"_size19${SUFFIX}.txt
+
+./katago testgpuerror -model "$MODEL11" -config configs/gtp_example.cfg -boardsize 9 \
+         -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=16,maxBoardYSizeForNNBuffer=11,maxBatchSize=15,policyOptimism=0.70${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE11"_size9_rectbuffer.txt | tee "$RESULTSDIR"/"$MODELBASE11"_size9_rectbuffer${SUFFIX}.txt
 
 

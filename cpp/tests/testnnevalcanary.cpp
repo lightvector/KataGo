@@ -208,7 +208,10 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     testAssert(buf.result->whiteScoreMean < 22.0 + scoreLenience);
   }
 
-  {
+  // 16x11 rectangular board. Skip when the evaluator requires the exact (max) NN length, since it is
+  // locked to the configured max board size and would throw on a smaller board. This lets the canary
+  // be run under requireMaxBoardSize=true to exercise exact-NNLen-only behavior on the 19x19 positions.
+  if(!nnEval->getRequireExactNNLen()) {
     string sgfStr = "(;FF[4]GM[1]CA[UTF-8]RU[Japanese]KM[6]SZ[16:11];B[md];W[nh];B[dh];W[cd];B[lh];W[li];B[ki])";
     std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
@@ -576,6 +579,24 @@ bool Tests::runBackendErrorTest(
   else
     throw StringError("Unknown dataset to test gpu error on: " + boardSizeDataset);
 
+  // DEBUG (kept commented out): KATAGO_TEST_ONLY_POS=<index> restricts the test to a single position and
+  // forces batch size 1 (no batched runs), so per-layer activation dumps (see the TRT backend's
+  // maybeDumpDebugActivations) come from exactly one fp32 and one fp16 eval. Used with KATAGO_TEST_PER_POS
+  // below to localize the trunk-tip RMSNorm FP16 overflow. Uncomment to re-enable (needs <cstdlib>).
+  // {
+  //   const char* onlyPosStr = std::getenv("KATAGO_TEST_ONLY_POS");
+  //   if(onlyPosStr != nullptr) {
+  //     size_t idx = (size_t)std::atoi(onlyPosStr);
+  //     if(idx >= hists.size())
+  //       throw StringError("KATAGO_TEST_ONLY_POS out of range");
+  //     BoardHistory only = hists[idx];
+  //     hists.clear();
+  //     hists.push_back(only);
+  //     maxBatchSize = 1;
+  //     logger.write("DEBUG: restricted to single position index " + Global::uint64ToString((uint64_t)idx));
+  //   }
+  // }
+
   auto evalBoard = [&](NNEvaluator* nnE, const BoardHistory& hist) {
     const Board& board = hist.getRecentBoard(0);
     MiscNNInputParams nnInputParams;
@@ -679,6 +700,16 @@ bool Tests::runBackendErrorTest(
     logger.write("Computed stats on " + Global::uint64ToString((uint64_t)referenceValues.size()) + " positions");
     logger.write("Reporting the average, 90%, 99%, and max abs error between the following configurations: ");
   }
+
+  // DEBUG (kept commented out): KATAGO_TEST_PER_POS prints per-position fp16-vs-reference winrate error to
+  // find the worst position to isolate via KATAGO_TEST_ONLY_POS above. Uncomment to re-enable (needs <cmath>).
+  // if(std::getenv("KATAGO_TEST_PER_POS") != nullptr && nnEval32 != nnEval && current.size() == referenceValues.size()) {
+  //   for(size_t i = 0; i < referenceValues.size(); i++) {
+  //     double we = std::fabs((double)current[i]->whiteWinProb - (double)referenceValues[i]->whiteWinProb)
+  //               + std::fabs((double)current[i]->whiteLossProb - (double)referenceValues[i]->whiteLossProb);
+  //     logger.write("PERPOS " + Global::uint64ToString((uint64_t)i) + " winrateErr " + Global::doubleToString(we));
+  //   }
+  // }
 
   auto computeStats = [&](const string& name, const std::vector<std::shared_ptr<NNOutput>>& candidateValues, GpuErrorStats& stats) {
     for(size_t i = 0; i<referenceValues.size(); i++)

@@ -2216,10 +2216,13 @@ class TransformerAttentionBlock(torch.nn.Module):
                     s_y = (s_idx // self.pos_len).float()  # row
                     s_x = (s_idx % self.pos_len).float()   # col
                 cos_k, sin_k = compute_learnable_rope_cos_sin(s_x, s_y, self.rope_freqs)  # ([B,] S, H_kv, P)
-                # For Q: expand kv head freqs to match num_heads if using multi-query attention
+                # For Q: expand kv head freqs to match num_heads if using grouped-query attention.
+                # cos_k/sin_k are ([B,] S, H_kv, P); repeat each kv head n_rep times along a new axis
+                # inserted right after the head axis, so query head h maps to kv head h // n_rep --
+                # matching the k/v expansion below and the C++ backends' kvh = h * num_kv / num_heads.
                 if self.n_rep > 1:
-                    cos_q = cos_k.unsqueeze(-3).expand(*cos_k.shape[:-2], self.n_rep, cos_k.shape[-1]).reshape(*cos_k.shape[:-2], self.num_heads, -1)
-                    sin_q = sin_k.unsqueeze(-3).expand(*sin_k.shape[:-2], self.n_rep, sin_k.shape[-1]).reshape(*sin_k.shape[:-2], self.num_heads, -1)
+                    cos_q = cos_k.unsqueeze(-2).expand(*cos_k.shape[:-1], self.n_rep, cos_k.shape[-1]).reshape(*cos_k.shape[:-2], self.num_heads, -1)
+                    sin_q = sin_k.unsqueeze(-2).expand(*sin_k.shape[:-1], self.n_rep, sin_k.shape[-1]).reshape(*sin_k.shape[:-2], self.num_heads, -1)
                 else:
                     cos_q = cos_k
                     sin_q = sin_k
@@ -2424,8 +2427,15 @@ class PolicyHead(torch.nn.Module):
             self.num_policy_outputs = 4
         elif config["version"] <= 15:
             self.num_policy_outputs = 6
+        elif config["version"] <= 16:
+            self.num_policy_outputs = 8  # version 16 has predict_q_values implied
+        elif config["version"] <= 17:
+            if config.get("predict_q_values"):
+                self.num_policy_outputs = 8
+            else:
+                self.num_policy_outputs = 6
         else:
-            self.num_policy_outputs = 8
+            raise Exception("Unexpected version: " + str(config["version"]))
         # Output 0: policy prediction
         # Output 1: opponent reply policy prediction
         # Output 2: soft policy prediction
@@ -2771,6 +2781,7 @@ _BLOCK_KIND_FLAGS = {
     "ffng":                                 (False, False),
     "bottlenest2transformerrope":           (False, False),
     "bottlenest2transformerropesg":         (False, False),
+    "bottlenest3transformerropesg":         (False, False),
     "bottlenest2transformergabsg":          (True,  False),
     "bottlenest2transformerropegabsg":      (True,  False),
     "bottlenest2transformertabsg":         (False, True),
@@ -3046,6 +3057,18 @@ class Model(torch.nn.Module):
                 self.blocks.append(NestedBottleneckTransformerBlock(
                     name=block_name,
                     internal_length=2,
+                    c_main=self.c_trunk,
+                    c_mid=self.c_mid,
+                    config=self.config,
+                    activation=self.activation,
+                    pos_len=pos_len,
+                    use_swiglu=True,
+                    use_rope=True,
+                ))
+            elif block_kind == "bottlenest3transformerropesg":
+                self.blocks.append(NestedBottleneckTransformerBlock(
+                    name=block_name,
+                    internal_length=3,
                     c_main=self.c_trunk,
                     c_mid=self.c_mid,
                     config=self.config,

@@ -118,9 +118,8 @@ struct ComputeContext {
    * @param nnX The width of the input tensor.
    * @param nnY The height of the input tensor.
    * @param useFP16Mode Whether to use half-precision floating-point (FP16) mode.
-   * @param useNHWCMode Whether to use the NHWC format for input tensors.
    */
-  ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode);
+  ComputeContext(int nnX, int nnY, enabled_t useFP16Mode);
 
   ~ComputeContext();
   ComputeContext() = delete;

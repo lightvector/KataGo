@@ -72,6 +72,11 @@ namespace OpenCLParams {
   };
 
   struct HGemmWmmaNCHWParams {
+    // Maximum MWARP allowed for NCHW WMMA. Spatial padding (paddedNNXYLen) must be aligned
+    // to MWARP so that WMMA fragments don't straddle the boundary. Keeping this small
+    // minimizes wasted padding. Buffer overallocation also uses this as an upper bound.
+    static constexpr int MAX_MWARP = 16;
+
     int MWG = 16;
     int NWG = 16;
     int KWG = 16;
@@ -83,8 +88,14 @@ namespace OpenCLParams {
     int VWN = 2;
     int SB = 0;
 
+    // Pad kernel parameters (legacy, no longer tuned but kept for tune file compatibility)
+    int PAD_ELTS_PER_THREAD = 1;
+    int PAD_ROWS_PER_THREAD = 1;
+
     std::string desc() const;
     std::string compileOptions() const;
+    std::string padDesc() const;
+    std::string padCompileOptions() const;
     int getRequiredCDivisor() const; // Use of HGemmWmmaNCHW on a matrix mult requires that input and output C is divisble by this
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;
@@ -145,6 +156,61 @@ namespace OpenCLParams {
     void fillFromDesc(const std::string& fileName, const std::string& desc);
     bool isValid() const;
   };
+
+  struct TransformerParams {
+    // Attention kernel parameters
+    int ATTN_BLOCK_Q = 32;   // query positions per workgroup (= workgroup size)
+    int ATTN_BLOCK_KV = 32;  // key/value tile size
+    int Q_PER_THREAD = 1;    // query positions per thread (workgroup handles ATTN_BLOCK_Q * Q_PER_THREAD total)
+    int USE_TILED_ATTN = 1;  // 1 = tiled (shared memory), 0 = naive (one work-item per query)
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
+
+  struct TransformerRMSNormParams {
+    int WG_C_SIZE = 64;         // threads per workgroup for C-reduction
+    int WG_XY_SIZE = 1;         // spatial positions per workgroup
+    int C_PER_THREAD = 4;       // channels per thread per loop iteration
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
+
+  struct PointWiseParams {
+    int ELTS_PER_THREAD = 1;  // elements per work-item in grid-stride loop
+    int LOCAL_SIZE = 32;      // workgroup size
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
+
+  struct AddChannelBiasesNCHWParams {
+    int XY_ELTS_PER_THREAD = 1;  // spatial elements per work-item in grid-stride loop
+    int NC_ELTS_PER_THREAD = 1;  // batch*channel rows per work-item
+
+    std::string desc() const;
+    std::string compileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
+
+  struct SpatialRMSNormParams {
+    int TILE_SIZE = 32;           // workgroup size for reduction kernels (passes 1 and 2)
+    int APPLY_ELTS_PER_THREAD = 1; // elements per work-item in apply kernel
+
+    std::string desc() const;
+    std::string reduceCompileOptions() const;
+    std::string applyCompileOptions() const;
+    void fillFromDesc(const std::string& fileName, const std::string& desc);
+    bool isValid() const;
+  };
 }
 
 struct OpenCLTuneParams {
@@ -167,6 +233,11 @@ struct OpenCLTuneParams {
   OpenCLParams::Conv3x3Params conv3x3 = OpenCLParams::Conv3x3Params();
   OpenCLParams::Conv5x5Params conv5x5 = OpenCLParams::Conv5x5Params();
   OpenCLParams::GPoolParams gPool = OpenCLParams::GPoolParams();
+  OpenCLParams::TransformerParams transformer = OpenCLParams::TransformerParams();
+  OpenCLParams::TransformerRMSNormParams transformerRMSNorm = OpenCLParams::TransformerRMSNormParams();
+  OpenCLParams::PointWiseParams pointWise = OpenCLParams::PointWiseParams();
+  OpenCLParams::AddChannelBiasesNCHWParams addChannelBiasesNCHW = OpenCLParams::AddChannelBiasesNCHWParams();
+  OpenCLParams::SpatialRMSNormParams spatialRMSNorm = OpenCLParams::SpatialRMSNormParams();
 
   bool operator==(const OpenCLTuneParams& other) const;
   bool isValid() const;
@@ -174,6 +245,10 @@ struct OpenCLTuneParams {
   int getXGemmMPaddingMult(bool usingFP16Compute, bool usingFP16TensorCores) const;
   int getXGemmNPaddingMult(bool usingFP16Compute, bool usingFP16TensorCores) const;
   int getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16TensorCores) const;
+
+  // Compute the padded spatial dimension for NCHW layout. When using WMMA for 1x1 convolutions,
+  // rounds up to MWARP alignment (at least 16) so WMMA loads don't straddle spatial boundaries.
+  int getPaddedNNXYLen(int nnXLen, int nnYLen, bool usingFP16TensorCoresFor1x1) const;
 
   static void save(const std::string& filename, const OpenCLTuneParams& config);
   static OpenCLTuneParams load(const std::string& filename);
@@ -193,6 +268,13 @@ namespace OpenCLTuner {
     int regularNumChannels;
     int gpoolNumChannels;
     int modelVersion;
+
+    // Transformer-specific info (0 if no transformer blocks)
+    int transformerHeadDim;
+    int transformerVHeadDim;
+    int transformerNumHeads;
+    int transformerNumKVHeads;
+    int transformerFFNChannels;
 
     static ModelInfoForTuning ofDesc(const ModelDesc* desc);
   };

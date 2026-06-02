@@ -302,6 +302,8 @@ string OpenCLParams::HGemmWmmaNCHWParams::desc() const {
   s += " VWM=" + Global::intToString(VWM);
   s += " VWN=" + Global::intToString(VWN);
   s += " SB=" + Global::intToString(SB);
+  s += " PAD_ELTS_PER_THREAD=" + Global::intToString(PAD_ELTS_PER_THREAD);
+  s += " PAD_ROWS_PER_THREAD=" + Global::intToString(PAD_ROWS_PER_THREAD);
   return s;
 }
 string OpenCLParams::HGemmWmmaNCHWParams::compileOptions() const {
@@ -316,6 +318,20 @@ string OpenCLParams::HGemmWmmaNCHWParams::compileOptions() const {
   s += " -DVWM=" + Global::intToString(VWM);
   s += " -DVWN=" + Global::intToString(VWN);
   s += " -DSB=" + Global::intToString(SB);
+  s += " -DELTS_PER_THREAD=" + Global::intToString(PAD_ELTS_PER_THREAD);
+  s += " -DROWS_PER_THREAD=" + Global::intToString(PAD_ROWS_PER_THREAD);
+  return s;
+}
+string OpenCLParams::HGemmWmmaNCHWParams::padDesc() const {
+  string s;
+  s += "PAD_ELTS_PER_THREAD=" + Global::intToString(PAD_ELTS_PER_THREAD);
+  s += " PAD_ROWS_PER_THREAD=" + Global::intToString(PAD_ROWS_PER_THREAD);
+  return s;
+}
+string OpenCLParams::HGemmWmmaNCHWParams::padCompileOptions() const {
+  string s;
+  s += "-DELTS_PER_THREAD=" + Global::intToString(PAD_ELTS_PER_THREAD);
+  s += " -DROWS_PER_THREAD=" + Global::intToString(PAD_ROWS_PER_THREAD);
   return s;
 }
 void OpenCLParams::HGemmWmmaNCHWParams::fillFromDesc(const string& fileName, const string& desc) {
@@ -330,6 +346,8 @@ void OpenCLParams::HGemmWmmaNCHWParams::fillFromDesc(const string& fileName, con
   VWM = getInt(kvs,"VWM",VWM);
   VWN = getInt(kvs,"VWN",VWN);
   SB = getInt(kvs,"SB",SB);
+  PAD_ELTS_PER_THREAD = getInt(kvs,"PAD_ELTS_PER_THREAD",PAD_ELTS_PER_THREAD);
+  PAD_ROWS_PER_THREAD = getInt(kvs,"PAD_ROWS_PER_THREAD",PAD_ROWS_PER_THREAD);
 }
 bool OpenCLParams::HGemmWmmaNCHWParams::isValid() const {
   if(MWG <= 0) return false;
@@ -343,6 +361,8 @@ bool OpenCLParams::HGemmWmmaNCHWParams::isValid() const {
   if(VWN <= 0) return false;
   if(SB < 0 || SB > 1) return false;
   if(SB == 0 && VWN != 2) return false;
+  if(PAD_ELTS_PER_THREAD <= 0) return false;
+  if(PAD_ROWS_PER_THREAD <= 0) return false;
 
   if(!isMultipleOf(MWG,VWM)) return false;
   if(!isMultipleOf(NWG,VWN)) return false;
@@ -353,7 +373,8 @@ bool OpenCLParams::HGemmWmmaNCHWParams::isValid() const {
   if(!isMultipleOf(KWG,16)) return false;
   if(!isMultipleOf(getRequiredCDivisor(),NWG)) return false;
   if(!isMultipleOf(getRequiredCDivisor(),KWG)) return false;
-  if(!((MWARP == 8 && NWARP == 32) || (MWARP == 16 && NWARP == 16) || (MWARP == 32 && NWARP == 8))) return false;
+  if(MWARP > MAX_MWARP) return false;
+  if(!((MWARP == 8 && NWARP == 32) || (MWARP == 16 && NWARP == 16))) return false;
 
   const int WARP_SIZE = 32;
   if(MWAVE/MWARP * WARP_SIZE * NWAVE/NWARP > 1024) return false;
@@ -531,16 +552,183 @@ bool OpenCLParams::GPoolParams::isValid() const {
   return true;
 }
 
+string OpenCLParams::TransformerParams::desc() const {
+  string s;
+  s += "ATTN_BLOCK_Q=" + Global::intToString(ATTN_BLOCK_Q);
+  s += " ATTN_BLOCK_KV=" + Global::intToString(ATTN_BLOCK_KV);
+  s += " Q_PER_THREAD=" + Global::intToString(Q_PER_THREAD);
+  s += " USE_TILED_ATTN=" + Global::intToString(USE_TILED_ATTN);
+  return s;
+}
+string OpenCLParams::TransformerParams::compileOptions() const {
+  string s;
+  s += "-DATTN_BLOCK_Q=" + Global::intToString(ATTN_BLOCK_Q);
+  s += " -DATTN_BLOCK_KV=" + Global::intToString(ATTN_BLOCK_KV);
+  s += " -DQ_PER_THREAD=" + Global::intToString(Q_PER_THREAD);
+  return s;
+}
+void OpenCLParams::TransformerParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  ATTN_BLOCK_Q = getInt(kvs,"ATTN_BLOCK_Q",ATTN_BLOCK_Q);
+  ATTN_BLOCK_KV = getInt(kvs,"ATTN_BLOCK_KV",ATTN_BLOCK_KV);
+  Q_PER_THREAD = getInt(kvs,"Q_PER_THREAD",Q_PER_THREAD);
+  USE_TILED_ATTN = getInt(kvs,"USE_TILED_ATTN",USE_TILED_ATTN);
+}
+bool OpenCLParams::TransformerParams::isValid() const {
+  if(ATTN_BLOCK_Q <= 0) return false;
+  if(ATTN_BLOCK_KV <= 0) return false;
+  // Must be power of 2
+  if((ATTN_BLOCK_Q & (ATTN_BLOCK_Q-1)) != 0) return false;
+  if((ATTN_BLOCK_KV & (ATTN_BLOCK_KV-1)) != 0) return false;
+  // Reasonable limits
+  if(ATTN_BLOCK_Q > 256) return false;
+  if(ATTN_BLOCK_KV > 128) return false;
+  if(Q_PER_THREAD < 1 || Q_PER_THREAD > 8) return false;
+  if((Q_PER_THREAD & (Q_PER_THREAD-1)) != 0) return false;
+  if(USE_TILED_ATTN != 0 && USE_TILED_ATTN != 1) return false;
+  return true;
+}
+
+string OpenCLParams::TransformerRMSNormParams::desc() const {
+  string s;
+  s += "WG_C_SIZE=" + Global::intToString(WG_C_SIZE);
+  s += " WG_XY_SIZE=" + Global::intToString(WG_XY_SIZE);
+  s += " C_PER_THREAD=" + Global::intToString(C_PER_THREAD);
+  return s;
+}
+string OpenCLParams::TransformerRMSNormParams::compileOptions() const {
+  string s;
+  s += "-DWG_C_SIZE=" + Global::intToString(WG_C_SIZE);
+  s += " -DWG_XY_SIZE=" + Global::intToString(WG_XY_SIZE);
+  s += " -DC_PER_THREAD=" + Global::intToString(C_PER_THREAD);
+  return s;
+}
+void OpenCLParams::TransformerRMSNormParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  WG_C_SIZE = getInt(kvs,"WG_C_SIZE",WG_C_SIZE);
+  WG_XY_SIZE = getInt(kvs,"WG_XY_SIZE",WG_XY_SIZE);
+  C_PER_THREAD = getInt(kvs,"C_PER_THREAD",C_PER_THREAD);
+}
+bool OpenCLParams::TransformerRMSNormParams::isValid() const {
+  if(WG_C_SIZE <= 0 || WG_C_SIZE > 1024) return false;
+  if((WG_C_SIZE & (WG_C_SIZE-1)) != 0) return false;
+  if(WG_XY_SIZE <= 0 || WG_XY_SIZE > 32) return false;
+  if((WG_XY_SIZE & (WG_XY_SIZE-1)) != 0) return false;
+  if(WG_C_SIZE * WG_XY_SIZE > 1024) return false;
+  if(C_PER_THREAD <= 0 || C_PER_THREAD > 32) return false;
+  if((C_PER_THREAD & (C_PER_THREAD-1)) != 0) return false;
+  return true;
+}
+
+string OpenCLParams::PointWiseParams::desc() const {
+  string s;
+  s += "ELTS_PER_THREAD=" + Global::intToString(ELTS_PER_THREAD);
+  s += " LOCAL_SIZE=" + Global::intToString(LOCAL_SIZE);
+  return s;
+}
+string OpenCLParams::PointWiseParams::compileOptions() const {
+  string s;
+  s += "-DELTS_PER_THREAD=" + Global::intToString(ELTS_PER_THREAD);
+  return s;
+}
+void OpenCLParams::PointWiseParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  ELTS_PER_THREAD = getInt(kvs,"ELTS_PER_THREAD",ELTS_PER_THREAD);
+  LOCAL_SIZE = getInt(kvs,"LOCAL_SIZE",LOCAL_SIZE);
+}
+bool OpenCLParams::PointWiseParams::isValid() const {
+  if(ELTS_PER_THREAD <= 0) return false;
+  if(ELTS_PER_THREAD > 32) return false;
+  if((ELTS_PER_THREAD & (ELTS_PER_THREAD-1)) != 0) return false;
+  if(LOCAL_SIZE < 32) return false;
+  if(LOCAL_SIZE > 512) return false;
+  if((LOCAL_SIZE & (LOCAL_SIZE-1)) != 0) return false;
+  return true;
+}
+
+string OpenCLParams::AddChannelBiasesNCHWParams::desc() const {
+  string s;
+  s += "XY_ELTS_PER_THREAD=" + Global::intToString(XY_ELTS_PER_THREAD);
+  s += " NC_ELTS_PER_THREAD=" + Global::intToString(NC_ELTS_PER_THREAD);
+  return s;
+}
+string OpenCLParams::AddChannelBiasesNCHWParams::compileOptions() const {
+  string s;
+  s += "-DXY_ELTS_PER_THREAD=" + Global::intToString(XY_ELTS_PER_THREAD);
+  s += " -DNC_ELTS_PER_THREAD=" + Global::intToString(NC_ELTS_PER_THREAD);
+  return s;
+}
+void OpenCLParams::AddChannelBiasesNCHWParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  XY_ELTS_PER_THREAD = getInt(kvs,"XY_ELTS_PER_THREAD",XY_ELTS_PER_THREAD);
+  NC_ELTS_PER_THREAD = getInt(kvs,"NC_ELTS_PER_THREAD",NC_ELTS_PER_THREAD);
+}
+bool OpenCLParams::AddChannelBiasesNCHWParams::isValid() const {
+  if(XY_ELTS_PER_THREAD <= 0) return false;
+  if(XY_ELTS_PER_THREAD > 4) return false;
+  if((XY_ELTS_PER_THREAD & (XY_ELTS_PER_THREAD-1)) != 0) return false;
+  if(NC_ELTS_PER_THREAD <= 0) return false;
+  if(NC_ELTS_PER_THREAD > 8) return false;
+  if((NC_ELTS_PER_THREAD & (NC_ELTS_PER_THREAD-1)) != 0) return false;
+  return true;
+}
+
+string OpenCLParams::SpatialRMSNormParams::desc() const {
+  string s;
+  s += "TILE_SIZE=" + Global::intToString(TILE_SIZE);
+  s += " APPLY_ELTS_PER_THREAD=" + Global::intToString(APPLY_ELTS_PER_THREAD);
+  return s;
+}
+string OpenCLParams::SpatialRMSNormParams::reduceCompileOptions() const {
+  string s;
+  s += "-DTILE_SIZE=" + Global::intToString(TILE_SIZE);
+  return s;
+}
+string OpenCLParams::SpatialRMSNormParams::applyCompileOptions() const {
+  string s;
+  s += "-DAPPLY_ELTS_PER_THREAD=" + Global::intToString(APPLY_ELTS_PER_THREAD);
+  return s;
+}
+void OpenCLParams::SpatialRMSNormParams::fillFromDesc(const string& fileName, const string& desc) {
+  map<string,int> kvs = readDescKeyValues(fileName, desc);
+  TILE_SIZE = getInt(kvs,"TILE_SIZE",TILE_SIZE);
+  APPLY_ELTS_PER_THREAD = getInt(kvs,"APPLY_ELTS_PER_THREAD",APPLY_ELTS_PER_THREAD);
+}
+bool OpenCLParams::SpatialRMSNormParams::isValid() const {
+  if(TILE_SIZE <= 0) return false;
+  if(TILE_SIZE > 1024) return false;
+  if((TILE_SIZE & (TILE_SIZE-1)) != 0) return false;
+  if(APPLY_ELTS_PER_THREAD <= 0) return false;
+  if(APPLY_ELTS_PER_THREAD > 32) return false;
+  if((APPLY_ELTS_PER_THREAD & (APPLY_ELTS_PER_THREAD-1)) != 0) return false;
+  return true;
+}
+
 bool OpenCLTuneParams::isValid() const {
-  return
-    xGemmDirect.isValid() &&
-    xGemm.isValid() &&
-    xGemm16.isValid() &&
-    hGemmWmma.isValid() &&
-    hGemmWmmaNCHW.isValid() &&
-    conv3x3.isValid() &&
-    conv5x5.isValid() &&
-    gPool.isValid();
+  if(!xGemmDirect.isValid()) return false;
+  if(!xGemm.isValid()) return false;
+  if(!xGemm16.isValid()) return false;
+  if(!hGemmWmma.isValid()) return false;
+  if(!hGemmWmmaNCHW.isValid()) return false;
+  if(!conv3x3.isValid()) return false;
+  if(!conv5x5.isValid()) return false;
+  if(!gPool.isValid()) return false;
+  if(!transformer.isValid()) return false;
+  if(!transformerRMSNorm.isValid()) return false;
+  if(!pointWise.isValid()) return false;
+  if(!addChannelBiasesNCHW.isValid()) return false;
+  if(!spatialRMSNorm.isValid()) return false;
+
+  // "should" implies "can"
+  if(shouldUseFP16Storage && !canUseFP16Storage) return false;
+  if(shouldUseFP16Compute && !canUseFP16Compute) return false;
+  if(shouldUseFP16TensorCores && !canUseFP16TensorCores) return false;
+  if(shouldUseFP16TensorCoresFor1x1 && !canUseFP16TensorCoresFor1x1) return false;
+  // Tensor cores (batched or 1x1) require FP16 storage
+  if(canUseFP16TensorCores && !canUseFP16Storage) return false;
+  if(canUseFP16TensorCoresFor1x1 && !canUseFP16Storage) return false;
+
+  return true;
 }
 
 bool OpenCLTuneParams::operator==(const OpenCLTuneParams& other) const {
@@ -577,9 +765,17 @@ int OpenCLTuneParams::getXGemmKPaddingMult(bool usingFP16Compute, bool usingFP16
   return xGemm.KWG;
 }
 
+int OpenCLTuneParams::getPaddedNNXYLen(int nnXLen, int nnYLen, bool usingFP16TensorCoresFor1x1) const {
+  if(usingFP16TensorCoresFor1x1) {
+    int spatialAlignment = std::max(16, (int)hGemmWmmaNCHW.MWARP);
+    return roundUpToMultipleInt(nnXLen * nnYLen, spatialAlignment);
+  }
+  return nnXLen * nnYLen;
+}
 
-static const int TUNER_VERSION = 11;
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=11";
+
+static const int TUNER_VERSION = 12;
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=12";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out;
   FileUtils::open(out,filename);
@@ -616,6 +812,16 @@ void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& conf
   out << config.conv5x5.desc() << "\n";
   out << "#gPool" << "\n";
   out << config.gPool.desc() << "\n";
+  out << "#transformer" << "\n";
+  out << config.transformer.desc() << "\n";
+  out << "#transformerRMSNorm" << "\n";
+  out << config.transformerRMSNorm.desc() << "\n";
+  out << "#pointWise" << "\n";
+  out << config.pointWise.desc() << "\n";
+  out << "#addChannelBiasesNCHW" << "\n";
+  out << config.addChannelBiasesNCHW.desc() << "\n";
+  out << "#spatialRMSNorm" << "\n";
+  out << config.spatialRMSNorm.desc() << "\n";
   out.flush();
   out.close();
 }
@@ -635,7 +841,7 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   if(filteredLines[0] != TUNEPARAMS_VERSION_LINE)
     throw IOError("OpenCLTuneParams::load: expected first line to be " + string(TUNEPARAMS_VERSION_LINE) + " in " + filename);
 
-  if(filteredLines.size() != 17)
+  if(filteredLines.size() != 22)
     throw IOError("OpenCLTuneParams::load: unexpected number of parameter lines in file " + filename);
 
   OpenCLTuneParams config;
@@ -655,6 +861,11 @@ OpenCLTuneParams OpenCLTuneParams::load(const string& filename) {
   config.conv3x3.fillFromDesc(filename,filteredLines[14]);
   config.conv5x5.fillFromDesc(filename,filteredLines[15]);
   config.gPool.fillFromDesc(filename,filteredLines[16]);
+  config.transformer.fillFromDesc(filename,filteredLines[17]);
+  config.transformerRMSNorm.fillFromDesc(filename,filteredLines[18]);
+  config.pointWise.fillFromDesc(filename,filteredLines[19]);
+  config.addChannelBiasesNCHW.fillFromDesc(filename,filteredLines[20]);
+  config.spatialRMSNorm.fillFromDesc(filename,filteredLines[21]);
   return config;
 }
 
@@ -662,6 +873,12 @@ static cl_mem constantReadOnlyBufferFloat(cl_context context, int numElts, float
   vector<float> buf(numElts);
   for(int i = 0; i<numElts; i++)
     buf[i] = constant;
+  return createReadOnlyBuffer(context,buf);
+}
+static cl_mem constantReadOnlyBufferHalf(cl_context context, int numElts, float constant) {
+  vector<half_t> buf(numElts);
+  for(int i = 0; i<numElts; i++)
+    buf[i] = half_float::half_cast<half_t>(constant);
   return createReadOnlyBuffer(context,buf);
 }
 static cl_mem randomReadOnlyBufferFloat(const char* seed, cl_context context, int numElts, double scale, vector<float>& ret) {
@@ -913,12 +1130,13 @@ static bool testAllConfigs(
 
       double kernelsPerSecond = accums.weightCounted / accums.weightedTimeTaken;
       double errorProp = sqrt(squerr / (sqmag + 1e-30));
-      if(!isfinite(errorProp) || errorProp > 0.5)
+      double errorPropBreakThreshold = std::min(0.5, errorToleranceScale * 5.0);
+      if(!isfinite(errorProp) || errorProp > errorPropBreakThreshold)
         errorProp = 1.0;
       double errorPenaltyFactor = 1.0 - sqrt(errorProp / (errorProp + errorToleranceScale));
       if(errorProp > 1e-5)
         errorPenaltyFactor *= 0.90;
-      if(errorProp > 0.5)
+      if(errorProp > errorPropBreakThreshold)
         errorPenaltyFactor = 0.0;
 
       double score = kernelsPerSecond * errorPenaltyFactor;
@@ -955,6 +1173,29 @@ static bool testAllConfigs(
 #define ISVALID(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p) noexcept { return p.field.isValid(); })
 #define ISSIMPLE(field) std::function<bool(const OpenCLTuneParams&)>([](const OpenCLTuneParams& p) noexcept { return p.field.isSimple(); })
 
+static void findTransformerInfo(
+  const std::vector<std::pair<int, unique_ptr_void>>& blocks,
+  int& headDim, int& vHeadDim, int& numHeads, int& numKVHeads, int& ffnChannels
+) {
+  for(size_t i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      const TransformerAttentionDesc* attn = (const TransformerAttentionDesc*)blocks[i].second.get();
+      headDim = attn->qHeadDim;
+      vHeadDim = attn->vHeadDim;
+      numHeads = attn->numHeads;
+      numKVHeads = attn->numKVHeads;
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      const TransformerFFNDesc* ffn = (const TransformerFFNDesc*)blocks[i].second.get();
+      ffnChannels = ffn->ffnChannels;
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* nbt = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      findTransformerInfo(nbt->blocks, headDim, vHeadDim, numHeads, numKVHeads, ffnChannels);
+    }
+  }
+}
+
 OpenCLTuner::ModelInfoForTuning OpenCLTuner::ModelInfoForTuning::ofDesc(const ModelDesc* desc) {
   OpenCLTuner::ModelInfoForTuning modelInfo;
   modelInfo.maxConvChannels1x1 = desc->maxConvChannels(1,1);
@@ -964,9 +1205,24 @@ OpenCLTuner::ModelInfoForTuning OpenCLTuner::ModelInfoForTuning::ofDesc(const Mo
   modelInfo.regularNumChannels = desc->trunk.regularNumChannels;
   modelInfo.gpoolNumChannels = desc->trunk.gpoolNumChannels;
   modelInfo.modelVersion = desc->modelVersion;
+  modelInfo.transformerHeadDim = 0;
+  modelInfo.transformerVHeadDim = 0;
+  modelInfo.transformerNumHeads = 0;
+  modelInfo.transformerNumKVHeads = 0;
+  modelInfo.transformerFFNChannels = 0;
+  findTransformerInfo(
+    desc->trunk.blocks,
+    modelInfo.transformerHeadDim, modelInfo.transformerVHeadDim,
+    modelInfo.transformerNumHeads, modelInfo.transformerNumKVHeads,
+    modelInfo.transformerFFNChannels
+  );
   return modelInfo;
 }
 
+// Batch element b is located at b * inputStride for inputVec and b * filterStride for filterVec and b * outputStride for writing to outBase.
+// Each batch element in the input is a subtensor of shape in row-major (e.g. default numpy) convention [kSize, mSize]
+// Each batch element in the filter is a subtensor of shape in row-major (e.g. default numpy) convention [kSize, nSize]
+// The output will write subtensor of shape [nSize, mSize]
 static void cpuBatchedMatMul(
   const std::vector<float>& inputVec,
   const std::vector<float>& filterVec,
@@ -991,6 +1247,159 @@ static void cpuBatchedMatMul(
             }
           }
         }
+      }
+    }
+  }
+}
+
+// Describes one test case for matmul tuning: a (inChannels, outChannels) pair with a weight.
+struct GemmTuneCase {
+  int inChannels;
+  int outChannels;
+  double weight;
+};
+
+// Build the list of test cases for matmul tuning based on model info.
+// If includeTransformerCases is true and the model has transformer blocks, includes
+// additional cases for Q/K/V projection and FFN channel sizes.
+static vector<GemmTuneCase> getGemmTuneCases(
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool includeTransformerCases,
+  bool use3x3 = false
+) {
+  // Compute max conv channels for a "worst case" square matmul test case
+  int maxConvChannels = use3x3 ? modelInfo.maxConvChannels3x3 : modelInfo.maxConvChannels1x1;
+  maxConvChannels = std::max(modelInfo.trunkNumChannels, maxConvChannels);
+  maxConvChannels = std::max(modelInfo.midNumChannels, maxConvChannels);
+  maxConvChannels = std::max(modelInfo.regularNumChannels, maxConvChannels);
+  maxConvChannels = std::max(modelInfo.gpoolNumChannels, maxConvChannels);
+
+  vector<GemmTuneCase> cases;
+  // Warmup case (weight 0)
+  cases.push_back({modelInfo.trunkNumChannels, modelInfo.midNumChannels, 0});
+  // Standard conv cases
+  cases.push_back({modelInfo.trunkNumChannels, modelInfo.midNumChannels, 1});
+  cases.push_back({modelInfo.midNumChannels, modelInfo.trunkNumChannels, 1});
+  cases.push_back({modelInfo.trunkNumChannels, modelInfo.regularNumChannels, 0.2});
+  cases.push_back({modelInfo.trunkNumChannels, modelInfo.gpoolNumChannels, 0.2});
+  cases.push_back({maxConvChannels, maxConvChannels, 1});
+  // Transformer projection cases
+  if(includeTransformerCases && modelInfo.transformerNumHeads > 0) {
+    int transformerQKC = modelInfo.transformerNumHeads * modelInfo.transformerHeadDim;
+    int transformerVC = modelInfo.transformerNumKVHeads * modelInfo.transformerVHeadDim;
+    int transformerFFNC = modelInfo.transformerFFNChannels;
+    cases.push_back({modelInfo.midNumChannels, transformerQKC, 1.0});
+    cases.push_back({transformerVC, modelInfo.midNumChannels, 1.0});
+    cases.push_back({modelInfo.midNumChannels, transformerFFNC, 1.0});
+    cases.push_back({transformerFFNC, modelInfo.midNumChannels, 1.0});
+  }
+  return cases;
+}
+
+// Compute the max channel size across all tune cases.
+static int getMaxChannelsFromTuneCases(const vector<GemmTuneCase>& tuneCases) {
+  int maxChannels = 0;
+  for(const auto& tc : tuneCases) {
+    maxChannels = std::max(maxChannels, tc.inChannels);
+    maxChannels = std::max(maxChannels, tc.outChannels);
+  }
+  return maxChannels;
+}
+
+// CPU reference implementation of global pooling with mask.
+// Matches gPoolChannelsNCHWMask kernel output: for each (n,c), produces 3 values:
+// [mean, mean*(sqrt(maskSum)-14)*0.1, max_with_mask_penalty]
+// Input shape in row-major (e.g. default numpy) convention: [batchSize, numChannels, xySize]
+// Output shape in row-major (e.g. default numpy) convention: [batchSize, 3, numChannels]
+static void cpuGPool(
+  const std::vector<float>& inputVec,
+  float* outBase,
+  int batchSize,
+  int numChannels,
+  int xySize,
+  float maskSum  // all positions valid, so maskSum = xySize
+) {
+  float sqrtMaskSum = sqrt(maskSum);
+  for(int n = 0; n < batchSize; n++) {
+    for(int c = 0; c < numChannels; c++) {
+      float sum = 0.0f;
+      float maxVal = -1.0f;
+      for(int xy = 0; xy < xySize; xy++) {
+        int idx = (n * numChannels + c) * xySize + xy;
+        float v = inputVec[idx];
+        sum += v;
+        // mask is 1.0 everywhere, so v + (1.0 - 1.0) = v
+        maxVal = std::max(maxVal, v);
+      }
+      float mean = sum / maskSum;
+      int outIdx = n * numChannels * 3 + c;
+      outBase[outIdx] = mean;
+      outBase[outIdx + numChannels] = mean * (sqrtMaskSum - 14.0f) * 0.1f;
+      outBase[outIdx + numChannels * 2] = maxVal;
+    }
+  }
+}
+
+// CPU reference implementation of scaled dot-product attention.
+// Matches the naive attention kernel exactly.
+// Shapes in row-major (e.g. default numpy) convention:
+// Q: [batchSize*numHeads, headDim, seqLen]
+// K: [batchSize*numKVHeads, headDim, seqLen],
+// V: [batchSize*numKVHeads, vHeadDim, seqLen],
+// output: [batchSize*numHeads, vHeadDim, seqLen]
+// mask: all 1.0 (all positions valid)
+static void cpuAttention(
+  const std::vector<float>& qVec,
+  const std::vector<float>& kVec,
+  const std::vector<float>& vVec,
+  float* outBase,
+  int batchSize,
+  int numHeads,
+  int numKVHeads,
+  int headDim,
+  int vHeadDim,
+  int seqLen,
+  float scale
+) {
+  for(int bh = 0; bh < batchSize * numHeads; bh++) {
+    int n = bh / numHeads;
+    int h = bh % numHeads;
+    int kvh = h / (numHeads / numKVHeads);
+    int kvBase = n * numKVHeads + kvh;
+
+    for(int qPos = 0; qPos < seqLen; qPos++) {
+      // Online softmax over key positions
+      float runningMax = -1e30f;
+      float runningSum = 0.0f;
+      std::vector<float> acc(vHeadDim, 0.0f);
+
+      for(int kPos = 0; kPos < seqLen; kPos++) {
+        float dot = 0.0f;
+        for(int d = 0; d < headDim; d++) {
+          float qVal = qVec[(bh * headDim + d) * seqLen + qPos];
+          float kVal = kVec[(kvBase * headDim + d) * seqLen + kPos];
+          dot += qVal * kVal;
+        }
+        dot *= scale;
+
+        float newMax = std::max(runningMax, dot);
+        float expOldMax = exp(runningMax - newMax);
+        float expCur = exp(dot - newMax);
+
+        for(int d = 0; d < vHeadDim; d++)
+          acc[d] *= expOldMax;
+        runningSum = runningSum * expOldMax + expCur;
+        runningMax = newMax;
+
+        for(int d = 0; d < vHeadDim; d++) {
+          float vVal = vVec[(kvBase * vHeadDim + d) * seqLen + kPos];
+          acc[d] += expCur * vVal;
+        }
+      }
+
+      float invSum = (runningSum > 0.0f) ? (1.0f / runningSum) : 0.0f;
+      for(int d = 0; d < vHeadDim; d++) {
+        outBase[(bh * vHeadDim + d) * seqLen + qPos] = acc[d] * invSum;
       }
     }
   }
@@ -1087,51 +1496,47 @@ static void tuneXGemmDirect(
     cl_kernel kernel = clCreateKernel(program, "XgemmDirectStridedBatchedNN", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
-    int maxChannels = modelInfo.maxConvChannels1x1;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+    bool includeTransformerCases = true; // xGemmDirect is used for transformer projections
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases);
+    int maxChannels = getMaxChannelsFromTuneCases(tuneCases);
 
-    int inputNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
-    int outputNumFloats = batchSize*nnXLen*nnYLen*maxChannels;
-    int filterNumFloats = maxChannels * maxChannels;
+    // xGemmDirect is tuned before tensor core usage is determined, and most spatial uses of
+    // this kernel are superseded if tensor cores are enabled for 1x1. Use unpadded size.
+    int paddedNNXYLen = nnXLen * nnYLen;
+    int inputNumFloatsUpperBound = batchSize*paddedNNXYLen*maxChannels;
+    int outputNumFloatsUpperBound = batchSize*paddedNNXYLen*maxChannels;
+    int filterNumFloatsUpperBound = maxChannels * maxChannels;
     vector<float> inputVec;
     vector<float> filterVec;
-    cl_mem input = randomReadOnlyBufferFloat("tuneXGemmDirectInput", context, inputNumFloats, 1.0, inputVec);
-    cl_mem filter = randomReadOnlyBufferFloat("tuneXGemmDirectFilter", context, filterNumFloats, 1.0 / sqrt(maxChannels), filterVec);
-    cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
-
-    const int reps = 18;
-    const int numToRecord = 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
+    cl_mem input = randomReadOnlyBufferFloat("tuneXGemmDirectInput", context, inputNumFloatsUpperBound, 1.0, inputVec);
+    cl_mem filter = randomReadOnlyBufferFloat("tuneXGemmDirectFilter", context, filterNumFloatsUpperBound, 1.0 / sqrt(maxChannels), filterVec);
+    cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloatsUpperBound);
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
+      // From here set up and call kernel consistent with shapes:
+      // Input shape: [batchSize, inChannels, paddedNNXYLen]
+      // Filter shape: [inChannels, outChannels]
+      // Output shape: [batchSize, outChannels, paddedNNXYLen]
       int filterStride = 0; //Reuse same filter for all matrices in batch
-      int inputStride = nnXLen*nnYLen * inChannels;
-      int outputStride = nnXLen*nnYLen * outChannels;
+      int inputStride = paddedNNXYLen * inChannels;
+      int outputStride = paddedNNXYLen * outChannels;
 
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
-        //Replicating the way that parts outside the normal output are repeatedly written to the same buffer when outChannels is smaller.
-        if(i > 0)
-          std::copy(ret.begin()+(outputNumFloats*(i-1)), ret.begin()+(outputNumFloats*i), ret.begin()+(outputNumFloats*i));
-        cpuBatchedMatMul(inputVec,filterVec,outBase,batchSize,nnXLen*nnYLen,outChannels,inChannels,inputStride,filterStride,outputStride);
+        cpuBatchedMatMul(inputVec,filterVec,retBase,batchSize,paddedNNXYLen,outChannels,inChannels,inputStride,filterStride,outputStride);
+        retBase += batchSize * outChannels * paddedNNXYLen;
         continue;
       }
 
@@ -1140,7 +1545,7 @@ static void tuneXGemmDirect(
         kernel,
         commandQueue,
         cfg,
-        nnXLen*nnYLen, outChannels, inChannels,
+        paddedNNXYLen, outChannels, inChannels,
         inputStride, filterStride, outputStride,
         input, filter, output,
         batchSize,
@@ -1150,13 +1555,13 @@ static void tuneXGemmDirect(
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, output, batchSize * outChannels * paddedNNXYLen, retBase);
+        retBase += batchSize * outChannels * paddedNNXYLen;
+      }
+    }
 
     clReleaseMemObject(input);
     clReleaseMemObject(filter);
@@ -1164,6 +1569,9 @@ static void tuneXGemmDirect(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -1306,19 +1714,19 @@ static bool tuneXGemm(
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
     int inTileXYSize = inTileXSize * inTileYSize;
 
-    int maxChannels = modelInfo.maxConvChannels3x3;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+    bool includeTransformerCases = false; // xGemm is for 3x3 convs
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases, /*use3x3=*/true);
+    int maxChannels = getMaxChannelsFromTuneCases(tuneCases);
 
     int numTilesTotalPadded = roundUpToMultipleInt(numTilesTotal,cfg.xGemm.MWG);
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm.NWG);
     int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm.KWG);
 
-    int outputNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
+    int outputNumFloatsUpperBound = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     vector<float> inputVec;
     vector<float> filterVec;
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
     cl_mem input;
     cl_mem filter;
     cl_mem output;
@@ -1327,45 +1735,47 @@ static bool tuneXGemm(
         "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0, inputVec);
       filter = randomReadOnly3dPaddedBufferHalf(
         "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
-      output = createReadWriteBufferHalfZeros(context, outputNumFloats);
+      output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
     }
     else {
       input = randomReadOnly3dPaddedBufferFloat(
         "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0, inputVec);
       filter = randomReadOnly3dPaddedBufferFloat(
         "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
-      output = createReadWriteBufferFloatZeros(context, outputNumFloats);
+      output = createReadWriteBufferFloatZeros(context, outputNumFloatsUpperBound);
     }
-
-    const int reps = 18;
-    const int numToRecord = 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
+      // From here set up and call kernel consistent with shapes (in Winograd tile space):
+      // Input shape: [inTileXYSize, inChannelsPadded, numTilesTotalPadded]
+      // Filter shape: [inTileXYSize, outChannelsPadded, inChannelsPadded]
+      // Output shape: [inTileXYSize, outChannelsPadded, numTilesTotalPadded]
+      // Batched over the inTileXYSize dimension.
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.xGemm.NWG);
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.xGemm.KWG);
 
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
+        // Compute into a temporary padded buffer and then compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
         cpuBatchedMatMul(
-          inputVec,filterVec,outBase,inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
+          inputVec,filterVec,padded.data(),inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
           numTilesTotalPadded*inChannelsPadded,outChannelsPadded*inChannelsPadded,numTilesTotalPadded*outChannelsPadded
         );
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
         continue;
       }
 
@@ -1382,25 +1792,17 @@ static bool tuneXGemm(
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i), useFP16Storage);
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
-
-    //Compact ret down to only what we were supposed to get, without padding
-    {
-      int i = 0;
-      for(int n = 0; n<inTileXYSize; n++) {
-        for(int y = 0; y<maxChannels; y++) {
-          for(int x = 0; x<numTilesTotal; x++) {
-            ret[i++] = ret[x + numTilesTotalPadded * (y + maxOutChannelsPadded * n)];
-          }
-        }
+      if(i < numToRecord) {
+        // Read back the padded output and compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
+        blockingReadBuffer(commandQueue, output, inTileXYSize * outChannelsPadded * numTilesTotalPadded, padded.data(), useFP16Storage);
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
       }
-      ret.resize(inTileXYSize * maxChannels * numTilesTotal);
     }
 
     clReleaseMemObject(input);
@@ -1409,6 +1811,9 @@ static bool tuneXGemm(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -1548,42 +1953,34 @@ static bool tuneXGemm16(
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
     int inTileXYSize = inTileXSize * inTileYSize;
 
-    int maxChannels = modelInfo.maxConvChannels3x3;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+    bool includeTransformerCases = false; // xGemm16 is for 3x3 convs
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases, /*use3x3=*/true);
+    int maxChannels = getMaxChannelsFromTuneCases(tuneCases);
 
     int numTilesTotalPadded = roundUpToMultipleInt(numTilesTotal,cfg.xGemm16.MWG);
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm16.NWG);
     int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.xGemm16.KWG);
 
-    int outputNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
+    int outputNumFloatsUpperBound = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     vector<float> inputVec;
     vector<float> filterVec;
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
       "tuneXGemm3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0, inputVec);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneXGemm3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
-    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloats);
-
-    const int reps = 18;
-    const int numToRecord = 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.xGemm16.NWG);
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.xGemm16.KWG);
@@ -1591,11 +1988,16 @@ static bool tuneXGemm16(
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
+        // Compute into a temporary padded buffer and then compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
         cpuBatchedMatMul(
-          inputVec,filterVec,outBase,inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
+          inputVec,filterVec,padded.data(),inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
           numTilesTotalPadded*inChannelsPadded,outChannelsPadded*inChannelsPadded,numTilesTotalPadded*outChannelsPadded
         );
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
         continue;
       }
 
@@ -1612,25 +2014,17 @@ static bool tuneXGemm16(
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
-
-    //Compact ret down to only what we were supposed to get, without padding
-    {
-      int i = 0;
-      for(int n = 0; n<inTileXYSize; n++) {
-        for(int y = 0; y<maxChannels; y++) {
-          for(int x = 0; x<numTilesTotal; x++) {
-            ret[i++] = ret[x + numTilesTotalPadded * (y + maxOutChannelsPadded * n)];
-          }
-        }
+      if(i < numToRecord) {
+        // Read back the padded output and compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
+        blockingReadBufferHalfToFloat(commandQueue, output, inTileXYSize * outChannelsPadded * numTilesTotalPadded, padded.data());
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
       }
-      ret.resize(inTileXYSize * maxChannels * numTilesTotal);
     }
 
     clReleaseMemObject(input);
@@ -1639,6 +2033,9 @@ static bool tuneXGemm16(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -1760,54 +2157,56 @@ static bool tuneHGemmWmma(
     int inTileYSize = cfg.conv3x3.INTILE_YSIZE;
     int inTileXYSize = inTileXSize * inTileYSize;
 
-    int maxChannels = modelInfo.maxConvChannels3x3;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+    bool includeTransformerCases = false; // hGemmWmma batched is for 3x3 convs
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases, /*use3x3=*/true);
+    int maxChannels = getMaxChannelsFromTuneCases(tuneCases);
 
     int numTilesTotalPadded = roundUpToMultipleInt(numTilesTotal,cfg.hGemmWmma.MWG);
     int maxOutChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.hGemmWmma.NWG);
     int maxInChannelsPadded = roundUpToMultipleInt(maxChannels,cfg.hGemmWmma.KWG);
 
-    int outputNumFloats = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
+    int outputNumFloatsUpperBound = numTilesTotalPadded * maxOutChannelsPadded * inTileXYSize;
     vector<float> inputVec;
     vector<float> filterVec;
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Input", context, inTileXYSize, maxChannels, maxInChannelsPadded, numTilesTotal, numTilesTotalPadded, 1.0, inputVec);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Filter", context, inTileXYSize, maxChannels, maxInChannelsPadded, maxChannels, maxOutChannelsPadded, 1.0 / sqrt(maxChannels * 3 * 3), filterVec);
-    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloats);
-
-    const int reps = 18;
-    const int numToRecord = 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
+      // From here set up and call kernel consistent with shapes (in Winograd tile space):
+      // Input shape: [inTileXYSize, inChannelsPadded, numTilesTotalPadded]
+      // Filter shape: [inTileXYSize, outChannelsPadded, inChannelsPadded]
+      // Output shape: [inTileXYSize, outChannelsPadded, numTilesTotalPadded]
+      // Batched over the inTileXYSize dimension.
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.hGemmWmma.NWG);
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.hGemmWmma.KWG);
 
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
+        // Compute into a temporary padded buffer and then compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
         cpuBatchedMatMul(
-          inputVec,filterVec,outBase,inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
+          inputVec,filterVec,padded.data(),inTileXYSize,numTilesTotalPadded,outChannelsPadded,inChannelsPadded,
           numTilesTotalPadded*inChannelsPadded,outChannelsPadded*inChannelsPadded,numTilesTotalPadded*outChannelsPadded
         );
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
         continue;
       }
 
@@ -1824,25 +2223,17 @@ static bool tuneHGemmWmma(
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
-
-    //Compact ret down to only what we were supposed to get, without padding
-    {
-      int i = 0;
-      for(int n = 0; n<inTileXYSize; n++) {
-        for(int y = 0; y<maxChannels; y++) {
-          for(int x = 0; x<numTilesTotal; x++) {
-            ret[i++] = ret[x + numTilesTotalPadded * (y + maxOutChannelsPadded * n)];
-          }
-        }
+      if(i < numToRecord) {
+        // Read back the padded output and compact out the padding.
+        vector<float> padded(inTileXYSize * outChannelsPadded * numTilesTotalPadded, 0.0f);
+        blockingReadBufferHalfToFloat(commandQueue, output, inTileXYSize * outChannelsPadded * numTilesTotalPadded, padded.data());
+        for(int n = 0; n<inTileXYSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<numTilesTotal; x++)
+              *(retBase++) = padded[x + numTilesTotalPadded * (y + outChannelsPadded * n)];
       }
-      ret.resize(inTileXYSize * maxChannels * numTilesTotal);
     }
 
     clReleaseMemObject(input);
@@ -1851,6 +2242,9 @@ static bool tuneHGemmWmma(
 
     clReleaseKernel(kernel);
     clReleaseProgram(program);
+
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
 
     return accums;
   };
@@ -1905,8 +2299,8 @@ static bool tuneHGemmWmmaNCHW(
     addConfigs(configs,SETTER(hGemmWmmaNCHW.KWG),{16,32,64});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.MWAVE),{8,16,32,64});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.NWAVE),{8,16,32});
-    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16,32});
-    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{16,32});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWM),{1,2,4,8});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWN),{2,4,8});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.SB),{0,1});
@@ -1918,8 +2312,8 @@ static bool tuneHGemmWmmaNCHW(
     addConfigs(configs,SETTER(hGemmWmmaNCHW.KWG),{16,32,64});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.MWAVE),{8,16,32,64});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.NWAVE),{8,16,32});
-    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16,32});
-    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{8,16,32});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.MWARP),{8,16});
+    addConfigs(configs,SETTER(hGemmWmmaNCHW.NWARP),{16,32});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWM),{1,2,4});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.VWN),{2,4});
     addConfigs(configs,SETTER(hGemmWmmaNCHW.SB),{0,1});
@@ -1960,86 +2354,81 @@ static bool tuneHGemmWmmaNCHW(
     cl_kernel kernel = clCreateKernel(program, "hgemmWmmaNCHW", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
-    int maxChannels = modelInfo.maxConvChannels1x1;
-    maxChannels = std::max(modelInfo.trunkNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.midNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.regularNumChannels,maxChannels);
-    maxChannels = std::max(modelInfo.gpoolNumChannels,maxChannels);
+    bool includeTransformerCases = true; // hGemmWmmaNCHW is used for transformer projections
+    vector<GemmTuneCase> tuneCases = getGemmTuneCases(modelInfo, includeTransformerCases);
+    int maxChannels = roundUpToMultipleInt(getMaxChannelsFromTuneCases(tuneCases), cfg.hGemmWmmaNCHW.getRequiredCDivisor());
 
-    maxChannels = roundUpToMultipleInt(maxChannels,cfg.hGemmWmmaNCHW.getRequiredCDivisor());
-
-    int outputNumFloats = batchSize * maxChannels * nnXLen * nnYLen;
+    // Use paddedNNXYLen matching what the real code does.
+    // Use MAX_MWARP so the buffer works for all MWARP values the tuner will try.
+    int hwSize = roundUpToMultipleInt(nnXLen * nnYLen, std::max(16, OpenCLParams::HGemmWmmaNCHWParams::MAX_MWARP));
+    int outputNumFloatsUpperBound = batchSize * maxChannels * hwSize;
     vector<float> inputVec;
     vector<float> filterVec;
+    // Input and filter are unstructured (i.e. shapeless), they're simply filled with as much data as the largest rep
+    // could need and different reps may slice them differently.
     cl_mem input = randomReadOnly3dPaddedBufferHalf(
-      "tuneHGemmWmma3x3Input", context, batchSize, maxChannels, maxChannels, nnXLen*nnYLen, nnXLen*nnYLen, 1.0, inputVec);
+      "tuneHGemmWmma3x3Input", context, batchSize, maxChannels, maxChannels, hwSize, hwSize, 1.0, inputVec);
     cl_mem filter = randomReadOnly3dPaddedBufferHalf(
       "tuneHGemmWmma3x3Filter", context, batchSize, maxChannels, maxChannels, maxChannels, maxChannels, 1.0 / sqrt(maxChannels), filterVec);
-    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloats);
-
-    const int reps = 18;
-    const int numToRecord = 6;
-    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    cl_mem output = createReadWriteBufferHalfZeros(context, outputNumFloatsUpperBound);
+    const int numToRecord = (int)tuneCases.size();
+    const int reps = numToRecord * 3;
+    ret.clear();
+    ret.resize(outputNumFloatsUpperBound*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
-      int inChannels;
-      int outChannels;
-      double weight;
-      switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
-      case 0: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 0; break;
-      case 1: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.midNumChannels; weight = 1; break;
-      case 2: inChannels = modelInfo.midNumChannels; outChannels = modelInfo.trunkNumChannels; weight = 1; break;
-      case 3: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.regularNumChannels; weight = 0.2; break;
-      case 4: inChannels = modelInfo.trunkNumChannels; outChannels = modelInfo.gpoolNumChannels; weight = 0.2; break;
-      case 5: inChannels = maxChannels; outChannels = maxChannels; weight = 1; break;
-      default: ASSERT_UNREACHABLE; break;
-      }
+      const GemmTuneCase& tc = tuneCases[i % numToRecord];
+      int inChannels = tc.inChannels;
+      int outChannels = tc.outChannels;
+      double weight = tc.weight;
 
+      // From here set up and call kernel consistent with shapes:
+      // Input shape: [batchSize, inChannelsPadded, hwSize] where hwSize is already padded
+      // Filter shape: [inChannelsPadded, outChannelsPadded]
+      // Output shape: [batchSize, outChannelsPadded, hwSize]
       int outChannelsPadded = roundUpToMultipleInt(outChannels, cfg.hGemmWmmaNCHW.getRequiredCDivisor());
       int inChannelsPadded = roundUpToMultipleInt(inChannels, cfg.hGemmWmmaNCHW.getRequiredCDivisor());
 
       if(computeOnCPU) {
         if(i >= numToRecord)
           continue;
-        float* outBase = ret.data()+(outputNumFloats * i);
+        // Compute into a temporary padded buffer and then compact out the padding.
+        vector<float> padded(batchSize * outChannelsPadded * hwSize, 0.0f);
         cpuBatchedMatMul(
-          inputVec,filterVec,outBase,batchSize,nnXLen*nnYLen,outChannelsPadded,inChannelsPadded,
-          nnXLen*nnYLen*inChannelsPadded,0,nnXLen*nnYLen*outChannelsPadded
+          inputVec,filterVec,padded.data(),batchSize,hwSize,outChannelsPadded,inChannelsPadded,
+          hwSize*inChannelsPadded,0,hwSize*outChannelsPadded
         );
+        for(int n = 0; n<batchSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<hwSize; x++)
+              *(retBase++) = padded[x + hwSize * (y + outChannelsPadded * n)];
         continue;
       }
 
+      // WMMA matmul on pre-padded input (no separate pad step needed)
       cl_event event;
       err = doHGemmWmma_NCHW_ICOC(
         kernel,
         commandQueue,
         cfg,
-        batchSize, inChannelsPadded, nnXLen*nnYLen, outChannelsPadded,
+        batchSize, inChannelsPadded, hwSize, outChannelsPadded,
         input, filter, output,
         &event
       );
 
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
-        break;
-      if(i < numToRecord)
-        blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
+        break; // Kill the loop and return what we have, if things are bad doesn't matter if ret is shorter.
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
-
-    //Compact ret down to only what we were supposed to get, without padding
-    {
-      int i = 0;
-      for(int n = 0; n<batchSize; n++) {
-        for(int y = 0; y<maxChannels; y++) {
-          for(int x = 0; x<nnXLen*nnYLen; x++) {
-            ret[i++] = ret[x + nnXLen*nnYLen * (y + maxChannels * n)];
-          }
-        }
+      if(i < numToRecord) {
+        // Read back the output.
+        vector<float> padded(batchSize * outChannelsPadded * hwSize, 0.0f);
+        blockingReadBufferHalfToFloat(commandQueue, output, batchSize * outChannelsPadded * hwSize, padded.data());
+        for(int n = 0; n<batchSize; n++)
+          for(int y = 0; y<outChannels; y++)
+            for(int x = 0; x<hwSize; x++)
+              *(retBase++) = padded[x + hwSize * (y + outChannelsPadded * n)];
       }
-      ret.resize(batchSize * maxChannels * nnXLen*nnYLen);
     }
 
     clReleaseMemObject(input);
@@ -2049,12 +2438,16 @@ static bool tuneHGemmWmmaNCHW(
     clReleaseKernel(kernel);
     clReleaseProgram(program);
 
+    size_t finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
     return accums;
   };
 
   bool stopOnReferenceImplFail = true;
   bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.002;
+
   bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
@@ -2118,7 +2511,8 @@ static void tuneTransform(
 
   auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
     OpenCLTuneAccums accums;
-    // We just let the reference config GPU impl be values that all values are compared for error against rather than a CPU impl
+    // No CPU baseline - this tuner only varies workgroup parallelism sizes, so all configs
+    // produce identical numerical results. The first GPU config serves as the reference.
     if(computeOnCPU) {
       accums.bad = true;
       return accums;
@@ -2154,7 +2548,13 @@ static void tuneTransform(
     //int nPaddingMult = cfg.getXGemmNPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
     int kPaddingMult = cfg.getXGemmKPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
 
-    int inputNumFloats = batchSize * nnXLen * nnYLen * maxChannels;
+    // Input is unstructured (i.e. shapeless), simply filled with as much data as the largest rep
+    // could need and different reps may slice it differently.
+    // From here set up and call kernel consistent with shapes:
+    // Input shape: [batchSize, inChannels, nnYLen, nnXLen] (NCHW spatial)
+    // Output shape: [inTileXSize*inTileYSize, inChannelsPadded, numTilesTotalPadded] (Winograd tile space)
+    int paddedNNXYLen = cfg.getPaddedNNXYLen(nnXLen, nnYLen, cfg.canUseFP16TensorCoresFor1x1);
+    int inputNumFloats = batchSize * paddedNNXYLen * maxChannels;
     int outputNumFloats = roundUpToMultipleInt(numTilesTotal,mPaddingMult) * roundUpToMultipleInt(maxChannels,kPaddingMult) * inTileXSize * inTileYSize;
 
     cl_mem input;
@@ -2171,12 +2571,14 @@ static void tuneTransform(
 
     const int reps = 20;
     const int numToRecord = 10;
+    ret.clear();
     ret.resize(outputNumFloats*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       int inChannels;
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: inChannels = modelInfo.trunkNumChannels; weight = 0; break;
       case 1: inChannels = modelInfo.trunkNumChannels; weight = 1; break;
       case 2: inChannels = modelInfo.midNumChannels; weight = 1; break;
@@ -2196,7 +2598,7 @@ static void tuneTransform(
         commandQueue,
         cfg,
         input,output,
-        nnXLen,nnYLen,
+        nnXLen,nnYLen,paddedNNXYLen,
         batchSize,numTilesX,numTilesY,mPaddingMult,
         inChannels,kPaddingMult,
         convSize,
@@ -2206,12 +2608,12 @@ static void tuneTransform(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i), cfg.shouldUseFP16Storage);
-    }
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, output, outputNumFloats, retBase, cfg.shouldUseFP16Storage);
+        retBase += outputNumFloats;
+      }
+    }
 
     clReleaseMemObject(input);
     clReleaseMemObject(output);
@@ -2219,13 +2621,16 @@ static void tuneTransform(
     clReleaseKernel(kernel);
     clReleaseProgram(program);
 
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
     return accums;
   };
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.005;
-  testAllConfigs(
+  bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
     currentConfig,
@@ -2238,6 +2643,8 @@ static void tuneTransform(
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
     bestKernelsPerSecond
   );
+  if(!suc)
+    throw StringError("Tuning winograd transform failed - could not find any working configuration");
 
   tunedConfig = currentConfig;
 }
@@ -2288,7 +2695,8 @@ static void tuneUntransform(
 
   auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
     OpenCLTuneAccums accums;
-    // We just let the reference config GPU impl be values that all values are compared for error against rather than a CPU impl
+    // No CPU baseline - this tuner only varies workgroup parallelism sizes, so all configs
+    // produce identical numerical results. The first GPU config serves as the reference.
     if(computeOnCPU) {
       accums.bad = true;
       return accums;
@@ -2324,8 +2732,14 @@ static void tuneUntransform(
     int nPaddingMult = cfg.getXGemmNPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
     //int kPaddingMult = cfg.getXGemmKPaddingMult(cfg.shouldUseFP16Compute, cfg.shouldUseFP16TensorCores);
 
+    // Input is unstructured (i.e. shapeless), simply filled with as much data as the largest rep
+    // could need and different reps may slice it differently.
+    // From here set up and call kernel consistent with shapes:
+    // Input shape: [inTileXSize*inTileYSize, outChannelsPadded, numTilesTotalPadded] (Winograd tile space)
+    // Output shape: [batchSize, outChannels, nnYLen, nnXLen] (NCHW spatial)
+    int paddedNNXYLen = cfg.getPaddedNNXYLen(nnXLen, nnYLen, cfg.canUseFP16TensorCoresFor1x1);
     int inputNumFloats = roundUpToMultipleInt(numTilesTotal,mPaddingMult) * roundUpToMultipleInt(maxChannels,nPaddingMult) * inTileXSize * inTileYSize;
-    int outputNumFloats = batchSize * nnXLen * nnYLen * maxChannels;
+    int outputNumFloats = batchSize * paddedNNXYLen * maxChannels;
 
     cl_mem input;
     cl_mem output;
@@ -2341,12 +2755,14 @@ static void tuneUntransform(
 
     const int reps = 20;
     const int numToRecord = 10;
+    ret.clear();
     ret.resize(outputNumFloats*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       int outChannels;
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: outChannels = modelInfo.trunkNumChannels; weight = 0; break;
       case 1: outChannels = modelInfo.trunkNumChannels; weight = 1; break;
       case 2: outChannels = modelInfo.midNumChannels; weight = 1; break;
@@ -2366,7 +2782,7 @@ static void tuneUntransform(
         commandQueue,
         cfg,
         input,output,
-        nnXLen,nnYLen,
+        nnXLen,nnYLen,paddedNNXYLen,
         batchSize,numTilesX,numTilesY,mPaddingMult,
         outChannels,nPaddingMult,
         convSize,
@@ -2376,12 +2792,12 @@ static void tuneUntransform(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i), cfg.shouldUseFP16Storage);
-    }
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, output, outputNumFloats, retBase, cfg.shouldUseFP16Storage);
+        retBase += outputNumFloats;
+      }
+    }
 
     clReleaseMemObject(input);
     clReleaseMemObject(output);
@@ -2389,13 +2805,16 @@ static void tuneUntransform(
     clReleaseKernel(kernel);
     clReleaseProgram(program);
 
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
     return accums;
   };
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.005;
-  testAllConfigs(
+  bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
     currentConfig,
@@ -2408,6 +2827,8 @@ static void tuneUntransform(
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
     bestKernelsPerSecond
   );
+  if(!suc)
+    throw StringError("Tuning winograd untransform failed - could not find any working configuration");
 
   tunedConfig = currentConfig;
 }
@@ -2465,11 +2886,39 @@ static void tuneGPool(
 
   auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.gPool.desc(); };
 
+  // From here set up and call kernel consistent with shapes:
+  // Input shape: [batchSize, numChannels, nnYLen*nnXLen] (NCHW spatial)
+  // Mask shape: [batchSize, nnYLen*nnXLen] (all 1.0 for tuning)
+  // Output shape: [batchSize, 3, numChannels]
+  int paddedNNXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+  int inputNumFloats = batchSize * paddedNNXYLen * numChannels;
+  int outputNumFloats = batchSize * numChannels * 3;
+  vector<float> gpoolInputVec;
+  // Pre-generate input so CPU baseline can use it
+  {
+    Rand rand("tuneGPoolInput");
+    gpoolInputVec.resize(inputNumFloats);
+    for(int i = 0; i < inputNumFloats; i++)
+      gpoolInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+
   auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
     OpenCLTuneAccums accums;
-    // We just let the reference config GPU impl be values that all values are compared for error against rather than a CPU impl
+
     if(computeOnCPU) {
-      accums.bad = true;
+      // GPool only varies parallelism parameters, so all configs produce identical results.
+      // CPU baseline provides an independent correctness check.
+      int xySize = paddedNNXYLen;
+      float maskSumVal = (float)xySize;
+      int numToRecord = 10;
+      ret.clear();
+      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      // gPool tuner runs the same kernel repeatedly - CPU result is the same each time
+      for(int i = 0; i < numToRecord; i++) {
+        cpuGPool(gpoolInputVec, retBase, batchSize, numChannels, xySize, maskSumVal);
+        retBase += outputNumFloats;
+      }
       return accums;
     }
 
@@ -2485,9 +2934,6 @@ static void tuneGPool(
     cl_kernel kernel = clCreateKernel(program, "gPoolChannelsNCHWMask", &err);
     if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
 
-    int inputNumFloats = batchSize * nnXLen * nnYLen * numChannels;
-    int outputNumFloats = batchSize * numChannels * 3;
-
     cl_mem input;
     vector<float> inputVec;
     if(cfg.shouldUseFP16Storage)
@@ -2495,17 +2941,23 @@ static void tuneGPool(
     else
       input = randomReadOnlyBufferFloat("tuneGPoolInput", context, inputNumFloats, 1.0, inputVec);
 
-    cl_mem mask = constantReadOnlyBufferFloat(context, batchSize*nnXLen*nnYLen, 1.0f);
-    cl_mem maskSum = constantReadOnlyBufferFloat(context, batchSize, (float)(nnXLen*nnYLen));
+    cl_mem mask;
+    if(cfg.shouldUseFP16Storage)
+      mask = constantReadOnlyBufferHalf(context, batchSize*paddedNNXYLen, 1.0f);
+    else
+      mask = constantReadOnlyBufferFloat(context, batchSize*paddedNNXYLen, 1.0f);
+    cl_mem maskSum = constantReadOnlyBufferFloat(context, batchSize, (float)(paddedNNXYLen));
     cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
 
     const int reps = 20;
     const int numToRecord = 10;
+    ret.clear();
     ret.resize(outputNumFloats*numToRecord, 0.0f);
+    float* retBase = ret.data();
     for(int i = 0; i<reps; i++) {
       double weight;
       switch(i % numToRecord) {
-        //Weight 0 on first kernel call to warm up
+      // Weight 0 on first kernel call to warm up
       case 0: weight = 0; break;
       default: weight = 1; break;
       }
@@ -2515,7 +2967,7 @@ static void tuneGPool(
         kernel,
         commandQueue,
         cfg,
-        batchSize, numChannels, nnXLen*nnYLen,
+        batchSize, numChannels, paddedNNXYLen,
         input,output,mask,maskSum,
         &event
       );
@@ -2523,12 +2975,12 @@ static void tuneGPool(
       accums.countResultAndFreeEvent(err,event,weight);
       if(accums.bad)
         break;
-      if(i < numToRecord)
-        blockingReadBuffer(commandQueue, output, outputNumFloats, ret.data()+(outputNumFloats * i));
-    }
 
-    if(accums.bad)
-      ret.assign(outputNumFloats*numToRecord,0.0);
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, output, outputNumFloats, retBase);
+        retBase += outputNumFloats;
+      }
+    }
 
     clReleaseMemObject(input);
     clReleaseMemObject(mask);
@@ -2538,13 +2990,16 @@ static void tuneGPool(
     clReleaseKernel(kernel);
     clReleaseProgram(program);
 
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
     return accums;
   };
 
   bool stopOnReferenceImplFail = false;
   double bestKernelsPerSecond = 0.0;
   double errorToleranceScale = 0.005;
-  testAllConfigs(
+  bool suc = testAllConfigs(
     stopOnReferenceImplFail,
     configs,
     currentConfig,
@@ -2557,6 +3012,1201 @@ static void tuneGPool(
     std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
     bestKernelsPerSecond
   );
+  if(!suc)
+    throw StringError("Tuning global pooling failed - could not find any working configuration");
+
+  tunedConfig = currentConfig;
+}
+
+static void tuneTransformerAttention(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  // Skip if not a transformer model
+  if(modelInfo.transformerHeadDim <= 0) {
+    tunedConfig = currentConfig;
+    return;
+  }
+
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning transformer attention kernel" << endl;
+
+  int headDim = modelInfo.transformerHeadDim;
+  int vHeadDim = modelInfo.transformerVHeadDim;
+  int numHeads = modelInfo.transformerNumHeads;
+  int numKVHeads = modelInfo.transformerNumKVHeads;
+  int seqLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  // Add tiled configs with different block sizes
+  if(full) {
+    addConfigs(configs, SETTER(transformer.USE_TILED_ATTN), {0, 1});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_Q), {8, 16, 32, 64, 128, 256});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_KV), {8, 16, 32, 64, 128});
+    addConfigs(configs, SETTER(transformer.Q_PER_THREAD), {1, 2, 4, 8});
+  }
+  else {
+    addConfigs(configs, SETTER(transformer.USE_TILED_ATTN), {0, 1});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_Q), {16, 32, 64, 128, 256});
+    addConfigs(configs, SETTER(transformer.ATTN_BLOCK_KV), {16, 32, 64, 128});
+    addConfigs(configs, SETTER(transformer.Q_PER_THREAD), {1, 2, 4});
+  }
+
+  filterConfigs(configs, ISVALID(transformer));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(), currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.transformer.ATTN_BLOCK_Q = untunedConfig.transformer.ATTN_BLOCK_Q;
+  referenceConfig.transformer.ATTN_BLOCK_KV = untunedConfig.transformer.ATTN_BLOCK_KV;
+  referenceConfig.transformer.Q_PER_THREAD = untunedConfig.transformer.Q_PER_THREAD;
+  referenceConfig.transformer.USE_TILED_ATTN = untunedConfig.transformer.USE_TILED_ATTN;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.transformer.desc(); };
+
+  // From here set up and call kernel consistent with shapes:
+  // Q shape: [batchSize*numHeads, headDim, seqLen]
+  // K shape: [batchSize*numKVHeads, headDim, seqLen]
+  // V shape: [batchSize*numKVHeads, vHeadDim, seqLen]
+  // Mask shape: [batchSize, seqLen] (all 1.0 for tuning)
+  // Output shape: [batchSize*numHeads, vHeadDim, seqLen]
+  int qSize = batchSize * numHeads * headDim * seqLen;
+  int kSize = batchSize * numKVHeads * headDim * seqLen;
+  int vSize = batchSize * numKVHeads * vHeadDim * seqLen;
+  int outSize = batchSize * numHeads * vHeadDim * seqLen;
+  int maskSize = batchSize * seqLen;
+  float scale = 1.0f / sqrtf((float)headDim);
+
+  // Pre-generate random input so CPU baseline uses the same data
+  vector<float> attnQVec, attnKVec, attnVVec;
+  {
+    auto genVec = [](const char* seed, int n, double sc, vector<float>& v) {
+      Rand r(seed);
+      v.resize(n);
+      for(int i = 0; i < n; i++) v[i] = (float)r.nextDouble(sc);
+    };
+    genVec("tuneAttnQ", qSize, 1.0, attnQVec);
+    genVec("tuneAttnK", kSize, 1.0, attnKVec);
+    genVec("tuneAttnV", vSize, 1.0, attnVVec);
+  }
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+
+    const int reps = 12;
+    const int numToRecord = 6;
+
+    if(computeOnCPU) {
+      ret.clear();
+      ret.resize(outSize * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      // Compute once, replicate for all recorded slots (same input each time)
+      cpuAttention(attnQVec, attnKVec, attnVVec, retBase, batchSize, numHeads, numKVHeads, headDim, vHeadDim, seqLen, scale);
+      retBase += outSize;
+      for(int i = 1; i < numToRecord; i++) {
+        std::copy(ret.begin(), ret.begin() + outSize, retBase);
+        retBase += outSize;
+      }
+      return accums;
+    }
+
+    cl_int err;
+    cl_program program;
+    string compileError;
+
+    // Choose which kernel to compile based on USE_TILED_ATTN
+    string compileOpts = maybeFP16CompileOptions;
+    compileOpts += " -DATTN_HEAD_DIM=" + Global::intToString(headDim);
+    compileOpts += " -DATTN_V_HEAD_DIM=" + Global::intToString(vHeadDim);
+    if(cfg.transformer.USE_TILED_ATTN) {
+      compileOpts += " -DATTN_BLOCK_Q=" + Global::intToString(cfg.transformer.ATTN_BLOCK_Q);
+      compileOpts += " -DATTN_BLOCK_KV=" + Global::intToString(cfg.transformer.ATTN_BLOCK_KV);
+      compileOpts += " -DQ_PER_THREAD=" + Global::intToString(cfg.transformer.Q_PER_THREAD);
+    }
+
+    string kernelSource = cfg.transformer.USE_TILED_ATTN
+      ? OpenCLKernels::transformerScaledDotProductAttention
+      : OpenCLKernels::transformerScaledDotProductAttentionNaive;
+    string kernelName = cfg.transformer.USE_TILED_ATTN
+      ? "scaledDotProductAttention"
+      : "scaledDotProductAttentionNaive";
+
+    bool compileSuc = tryCompileProgram(
+      "tuneTransformerAttnProgram", context, deviceIdsToUse, kernelSource,
+      compileOpts, program, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+    cl_kernel kernel = clCreateKernel(program, kernelName.c_str(), &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseProgram(program); return accums; }
+
+    vector<float> qVec, kVec, vVec;
+    cl_mem qBuf, kBuf, vBuf;
+    if(cfg.shouldUseFP16Storage) {
+      qBuf = randomReadOnlyBufferHalf("tuneAttnQ", context, qSize, 1.0, qVec);
+      kBuf = randomReadOnlyBufferHalf("tuneAttnK", context, kSize, 1.0, kVec);
+      vBuf = randomReadOnlyBufferHalf("tuneAttnV", context, vSize, 1.0, vVec);
+    } else {
+      qBuf = randomReadOnlyBufferFloat("tuneAttnQ", context, qSize, 1.0, qVec);
+      kBuf = randomReadOnlyBufferFloat("tuneAttnK", context, kSize, 1.0, kVec);
+      vBuf = randomReadOnlyBufferFloat("tuneAttnV", context, vSize, 1.0, vVec);
+    }
+    cl_mem maskBuf;
+    cl_mem outBuf;
+    if(cfg.shouldUseFP16Storage) {
+      maskBuf = constantReadOnlyBufferHalf(context, maskSize, 1.0f);
+      outBuf = createReadWriteBufferHalfZeros(context, outSize);
+    } else {
+      maskBuf = constantReadOnlyBufferFloat(context, maskSize, 1.0f);
+      outBuf = createReadWriteBufferFloatZeros(context, outSize);
+    }
+
+    ret.clear();
+    ret.resize(outSize * numToRecord, 0.0f);
+    float* retBase = ret.data();
+
+    for(int i = 0; i < reps; i++) {
+      double weight;
+      switch(i % numToRecord) {
+      // Weight 0 on first kernel call to warm up
+      case 0: weight = 0; break;
+      default: weight = 1; break;
+      }
+
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&qBuf);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&kBuf);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&vBuf);
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&outBuf);
+      clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&maskBuf);
+      clSetKernelArg(kernel, 5, sizeof(int), (void*)&seqLen);
+      clSetKernelArg(kernel, 6, sizeof(int), (void*)&numHeads);
+      clSetKernelArg(kernel, 7, sizeof(int), (void*)&numKVHeads);
+      clSetKernelArg(kernel, 8, sizeof(float), (void*)&scale);
+
+      cl_event event;
+      if(cfg.transformer.USE_TILED_ATTN) {
+        int blockQ = cfg.transformer.ATTN_BLOCK_Q;
+        int qPerThread = cfg.transformer.Q_PER_THREAD;
+        int totalQPerWG = blockQ * qPerThread;
+        size_t numQGroups = ((size_t)seqLen + totalQPerWG - 1) / totalQPerWG;
+        size_t globalSizes[2] = {
+          numQGroups * (size_t)blockQ,
+          (size_t)(batchSize * numHeads)
+        };
+        size_t localSizes[2] = {(size_t)blockQ, 1};
+        err = clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, globalSizes, localSizes, 0, NULL, &event);
+      } else {
+        size_t globalSizes[2] = {
+          roundUpToMultiple((size_t)seqLen, (size_t)32),
+          (size_t)(batchSize * numHeads)
+        };
+        err = clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, globalSizes, NULL, 0, NULL, &event);
+      }
+
+      accums.countResultAndFreeEvent(err, event, weight);
+      if(accums.bad)
+        break;
+
+      if(i < numToRecord) {
+        blockingReadBuffer(commandQueue, outBuf, outSize, retBase, cfg.shouldUseFP16Storage);
+        retBase += outSize;
+      }
+    }
+
+    clReleaseMemObject(qBuf);
+    clReleaseMemObject(kBuf);
+    clReleaseMemObject(vBuf);
+    clReleaseMemObject(maskBuf);
+    clReleaseMemObject(outBuf);
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.005;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc)
+    throw StringError("Tuning transformer attention failed - could not find any working configuration");
+
+  tunedConfig = currentConfig;
+}
+
+
+static void tunePointWise(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning pointWise (addPointWise + swiGLU)" << endl;
+
+  bool hasSwiGLU = modelInfo.transformerFFNChannels > 0;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  if(full) {
+    addConfigs(configs,SETTER(pointWise.ELTS_PER_THREAD),{1,2,4,8,16,32});
+    addConfigs(configs,SETTER(pointWise.LOCAL_SIZE),{32,64,128,256,512});
+  }
+  else {
+    addConfigs(configs,SETTER(pointWise.ELTS_PER_THREAD),{1,2,4,8,16});
+    addConfigs(configs,SETTER(pointWise.LOCAL_SIZE),{32,64,128,256});
+  }
+
+  filterConfigs(configs,ISVALID(pointWise));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(),currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.pointWise.ELTS_PER_THREAD = untunedConfig.pointWise.ELTS_PER_THREAD;
+  referenceConfig.pointWise.LOCAL_SIZE = untunedConfig.pointWise.LOCAL_SIZE;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.pointWise.desc(); };
+
+  int numChannels = modelInfo.trunkNumChannels;
+  int ffnChannels = hasSwiGLU ? modelInfo.transformerFFNChannels : 0;
+  int paddedNNXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+  int addTotalSize = batchSize * numChannels * paddedNNXYLen;
+  int swigluTotalSize = hasSwiGLU ? batchSize * ffnChannels * paddedNNXYLen : 0;
+  // Output: addPointWise results followed by swiGLU results (if applicable)
+  int addOutputNumFloats = addTotalSize;
+  int swigluOutputNumFloats = swigluTotalSize;
+  int combinedOutputNumFloats = addOutputNumFloats + swigluOutputNumFloats;
+
+  vector<float> accumInputVec;
+  vector<float> valueInputVec;
+  vector<float> swigluMainVec;
+  vector<float> swigluGateVec;
+  {
+    Rand rand("tunePointWiseAccum");
+    accumInputVec.resize(addTotalSize);
+    for(int i = 0; i < addTotalSize; i++)
+      accumInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tunePointWiseValue");
+    valueInputVec.resize(addTotalSize);
+    for(int i = 0; i < addTotalSize; i++)
+      valueInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  if(hasSwiGLU) {
+    {
+      Rand rand("tunePointWiseSwiGLUMain");
+      swigluMainVec.resize(swigluTotalSize);
+      for(int i = 0; i < swigluTotalSize; i++)
+        swigluMainVec[i] = (float)rand.nextDouble(1.0);
+    }
+    {
+      Rand rand("tunePointWiseSwiGLUGate");
+      swigluGateVec.resize(swigluTotalSize);
+      for(int i = 0; i < swigluTotalSize; i++)
+        swigluGateVec[i] = (float)rand.nextDouble(1.0);
+    }
+  }
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+
+    if(computeOnCPU) {
+      int numToRecord = 10;
+      ret.clear();
+      ret.resize(combinedOutputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      for(int i = 0; i < numToRecord; i++) {
+        // AddPointWise reference
+        for(int j = 0; j < addTotalSize; j++)
+          retBase[j] = accumInputVec[j] + valueInputVec[j];
+        // SwiGLU reference
+        if(hasSwiGLU) {
+          for(int j = 0; j < swigluTotalSize; j++) {
+            float a = swigluMainVec[j];
+            float b = swigluGateVec[j];
+            float silu_a = a / (1.0f + expf(-a));
+            retBase[addOutputNumFloats + j] = silu_a * b;
+          }
+        }
+        retBase += combinedOutputNumFloats;
+      }
+      return accums;
+    }
+
+    cl_int err;
+    string compileError;
+    bool compileSuc;
+    string compileOptions = cfg.pointWise.compileOptions() + " " + maybeFP16CompileOptions;
+
+    // Compile addPointWise
+    cl_program addProgram;
+    compileSuc = tryCompileProgram(
+      "addPointWiseProgram", context, deviceIdsToUse, OpenCLKernels::addPointWise,
+      compileOptions, addProgram, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+    cl_kernel addKernel = clCreateKernel(addProgram, "addPointWise", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseProgram(addProgram); return accums; }
+
+    // Compile swiGLU (if applicable)
+    cl_program swigluProgram = NULL;
+    cl_kernel swigluKernel = NULL;
+    if(hasSwiGLU) {
+      compileSuc = tryCompileProgram(
+        "transformerSwiGLUProgram", context, deviceIdsToUse, OpenCLKernels::transformerSwiGLU,
+        compileOptions, swigluProgram, compileError
+      );
+      if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; clReleaseKernel(addKernel); clReleaseProgram(addProgram); return accums; }
+      swigluKernel = clCreateKernel(swigluProgram, "transformerSwiGLU", &err);
+      if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseKernel(addKernel); clReleaseProgram(addProgram); clReleaseProgram(swigluProgram); return accums; }
+    }
+
+    // Create buffers
+    cl_mem value;
+    vector<float> dummy;
+    if(cfg.shouldUseFP16Storage)
+      value = randomReadOnlyBufferHalf("tunePointWiseValue", context, addTotalSize, 1.0, dummy);
+    else
+      value = randomReadOnlyBufferFloat("tunePointWiseValue", context, addTotalSize, 1.0, dummy);
+
+    auto makeAccumBuf = [&]() -> cl_mem {
+      if(cfg.shouldUseFP16Storage) {
+        vector<half_t> buf(addTotalSize);
+        Rand rand("tunePointWiseAccum");
+        for(int j = 0; j < addTotalSize; j++)
+          buf[j] = half_float::half_cast<half_t>(rand.nextDouble(1.0));
+        return createReadWriteBuffer(context, buf);
+      }
+      else {
+        vector<float> buf(addTotalSize);
+        Rand rand("tunePointWiseAccum");
+        for(int j = 0; j < addTotalSize; j++)
+          buf[j] = (float)rand.nextDouble(1.0);
+        return createReadWriteBuffer(context, buf);
+      }
+    };
+
+    cl_mem swigluMain = NULL;
+    cl_mem swigluGate = NULL;
+    cl_mem swigluOutput = NULL;
+    if(hasSwiGLU) {
+      if(cfg.shouldUseFP16Storage) {
+        swigluMain = randomReadOnlyBufferHalf("tunePointWiseSwiGLUMain", context, swigluTotalSize, 1.0, dummy);
+        swigluGate = randomReadOnlyBufferHalf("tunePointWiseSwiGLUGate", context, swigluTotalSize, 1.0, dummy);
+      } else {
+        swigluMain = randomReadOnlyBufferFloat("tunePointWiseSwiGLUMain", context, swigluTotalSize, 1.0, dummy);
+        swigluGate = randomReadOnlyBufferFloat("tunePointWiseSwiGLUGate", context, swigluTotalSize, 1.0, dummy);
+      }
+      swigluOutput = createReadWriteBufferFloatZeros(context, swigluTotalSize);
+    }
+
+    cl_mem accum = makeAccumBuf();
+
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.clear();
+    ret.resize(combinedOutputNumFloats * numToRecord, 0.0f);
+    float* retBase = ret.data();
+    for(int i = 0; i < reps; i++) {
+      double weight;
+      switch(i % numToRecord) {
+      case 0: weight = 0; break;
+      default: weight = 1; break;
+      }
+
+      // Run addPointWise
+      {
+        cl_event event;
+        err = doAddPointWise(addKernel, commandQueue, cfg, accum, value, addTotalSize, &event);
+        accums.countResultAndFreeEvent(err, event, weight);
+        if(accums.bad) break;
+      }
+
+      // Run swiGLU (if applicable)
+      if(hasSwiGLU) {
+        cl_event event;
+        err = doSwiGLU(swigluKernel, commandQueue, cfg, swigluMain, swigluGate, swigluOutput, swigluTotalSize, &event);
+        accums.countResultAndFreeEvent(err, event, weight);
+        if(accums.bad) break;
+      }
+
+      if(i < numToRecord) {
+        // Record addPointWise output
+        if(cfg.shouldUseFP16Storage)
+          blockingReadBufferHalfToFloat(commandQueue, accum, addOutputNumFloats, retBase);
+        else
+          blockingReadBuffer(commandQueue, accum, addOutputNumFloats, retBase);
+        // Record swiGLU output
+        if(hasSwiGLU) {
+          if(cfg.shouldUseFP16Storage)
+            blockingReadBufferHalfToFloat(commandQueue, swigluOutput, swigluOutputNumFloats, retBase + addOutputNumFloats);
+          else
+            blockingReadBuffer(commandQueue, swigluOutput, swigluOutputNumFloats, retBase + addOutputNumFloats);
+        }
+        retBase += combinedOutputNumFloats;
+      }
+
+      // Re-upload accum for next rep since addPointWise modifies it in-place
+      if(i < reps - 1) {
+        clReleaseMemObject(accum);
+        accum = makeAccumBuf();
+      }
+    }
+
+    clReleaseMemObject(accum);
+    clReleaseMemObject(value);
+    if(swigluMain != NULL) clReleaseMemObject(swigluMain);
+    if(swigluGate != NULL) clReleaseMemObject(swigluGate);
+    if(swigluOutput != NULL) clReleaseMemObject(swigluOutput);
+    clReleaseKernel(addKernel);
+    clReleaseProgram(addProgram);
+    if(swigluKernel != NULL) clReleaseKernel(swigluKernel);
+    if(swigluProgram != NULL) clReleaseProgram(swigluProgram);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc)
+    throw StringError("Tuning pointWise failed - could not find any working configuration");
+
+  tunedConfig = currentConfig;
+}
+
+static void tuneAddChannelBiasesNCHW(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning addChannelBiasesNCHW" << endl;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  if(full) {
+    addConfigs(configs,SETTER(addChannelBiasesNCHW.XY_ELTS_PER_THREAD),{1,2,4});
+    addConfigs(configs,SETTER(addChannelBiasesNCHW.NC_ELTS_PER_THREAD),{1,2,4,8});
+  }
+  else {
+    addConfigs(configs,SETTER(addChannelBiasesNCHW.XY_ELTS_PER_THREAD),{1,2,4});
+    addConfigs(configs,SETTER(addChannelBiasesNCHW.NC_ELTS_PER_THREAD),{1,2,4,8});
+  }
+
+  filterConfigs(configs,ISVALID(addChannelBiasesNCHW));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(),currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.addChannelBiasesNCHW.XY_ELTS_PER_THREAD = untunedConfig.addChannelBiasesNCHW.XY_ELTS_PER_THREAD;
+  referenceConfig.addChannelBiasesNCHW.NC_ELTS_PER_THREAD = untunedConfig.addChannelBiasesNCHW.NC_ELTS_PER_THREAD;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.addChannelBiasesNCHW.desc(); };
+
+  int numChannels = modelInfo.trunkNumChannels;
+  int nnXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+  int ncSize = batchSize * numChannels;
+  int accumSize = ncSize * nnXYLen;
+  int outputNumFloats = accumSize;
+  vector<float> accumInputVec;
+  vector<float> biasInputVec;
+  {
+    Rand rand("tuneAddChannelBiasesAccum");
+    accumInputVec.resize(accumSize);
+    for(int i = 0; i < accumSize; i++)
+      accumInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tuneAddChannelBiasesBias");
+    biasInputVec.resize(ncSize);
+    for(int i = 0; i < ncSize; i++)
+      biasInputVec[i] = (float)rand.nextDouble(1.0);
+  }
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+
+    if(computeOnCPU) {
+      int numToRecord = 10;
+      ret.clear();
+      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      for(int i = 0; i < numToRecord; i++) {
+        for(int nc = 0; nc < ncSize; nc++) {
+          for(int xy = 0; xy < nnXYLen; xy++) {
+            retBase[nc * nnXYLen + xy] = accumInputVec[nc * nnXYLen + xy] + biasInputVec[nc];
+          }
+        }
+        retBase += outputNumFloats;
+      }
+      return accums;
+    }
+
+    cl_int err;
+    cl_program program;
+    string compileError;
+    bool compileSuc = tryCompileProgram(
+      "addChannelBiasesNCHWProgram", context, deviceIdsToUse, OpenCLKernels::addChannelBiasesNCHW,
+      cfg.addChannelBiasesNCHW.compileOptions() + " " + maybeFP16CompileOptions,
+      program, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+    cl_kernel kernel = clCreateKernel(program, "addChannelBiasesNCHW", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; return accums; }
+
+    // accum needs to be read-write since the kernel modifies it in-place
+    auto makeAccumBuf = [&]() -> cl_mem {
+      if(cfg.shouldUseFP16Storage) {
+        vector<half_t> buf(accumSize);
+        Rand rand("tuneAddChannelBiasesAccum");
+        for(int j = 0; j < accumSize; j++)
+          buf[j] = half_float::half_cast<half_t>(rand.nextDouble(1.0));
+        return createReadWriteBuffer(context, buf);
+      }
+      else {
+        vector<float> buf(accumSize);
+        Rand rand("tuneAddChannelBiasesAccum");
+        for(int j = 0; j < accumSize; j++)
+          buf[j] = (float)rand.nextDouble(1.0);
+        return createReadWriteBuffer(context, buf);
+      }
+    };
+
+    cl_mem accum = makeAccumBuf();
+    cl_mem bias = createReadOnlyBuffer(context, biasInputVec);
+
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.clear();
+    ret.resize(outputNumFloats*numToRecord, 0.0f);
+    float* retBase = ret.data();
+    for(int i = 0; i<reps; i++) {
+      double weight;
+      switch(i % numToRecord) {
+      case 0: weight = 0; break;
+      default: weight = 1; break;
+      }
+
+      // Dispatch using same logic as openclbackend.cpp addChannelBiases
+      int xyEltsPerThread = cfg.addChannelBiasesNCHW.XY_ELTS_PER_THREAD;
+      int ncEltsPerThread = cfg.addChannelBiasesNCHW.NC_ELTS_PER_THREAD;
+      size_t xyThreads = ((size_t)nnXYLen + xyEltsPerThread - 1) / xyEltsPerThread;
+      size_t ncThreads = ((size_t)ncSize + ncEltsPerThread - 1) / ncEltsPerThread;
+      static constexpr int nKernelDims = 2;
+      size_t globalSizes[nKernelDims] = {roundUpToMultiple(xyThreads, (size_t)32), ncThreads};
+      size_t localSizes[nKernelDims] = {32, 1};
+
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&accum);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&bias);
+      clSetKernelArg(kernel, 2, sizeof(int), (const void *)&ncSize);
+      clSetKernelArg(kernel, 3, sizeof(int), (const void *)&nnXYLen);
+
+      cl_event event;
+      err = clEnqueueNDRangeKernel(
+        commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, &event
+      );
+
+      accums.countResultAndFreeEvent(err,event,weight);
+      if(accums.bad)
+        break;
+
+      if(i < numToRecord) {
+        if(cfg.shouldUseFP16Storage)
+          blockingReadBufferHalfToFloat(commandQueue, accum, outputNumFloats, retBase);
+        else
+          blockingReadBuffer(commandQueue, accum, outputNumFloats, retBase);
+        retBase += outputNumFloats;
+      }
+
+      // Re-upload accum for next rep since kernel modifies it in-place
+      if(i < reps - 1) {
+        clReleaseMemObject(accum);
+        accum = makeAccumBuf();
+      }
+    }
+
+    clReleaseMemObject(accum);
+    clReleaseMemObject(bias);
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.005;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc)
+    throw StringError("Tuning addChannelBiasesNCHW failed - could not find any working configuration");
+
+  tunedConfig = currentConfig;
+}
+
+static void tuneTransformerRMSNorm(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  // Skip if not a transformer model
+  if(modelInfo.transformerHeadDim <= 0) {
+    tunedConfig = currentConfig;
+    return;
+  }
+
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning transformerRMSNorm" << endl;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  if(full) {
+    addConfigs(configs,SETTER(transformerRMSNorm.WG_C_SIZE),{32,64,128,256,512});
+    addConfigs(configs,SETTER(transformerRMSNorm.WG_XY_SIZE),{1,2,4,8,16,32});
+    addConfigs(configs,SETTER(transformerRMSNorm.C_PER_THREAD),{1,2,4,8,16});
+  }
+  else {
+    addConfigs(configs,SETTER(transformerRMSNorm.WG_C_SIZE),{32,64,128,256});
+    addConfigs(configs,SETTER(transformerRMSNorm.WG_XY_SIZE),{1,2,4,8,16});
+    addConfigs(configs,SETTER(transformerRMSNorm.C_PER_THREAD),{1,2,4,8});
+  }
+
+  filterConfigs(configs,ISVALID(transformerRMSNorm));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(),currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.transformerRMSNorm.WG_C_SIZE = untunedConfig.transformerRMSNorm.WG_C_SIZE;
+  referenceConfig.transformerRMSNorm.WG_XY_SIZE = untunedConfig.transformerRMSNorm.WG_XY_SIZE;
+  referenceConfig.transformerRMSNorm.C_PER_THREAD = untunedConfig.transformerRMSNorm.C_PER_THREAD;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.transformerRMSNorm.desc(); };
+
+  int numChannels = modelInfo.trunkNumChannels;
+  int paddedNNXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+  int inputNumFloats = batchSize * numChannels * paddedNNXYLen;
+  int outputNumFloats = inputNumFloats;
+
+  vector<float> inputVec;
+  vector<float> weightVec(numChannels);
+  {
+    Rand rand("tuneTransformerRMSNormInput");
+    inputVec.resize(inputNumFloats);
+    for(int i = 0; i < inputNumFloats; i++)
+      inputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tuneTransformerRMSNormWeight");
+    for(int i = 0; i < numChannels; i++)
+      weightVec[i] = (float)rand.nextDouble(1.0);
+  }
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+
+    int xySize = paddedNNXYLen;
+
+    if(computeOnCPU) {
+      int numToRecord = 10;
+      ret.clear();
+      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      for(int rep = 0; rep < numToRecord; rep++) {
+        for(int n = 0; n < batchSize; n++) {
+          for(int xy = 0; xy < xySize; xy++) {
+            // mask is 1.0
+            float sumSq = 0.0f;
+            for(int c = 0; c < numChannels; c++) {
+              float val = inputVec[(n * numChannels + c) * xySize + xy];
+              sumSq += val * val;
+            }
+            float rms = 1.0f / sqrtf(sumSq / (float)numChannels + 1e-6f);
+            for(int c = 0; c < numChannels; c++) {
+              float val = inputVec[(n * numChannels + c) * xySize + xy];
+              // Matches kernel: (val * rms * gamma + beta) * mask, with beta = 0 and maskVal = 1.0
+              retBase[(n * numChannels + c) * xySize + xy] = (val * rms * weightVec[c] + 0.0f);
+            }
+          }
+        }
+        retBase += outputNumFloats;
+      }
+      return accums;
+    }
+
+    cl_int err;
+    cl_program program;
+    string compileError;
+    bool compileSuc = tryCompileProgram(
+      "tuneTransformerRMSNormProgram", context, deviceIdsToUse, OpenCLKernels::transformerRMSNorm,
+      cfg.transformerRMSNorm.compileOptions() + " " + maybeFP16CompileOptions,
+      program, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+    cl_kernel kernel = clCreateKernel(program, "transformerRMSNorm", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseProgram(program); return accums; }
+
+    cl_mem input;
+    vector<float> dummy;
+    if(cfg.shouldUseFP16Storage)
+      input = randomReadOnlyBufferHalf("tuneTransformerRMSNormInput", context, inputNumFloats, 1.0, dummy);
+    else
+      input = randomReadOnlyBufferFloat("tuneTransformerRMSNormInput", context, inputNumFloats, 1.0, dummy);
+
+    cl_mem mask;
+    if(cfg.shouldUseFP16Storage)
+      mask = constantReadOnlyBufferHalf(context, batchSize * paddedNNXYLen, 1.0f);
+    else
+      mask = constantReadOnlyBufferFloat(context, batchSize * paddedNNXYLen, 1.0f);
+    cl_mem weight = createReadOnlyBuffer(context, weightVec);
+    // The shared transformerRMSNorm kernel takes a per-channel beta (bias); this norm has none, so pass zeros.
+    vector<float> zeroBetaVec(numChannels, 0.0f);
+    cl_mem beta = createReadOnlyBuffer(context, zeroBetaVec);
+    cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
+
+    int wgCSize = cfg.transformerRMSNorm.WG_C_SIZE;
+    int wgXYSize = cfg.transformerRMSNorm.WG_XY_SIZE;
+    int numXYGroups = (xySize + wgXYSize - 1) / wgXYSize;
+
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.clear();
+    ret.resize(outputNumFloats * numToRecord, 0.0f);
+    float* retBase = ret.data();
+    for(int i = 0; i < reps; i++) {
+      double weight2;
+      switch(i % numToRecord) {
+      case 0: weight2 = 0; break;
+      default: weight2 = 1; break;
+      }
+
+      float tunerEpsilon2 = 1e-6f;
+      // Arg order must match the transformerRMSNorm kernel signature:
+      // input, output, weight(gamma), beta, mask, nSize, cSize, xySize, epsilon
+      clSetKernelArg(kernel, 0, sizeof(cl_mem), &input);
+      clSetKernelArg(kernel, 1, sizeof(cl_mem), &output);
+      clSetKernelArg(kernel, 2, sizeof(cl_mem), &weight);
+      clSetKernelArg(kernel, 3, sizeof(cl_mem), &beta);
+      clSetKernelArg(kernel, 4, sizeof(cl_mem), &mask);
+      clSetKernelArg(kernel, 5, sizeof(int), &batchSize);
+      clSetKernelArg(kernel, 6, sizeof(int), &numChannels);
+      clSetKernelArg(kernel, 7, sizeof(int), &paddedNNXYLen);
+      clSetKernelArg(kernel, 8, sizeof(float), &tunerEpsilon2);
+
+      size_t globalSizes[2] = {(size_t)(wgCSize * wgXYSize) * (size_t)numXYGroups, (size_t)batchSize};
+      size_t localSizes[2] = {(size_t)(wgCSize * wgXYSize), 1};
+      cl_event event;
+      err = clEnqueueNDRangeKernel(commandQueue, kernel, 2, NULL, globalSizes, localSizes, 0, NULL, &event);
+
+      accums.countResultAndFreeEvent(err, event, weight2);
+      if(accums.bad)
+        break;
+
+      if(i < numToRecord) {
+        if(cfg.shouldUseFP16Storage)
+          blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, retBase);
+        else
+          blockingReadBuffer(commandQueue, output, outputNumFloats, retBase);
+        retBase += outputNumFloats;
+      }
+    }
+
+    clReleaseMemObject(input);
+    clReleaseMemObject(mask);
+    clReleaseMemObject(weight);
+    clReleaseMemObject(beta);
+    clReleaseMemObject(output);
+    clReleaseKernel(kernel);
+    clReleaseProgram(program);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc)
+    throw StringError("Tuning transformerRMSNorm failed - could not find any working configuration");
+
+  tunedConfig = currentConfig;
+}
+
+static void tuneSpatialRMSNorm(
+  OpenCLTuneParams currentConfig,
+  const OpenCLTuneParams& untunedConfig,
+  const cl_context& context,
+  cl_command_queue& commandQueue,
+  const vector<cl_device_id>& deviceIdsToUse,
+  int batchSize,
+  int nnXLen,
+  int nnYLen,
+  const OpenCLTuner::ModelInfoForTuning& modelInfo,
+  bool full,
+  ostream& out,
+  const string& maybeFP16CompileOptions,
+  bool verboseErrors,
+  bool verboseTuner,
+  OpenCLTuneParams& tunedConfig
+) {
+  out << "------------------------------------------------------" << endl;
+  out << "Tuning spatialRMSNorm" << endl;
+
+  vector<OpenCLTuneParams> configs;
+  configs.push_back(currentConfig);
+
+  if(full) {
+    addConfigs(configs,SETTER(spatialRMSNorm.TILE_SIZE),{32,64,128,256,512,1024});
+    addConfigs(configs,SETTER(spatialRMSNorm.APPLY_ELTS_PER_THREAD),{1,2,4,8,16,32});
+  }
+  else {
+    addConfigs(configs,SETTER(spatialRMSNorm.TILE_SIZE),{32,64,128,256,512});
+    addConfigs(configs,SETTER(spatialRMSNorm.APPLY_ELTS_PER_THREAD),{1,2,4,8,16});
+  }
+
+  filterConfigs(configs,ISVALID(spatialRMSNorm));
+  shuffleConfigs(configs);
+  configs.insert(configs.begin(),currentConfig);
+
+  OpenCLTuneParams referenceConfig = currentConfig;
+  referenceConfig.spatialRMSNorm.TILE_SIZE = untunedConfig.spatialRMSNorm.TILE_SIZE;
+  referenceConfig.spatialRMSNorm.APPLY_ELTS_PER_THREAD = untunedConfig.spatialRMSNorm.APPLY_ELTS_PER_THREAD;
+
+  auto getDesc = [](const OpenCLTuneParams& cfg) { return cfg.spatialRMSNorm.desc(); };
+
+  int numChannels = modelInfo.trunkNumChannels;
+  int paddedNNXYLen = currentConfig.getPaddedNNXYLen(nnXLen, nnYLen, currentConfig.canUseFP16TensorCoresFor1x1);
+  int inputNumFloats = batchSize * numChannels * paddedNNXYLen;
+  int outputNumFloats = inputNumFloats;
+
+  vector<float> inputVec;
+  vector<float> gammaVec(numChannels);
+  vector<float> betaVec(numChannels);
+  {
+    Rand rand("tuneSpatialRMSNormInput");
+    inputVec.resize(inputNumFloats);
+    for(int i = 0; i < inputNumFloats; i++)
+      inputVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tuneSpatialRMSNormGamma");
+    for(int i = 0; i < numChannels; i++)
+      gammaVec[i] = (float)rand.nextDouble(1.0);
+  }
+  {
+    Rand rand("tuneSpatialRMSNormBeta");
+    for(int i = 0; i < numChannels; i++)
+      betaVec[i] = (float)rand.nextDouble(1.0);
+  }
+
+  auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
+    OpenCLTuneAccums accums;
+
+    int xySize = paddedNNXYLen;
+    float maskSumVal = (float)xySize;
+
+    if(computeOnCPU) {
+      int numToRecord = 10;
+      ret.clear();
+      ret.resize(outputNumFloats * numToRecord, 0.0f);
+      float* retBase = ret.data();
+      for(int rep = 0; rep < numToRecord; rep++) {
+        for(int n = 0; n < batchSize; n++) {
+          // Compute sum of squares across all channels and spatial positions
+          float sumSq = 0.0f;
+          for(int c = 0; c < numChannels; c++) {
+            for(int xy = 0; xy < xySize; xy++) {
+              float val = inputVec[(n * numChannels + c) * xySize + xy]; // mask is 1.0
+              sumSq += val * val;
+            }
+          }
+          float denom = maskSumVal * (float)numChannels;
+          float rms = 1.0f / sqrtf(sumSq / denom + 1e-6f);
+          // Apply normalization
+          for(int c = 0; c < numChannels; c++) {
+            for(int xy = 0; xy < xySize; xy++) {
+              float val = inputVec[(n * numChannels + c) * xySize + xy];
+              float result = val * rms * gammaVec[c] + betaVec[c]; // mask is 1.0
+              retBase[(n * numChannels + c) * xySize + xy] = result;
+            }
+          }
+        }
+        retBase += outputNumFloats;
+      }
+      return accums;
+    }
+
+    cl_int err;
+
+    // Compile all 3 kernels
+    cl_program sumSqProgram;
+    cl_program reduceProgram;
+    cl_program applyProgram;
+    string compileError;
+    bool compileSuc;
+
+    string reduceOptions = cfg.spatialRMSNorm.reduceCompileOptions();
+
+    compileSuc = tryCompileProgram(
+      "transformerSpatialRMSNormSumSqProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNormSumSq,
+      reduceOptions + " " + maybeFP16CompileOptions,
+      sumSqProgram, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; return accums; }
+
+    compileSuc = tryCompileProgram(
+      "transformerSpatialRMSNormReduceProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNormReduce,
+      reduceOptions,
+      reduceProgram, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; clReleaseProgram(sumSqProgram); return accums; }
+
+    compileSuc = tryCompileProgram(
+      "transformerSpatialRMSNormApplyProgram", context, deviceIdsToUse, OpenCLKernels::transformerSpatialRMSNormApply,
+      cfg.spatialRMSNorm.applyCompileOptions() + " " + maybeFP16CompileOptions,
+      applyProgram, compileError
+    );
+    if(!compileSuc) { accums.bad = true; accums.detailedErrorMessage = compileError; accums.badErr = CL_BUILD_PROGRAM_FAILURE; clReleaseProgram(sumSqProgram); clReleaseProgram(reduceProgram); return accums; }
+
+    cl_kernel sumSqKernel = clCreateKernel(sumSqProgram, "transformerSpatialRMSNormSumSq", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseProgram(sumSqProgram); clReleaseProgram(reduceProgram); clReleaseProgram(applyProgram); return accums; }
+    cl_kernel reduceKernel = clCreateKernel(reduceProgram, "transformerSpatialRMSNormReduce", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseKernel(sumSqKernel); clReleaseProgram(sumSqProgram); clReleaseProgram(reduceProgram); clReleaseProgram(applyProgram); return accums; }
+    cl_kernel applyKernel = clCreateKernel(applyProgram, "transformerSpatialRMSNormApply", &err);
+    if(err != 0) { accums.bad = true; accums.badErr = err; clReleaseKernel(sumSqKernel); clReleaseKernel(reduceKernel); clReleaseProgram(sumSqProgram); clReleaseProgram(reduceProgram); clReleaseProgram(applyProgram); return accums; }
+
+    // Compute sizing
+    int tileSize = cfg.spatialRMSNorm.TILE_SIZE;
+    int chwSize = numChannels * xySize;
+    OpenCLHelpers::SpatialRMSNormSizing sizing = OpenCLHelpers::computeSpatialRMSNormSizing(tileSize, chwSize);
+
+    // Create buffers
+    cl_mem input;
+    vector<float> dummy;
+    if(cfg.shouldUseFP16Storage)
+      input = randomReadOnlyBufferHalf("tuneSpatialRMSNormInput", context, inputNumFloats, 1.0, dummy);
+    else
+      input = randomReadOnlyBufferFloat("tuneSpatialRMSNormInput", context, inputNumFloats, 1.0, dummy);
+
+    cl_mem mask;
+    if(cfg.shouldUseFP16Storage)
+      mask = constantReadOnlyBufferHalf(context, batchSize * paddedNNXYLen, 1.0f);
+    else
+      mask = constantReadOnlyBufferFloat(context, batchSize * paddedNNXYLen, 1.0f);
+    cl_mem maskSum = constantReadOnlyBufferFloat(context, batchSize, (float)paddedNNXYLen);
+    cl_mem gamma = createReadOnlyBuffer(context, gammaVec);
+    cl_mem beta = createReadOnlyBuffer(context, betaVec);
+    cl_mem partialSumsBuf = createReadWriteBufferFloatZeros(context, batchSize * sizing.numCHWWorkgroups);
+    cl_mem finalSumBuf = createReadWriteBufferFloatZeros(context, batchSize);
+    cl_mem output = createReadWriteBufferFloatZeros(context, outputNumFloats);
+
+    const int reps = 20;
+    const int numToRecord = 10;
+    ret.clear();
+    ret.resize(outputNumFloats * numToRecord, 0.0f);
+    float* retBase = ret.data();
+    for(int i = 0; i < reps; i++) {
+      double weight;
+      switch(i % numToRecord) {
+      case 0: weight = 0; break;
+      default: weight = 1; break;
+      }
+
+      // Kernel 1: SumSq (pass 1 reduction)
+      err = OpenCLHelpers::doSpatialRMSNormSumSq(
+        sumSqKernel, commandQueue,
+        batchSize, numChannels, xySize,
+        tileSize, sizing.tilesPerGroupPass1, sizing.numCHWWorkgroups,
+        input, mask, partialSumsBuf, NULL
+      );
+      if(err != 0) { accums.bad = true; accums.badErr = err; break; }
+
+      // Kernel 2: Reduce (pass 2 reduction)
+      err = OpenCLHelpers::doSpatialRMSNormReduce(
+        reduceKernel, commandQueue,
+        batchSize, sizing.numCHWWorkgroups,
+        tileSize, sizing.tilesPerGroupPass2,
+        partialSumsBuf, finalSumBuf, NULL
+      );
+      if(err != 0) { accums.bad = true; accums.badErr = err; break; }
+
+      // Kernel 3: Apply
+      cl_event event;
+      float tunerEpsilon = 1e-6f;
+      err = OpenCLHelpers::doSpatialRMSNormApply(
+        applyKernel, commandQueue,
+        cfg,
+        batchSize, numChannels, xySize,
+        tunerEpsilon,
+        input, output, gamma, beta,
+        mask, maskSum, finalSumBuf, &event
+      );
+
+      accums.countResultAndFreeEvent(err, event, weight);
+      if(accums.bad)
+        break;
+
+      if(i < numToRecord) {
+        if(cfg.shouldUseFP16Storage)
+          blockingReadBufferHalfToFloat(commandQueue, output, outputNumFloats, retBase);
+        else
+          blockingReadBuffer(commandQueue, output, outputNumFloats, retBase);
+        retBase += outputNumFloats;
+      }
+    }
+
+    clReleaseMemObject(input);
+    clReleaseMemObject(mask);
+    clReleaseMemObject(maskSum);
+    clReleaseMemObject(gamma);
+    clReleaseMemObject(beta);
+    clReleaseMemObject(partialSumsBuf);
+    clReleaseMemObject(finalSumBuf);
+    clReleaseMemObject(output);
+    clReleaseKernel(sumSqKernel);
+    clReleaseKernel(reduceKernel);
+    clReleaseKernel(applyKernel);
+    clReleaseProgram(sumSqProgram);
+    clReleaseProgram(reduceProgram);
+    clReleaseProgram(applyProgram);
+
+    int finalRetSize = retBase - ret.data();
+    ret.resize(finalRetSize);
+
+    return accums;
+  };
+
+  bool stopOnReferenceImplFail = false;
+  double bestKernelsPerSecond = 0.0;
+  double errorToleranceScale = 0.05;
+  bool suc = testAllConfigs(
+    stopOnReferenceImplFail,
+    configs,
+    currentConfig,
+    referenceConfig,
+    out,
+    verboseErrors,
+    verboseTuner,
+    errorToleranceScale,
+    std::function<string(const OpenCLTuneParams& cfg)>(getDesc),
+    std::function<OpenCLTuneAccums(const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU)>(test),
+    bestKernelsPerSecond
+  );
+  if(!suc)
+    throw StringError("Tuning spatialRMSNorm failed - could not find any working configuration");
 
   tunedConfig = currentConfig;
 }
@@ -2699,8 +4349,9 @@ static void dummyThreadLoop(
     }
     else if(which == 4 || which == 5) {
       cl_event event;
+      OpenCLTuneParams defaultParams;
       err = OpenCLHelpers::doAddPointWise(
-        addPointWiseKernel, commandQueue, buffer, (which == 4 ? matrixC : matrixD), mSize*kSize, &event
+        addPointWiseKernel, commandQueue, defaultParams, buffer, (which == 4 ? matrixC : matrixD), mSize*kSize, &event
       );
 
       if(err != 0) {
@@ -2960,7 +4611,9 @@ void OpenCLTuner::tune(
             currentConfig.shouldUseFP16TensorCoresFor1x1 = false;
           }
           // If we're using tensor cores normally, AND they're fast enough, then use them for 1x1 convs.
-          else if(currentConfig.shouldUseFP16TensorCores && bestKernelsPerSecond16 / FP16_TENSORCORE_REQUIRED_SPEEDUP >= bestXGemmDirectKernelsPerSecond) {
+          // Require 120% speedup for 1x1 to be conservative against the overhead of the extra
+          // pad-copy kernel launch that the NCHW WMMA path needs.
+          else if(currentConfig.shouldUseFP16TensorCores && bestKernelsPerSecond16 / 1.2 >= bestXGemmDirectKernelsPerSecond) {
             out << "FP16 tensor cores enabled for 1x1 convs" << endl;
             currentConfig = result16;
             currentConfig.canUseFP16TensorCoresFor1x1 = true;
@@ -3158,6 +4811,116 @@ void OpenCLTuner::tune(
 
   }
 
+  {
+    OpenCLTuneParams result;
+    tuneTransformerAttention(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
+  }
+
+  {
+    OpenCLTuneParams result;
+    tuneTransformerRMSNorm(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
+  }
+
+  {
+    OpenCLTuneParams result;
+    tunePointWise(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
+  }
+
+  {
+    OpenCLTuneParams result;
+    tuneAddChannelBiasesNCHW(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
+  }
+
+  {
+    OpenCLTuneParams result;
+    tuneSpatialRMSNorm(
+      currentConfig,
+      untunedConfig,
+      context,
+      commandQueue,
+      deviceIdsToUse,
+      batchSize,
+      nnXLen,
+      nnYLen,
+      modelInfo,
+      full,
+      out,
+      maybeFP16CompileOptions,
+      verboseErrors,
+      verboseTuner,
+      result
+    );
+    currentConfig = result;
+  }
+
   //Copy 5x5 conv parameters over from 3x3 conv parameters
   //Don't spend the time to separately tune, just assume they're reasonable
   currentConfig.conv5x5.transLocalSize0 = currentConfig.conv3x3.transLocalSize0;
@@ -3193,7 +4956,30 @@ string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLe
 }
 
 string OpenCLTuner::defaultFileName(const string& gpuName, int nnXLen, int nnYLen, const OpenCLTuner::ModelInfoForTuning& modelInfo) {
-  return defaultFileName(gpuName, nnXLen, nnYLen, modelInfo.trunkNumChannels, modelInfo.modelVersion);
+  // Include transformer head dim in the key so that convnets (headDim=0) and transformers
+  // (headDim>0) don't share tune files, and different transformer architectures are
+  // distinguished. midNumChannels differentiates NBT (trunk != mid) from plain transformers.
+  string gpuNameForFile;
+  for(int i = 0; i<gpuName.length(); i++) {
+    char c = gpuName[i];
+    if(contains("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", c))
+      gpuNameForFile += c;
+  }
+  if(modelInfo.transformerHeadDim > 0) {
+    return Global::strprintf(
+      "tune%d_gpu%s_x%d_y%d_c%d_m%d_h%d_mv%d.txt",
+      TUNER_VERSION, gpuNameForFile.c_str(), nnXLen, nnYLen,
+      modelInfo.trunkNumChannels, modelInfo.midNumChannels,
+      modelInfo.transformerHeadDim, modelInfo.modelVersion
+    );
+  }
+  else {
+    return Global::strprintf(
+      "tune%d_gpu%s_x%d_y%d_c%d_mv%d.txt",
+      TUNER_VERSION, gpuNameForFile.c_str(), nnXLen, nnYLen,
+      modelInfo.trunkNumChannels, modelInfo.modelVersion
+    );
+  }
 }
 
 static OpenCLTuneParams loadFromTunerFile(const string& fileName, Logger* logger) {
@@ -3324,8 +5110,13 @@ void OpenCLTuner::autoTuneEverything(
   enabled_t useFP16Mode,
   bool full
 ) {
-  const enabled_t testFP16Mode = useFP16Mode;
-  const enabled_t testFP16StorageMode = useFP16Mode;
+  // Always probe fp16 capabilities (Auto), regardless of the requested precision: the tuning file
+  // records hardware capabilities, which must not depend on this run's fp16 preference. Otherwise a
+  // tune performed under useFP16=false caches "no FP16 support" and later fp16 runs silently inherit
+  // it. Actual fp16 usage is gated separately by the backend from useFP16Mode. (void useFP16Mode.)
+  (void)useFP16Mode;
+  const enabled_t testFP16Mode = enabled_t::Auto;
+  const enabled_t testFP16StorageMode = enabled_t::Auto;
   const enabled_t testFP16ComputeMode = enabled_t::Auto;
   const enabled_t testFP16TensorCoresMode = enabled_t::Auto;
 
@@ -3350,7 +5141,7 @@ void OpenCLTuner::autoTuneEverything(
   string gpuName = allDeviceInfos[gpuIdxForTuning].name;
 
   //Just hardcodedly tune all the models that KataGo's main run uses.
-  static_assert(NNModelVersion::latestModelVersionImplemented == 16, "");
+  static_assert(NNModelVersion::latestModelVersionImplemented == 17, "");
   vector<ModelInfoForTuning> modelInfos;
   {
     ModelInfoForTuning modelInfo;

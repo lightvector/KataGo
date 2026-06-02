@@ -40,20 +40,21 @@ ModelConfig = Dict[str,Any]
 # version = 14 # V7 features, Squared softplus for error variance predictions
 # version = 15 # V7 features, Extra nonlinearity for pass output
 # version = 16 # V7 features, Q value predictions in the policy head
+# version = 17 # V7 features, dropped Q value predictions, introduced transformers and added guards to unused params
 
 def get_version(config: ModelConfig):
     return config["version"]
 
 def get_num_bin_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16 or version == 17:
         return 22
     else:
         assert(False)
 
 def get_num_global_input_features(config: ModelConfig):
     version = get_version(config)
-    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16:
+    if version == 10 or version == 11 or version == 12 or version == 13 or version == 14 or version == 15 or version == 16 or version == 17:
         return 19
     else:
         assert(False)
@@ -1504,8 +1505,43 @@ sandbox = {
 # "h6" = 6 heads (traditional MHA, Q,K,V have same number of heads)
 # "tfrs" = transformer with RoPE and SwiGLU
 
+# Like b7c96h3tfrs but smaller: 5 blocks, 48 trunk/mid channels (16 channels per head with 3 heads),
+# and swiglu disabled (ffng instead of ffnsg).
+b5c48h3tfr = {
+    "version":17,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":48,
+    "mid_num_channels":48,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":128,
+    "transformer_heads":3,
+    "transformer_kv_heads":3,
+    "block_kind": [
+        ["attn1","attnrope"],
+        ["ffn1","ffng"],
+        ["attn2","attnrope"],
+        ["ffn2","ffng"],
+        ["attn3","attnrope"],
+        ["ffn3","ffng"],
+        ["attn4","attnrope"],
+        ["ffn4","ffng"],
+        ["attn5","attnrope"],
+        ["ffn5","ffng"],
+    ],
+    "p1_num_channels":16,
+    "g1_num_channels":16,
+    "v1_num_channels":16,
+    "sbv2_num_channels":32,
+    "num_scorebeliefs":4,
+    "v2_size":48,
+}
+
 b7c96h3tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1541,8 +1577,50 @@ b7c96h3tfrs = {
     "v2_size":64,
 }
 
+# Like b7c96h3tfrs but with grouped-query attention (6 query heads, 3 KV heads), explicit
+# query/key head dim 32 and value head dim 16, and learnable RoPE.
+b7c96h6kv3qk32v16tflrs = {
+    "version":17,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":96,
+    "mid_num_channels":96,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":256,
+    "transformer_heads":6,
+    "transformer_kv_heads":3,
+    "attention_query_head_dim":32,
+    "attention_value_head_dim":16,
+    "learnable_rope":True,
+    "block_kind": [
+        ["attn1","attnrope"],
+        ["ffn1","ffnsg"],
+        ["attn2","attnrope"],
+        ["ffn2","ffnsg"],
+        ["attn3","attnrope"],
+        ["ffn3","ffnsg"],
+        ["attn4","attnrope"],
+        ["ffn4","ffnsg"],
+        ["attn5","attnrope"],
+        ["ffn5","ffnsg"],
+        ["attn6","attnrope"],
+        ["ffn6","ffnsg"],
+        ["attn7","attnrope"],
+        ["ffn7","ffnsg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":48,
+    "num_scorebeliefs":4,
+    "v2_size":64,
+}
+
 b8c96h3tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1581,7 +1659,7 @@ b8c96h3tfrs = {
 }
 
 b2b10c96h3tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1626,7 +1704,7 @@ b2b10c96h3tfrs = {
 }
 
 b11c96h3tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1671,7 +1749,7 @@ b11c96h3tfrs = {
 }
 
 b9c96h3tgabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1717,7 +1795,7 @@ b9c96h3tgabs = {
 }
 
 b10c192h6tgabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1767,7 +1845,7 @@ b10c192h6tgabs = {
 # Nested bottleneck transformer configs
 # Naming: "b5c192h3nbttfrs" = 5 outer bottleneck blocks, 192ch trunk, nested bottleneck transformer
 b5c192h3nbttfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1795,7 +1873,7 @@ b5c192h3nbttfrs = {
 }
 
 b6c384h6nbttfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1823,8 +1901,36 @@ b6c384h6nbttfrs = {
     "v2_size":96,
 }
 
+b4c256h4nbttflrs = {
+    "version":17,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":256,
+    "mid_num_channels":128,
+    "gpool_num_channels":32,
+    "transformer_ffn_channels":384,
+    "transformer_heads":4,
+    "transformer_kv_heads":4,
+    "learnable_rope":True,
+    "block_kind": [
+        ["block1","bottlenest2transformerropesg"],
+        ["block2","bottlenest2transformerropesg"],
+        ["block3","bottlenest2transformerropesg"],
+        ["block4","bottlenest2transformerropesg"],
+    ],
+    "p1_num_channels":32,
+    "g1_num_channels":32,
+    "v1_num_channels":32,
+    "sbv2_num_channels":64,
+    "num_scorebeliefs":6,
+    "v2_size":80,
+}
+
 b5c384h6nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1853,7 +1959,7 @@ b5c384h6nbttflrs = {
 }
 
 b6c384h6nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1883,7 +1989,7 @@ b6c384h6nbttflrs = {
 }
 
 b7c384h6nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1914,7 +2020,7 @@ b7c384h6nbttflrs = {
 }
 
 b9c768h12nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1947,7 +2053,7 @@ b9c768h12nbttflrs = {
 }
 
 b15c512h8nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -1985,8 +2091,42 @@ b15c512h8nbttflrs = {
     "v2_size":128,
 }
 
+b10c512h8nbt3tflrs = {
+    "version":17,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":512,
+    "mid_num_channels":256,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":768,
+    "transformer_heads":8,
+    "transformer_kv_heads":8,
+    "learnable_rope":True,
+    "block_kind": [
+        ["block1","bottlenest3transformerropesg"],
+        ["block2","bottlenest3transformerropesg"],
+        ["block3","bottlenest3transformerropesg"],
+        ["block4","bottlenest3transformerropesg"],
+        ["block5","bottlenest3transformerropesg"],
+        ["block6","bottlenest3transformerropesg"],
+        ["block7","bottlenest3transformerropesg"],
+        ["block8","bottlenest3transformerropesg"],
+        ["block9","bottlenest3transformerropesg"],
+        ["block10","bottlenest3transformerropesg"],
+    ],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
 b11c640h10nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2021,7 +2161,7 @@ b11c640h10nbttflrs = {
 }
 
 b9c768h8nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2054,7 +2194,7 @@ b9c768h8nbttflrs = {
 }
 
 b14c192h6tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2105,7 +2245,7 @@ b14c192h6tfrs = {
 }
 
 b2b13c192h6tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2156,7 +2296,7 @@ b2b13c192h6tfrs = {
 }
 
 b12c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2203,7 +2343,7 @@ b12c384h12tfrs = {
 }
 
 b24c256h8tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2274,7 +2414,7 @@ b24c256h8tfrs = {
 }
 
 b18c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2333,7 +2473,7 @@ b18c384h12tfrs = {
 }
 
 b40c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2436,7 +2576,7 @@ b40c384h12tfrs = {
 }
 
 b21c512h16tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2502,7 +2642,7 @@ b21c512h16tfrs = {
 
 # Vanilla baseline transformer ladder
 b16c256h8tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2524,7 +2664,7 @@ b16c256h8tfrs = {
 }
 
 b20c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2545,8 +2685,31 @@ b20c384h12tfrs = {
     "v2_size":128,
 }
 
+b20c384h12tflrs = {
+    "version":17,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":384,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":1024,
+    "transformer_heads":12,
+    "transformer_kv_heads":12,
+    "learnable_rope":True,
+    "block_kind": [item for i in range(1,21) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
 b30c512h16tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2569,7 +2732,7 @@ b30c512h16tfrs = {
 
 # b18c384nbt-comparable tier copies/variants
 b22c192h6tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2590,7 +2753,7 @@ b22c192h6tfrs = {
     "v2_size":96,
 }
 b10c384h6nbttflrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2625,7 +2788,7 @@ b10c384h6nbttflrs = {
 
 # b28c512nbt-comparable tier copies/variants
 b35c256h8tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2647,7 +2810,7 @@ b35c256h8tfrs = {
 }
 
 b26c320h10tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2669,7 +2832,7 @@ b26c320h10tfrs = {
 }
 
 b22c384h8tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2692,7 +2855,7 @@ b22c384h8tfrs = {
 
 # Cheaper-than-b40c768nbt tier copies/variants
 b45c384h12tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2714,7 +2877,7 @@ b45c384h12tfrs = {
 }
 
 b32c480h10tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2736,7 +2899,7 @@ b32c480h10tfrs = {
 }
 
 b18c768h16tfrs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2758,7 +2921,7 @@ b18c768h16tfrs = {
 }
 
 b5c384h6nbttfgabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2791,7 +2954,7 @@ b5c384h6nbttfgabs = {
 }
 
 b5c384h6nbttftabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2826,7 +2989,7 @@ b5c384h6nbttftabs = {
 }
 
 b5c384h6nbttfrtabs = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2861,7 +3024,7 @@ b5c384h6nbttfrtabs = {
 }
 
 b5c384h6nbttflrtabcheaps = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2898,7 +3061,7 @@ b5c384h6nbttflrtabcheaps = {
 
 
 b5c384h6nbttflrtab2cheaps = {
-    "version":15,
+    "version":17,
     "norm_kind":"fixup",
     "bnorm_epsilon": 1e-4,
     "bnorm_running_avg_momentum": 0.001,
@@ -2987,7 +3150,9 @@ base_config_of_name = {
     "b40c768nbt": b40c768nbt,
 
     # Standard transformer models
+    "b5c48h3tfr": b5c48h3tfr,  # Small, no swiglu, 16 channels per head, 5 blocks
     "b7c96h3tfrs": b7c96h3tfrs,
+    "b7c96h6kv3qk32v16tflrs": b7c96h6kv3qk32v16tflrs,
     "b8c96h3tfrs": b8c96h3tfrs,
     "b11c96h3tfrs": b11c96h3tfrs,
     "b14c192h6tfrs": b14c192h6tfrs,
@@ -3005,11 +3170,52 @@ base_config_of_name = {
 
     # b28c512nbt-comparable tier
     "b20c384h12tfrs": b20c384h12tfrs,
+    "b20c384h12tflrs": b20c384h12tflrs,
     "b35c256h8tfrs": b35c256h8tfrs,
+    "b35c256h8tflrs": {**b35c256h8tfrs, "learnable_rope": True},
+    "b32c256h8tflrs": {**b35c256h8tfrs, "learnable_rope": True,
+        "block_kind": [item for i in range(1,33) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]]},
     "b26c320h10tfrs": b26c320h10tfrs,
     "b22c384h8tfrs": b22c384h8tfrs,
     "b9c768h12nbttflrs": b9c768h12nbttflrs,
     "b15c512h8nbttflrs": b15c512h8nbttflrs,
+    "b10c512h8nbt3tflrs": b10c512h8nbt3tflrs,
+    "b14c512h8nbttflrs": {**b15c512h8nbttflrs,
+        "block_kind": [
+            ["block1","bottlenest2transformerropesg"],
+            ["block2","bottlenest2transformerropesg"],
+            ["block3","bottlenest2transformerropesg"],
+            ["block4","bottlenest2transformerropesg"],
+            ["block5","bottlenest2transformerropesg"],
+            ["block6","bottlenest2transformerropesg"],
+            ["block7","bottlenest2transformerropesg"],
+            ["block8","bottlenest2transformerropesg"],
+            ["block9","bottlenest2transformerropesg"],
+            ["block10","bottlenest2transformerropesg"],
+            ["block11","bottlenest2transformerropesg"],
+            ["block12","bottlenest2transformerropesg"],
+            ["block13","bottlenest2transformerropesg"],
+            ["block14","bottlenest2transformerropesg"],
+        ] },
+    "b14c512h8nbttflrs-ireg16": {**b15c512h8nbttflrs,
+        "inline_registers": True,
+        "attention_num_rw_registers": 16,
+        "block_kind": [
+            ["block1","bottlenest2transformerropesg"],
+            ["block2","bottlenest2transformerropesg"],
+            ["block3","bottlenest2transformerropesg"],
+            ["block4","bottlenest2transformerropesg"],
+            ["block5","bottlenest2transformerropesg"],
+            ["block6","bottlenest2transformerropesg"],
+            ["block7","bottlenest2transformerropesg"],
+            ["block8","bottlenest2transformerropesg"],
+            ["block9","bottlenest2transformerropesg"],
+            ["block10","bottlenest2transformerropesg"],
+            ["block11","bottlenest2transformerropesg"],
+            ["block12","bottlenest2transformerropesg"],
+            ["block13","bottlenest2transformerropesg"],
+            ["block14","bottlenest2transformerropesg"],
+        ] },
     "b14c512h8nbttflrs-qkn-ireg16": {**b15c512h8nbttflrs,
         "attention_qk_norm": True,
         "inline_registers": True,
@@ -3050,6 +3256,7 @@ base_config_of_name = {
     # Nested bottleneck transformers
     "b5c192h3nbttfrs": b5c192h3nbttfrs,
     "b6c384h6nbttfrs": b6c384h6nbttfrs,
+    "b4c256h4nbttflrs": b4c256h4nbttflrs, # Learnable RoPE, 4 blocks, lightweight test model
     "b5c384h6nbttflrs": b5c384h6nbttflrs, # Learnable RoPE, 5 blocks
     "b6c384h6nbttflrs": b6c384h6nbttflrs, # Learnable RoPE
     "b7c384h6nbttflrs": b7c384h6nbttflrs, # Learnable RoPE, 7 blocks

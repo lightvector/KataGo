@@ -110,6 +110,17 @@ jobs:
         run: |
           brew install ninja zlib libzip protobuf abseil
 
+      # The CMake build (build.ninja, CMakeCache.txt) bakes in version-pinned
+      # Homebrew Cellar paths for protobuf/abseil (e.g.
+      # -L/opt/homebrew/Cellar/protobuf/34.1/lib). When Homebrew bumps those
+      # the cached paths go stale and the link fails.
+      # Capture the installed versions into the cache key so
+      # a formula bump invalidates the cache and forces a fresh configure.
+      - name: Capture dependency versions for cache key
+        id: dep-versions
+        run: |
+          echo "versions=$(brew list --versions protobuf abseil | tr '\n' '-')" >> "$GITHUB_OUTPUT"
+
       - name: Cache CMake build
         uses: actions/cache@v4
         with:
@@ -119,9 +130,9 @@ jobs:
             cpp/build.ninja
             cpp/.ninja_deps
             cpp/.ninja_log
-          key: ${{ runner.os }}-cmake-metal-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-cmake-metal-${{ steps.dep-versions.outputs.versions }}-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-cmake-metal-
+            ${{ runner.os }}-cmake-metal-${{ steps.dep-versions.outputs.versions }}-
 
       - name: Configure CMake
         working-directory: cpp

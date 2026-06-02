@@ -4,6 +4,7 @@
 #include "../neuralnet/cudaerrorcheck.h"
 #include "../neuralnet/cudaincludes.h"
 #include "../neuralnet/cudahelpers.h"
+#include "../neuralnet/debugprint.h"
 
 #include "../external/half-2.2.0/include/half.hpp"
 
@@ -72,72 +73,44 @@ void CudaUtils::expensiveCopyFromDevice(const string& name, float* weights, int 
   }
 }
 
+void CudaUtils::debugPrint3D(
+  const string& name, const void* deviceBuf,
+  int batchSize, int cSize, int spatialSize, bool useNHWC, bool useFP16,
+  const void* maskBuf
+) {
+  int totalSize = batchSize * cSize * spatialSize;
+  vector<float> values(totalSize);
+  expensiveCopyFromDevice(name, values.data(), totalSize, deviceBuf, useFP16);
+
+  vector<float> maskValues;
+  float* maskPtr = nullptr;
+  if(maskBuf != nullptr) {
+    maskValues.resize(batchSize * spatialSize);
+    expensiveCopyFromDevice(name + ":mask", maskValues.data(), batchSize * spatialSize, maskBuf, useFP16);
+    maskPtr = maskValues.data();
+  }
+
+  if(useNHWC) {
+    DebugPrint::print3DSummary(name, values.data(), batchSize, spatialSize, cSize, "NSC", batchSize, spatialSize, maskPtr);
+#ifdef DEBUG_INTERMEDIATE_VALUES_VERBOSE
+    DebugPrint::print3DVerbose(name, values.data(), batchSize, spatialSize, cSize, "NSC");
+#endif
+  }
+  else {
+    DebugPrint::print3DSummary(name, values.data(), batchSize, cSize, spatialSize, "NCS", batchSize, spatialSize, maskPtr);
+#ifdef DEBUG_INTERMEDIATE_VALUES_VERBOSE
+    DebugPrint::print3DVerbose(name, values.data(), batchSize, cSize, spatialSize, "NCS");
+#endif
+  }
+}
+
 void CudaUtils::debugPrint2D(const string& name, const void* deviceBuf, int batchSize, int cSize, bool useFP16) {
   vector<float> values(batchSize * cSize);
   expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
-  cout << "=========================================================" << endl;
-  cout << "TENSOR" << endl;
-  cout << name << endl;
-  cout << std::setprecision(8);
-  int i = 0;
-  for(int n = 0; n<batchSize; n++) {
-    cout << "-(n=" << n << ")--------------------" << endl;
-    for(int c = 0; c<cSize; c++)
-      cout << values[i++] << " ";
-    cout << endl;
-  }
-  cout << endl;
-  cout << "=========================================================" << endl;
-}
-
-void CudaUtils::debugPrint4D(const string& name, const void* deviceBuf, int batchSize, int cSize, int xSize, int ySize, bool useNHWC, bool useFP16) {
-  vector<float> values(batchSize * cSize * xSize * ySize);
-  expensiveCopyFromDevice(name, values.data(), values.size(), deviceBuf, useFP16);
-  cout << "=========================================================" << endl;
-  cout << "TENSOR" << endl;
-  cout << name << endl;
-  cout << std::setprecision(8);
-  int i = 0;
-  double total1 = 0;
-  double total2 = 0;
-  double total3 = 0;
-  for(int n = 0; n<batchSize; n++) {
-    cout << "-(n=" << n << ")--------------------" << endl;
-    if(useNHWC) {
-      for(int y = 0; y<ySize; y++) {
-        cout << "(y=" << y << ")" << endl;
-        for(int x = 0; x<xSize; x++) {
-          for(int c = 0; c<cSize; c++) {
-            float value = values[i++];
-            total1 += (((c + y / 2 + x / 3 + n / 4) % 2)*2-1) * value;
-            total2 += (((c + y / 3 + x / 1 + n / 3) % 2)*2-1) * value;
-            total3 += (((c + y / 5 + x / 2 + n / 2) % 2)*2-1) * value;
-            cout << value << " ";
-          }
-          cout << endl;
-        }
-        cout << endl;
-      }
-    }
-    else {
-      for(int c = 0; c<cSize; c++) {
-        cout << "(c=" << c << ")" << endl;
-        for(int y = 0; y<ySize; y++) {
-          for(int x = 0; x<xSize; x++) {
-            float value = values[i++];
-            total1 += (((c + y / 2 + x / 3 + n / 4) % 2)*2-1) * value;
-            total2 += (((c + y / 3 + x / 1 + n / 3) % 2)*2-1) * value;
-            total3 += (((c + y / 5 + x / 2 + n / 2) % 2)*2-1) * value;
-            cout << value << " ";
-          }
-          cout << endl;
-        }
-        cout << endl;
-      }
-    }
-  }
-  cout << "TOTAL " << total1 << " " << total2 << " " << total3 << endl;
-  cout << "=========================================================" << endl;
+  DebugPrint::print2DSummary(name, values.data(), batchSize, cSize);
+#ifdef DEBUG_INTERMEDIATE_VALUES_VERBOSE
+  DebugPrint::print2DVerbose(name, values.data(), batchSize, cSize);
+#endif
 }
 
 void CudaUtils::checkBufferSize(int batchSize, int xSize, int ySize, int channels) {
