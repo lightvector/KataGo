@@ -2202,6 +2202,91 @@ void applyRoPEHalfKernel(
 #endif
 }
 
+// Learnable RoPE, table-free variant: recompute cos/sin in-kernel from the per-head frequencies
+// instead of reading a precomputed [numKVHeads, numPairs, seqLen] cos/sin table.
+//
+// The precomputed table is numKVHeads-times larger than the fixed-RoPE table (per-head rather than
+// shared), and for many heads its aggregate footprint across all transformer blocks exceeds L2, so
+// the (non-coalesced, stride-seqLen) table reads spill to DRAM and dominate the kernel. The
+// frequencies are tiny (numKVHeads*numPairs*2 floats, ~KB) and stay resident in cache, so we read
+// those and compute angle = x*freqX + y*freqY with __sincosf. The (x,y) decode is uniform across the
+// block (one block == one xy), and buf access is unchanged (still coalesced over channel pairs).
+//
+// freqs layout: (numKVHeads, numPairs, 2) flattened; [...,0]=freqX (width/x), [...,1]=freqY (height/y).
+__global__
+void applyRoPELearnableRecomputeKernel(
+  float* buf, const float* freqs,
+  int batchSize, int seqLen, int numBufHeads, int numKVHeads, int qHeadDim, int totalDim, int numPairs, int nnXLen
+) {
+  int xy = blockIdx.x;
+  int n = blockIdx.y;
+  int hp = threadIdx.x;
+  int totalHP = numBufHeads * numPairs;
+  if(xy >= seqLen || n >= batchSize || hp >= totalHP)
+    return;
+
+  int h = hp / numPairs;
+  int pairIdx = hp % numPairs;
+  int c0 = h * qHeadDim + 2 * pairIdx;
+  int c1 = c0 + 1;
+  size_t col = (size_t)n * seqLen + xy;
+  size_t idx0 = c0 + col * totalDim;
+  size_t idx1 = c1 + col * totalDim;
+
+  int kvh = h * numKVHeads / numBufHeads;
+  int x = xy % nnXLen;
+  int y = xy / nnXLen;
+  float freqX = freqs[(kvh * numPairs + pairIdx) * 2 + 0];
+  float freqY = freqs[(kvh * numPairs + pairIdx) * 2 + 1];
+  float angle = (float)x * freqX + (float)y * freqY;
+  float cosVal, sinVal;
+  __sincosf(angle, &sinVal, &cosVal);
+
+  float x0 = buf[idx0];
+  float x1 = buf[idx1];
+  buf[idx0] = x0 * cosVal - x1 * sinVal;
+  buf[idx1] = x0 * sinVal + x1 * cosVal;
+}
+
+__global__
+void applyRoPELearnableRecomputeHalfKernel(
+  half* buf, const float* freqs,
+  int batchSize, int seqLen, int numBufHeads, int numKVHeads, int qHeadDim, int totalDim, int numPairs, int nnXLen
+) {
+#ifdef CUDA_SUPPORTS_FP16
+  int xy = blockIdx.x;
+  int n = blockIdx.y;
+  int hp = threadIdx.x;
+  int totalHP = numBufHeads * numPairs;
+  if(xy >= seqLen || n >= batchSize || hp >= totalHP)
+    return;
+
+  int h = hp / numPairs;
+  int pairIdx = hp % numPairs;
+  int c0 = h * qHeadDim + 2 * pairIdx;
+  int c1 = c0 + 1;
+  size_t col = (size_t)n * seqLen + xy;
+  size_t idx0 = c0 + col * totalDim;
+  size_t idx1 = c1 + col * totalDim;
+
+  int kvh = h * numKVHeads / numBufHeads;
+  int x = xy % nnXLen;
+  int y = xy / nnXLen;
+  float freqX = freqs[(kvh * numPairs + pairIdx) * 2 + 0];
+  float freqY = freqs[(kvh * numPairs + pairIdx) * 2 + 1];
+  float angle = (float)x * freqX + (float)y * freqY;
+  float cosVal, sinVal;
+  __sincosf(angle, &sinVal, &cosVal);
+
+  float x0 = __half2float(buf[idx0]);
+  float x1 = __half2float(buf[idx1]);
+  buf[idx0] = __float2half(x0 * cosVal - x1 * sinVal);
+  buf[idx1] = __float2half(x0 * sinVal + x1 * cosVal);
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
+
 // One block per (xy, n). threadIdx.x = h*numPairs + pairIdx covers all channel pairs for the
 // position. Block dim is rounded up to a multiple of 32 for warp alignment; out-of-range threads
 // short-circuit.
@@ -2233,6 +2318,37 @@ void customCudaApplyRoPE(
   dim3 blocks(seqLen, batchSize, 1);
   applyRoPEHalfKernel<<<blocks, threads>>>(
     buf, cosTable, sinTable, batchSize, seqLen, numBufHeads, numKVHeads, qHeadDim, totalDim, numPairs, learnableRope ? 1 : 0
+  );
+}
+
+// Table-free learnable RoPE: same block/thread mapping as customCudaApplyRoPE, but recomputes cos/sin
+// in-kernel from the per-head frequencies (numKVHeads, numPairs, 2) flattened. See kernel comment.
+void customCudaApplyRoPELearnableRecompute(
+  float* buf, const float* freqs,
+  int batchSize, int seqLen, int numBufHeads, int numKVHeads, int qHeadDim, int numPairs, int nnXLen
+) {
+  int totalDim = numBufHeads * qHeadDim;
+  int totalHP = numBufHeads * numPairs;
+  if(totalHP > 1024)
+    throw std::runtime_error("customCudaApplyRoPELearnableRecompute: numHeads*qHeadDim/2 (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
+  int threads = ((totalHP + 31) / 32) * 32;
+  dim3 blocks(seqLen, batchSize, 1);
+  applyRoPELearnableRecomputeKernel<<<blocks, threads>>>(
+    buf, freqs, batchSize, seqLen, numBufHeads, numKVHeads, qHeadDim, totalDim, numPairs, nnXLen
+  );
+}
+void customCudaApplyRoPELearnableRecompute(
+  half* buf, const float* freqs,
+  int batchSize, int seqLen, int numBufHeads, int numKVHeads, int qHeadDim, int numPairs, int nnXLen
+) {
+  int totalDim = numBufHeads * qHeadDim;
+  int totalHP = numBufHeads * numPairs;
+  if(totalHP > 1024)
+    throw std::runtime_error("customCudaApplyRoPELearnableRecompute: numHeads*qHeadDim/2 (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
+  int threads = ((totalHP + 31) / 32) * 32;
+  dim3 blocks(seqLen, batchSize, 1);
+  applyRoPELearnableRecomputeHalfKernel<<<blocks, threads>>>(
+    buf, freqs, batchSize, seqLen, numBufHeads, numKVHeads, qHeadDim, totalDim, numPairs, nnXLen
   );
 }
 

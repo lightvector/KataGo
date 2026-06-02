@@ -2781,6 +2781,7 @@ _BLOCK_KIND_FLAGS = {
     "ffng":                                 (False, False),
     "bottlenest2transformerrope":           (False, False),
     "bottlenest2transformerropesg":         (False, False),
+    "bottlenest3transformerropesg":         (False, False),
     "bottlenest2transformergabsg":          (True,  False),
     "bottlenest2transformerropegabsg":      (True,  False),
     "bottlenest2transformertabsg":         (False, True),
@@ -3056,6 +3057,18 @@ class Model(torch.nn.Module):
                 self.blocks.append(NestedBottleneckTransformerBlock(
                     name=block_name,
                     internal_length=2,
+                    c_main=self.c_trunk,
+                    c_mid=self.c_mid,
+                    config=self.config,
+                    activation=self.activation,
+                    pos_len=pos_len,
+                    use_swiglu=True,
+                    use_rope=True,
+                ))
+            elif block_kind == "bottlenest3transformerropesg":
+                self.blocks.append(NestedBottleneckTransformerBlock(
+                    name=block_name,
+                    internal_length=3,
                     c_main=self.c_trunk,
                     c_mid=self.c_mid,
                     config=self.config,

@@ -30,7 +30,8 @@ Export neural net weights to file for KataGo engine.
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-checkpoint', help='Checkpoint to test', required=True)
+parser.add_argument('-checkpoint', help='Checkpoint to test', required=False)
+parser.add_argument('-export-random-initialized-model', help='Instead of loading a checkpoint, export a freshly random-initialized model of the given model config name (e.g. b15c512h8nbttflrs-fson-silu-rsnh)', required=False)
 parser.add_argument('-export-dir', help='model file dir to save to', required=True)
 parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
@@ -42,12 +43,18 @@ args = vars(parser.parse_args())
 
 def main(args):
     checkpoint_file = args["checkpoint"]
+    export_random_initialized_model = args["export_random_initialized_model"]
     export_dir = args["export_dir"]
     model_name = args["model_name"]
     filename_prefix = args["filename_prefix"]
     use_swa = args["use_swa"]
     export_14_as_15 = args["export_14_as_15"]
     export_15_or_16_as_17 = args["export_15_or_16_as_17"]
+
+    if (checkpoint_file is None) == (export_random_initialized_model is None):
+        raise Exception("Exactly one of -checkpoint or -export-random-initialized-model must be specified")
+    if export_random_initialized_model is not None and use_swa:
+        raise Exception("-use-swa cannot be used with -export-random-initialized-model")
 
     os.makedirs(export_dir,exist_ok=True)
 
@@ -65,7 +72,19 @@ def main(args):
     logging.info(str(sys.argv))
 
     # LOAD MODEL ---------------------------------------------------------------------
-    model, swa_model, other_state_dict = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
+    if export_random_initialized_model is not None:
+        if export_random_initialized_model not in modelconfigs.config_of_name:
+            raise Exception(f"Unknown model config name: {export_random_initialized_model}")
+        model_config = modelconfigs.config_of_name[export_random_initialized_model]
+        logging.info(f"Exporting freshly random-initialized model with config: {export_random_initialized_model}")
+        logging.info(str(model_config))
+        model = Model(model_config, pos_len=19)
+        model.initialize()
+        model.to("cpu")
+        swa_model = None
+        other_state_dict = {}
+    else:
+        model, swa_model, other_state_dict = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
     model_config = model.config
 
     # WRITING MODEL ----------------------------------------------------------------
@@ -603,7 +622,7 @@ def main(args):
     f.close()
 
     with open(os.path.join(export_dir,"metadata.json"),"w") as f:
-        train_state = other_state_dict["train_state"]
+        train_state = other_state_dict.get("train_state", {})
         data = {}
         if "global_step_samples" in train_state:
             data["global_step_samples"] = train_state["global_step_samples"]
