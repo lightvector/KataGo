@@ -256,6 +256,11 @@ SWTransformerAttentionBlockDesc transformerAttentionBlockDescToSwift(const Trans
 
 /// Convert a transformer FFN block description from C++ to Swift
 SWTransformerFFNBlockDesc transformerFFNBlockDescToSwift(const TransformerFFNDesc* desc) {
+  // The Metal forward pass (metallayers.swift TransformerFFNBlock) only implements the SwiGLU path
+  // (SiLU(linear1) * gate); a non-SwiGLU model has no gate weights, so guard here as Eigen and CoreML
+  // do (eigenbackend.cpp / katagocoreml MILBuilder) instead of crashing on the empty gate descriptor.
+  if(!desc->useSwiGLU)
+    throw StringError(desc->name + ": non-SwiGLU transformer FFN not supported in Metal backend");
   SWTransformerRMSNormDesc preLN = transformerRMSNormDescToSwift(&desc->preLN);
   SWMatMulLayerDesc linear1 = matMulLayerDescToSwift(&desc->linear1);
   SWMatMulLayerDesc linearGate = matMulLayerDescToSwift(&desc->linearGate);
