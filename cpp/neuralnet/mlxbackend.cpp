@@ -254,6 +254,10 @@ static mx::array applyActivation(const mx::array& x, int activationType) {
       return mx::maximum(x, mx::array(0.0f));
     case ACTIVATION_MISH:
       return applyMish(x);
+    case ACTIVATION_SILU:
+      // SiLU (swish): x * sigmoid(x) = x / (1 + exp(-x)). Matches Eigen's
+      // ACTIVATION_SILU (x / ((-x).exp() + 1)). MLX's sigmoid is overflow-safe.
+      return x * mx::sigmoid(x);
     case ACTIVATION_MISH_SCALE8:
       // ACTIVATION_MISH_SCALE8 is an FP16-numerics workaround applied in-place
       // at model load by CUDA/OpenCL/TensorRT (see desc.cpp:applyScale8To-
@@ -520,6 +524,426 @@ struct MatBiasLayer {
   }
 };
 
+// --------------------------------------------------------------------------------------------------------------
+// Transformer layers (RMSNorm / attention / FFN).
+//
+// MLX operates on NHWC arrays [N, H, W, C]; C is the fastest (last) axis. The
+// Eigen ground-truth (eigenbackend.cpp) operates on (C, W, H, N) col-major and
+// reshapes spatial dims to a sequence. The math below mirrors Eigen exactly
+// but stays in MLX's native NHWC layout: the spatial dims H,W are adjacent and
+// C is last, so [N,H,W,C] reshapes contiguously to [N, seq, C] with
+// seq = H*W = nnYLen*nnXLen. The mask [N,H,W,1] reshapes to [N, seq, 1].
+//
+// All RMSNorm gamma/beta/weight buffers stay fp32 (like BatchNormLayer) to
+// preserve dynamic range; MLX type promotion lifts the normalize chain to fp32
+// and the trailing astype returns to compute dtype.
+// --------------------------------------------------------------------------------------------------------------
+
+// Lightweight RMSNorm used inside transformer blocks (weight only, no bias, no
+// spatial mode, no activation). Mirrors Eigen TransformerRMSNormLayer
+// (eigenbackend.cpp 866-918).
+struct TransformerRMSNormLayer {
+  const string name;
+  const int numChannels;
+  const float epsilon;
+  const bool useFP16;
+  mx::array weight;  // [C], always fp32
+
+  TransformerRMSNormLayer() = delete;
+  TransformerRMSNormLayer(const TransformerRMSNormLayer&) = delete;
+  TransformerRMSNormLayer& operator=(const TransformerRMSNormLayer&) = delete;
+
+  static mx::array createWeight(const TransformerRMSNormDesc& desc) {
+    mx::Shape shape = {desc.numChannels};
+    return mx::array(desc.weight.data(), shape, mx::float32);
+  }
+
+  TransformerRMSNormLayer(const TransformerRMSNormDesc& desc, bool useFP16_ = false)
+    : name(desc.name),
+      numChannels(desc.numChannels),
+      epsilon(desc.epsilon),
+      useFP16(useFP16_),
+      weight(createWeight(desc))
+  {}
+
+  // input/output NHWC [N, H, W, C] in compute dtype. mask NHW1 [N, H, W, 1].
+  // Per-position RMSNorm across channels: out = x * rsqrt(mean(x^2) + eps) * weight,
+  // then masked to zero on invalid positions (Eigen zeroes masked positions).
+  mx::array apply(const mx::array& input, const mx::array& mask, bool useMask) const {
+    // Variance reduction in fp32 (Eigen computes sumSq in fp32, eigenbackend.cpp
+    // 904-910). mx::mean over an fp16 operand would accumulate the per-channel
+    // sum of squares in fp16; promote to fp32 first so the reduction is
+    // overflow/precision-safe before rsqrt.
+    mx::array inputF32 = useFP16 ? mx::astype(input, mx::float32) : input;
+    std::vector<int> chAxis = {3};
+    mx::array meanSq = mx::mean(inputF32 * inputF32, chAxis, /*keepdims=*/true);  // [N,H,W,1], fp32
+    mx::array rms = mx::rsqrt(meanSq + mx::array(epsilon));
+    mx::array normalized = input * rms * weight;  // weight fp32 promotes chain to fp32
+    if(useMask)
+      normalized = normalized * mask;
+    if(useFP16) normalized = mx::astype(normalized, mx::float16);
+    return normalized;
+  }
+};
+
+// Full-featured RMSNorm for the trunk tip: gamma/beta, optional spatial mode,
+// optional activation. Mirrors Eigen RMSNormLayer (eigenbackend.cpp 922-1022).
+struct TransformerTrunkRMSNormLayer {
+  const string name;
+  const int numChannels;
+  const float epsilon;
+  const bool spatial;
+  const int activation;
+  const bool useFP16;
+  mx::array gamma;  // [C], always fp32
+  mx::array beta;   // [C], always fp32
+
+  TransformerTrunkRMSNormLayer() = delete;
+  TransformerTrunkRMSNormLayer(const TransformerTrunkRMSNormLayer&) = delete;
+  TransformerTrunkRMSNormLayer& operator=(const TransformerTrunkRMSNormLayer&) = delete;
+
+  static mx::array createVec(const std::vector<float>& data, int size) {
+    mx::Shape shape = {size};
+    return mx::array(data.data(), shape, mx::float32);
+  }
+
+  TransformerTrunkRMSNormLayer(const RMSNormLayerDesc& desc, int activation_, bool useFP16_ = false)
+    : name(desc.name),
+      numChannels(desc.numChannels),
+      epsilon(desc.epsilon),
+      spatial(desc.spatial),
+      activation(activation_),
+      useFP16(useFP16_),
+      gamma(createVec(desc.gamma, desc.numChannels)),
+      beta(createVec(desc.beta, desc.numChannels))
+  {}
+
+  // input/output NHWC [N, H, W, C]. mask NHW1 [N, H, W, 1]. maskSum N111.
+  mx::array apply(const mx::array& input, const mx::array& mask, const mx::array& maskSum, bool useMask) const {
+    // The variance reduction (sum/mean of squares) MUST run in fp32 even when
+    // the compute dtype is fp16. Eigen computes sumSq in fp32 (eigenbackend.cpp
+    // 968-1002). In fp16 the spatial branch sums x^2 over up to
+    // nnXLen*nnYLen*numChannels (e.g. 19*19*256 ≈ 92k) elements; an fp16
+    // accumulator saturates at 65504 and the rsqrt then yields 0/NaN/Inf which
+    // poisons the whole net (observed ~50% winrate / 99% top-policy error on the
+    // SiLU + spatial-rmsnorm-tip transformer). Promoting input to fp32 for the
+    // reduction makes the reduction overflow-free; the result rms is fp32 and the
+    // downstream normalize chain stays fp32 (gamma/beta are fp32 too) until the
+    // single trailing astype back to fp16.
+    mx::array inputF32 = useFP16 ? mx::astype(input, mx::float32) : input;
+    mx::array rms = mx::array(0.0f);
+    if(!spatial) {
+      // Non-spatial: per-position RMS across channels.
+      std::vector<int> chAxis = {3};
+      mx::array meanSq = mx::mean(inputF32 * inputF32, chAxis, /*keepdims=*/true);  // [N,H,W,1], fp32
+      rms = mx::rsqrt(meanSq + mx::array(epsilon));
+    }
+    else {
+      // Spatial: per-batch RMS across all valid spatial positions AND channels.
+      // sumSq over valid positions only (Eigen skips masked positions);
+      // totalElts = count * numChannels with count = maskSum (valid spatial count).
+      std::vector<int> spatialChAxes = {1, 2, 3};
+      mx::array x2 = inputF32 * inputF32;  // fp32 reduction operand (overflow-safe)
+      if(useMask)
+        x2 = x2 * mask;  // mask is [N,H,W,1], broadcasts over channels
+      mx::array sumSq = mx::sum(x2, spatialChAxes, /*keepdims=*/true);  // [N,1,1,1], fp32
+      // maskSum is [N,1,1,1] (valid spatial position count); when !useMask it is
+      // a constant nnXLen*nnYLen full array, equally valid.
+      mx::array totalElts = maskSum * mx::array((float)numChannels);
+      rms = mx::rsqrt(sumSq / totalElts + mx::array(epsilon));  // [N,1,1,1], fp32
+    }
+    mx::array normalized = input * rms * gamma + beta;  // gamma/beta fp32 promote chain
+    normalized = applyActivation(normalized, activation);
+    if(useMask)
+      normalized = normalized * mask;
+    if(useFP16) normalized = mx::astype(normalized, mx::float16);
+    return normalized;
+  }
+};
+
+// Transformer attention block: GQA + optional RoPE + masked scaled-dot-product
+// attention. Mirrors Eigen TransformerAttentionBlock (eigenbackend.cpp 1307-1588).
+struct TransformerAttentionBlock {
+  const string name;
+  const int numHeads;
+  const int numKVHeads;
+  const int qHeadDim;
+  const int vHeadDim;
+  const bool useRope;
+  const bool learnableRope;
+  const int inChannels;
+  const bool useFP16;
+  const int nnXLen;
+  const int nnYLen;
+
+  const TransformerRMSNormLayer preLN;
+  const MatMulLayer qProj;
+  const MatMulLayer kProj;
+  const MatMulLayer vProj;
+  const MatMulLayer outProj;
+
+  // Precomputed RoPE cos/sin tables, materialized as MLX arrays (always fp32).
+  // Learnable layout (after reshaping for our use): [numKVHeads, numPairs, seq].
+  // Fixed layout: [numPairs, seq]. ropeNumPairs = qHeadDim/2.
+  int ropeNumPairs;
+  mx::array ropeCos;  // valid iff useRope
+  mx::array ropeSin;  // valid iff useRope
+
+  TransformerAttentionBlock() = delete;
+  TransformerAttentionBlock(const TransformerAttentionBlock&) = delete;
+  TransformerAttentionBlock& operator=(const TransformerAttentionBlock&) = delete;
+
+  static mx::array makeRopeTable(const std::vector<float>& table, bool learnable, int numKVHeads, int numPairs, int seq) {
+    if(table.empty())
+      return mx::array(0.0f);
+    if(learnable) {
+      mx::Shape shape = {numKVHeads, numPairs, seq};
+      return mx::array(table.data(), shape, mx::float32);
+    }
+    mx::Shape shape = {numPairs, seq};
+    return mx::array(table.data(), shape, mx::float32);
+  }
+
+  TransformerAttentionBlock(const TransformerAttentionDesc& desc, int nnX, int nnY, bool useFP16_ = false)
+    : name(desc.name),
+      numHeads(desc.numHeads),
+      numKVHeads(desc.numKVHeads),
+      qHeadDim(desc.qHeadDim),
+      vHeadDim(desc.vHeadDim),
+      useRope(desc.useRope),
+      learnableRope(desc.learnableRope),
+      inChannels(desc.qProj.inChannels),
+      useFP16(useFP16_),
+      nnXLen(nnX),
+      nnYLen(nnY),
+      preLN(desc.preLN, useFP16_),
+      qProj(desc.qProj, useFP16_),
+      kProj(desc.kProj, useFP16_),
+      vProj(desc.vProj, useFP16_),
+      outProj(desc.outProj, useFP16_),
+      ropeNumPairs(0),
+      ropeCos(mx::array(0.0f)),
+      ropeSin(mx::array(0.0f))
+  {
+    if(useRope) {
+      ropeNumPairs = qHeadDim / 2;
+      int seq = nnX * nnY;
+      int paddedNNXYLen = seq;
+      std::vector<float> cosTable, sinTable;
+      desc.computeRopeCosSin(nnX, nnY, paddedNNXYLen, cosTable, sinTable);
+      ropeCos = makeRopeTable(cosTable, learnableRope, numKVHeads, ropeNumPairs, seq);
+      ropeSin = makeRopeTable(sinTable, learnableRope, numKVHeads, ropeNumPairs, seq);
+    }
+  }
+
+  // Apply RoPE to a projection laid out as [N, seq, numBufHeads, headDim].
+  // RoPE rotates interleaved channel pairs (2p, 2p+1) within each head.
+  // cos/sin tables map per (kvHead-of-this-head, pair, seq). Returns rotated
+  // array in the same shape. headDim == qHeadDim here.
+  mx::array applyRope(const mx::array& proj, int numBufHeads) const {
+    int seq = nnXLen * nnYLen;
+    int batchSize = proj.shape()[0];
+    // Split even/odd channel pairs. proj: [N, seq, numBufHeads, qHeadDim].
+    // Reshape to [N, seq, numBufHeads, ropeNumPairs, 2] then take [...,0]/[...,1].
+    mx::Shape pairShape = {batchSize, seq, numBufHeads, ropeNumPairs, 2};
+    mx::array pairs = mx::reshape(proj, pairShape);
+    mx::array x0 = mx::squeeze(mx::slice(pairs, {0,0,0,0,0}, {batchSize, seq, numBufHeads, ropeNumPairs, 1}), std::vector<int>{4});  // [N,seq,H,pairs]
+    mx::array x1 = mx::squeeze(mx::slice(pairs, {0,0,0,0,1}, {batchSize, seq, numBufHeads, ropeNumPairs, 2}), std::vector<int>{4});  // [N,seq,H,pairs]
+
+    // Build cos/sin broadcastable to [N, seq, numBufHeads, ropeNumPairs].
+    // Source tables: learnable [numKVHeads, pairs, seq]; fixed [pairs, seq].
+    // Target per-head index kvh = h * numKVHeads / numBufHeads (Eigen mapping).
+    mx::array cosB = mx::array(0.0f);
+    mx::array sinB = mx::array(0.0f);
+    if(learnableRope) {
+      // Expand each KV head to the Q heads that map to it. For head h,
+      // kvh = h * numKVHeads / numBufHeads. With numBufHeads a multiple of
+      // numKVHeads, this is a contiguous block expansion: repeat each kv head
+      // (numBufHeads / numKVHeads) times along the head axis.
+      int groupSize = numBufHeads / numKVHeads;
+      // ropeCos: [numKVHeads, pairs, seq] -> [numBufHeads, pairs, seq]
+      mx::array cosHeads = mx::repeat(ropeCos, groupSize, /*axis=*/0);  // [numBufHeads, pairs, seq]
+      mx::array sinHeads = mx::repeat(ropeSin, groupSize, /*axis=*/0);
+      // -> [seq, numBufHeads, pairs] then expand batch axis
+      cosHeads = mx::transpose(cosHeads, std::vector<int>{2, 0, 1});  // [seq, numBufHeads, pairs]
+      sinHeads = mx::transpose(sinHeads, std::vector<int>{2, 0, 1});
+      cosB = mx::expand_dims(cosHeads, 0);  // [1, seq, numBufHeads, pairs]
+      sinB = mx::expand_dims(sinHeads, 0);
+    }
+    else {
+      // ropeCos: [pairs, seq] -> [seq, pairs], broadcast over heads.
+      mx::array cosSP = mx::transpose(ropeCos, std::vector<int>{1, 0});  // [seq, pairs]
+      mx::array sinSP = mx::transpose(ropeSin, std::vector<int>{1, 0});
+      cosB = mx::expand_dims(mx::expand_dims(cosSP, 1), 0);  // [1, seq, 1, pairs]
+      sinB = mx::expand_dims(mx::expand_dims(sinSP, 1), 0);
+    }
+    if(useFP16) {
+      cosB = mx::astype(cosB, mx::float16);
+      sinB = mx::astype(sinB, mx::float16);
+    }
+
+    mx::array r0 = x0 * cosB - x1 * sinB;  // [N,seq,H,pairs]
+    mx::array r1 = x0 * sinB + x1 * cosB;
+    // Re-interleave: stack along new last axis -> [N,seq,H,pairs,2] -> [N,seq,H,qHeadDim].
+    mx::array stacked = mx::stack(std::vector<mx::array>{r0, r1}, /*axis=*/4);
+    mx::Shape outShape = {batchSize, seq, numBufHeads, ropeNumPairs * 2};
+    return mx::reshape(stacked, outShape);
+  }
+
+  // input/output NHWC [N, H, W, C]. mask NHW1 [N, H, W, 1].
+  mx::array apply(const mx::array& trunk, const mx::array& mask, bool useMask) const {
+    int batchSize = trunk.shape()[0];
+    int seq = nnXLen * nnYLen;
+    int kvGroupSize = numHeads / numKVHeads;
+    float scale = 1.0f / sqrtf((float)qHeadDim);
+
+    // Step 1: preLN RMSNorm (masks output to zero on invalid positions).
+    mx::array normed = preLN.apply(trunk, mask, useMask);  // [N,H,W,C]
+
+    // Flatten spatial dims to a sequence: [N, seq, C].
+    mx::Shape seqShape = {batchSize, seq, inChannels};
+    mx::array normedSeq = mx::reshape(normed, seqShape);
+
+    // Step 2: Q/K/V projections. weights are [inC, outC]; x[N,seq,inC] @ W.
+    mx::array q = mx::matmul(normedSeq, qProj.weights);  // [N, seq, numHeads*qHeadDim]
+    mx::array k = mx::matmul(normedSeq, kProj.weights);  // [N, seq, numKVHeads*qHeadDim]
+    mx::array v = mx::matmul(normedSeq, vProj.weights);  // [N, seq, numKVHeads*vHeadDim]
+
+    // Reshape to per-head: [N, seq, numHeads, qHeadDim] etc.
+    q = mx::reshape(q, mx::Shape{batchSize, seq, numHeads, qHeadDim});
+    k = mx::reshape(k, mx::Shape{batchSize, seq, numKVHeads, qHeadDim});
+    v = mx::reshape(v, mx::Shape{batchSize, seq, numKVHeads, vHeadDim});
+
+    // Step 3: RoPE on Q and K.
+    if(useRope) {
+      q = applyRope(q, numHeads);
+      k = applyRope(k, numKVHeads);
+    }
+
+    // Move head axis ahead of seq: [N, numHeads, seq, headDim].
+    q = mx::transpose(q, std::vector<int>{0, 2, 1, 3});  // [N, numHeads, seq, qHeadDim]
+    k = mx::transpose(k, std::vector<int>{0, 2, 1, 3});  // [N, numKVHeads, seq, qHeadDim]
+    v = mx::transpose(v, std::vector<int>{0, 2, 1, 3});  // [N, numKVHeads, seq, vHeadDim]
+
+    // Expand KV heads to match Q heads (GQA): repeat each kv head kvGroupSize
+    // times so head h uses kv head h/kvGroupSize (Eigen kvh = h / kvGroupSize).
+    if(kvGroupSize > 1) {
+      k = mx::repeat(k, kvGroupSize, /*axis=*/1);  // [N, numHeads, seq, qHeadDim]
+      v = mx::repeat(v, kvGroupSize, /*axis=*/1);  // [N, numHeads, seq, vHeadDim]
+    }
+
+    // Step 4: scores = scale * Q @ K^T -> [N, numHeads, seq(query), seq(key)].
+    // matmul result dtype follows q's compute dtype; a float32 scalar multiply
+    // keeps that dtype (scalar promotes to the array dtype, not vice versa).
+    mx::array kT = mx::transpose(k, std::vector<int>{0, 1, 3, 2});  // [N, numHeads, qHeadDim, seq]
+    mx::array scores = mx::matmul(q, kT) * mx::array(scale);
+
+    // Masked softmax over the key axis (last). Keys with mask==0 get -inf so
+    // they contribute 0; fully-masked query rows are zeroed afterward to match
+    // Eigen (which zeroes masked query rows entirely).
+    if(useMask) {
+      // keyMask: [N, 1, 1, seq] broadcasting over heads and query positions.
+      // Use 1e4 (not 1e9): representable in fp16, and exp(-1e4) underflows to 0
+      // cleanly, avoiding inf arithmetic. Scores are O(1)*scale, so 1e4 fully
+      // suppresses masked keys. The board is never fully masked, so no query row
+      // is all-masked -> softmax never sees an all -inf row (no NaN).
+      mx::array maskSeq = mx::reshape(mask, mx::Shape{batchSize, 1, 1, seq});  // [N,1,1,seq]
+      mx::array neg = (mx::array(1.0f) - maskSeq) * mx::array(1e4f);
+      if(useFP16) neg = mx::astype(neg, mx::float16);
+      scores = scores - neg;
+    }
+    mx::array weights = mx::softmax(scores, /*axis=*/3, /*precise=*/true);  // [N, numHeads, seq, seq]
+
+    // attnOut = weights @ V -> [N, numHeads, seq(query), vHeadDim].
+    mx::array attn = mx::matmul(weights, v);
+
+    if(useMask) {
+      // Zero out fully-masked query rows (Eigen zeroes masked queries). With a
+      // masked-key softmax a masked query still produces a normalized row, but
+      // its residual contribution is gated by the trunk residual mask below, so
+      // this extra gating is for parity; multiply by query mask.
+      mx::array qMask = mx::reshape(mask, mx::Shape{batchSize, 1, seq, 1});  // [N,1,seq,1]
+      attn = attn * qMask;
+    }
+
+    // Merge heads back: [N, numHeads, seq, vHeadDim] -> [N, seq, numHeads*vHeadDim].
+    attn = mx::transpose(attn, std::vector<int>{0, 2, 1, 3});  // [N, seq, numHeads, vHeadDim]
+    attn = mx::reshape(attn, mx::Shape{batchSize, seq, numHeads * vHeadDim});
+
+    // Step 5: output projection -> [N, seq, outC] (outC == inChannels).
+    mx::array out = mx::matmul(attn, outProj.weights);  // [N, seq, inChannels]
+    mx::array outSpatial = mx::reshape(out, mx::Shape{batchSize, nnYLen, nnXLen, inChannels});
+
+    // Step 6: residual + mask. (Eigen adds outProj * maskVal to trunk.)
+    if(useMask)
+      outSpatial = outSpatial * mask;
+    return trunk + outSpatial;
+  }
+};
+
+// Transformer FFN block: SwiGLU. Mirrors Eigen TransformerFFNBlock
+// (eigenbackend.cpp 1592-1707). Non-SwiGLU is unsupported (Eigen throws too).
+struct TransformerFFNBlock {
+  const string name;
+  const int numChannels;
+  const int ffnChannels;
+  const bool useSwiGLU;
+  const bool useFP16;
+  const int nnXLen;
+  const int nnYLen;
+
+  const TransformerRMSNormLayer preLN;
+  const MatMulLayer linear1;
+  unique_ptr<MatMulLayer> linearGate;
+  const MatMulLayer linear2;
+
+  TransformerFFNBlock() = delete;
+  TransformerFFNBlock(const TransformerFFNBlock&) = delete;
+  TransformerFFNBlock& operator=(const TransformerFFNBlock&) = delete;
+
+  TransformerFFNBlock(const TransformerFFNDesc& desc, int nnX, int nnY, bool useFP16_ = false)
+    : name(desc.name),
+      numChannels(desc.numChannels),
+      ffnChannels(desc.ffnChannels),
+      useSwiGLU(desc.useSwiGLU),
+      useFP16(useFP16_),
+      nnXLen(nnX),
+      nnYLen(nnY),
+      preLN(desc.preLN, useFP16_),
+      linear1(desc.linear1, useFP16_),
+      linear2(desc.linear2, useFP16_)
+  {
+    if(useSwiGLU)
+      linearGate = make_unique<MatMulLayer>(desc.linearGate, useFP16_);
+    else
+      throw StringError("MLX backend: Non-SwiGLU transformer FFN is not supported");
+  }
+
+  // input/output NHWC [N, H, W, C]. mask NHW1 [N, H, W, 1].
+  mx::array apply(const mx::array& trunk, const mx::array& mask, bool useMask) const {
+    int batchSize = trunk.shape()[0];
+    int seq = nnXLen * nnYLen;
+
+    // Step 1: preLN RMSNorm.
+    mx::array normed = preLN.apply(trunk, mask, useMask);  // [N,H,W,C]
+    mx::array normedSeq = mx::reshape(normed, mx::Shape{batchSize, seq, numChannels});
+
+    // Step 2/3: SwiGLU = SiLU(linear1(x)) * linearGate(x).
+    mx::array a = mx::matmul(normedSeq, linear1.weights);     // [N, seq, ffnChannels]
+    mx::array gate = mx::matmul(normedSeq, linearGate->weights);
+    mx::array swiglu = (a * mx::sigmoid(a)) * gate;          // SiLU(a) * gate
+
+    // Step 4: linear2 -> [N, seq, numChannels].
+    mx::array out = mx::matmul(swiglu, linear2.weights);
+    mx::array outSpatial = mx::reshape(out, mx::Shape{batchSize, nnYLen, nnXLen, numChannels});
+
+    // Step 5: residual + mask.
+    if(useMask)
+      outSpatial = outSpatial * mask;
+    return trunk + outSpatial;
+  }
+};
+
 // Global pooling: computes [mean, mean * (sqrt(maskSum) - 14) * 0.1, max] concatenated along channel axis
 static mx::array applyGlobalPooling(const mx::array& input, const mx::array& mask, const mx::array& maskSum, bool useMask) {
   // input: NHWC [N, H, W, C]
@@ -660,11 +1084,13 @@ struct NestedBottleneckResidualBlock;
 
 // Block variant type for trunk
 struct BlockVariant {
-  enum Type { REGULAR, GLOBAL_POOLING, NESTED_BOTTLENECK };
+  enum Type { REGULAR, GLOBAL_POOLING, NESTED_BOTTLENECK, TRANSFORMER_ATTENTION, TRANSFORMER_FFN };
   Type type;
   unique_ptr<ResidualBlock> regular;
   unique_ptr<GlobalPoolingResidualBlock> globalPooling;
   unique_ptr<NestedBottleneckResidualBlock> nestedBottleneck;
+  unique_ptr<TransformerAttentionBlock> attention;
+  unique_ptr<TransformerFFNBlock> ffn;
 
   BlockVariant(const ResidualBlockDesc& desc,
                const MLXWinograd::InputTransform& inCfg,
@@ -678,10 +1104,22 @@ struct BlockVariant {
                bool useFP16 = false)
     : type(GLOBAL_POOLING), globalPooling(make_unique<GlobalPoolingResidualBlock>(desc, inCfg, outCfg, useFP16)) {}
 
-  // Forward declaration - defined after NestedBottleneckResidualBlock
+  // Transformer blocks have no convolutions, so they take board dims (nnX, nnY)
+  // instead of Winograd transform configs.
+  BlockVariant(const TransformerAttentionDesc& desc, int nnX, int nnY, bool useFP16 = false)
+    : type(TRANSFORMER_ATTENTION), attention(make_unique<TransformerAttentionBlock>(desc, nnX, nnY, useFP16)) {}
+
+  BlockVariant(const TransformerFFNDesc& desc, int nnX, int nnY, bool useFP16 = false)
+    : type(TRANSFORMER_FFN), ffn(make_unique<TransformerFFNBlock>(desc, nnX, nnY, useFP16)) {}
+
+  // Forward declaration - defined after NestedBottleneckResidualBlock.
+  // Takes nnX/nnY so any transformer blocks nested inside the bottleneck can
+  // precompute their RoPE tables.
   BlockVariant(const NestedBottleneckResidualBlockDesc& desc,
                const MLXWinograd::InputTransform& inCfg,
                const MLXWinograd::OutputUntransform& outCfg,
+               int nnX,
+               int nnY,
                bool useFP16);
 
   mx::array apply(const mx::array& input, const mx::array& mask, const mx::array& maskSum, bool useMask) const;
@@ -702,6 +1140,8 @@ struct NestedBottleneckResidualBlock {
   NestedBottleneckResidualBlock(const NestedBottleneckResidualBlockDesc& desc,
                                 const MLXWinograd::InputTransform& inCfg,
                                 const MLXWinograd::OutputUntransform& outCfg,
+                                int nnX,
+                                int nnY,
                                 bool useFP16 = false)
     : name(desc.name),
       preBN(desc.preBN, desc.preActivation.activation, useFP16),
@@ -716,6 +1156,12 @@ struct NestedBottleneckResidualBlock {
       }
       else if(blockKind == GLOBAL_POOLING_BLOCK_KIND) {
         blocks.emplace_back(*static_cast<GlobalPoolingResidualBlockDesc*>(desc.blocks[i].second.get()), inCfg, outCfg, useFP16);
+      }
+      else if(blockKind == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+        blocks.emplace_back(*static_cast<TransformerAttentionDesc*>(desc.blocks[i].second.get()), nnX, nnY, useFP16);
+      }
+      else if(blockKind == TRANSFORMER_FFN_BLOCK_KIND) {
+        blocks.emplace_back(*static_cast<TransformerFFNDesc*>(desc.blocks[i].second.get()), nnX, nnY, useFP16);
       }
     }
   }
@@ -739,8 +1185,10 @@ struct NestedBottleneckResidualBlock {
 BlockVariant::BlockVariant(const NestedBottleneckResidualBlockDesc& desc,
                            const MLXWinograd::InputTransform& inCfg,
                            const MLXWinograd::OutputUntransform& outCfg,
+                           int nnX,
+                           int nnY,
                            bool useFP16)
-  : type(NESTED_BOTTLENECK), nestedBottleneck(make_unique<NestedBottleneckResidualBlock>(desc, inCfg, outCfg, useFP16)) {}
+  : type(NESTED_BOTTLENECK), nestedBottleneck(make_unique<NestedBottleneckResidualBlock>(desc, inCfg, outCfg, nnX, nnY, useFP16)) {}
 
 mx::array BlockVariant::apply(const mx::array& input, const mx::array& mask, const mx::array& maskSum, bool useMask) const {
   switch(type) {
@@ -750,6 +1198,10 @@ mx::array BlockVariant::apply(const mx::array& input, const mx::array& mask, con
       return globalPooling->apply(input, mask, maskSum, useMask);
     case NESTED_BOTTLENECK:
       return nestedBottleneck->apply(input, mask, maskSum, useMask);
+    case TRANSFORMER_ATTENTION:
+      return attention->apply(input, mask, useMask);
+    case TRANSFORMER_FFN:
+      return ffn->apply(input, mask, useMask);
     default:
       return input;
   }
@@ -798,11 +1250,18 @@ struct SGFMetadataEncoder {
 struct Trunk {
   const string name;
   const int trunkNumChannels;
+  const int trunkNormKind;
   const ConvLayer initialConv;
   const MatMulLayer initialMatMul;
   unique_ptr<SGFMetadataEncoder> sgfMetadataEncoder;
   vector<BlockVariant> blocks;
-  const BatchNormLayer trunkTipBN;
+  // Exactly one of these is populated depending on trunkNormKind. For
+  // TRUNK_NORM_KIND_RMSNORM the trunkTipBN desc on disk is empty (size-0
+  // weights), so constructing a BatchNormLayer from it would create empty
+  // arrays that broadcast against the spatial trunk and crash. Mirrors Eigen's
+  // Trunk (eigenbackend.cpp 1875-1880) which selects BN vs RMSNorm at load.
+  unique_ptr<BatchNormLayer> trunkTipBN;
+  unique_ptr<TransformerTrunkRMSNormLayer> trunkTipRMSNorm;
 
   Trunk() = delete;
   Trunk(const Trunk&) = delete;
@@ -811,13 +1270,24 @@ struct Trunk {
   Trunk(const TrunkDesc& desc,
         const MLXWinograd::InputTransform& inCfg,
         const MLXWinograd::OutputUntransform& outCfg,
+        int nnX,
+        int nnY,
         bool useFP16 = false)
     : name(desc.name),
       trunkNumChannels(desc.trunkNumChannels),
+      trunkNormKind(desc.trunkNormKind),
       initialConv(desc.initialConv, inCfg, outCfg, useFP16),
-      initialMatMul(desc.initialMatMul, useFP16),
-      trunkTipBN(desc.trunkTipBN, desc.trunkTipActivation.activation, useFP16)
+      initialMatMul(desc.initialMatMul, useFP16)
   {
+    // Trunk tip normalization: BatchNorm for standard nets, RMSNorm for
+    // transformer nets. Only the desc matching trunkNormKind was parsed.
+    if(desc.trunkNormKind == TRUNK_NORM_KIND_STANDARD) {
+      trunkTipBN = make_unique<BatchNormLayer>(desc.trunkTipBN, desc.trunkTipActivation.activation, useFP16);
+    }
+    else {
+      trunkTipRMSNorm = make_unique<TransformerTrunkRMSNormLayer>(desc.trunkTipRMSNorm, desc.trunkTipActivation.activation, useFP16);
+    }
+
     if(desc.sgfMetadataEncoder.metaEncoderVersion > 0 && desc.sgfMetadataEncoder.numInputMetaChannels > 0) {
       sgfMetadataEncoder = make_unique<SGFMetadataEncoder>(desc.sgfMetadataEncoder, useFP16);
     }
@@ -831,7 +1301,13 @@ struct Trunk {
         blocks.emplace_back(*static_cast<GlobalPoolingResidualBlockDesc*>(desc.blocks[i].second.get()), inCfg, outCfg, useFP16);
       }
       else if(blockKind == NESTED_BOTTLENECK_BLOCK_KIND) {
-        blocks.emplace_back(*static_cast<NestedBottleneckResidualBlockDesc*>(desc.blocks[i].second.get()), inCfg, outCfg, useFP16);
+        blocks.emplace_back(*static_cast<NestedBottleneckResidualBlockDesc*>(desc.blocks[i].second.get()), inCfg, outCfg, nnX, nnY, useFP16);
+      }
+      else if(blockKind == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+        blocks.emplace_back(*static_cast<TransformerAttentionDesc*>(desc.blocks[i].second.get()), nnX, nnY, useFP16);
+      }
+      else if(blockKind == TRANSFORMER_FFN_BLOCK_KIND) {
+        blocks.emplace_back(*static_cast<TransformerFFNDesc*>(desc.blocks[i].second.get()), nnX, nnY, useFP16);
       }
     }
   }
@@ -871,8 +1347,13 @@ struct Trunk {
       trunk = block.apply(trunk, mask, maskSum, useMask);
     }
 
-    // Final BN + activation
-    trunk = trunkTipBN.apply(trunk, mask, useMask);
+    // Final trunk-tip normalization + activation: BatchNorm or RMSNorm.
+    if(trunkNormKind == TRUNK_NORM_KIND_STANDARD) {
+      trunk = trunkTipBN->apply(trunk, mask, useMask);
+    }
+    else {
+      trunk = trunkTipRMSNorm->apply(trunk, mask, maskSum, useMask);
+    }
 
     return trunk;
   }
@@ -1065,7 +1546,11 @@ struct Model {
   Model(const Model&) = delete;
   Model& operator=(const Model&) = delete;
 
-  Model(const ModelDesc& desc, const MLXWinogradTuneParams& tuneParams, bool useFP16_ = false)
+  // nnX/nnY (board dims) are needed by transformer attention blocks to
+  // precompute RoPE cos/sin tables, which are position-dependent. The MLX
+  // compiled graph is keyed by nnXLen/nnYLen so a Model built for one board
+  // size is never reused for another.
+  Model(const ModelDesc& desc, const MLXWinogradTuneParams& tuneParams, int nnX, int nnY, bool useFP16_ = false)
     : name(desc.name),
       modelVersion(desc.modelVersion),
       numInputChannels(desc.numInputChannels),
@@ -1079,7 +1564,7 @@ struct Model {
       numScoreValueChannels(desc.numScoreValueChannels),
       numOwnershipChannels(desc.numOwnershipChannels),
       useFP16(useFP16_),
-      trunk(desc.trunk, tuneParams.inputTransform, tuneParams.outputUntransform, useFP16_),
+      trunk(desc.trunk, tuneParams.inputTransform, tuneParams.outputUntransform, nnX, nnY, useFP16_),
       policyHead(desc.policyHead, tuneParams.inputTransform, tuneParams.outputUntransform, useFP16_),
       valueHead(desc.valueHead, tuneParams.inputTransform, tuneParams.outputUntransform, useFP16_)
   {}
@@ -1481,7 +1966,8 @@ struct ComputeHandle {
     std::lock_guard<std::mutex> lock(context->cachedModelsMutex);
     if(context->cachedModels.find(modelCacheKey) == context->cachedModels.end()) {
       context->cachedModels[modelCacheKey] =
-          std::make_shared<const Model>(loadedModel.modelDesc, tuneParams, useFP16_);
+          std::make_shared<const Model>(loadedModel.modelDesc, tuneParams,
+                                        context->nnXLen, context->nnYLen, useFP16_);
     }
     model = context->cachedModels[modelCacheKey];
     context->cachedModelsRefCount[modelCacheKey] += 1;
