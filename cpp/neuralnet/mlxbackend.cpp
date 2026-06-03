@@ -950,24 +950,32 @@ static mx::array applyGlobalPooling(const mx::array& input, const mx::array& mas
   // mask: NHW1 [N, H, W, 1]
   // maskSum: N111 [N, 1, 1, 1]
 
-  // Compute sum over spatial dims
+  // Keep the whole pooling in the input's compute dtype (fp16 in fp16 mode) so
+  // the pooled output matches the trunk and the downstream gpool-bias matmul
+  // stays fp16. maskSum is the valid-position count (<=361 for 19x19), exact in
+  // fp16. The fp32-accumulation variant measured negligible accuracy gain
+  // (PR#1199 M1), so prefer fp16 consistency (minimize fp32 when useFP16).
+  const auto dt = input.dtype();
   std::vector<int> spatialAxes = {1, 2};
-  mx::array spatialSum = mx::sum(input, spatialAxes, /*keepdims=*/true); // [N, 1, 1, C]
+  mx::array spatialSum = mx::sum(input, spatialAxes, /*keepdims=*/true); // [N, 1, 1, C], dt
+  mx::array maskSumDt = mx::astype(maskSum, dt);
 
   // Mean = sum / maskSum
-  mx::array mean = spatialSum / maskSum; // [N, 1, 1, C]
+  mx::array mean = spatialSum / maskSumDt; // [N, 1, 1, C], dt
 
-  // sqrt(maskSum) - 14) * 0.1
-  mx::array sqrtMaskSum = mx::sqrt(maskSum);
+  // sqrt(maskSum) - 14) * 0.1   (scalar literals promote to fp32; cast result back to dt)
+  mx::array sqrtMaskSum = mx::sqrt(maskSumDt);
   mx::array scaleFactor = (sqrtMaskSum - mx::array(14.0f)) * mx::array(0.1f);
-  mx::array meanScaled = mean * scaleFactor;
+  mx::array meanScaled = mx::astype(mean * scaleFactor, dt); // dt
 
-  // Max - skip mask adjustment when useMask=false (all positions valid)
+  // Max - masked positions pushed down in fp32 (1e9 overflows fp16 -> inf/NaN),
+  // then cast back to dt. Skip the mask adjustment when useMask=false.
   mx::array maxVal = useMask
     ? mx::max(input - (mx::array(1.0f) - mask) * mx::array(1e9f), spatialAxes, /*keepdims=*/true)
     : mx::max(input, spatialAxes, /*keepdims=*/true);
+  maxVal = mx::astype(maxVal, dt); // dt
 
-  // Concatenate along channel axis (axis 3 for NHWC)
+  // Concatenate along channel axis (axis 3 for NHWC); all components are dt
   std::vector<mx::array> concatInputs = {mean, meanScaled, maxVal};
   return mx::concatenate(concatInputs, /*axis=*/3);
 }
@@ -977,14 +985,18 @@ static mx::array applyValueHeadPooling(const mx::array& input, const mx::array& 
   // input: NHWC [N, H, W, C]
   // maskSum: N111 [N, 1, 1, 1]
 
+  // fp16-consistent (see applyGlobalPooling): keep the value-head pooling in the
+  // compute dtype so the v2 matmul stays fp16.
+  const auto dt = input.dtype();
   std::vector<int> spatialAxes = {1, 2};
-  mx::array spatialSum = mx::sum(input, spatialAxes, /*keepdims=*/true);
-  mx::array mean = spatialSum / maskSum;
+  mx::array spatialSum = mx::sum(input, spatialAxes, /*keepdims=*/true); // dt
+  mx::array maskSumDt = mx::astype(maskSum, dt);
+  mx::array mean = spatialSum / maskSumDt; // dt
 
-  mx::array sqrtMaskSum = mx::sqrt(maskSum);
+  mx::array sqrtMaskSum = mx::sqrt(maskSumDt);
   mx::array diff = sqrtMaskSum - mx::array(14.0f);
-  mx::array meanScaled1 = mean * diff * mx::array(0.1f);
-  mx::array meanScaled2 = mean * (diff * diff * mx::array(0.01f) - mx::array(0.1f));
+  mx::array meanScaled1 = mx::astype(mean * diff * mx::array(0.1f), dt);
+  mx::array meanScaled2 = mx::astype(mean * (diff * diff * mx::array(0.01f) - mx::array(0.1f)), dt);
 
   std::vector<mx::array> concatInputs = {mean, meanScaled1, meanScaled2};
   return mx::concatenate(concatInputs, /*axis=*/3);
