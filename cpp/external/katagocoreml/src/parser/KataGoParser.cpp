@@ -422,6 +422,20 @@ static void checkBlockChannels(const std::string& block_name, const std::string&
     }
 }
 
+// Validate one transformer-attention projection matmul dimension against the head
+// geometry / trunk width. The CoreML graph builder reshapes each projection's flat
+// output into a [seq, heads, headDim] grid and reshapes the out-projection result
+// back into the trunk, so a declared dimension that disagrees either reads past the
+// weight buffer or builds a graph that compiles but computes nonsense.
+// Match master desc.cpp's transformer attention consistency checks.
+static void checkAttentionProjDim(const std::string& block_name, const std::string& dim_name,
+                                  int actual, const std::string& expected_name, int expected) {
+    if (actual != expected) {
+        throw std::runtime_error(block_name + ": " + dim_name + " (" + std::to_string(actual) +
+                                 ") != " + expected_name + " (" + std::to_string(expected) + ")");
+    }
+}
+
 TransformerRMSNormDesc KataGoParser::parseTransformerRMSNorm() {
     TransformerRMSNormDesc layer;
     layer.name = readString();
@@ -452,7 +466,7 @@ RMSNormLayerDesc KataGoParser::parseRMSNormLayer() {
     return layer;
 }
 
-TransformerAttentionBlockDesc KataGoParser::parseTransformerAttentionBlock(int model_version) {
+TransformerAttentionBlockDesc KataGoParser::parseTransformerAttentionBlock(int model_version, int trunk_num_channels) {
     TransformerAttentionBlockDesc block;
     block.name = readString();
     block.num_heads = readInt();
@@ -474,6 +488,22 @@ TransformerAttentionBlockDesc KataGoParser::parseTransformerAttentionBlock(int m
     block.k_proj = parseMatMulLayer();
     block.v_proj = parseMatMulLayer();
     block.out_proj = parseMatMulLayer();
+
+    // Validate the four projection matmul dimensions against the head geometry and
+    // trunk width. Six mirror master desc.cpp's transformer attention checks
+    // (desc.cpp:1129-1136, 1430-1443); the k/v inChannels checks additionally close
+    // a gap master leaves implicit to the backend - all three QKV projections
+    // consume the same normed-trunk input, so their inChannels must equal the trunk
+    // width. K pairs with Q in the QK^T dot product, so kProj uses qHeadDim; only V
+    // carries vHeadDim.
+    checkAttentionProjDim(block.name, "qProj.inChannels",    block.q_proj.in_channels,    "trunkNumChannels",    trunk_num_channels);
+    checkAttentionProjDim(block.name, "qProj.outChannels",   block.q_proj.out_channels,   "numHeads*qHeadDim",   block.num_heads    * block.q_head_dim);
+    checkAttentionProjDim(block.name, "kProj.inChannels",    block.k_proj.in_channels,    "trunkNumChannels",    trunk_num_channels);
+    checkAttentionProjDim(block.name, "kProj.outChannels",   block.k_proj.out_channels,   "numKVHeads*qHeadDim", block.num_kv_heads * block.q_head_dim);
+    checkAttentionProjDim(block.name, "vProj.inChannels",    block.v_proj.in_channels,    "trunkNumChannels",    trunk_num_channels);
+    checkAttentionProjDim(block.name, "vProj.outChannels",   block.v_proj.out_channels,   "numKVHeads*vHeadDim", block.num_kv_heads * block.v_head_dim);
+    checkAttentionProjDim(block.name, "outProj.inChannels",  block.out_proj.in_channels,  "numHeads*vHeadDim",   block.num_heads    * block.v_head_dim);
+    checkAttentionProjDim(block.name, "outProj.outChannels", block.out_proj.out_channels, "trunkNumChannels",    trunk_num_channels);
 
     if (block.use_rope) {
         if (block.learnable_rope) {
@@ -545,7 +575,7 @@ std::vector<BlockEntry> KataGoParser::parseBlockStack(int model_version, int num
             entry.block = std::make_shared<BlockDesc>(std::move(desc));
         } else if (block_kind_name == "transformer_attention_block") {
             entry.block_kind = TRANSFORMER_ATTENTION_BLOCK_KIND;
-            auto desc = parseTransformerAttentionBlock(model_version);
+            auto desc = parseTransformerAttentionBlock(model_version, trunk_num_channels);
             entry.block = std::make_shared<BlockDesc>(std::move(desc));
         } else if (block_kind_name == "transformer_ffn_block") {
             entry.block_kind = TRANSFORMER_FFN_BLOCK_KIND;
