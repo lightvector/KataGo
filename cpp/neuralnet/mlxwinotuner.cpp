@@ -168,7 +168,7 @@ namespace {
 static double timeOneInputTransform(
     const MLXWinograd::InputTransform& cfg,
     const mx::array& input, int channels,
-    bool useFP16) {
+    bool useFP16, bool doWarmup) {
   int N = input.shape(0);
   int H = input.shape(1);
   int W = input.shape(2);
@@ -212,9 +212,10 @@ static double timeOneInputTransform(
     {"GRID_ORDER",    (int)cfg.gridOrder}
   };
 
-  // Untimed warmup: ensures pipeline-state + lazy-graph caches are hot for THIS
-  // config before the timed eval.
-  {
+  // Untimed warmup (gated to the first measured rep per shape): hots
+  // pipeline-state + lazy-graph caches for THIS config before the timed eval.
+  // Caller gates so we don't re-warm on every rep.
+  if(doWarmup) {
     auto warmOuts = fn(
         /*inputs=*/{input},
         /*output_shapes=*/{ outShape },
@@ -250,7 +251,7 @@ static double timeOneInputTransform(
 static double timeOneOutputUntransform(
     const MLXWinograd::OutputUntransform& cfg,
     const mx::array& m, int N, int H, int W, int outC,
-    bool useFP16) {
+    bool useFP16, bool doWarmup) {
   int tilesY = (H + 1) / 2;
   int tilesX = (W + 1) / 2;
   int Ntiles = N * tilesY * tilesX;
@@ -283,9 +284,10 @@ static double timeOneOutputUntransform(
     {"WPT",           cfg.wpt}
   };
 
-  // Untimed warmup: ensures pipeline-state + lazy-graph caches are hot for THIS
-  // config before the timed eval.
-  {
+  // Untimed warmup (gated to the first measured rep per shape): hots
+  // pipeline-state + lazy-graph caches for THIS config before the timed eval.
+  // Caller gates so we don't re-warm on every rep.
+  if(doWarmup) {
     auto warmOuts = fn(
         /*inputs=*/{m, nhwcArr},
         /*output_shapes=*/{ mx::Shape{N, H, W, outC} },
@@ -352,8 +354,8 @@ planShapeRotation(const std::vector<std::pair<int,int>>& histogram);
 // actual 3x3 conv input-channel distribution: planShapeRotation produces a
 // list of (channels, measureReps, weight) entries; per shape we time
 // `measureReps` reps and take the median, weighted into the final score by
-// `weight`. The dominant shape (plan[0]) additionally gets one warmup rep
-// that is discarded.
+// `weight`. Each shape warms once on its first measured rep (gated via the
+// doWarmup arg to timeOneInputTransform); subsequent reps skip the warmup.
 static double scoreInputTransform(const MLXWinograd::InputTransform& cfg,
                                   int N, int H, int W,
                                   const MLXWinogradTuner::ModelInfoForTuning& mi,
@@ -361,8 +363,8 @@ static double scoreInputTransform(const MLXWinograd::InputTransform& cfg,
   auto plan = planShapeRotation(mi.conv3x3InputHistogram);
   assert(!plan.empty());
 
-  // Pre-build one random input array per planned shape. Warmup is one extra
-  // measurement on the dominant (plan[0]) that is discarded.
+  // Pre-build one random input array per planned shape. Each shape warms once
+  // on its first measured rep (gated via doWarmup), so no separate warmup pass.
   std::vector<mx::array> inputs;
   inputs.reserve(plan.size());
   uint32_t seed = 0xA1A1A1A1u;
@@ -372,15 +374,12 @@ static double scoreInputTransform(const MLXWinograd::InputTransform& cfg,
     seed = seed * 1664525u + 1013904223u;  // distinct seed per shape
   }
 
-  // Warmup: 1 rep on dominant, discarded.
-  (void)timeOneInputTransform(cfg, inputs[0], plan[0].channels, useFP16);
-
   double score = 0.0;
   for(size_t i = 0; i < plan.size(); i++) {
     std::vector<double> samples;
     samples.reserve(plan[i].measureReps);
     for(int r = 0; r < plan[i].measureReps; r++) {
-      double ms = timeOneInputTransform(cfg, inputs[i], plan[i].channels, useFP16);
+      double ms = timeOneInputTransform(cfg, inputs[i], plan[i].channels, useFP16, /*doWarmup=*/(r == 0));
       samples.push_back(ms);
     }
     // Median (upper of two middles for even sizes; identical to nth_element
@@ -417,17 +416,13 @@ static double scoreOutputUntransform(const MLXWinograd::OutputUntransform& cfg,
     seed = seed * 1664525u + 1013904223u;
   }
 
-  // Warmup: 1 rep on dominant, discarded.
-  (void)timeOneOutputUntransform(cfg, matmulOuts[0], N, H, W,
-                                 plan[0].channels, useFP16);
-
   double score = 0.0;
   for(size_t i = 0; i < plan.size(); i++) {
     std::vector<double> samples;
     samples.reserve(plan[i].measureReps);
     for(int r = 0; r < plan[i].measureReps; r++) {
       double ms = timeOneOutputUntransform(cfg, matmulOuts[i], N, H, W,
-                                           plan[i].channels, useFP16);
+                                           plan[i].channels, useFP16, /*doWarmup=*/(r == 0));
       samples.push_back(ms);
     }
     std::nth_element(samples.begin(),
@@ -566,9 +561,6 @@ scoreInputTransformPerShape(const MLXWinograd::InputTransform& cfg,
     seed = seed * 1664525u + 1013904223u;
   }
 
-  // Warmup: 1 rep on dominant, discarded.
-  (void)timeOneInputTransform(cfg, inputs[0], plan[0].channels, useFP16);
-
   std::vector<std::pair<int,double>> out;
   out.reserve(plan.size());
   for(size_t i = 0; i < plan.size(); i++) {
@@ -576,7 +568,7 @@ scoreInputTransformPerShape(const MLXWinograd::InputTransform& cfg,
     samples.reserve(plan[i].measureReps);
     for(int r = 0; r < plan[i].measureReps; r++) {
       samples.push_back(
-          timeOneInputTransform(cfg, inputs[i], plan[i].channels, useFP16));
+          timeOneInputTransform(cfg, inputs[i], plan[i].channels, useFP16, /*doWarmup=*/(r == 0)));
     }
     std::nth_element(samples.begin(),
                      samples.begin() + samples.size() / 2,
@@ -607,10 +599,6 @@ scoreOutputUntransformPerShape(const MLXWinograd::OutputUntransform& cfg,
     seed = seed * 1664525u + 1013904223u;
   }
 
-  // Warmup: 1 rep on dominant, discarded.
-  (void)timeOneOutputUntransform(cfg, matmulOuts[0], N, H, W,
-                                 plan[0].channels, useFP16);
-
   std::vector<std::pair<int,double>> out;
   out.reserve(plan.size());
   for(size_t i = 0; i < plan.size(); i++) {
@@ -619,7 +607,7 @@ scoreOutputUntransformPerShape(const MLXWinograd::OutputUntransform& cfg,
     for(int r = 0; r < plan[i].measureReps; r++) {
       samples.push_back(
           timeOneOutputUntransform(cfg, matmulOuts[i], N, H, W,
-                                   plan[i].channels, useFP16));
+                                   plan[i].channels, useFP16, /*doWarmup=*/(r == 0)));
     }
     std::nth_element(samples.begin(),
                      samples.begin() + samples.size() / 2,
@@ -741,9 +729,14 @@ flatSweepInput(int N, int H, int W,
   const double baselineMs =
       scoreInputTransform(MLXWinograd::InputTransform{}, N, H, W, mi, useFP16);
 
-  std::optional<MLXWinograd::InputTransform> best;
-  double bestTime = std::numeric_limits<double>::infinity();
+  // Seed the floor with the baked default so a sweep in which every candidate
+  // throws still yields a valid result instead of aborting model load. The
+  // default ({tg0=32,...}, 32 threads) always passes isInputCandidateValid and
+  // never exceeds maxTotalThreadsPerThreadgroup, so it scores without throwing.
+  std::optional<MLXWinograd::InputTransform> best = MLXWinograd::InputTransform{};
+  double bestTime = baselineMs;
   int considered = 0;
+  int skipped = 0;
 
   // The output gridOrder check in isValid() is gone (output kernel is
   // Cfast-monomorphic), so the input gridOrder axis can be searched over
@@ -753,10 +746,23 @@ flatSweepInput(int N, int H, int W,
     auto cands = MLXWinogradTuner::buildInputCandidatesForTesting(full, C, Ntiles, go);
     for(const auto& cand : cands) {
       considered++;
-      double t = scoreInputTransform(cand, N, H, W, mi, useFP16);
+      double t;
+      try {
+        t = scoreInputTransform(cand, N, H, W, mi, useFP16);
+      } catch(const std::exception&) {
+        // A candidate whose threadgroup exceeds the pipeline's register-pressure-
+        // dependent maxTotalThreadsPerThreadgroup (can be < 1024), or that hits a
+        // transient GPU error, throws out of mx::eval. Skip it; the seeded default
+        // remains the valid floor.
+        skipped++;
+        continue;
+      }
       if(t < bestTime) { bestTime = t; best = cand; }
     }
   }
+  if(logger && skipped > 0)
+    logger->write("MLX tuner flatSweepInput skipped=" + std::to_string(skipped)
+                  + " candidate(s) that failed to score; kept best valid config");
   if(logger) {
     std::string deltaStr;
     std::string perShapeStr;
@@ -819,18 +825,29 @@ flatSweepOutput(int N, int H, int W,
   const double baselineMs =
       scoreOutputUntransform(MLXWinograd::OutputUntransform{}, N, H, W, mi, useFP16);
 
-  std::optional<MLXWinograd::OutputUntransform> best;
-  double bestTime = std::numeric_limits<double>::infinity();
+  // Seed the floor with the baked default (see flatSweepInput for rationale).
+  std::optional<MLXWinograd::OutputUntransform> best = MLXWinograd::OutputUntransform{};
+  double bestTime = baselineMs;
   int considered = 0;
+  int skipped = 0;
 
   // Output kernel is VW=1 monomorphic and Cfast monomorphic, so neither
   // VW nor gridOrder is searched here.
   auto cands = MLXWinogradTuner::buildOutputCandidatesForTesting(full, outC, Ntiles);
   for(auto cand : cands) {
     considered++;
-    double t = scoreOutputUntransform(cand, N, H, W, mi, useFP16);
+    double t;
+    try {
+      t = scoreOutputUntransform(cand, N, H, W, mi, useFP16);
+    } catch(const std::exception&) {
+      skipped++;
+      continue;
+    }
     if(t < bestTime) { bestTime = t; best = cand; }
   }
+  if(logger && skipped > 0)
+    logger->write("MLX tuner flatSweepOutput skipped=" + std::to_string(skipped)
+                  + " candidate(s) that failed to score; kept best valid config");
   if(logger) {
     std::string deltaStr;
     std::string perShapeStr;
