@@ -1712,23 +1712,18 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel
+  const LoadedModel* loadedModel,
+  ConfigParser& cfg
 ) {
   (void)gpuIdxs;
-  (void)openCLTunerFile;
-  (void)openCLReTunePerBoardSize;
   (void)loadedModel;
+  (void)cfg;
 
-  bool useNHWC = useNHWCMode == enabled_t::False ? false : true;
-
-  if(!useNHWC)
-    throw StringError("MLX backend: useNHWC = false not supported");
-
+  // MLX requires NHWC inputs; this is enforced per-handle via inputsUseNHWC in
+  // createComputeHandle (the old context-level useNHWCMode param was removed
+  // upstream when createComputeContext was consolidated onto ConfigParser).
   ComputeContext* context = new ComputeContext(nnXLen, nnYLen, useFP16Mode, homeDataDirOverride, logger);
   return context;
 }
