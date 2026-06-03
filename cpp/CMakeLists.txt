@@ -11,6 +11,9 @@ cmake_minimum_required(VERSION 3.18.2)
 # Pinning a lower value only stamps a misleading minos on the executable and
 # triggers a "linking with dylib built for newer version" linker warning;
 # letting CMake default the target to the build host keeps minos honest.
+# (A post-project set(CMAKE_OSX_DEPLOYMENT_TARGET) is a silent no-op for this
+# Swift project - the target is fixed during project()/enable_language - so it
+# is not pinned in the backend branches below either.)
 if(USE_BACKEND STREQUAL "MLX")
   if(CMAKE_VERSION VERSION_LESS 3.27)
     message(FATAL_ERROR "KataGo's USE_BACKEND=MLX path requires CMake 3.27 or newer. You have ${CMAKE_VERSION}. Install via: brew install cmake")
@@ -153,7 +156,6 @@ elseif(USE_BACKEND STREQUAL "METAL")
 
   include(InitializeSwift)
   include(AddSwift)
-  set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/metalbackend.cpp
     )
@@ -219,7 +221,6 @@ elseif(USE_BACKEND STREQUAL "MLX")
 
   include(InitializeSwift)
   include(AddSwift)
-  set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
 
   set(MLX_MIN_VERSION "0.18")
   set(MLX_ROOT "" CACHE PATH "Optional path to MLX's CMake package; leave empty to use CMake's default search (e.g. Homebrew's /opt/homebrew/share/cmake/MLX/)")
