@@ -16,7 +16,11 @@ size_t WeightSerializer::serialize(std::vector<WeightEntry>& weights,
 
     for (auto& entry : weights) {
         const size_t count = entry.data.size();
-        if (use_fp16) {
+        // Per-weight precision: store FP16 only when the global mode is FP16 AND this weight was not
+        // declared FP32 (entry.is_fp32 marks consts inside an FP32 sub-region of an FP16 model), so
+        // stored bytes stay consistent with each const's declared dtype.
+        const bool store_fp16 = use_fp16 && !entry.is_fp32;
+        if (store_fp16) {
             // Convert FP32 weights to FP16
             std::vector<MILBlob::Fp16> fp16_data(count);
             for (size_t i = 0; i < count; ++i) {

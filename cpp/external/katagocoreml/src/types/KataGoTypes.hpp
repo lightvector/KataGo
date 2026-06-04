@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <variant>
 #include <vector>
@@ -19,9 +20,14 @@ namespace katagocoreml {
 enum class ActivationType : int {
     Identity = 0,
     ReLU = 1,
-    Mish = 2
+    Mish = 2,
+    Silu = 3
     // MISH_SCALE8 = 12 is internal optimization, treated as Mish
 };
+
+/// Trunk normalization kind (matching KataGo's desc.h)
+constexpr int TRUNK_NORM_KIND_STANDARD = 0;
+constexpr int TRUNK_NORM_KIND_RMSNORM = 1;
 
 // ============================================================================
 // Block Kind Constants
@@ -31,6 +37,8 @@ enum class ActivationType : int {
 constexpr int ORDINARY_BLOCK_KIND = 0;
 constexpr int GLOBAL_POOLING_BLOCK_KIND = 2;
 constexpr int NESTED_BOTTLENECK_BLOCK_KIND = 3;
+constexpr int TRANSFORMER_ATTENTION_BLOCK_KIND = 4;
+constexpr int TRANSFORMER_FFN_BLOCK_KIND = 5;
 
 // ============================================================================
 // Layer Descriptors
@@ -98,6 +106,25 @@ struct MatBiasLayerDesc {
     std::vector<float> weights;  // Shape: [num_channels]
 };
 
+/// Lightweight RMSNorm used inside transformer blocks (weight only, no bias).
+struct TransformerRMSNormDesc {
+    std::string name;
+    int num_channels = 0;
+    float epsilon = 1e-6f;
+    std::vector<float> weight;  // Shape: [num_channels]
+};
+
+/// Full-featured RMSNorm (gamma/beta, spatial mode) used at the trunk tip.
+struct RMSNormLayerDesc {
+    std::string name;
+    int num_channels = 0;
+    float epsilon = 1e-6f;
+    bool spatial = false;
+    int cgroup_size = 0;
+    std::vector<float> gamma;  // Shape: [num_channels]
+    std::vector<float> beta;   // Shape: [num_channels]
+};
+
 // ============================================================================
 // Block Descriptors
 // ============================================================================
@@ -106,12 +133,16 @@ struct MatBiasLayerDesc {
 struct ResidualBlockDesc;
 struct GlobalPoolingResidualBlockDesc;
 struct NestedBottleneckResidualBlockDesc;
+struct TransformerAttentionBlockDesc;
+struct TransformerFFNBlockDesc;
 
 /// Block descriptor variant
 using BlockDesc = std::variant<
     ResidualBlockDesc,
     GlobalPoolingResidualBlockDesc,
-    NestedBottleneckResidualBlockDesc
+    NestedBottleneckResidualBlockDesc,
+    TransformerAttentionBlockDesc,
+    TransformerFFNBlockDesc
 >;
 
 /// Block with its kind
@@ -165,6 +196,38 @@ struct NestedBottleneckResidualBlockDesc {
     ConvLayerDesc post_conv;
 };
 
+/// Transformer self-attention block descriptor (pre-norm, multi-head, optional 2D RoPE, GQA).
+struct TransformerAttentionBlockDesc {
+    std::string name;
+    int num_heads = 0;
+    int num_kv_heads = 0;
+    int q_head_dim = 0;
+    int v_head_dim = 0;
+    bool use_rope = false;
+    bool learnable_rope = false;
+    TransformerRMSNormDesc pre_ln;
+    MatMulLayerDesc q_proj;
+    MatMulLayerDesc k_proj;
+    MatMulLayerDesc v_proj;
+    MatMulLayerDesc out_proj;
+    int rope_num_kv_heads = 0;
+    int rope_num_pairs = 0;
+    std::vector<float> rope_freqs;  // learnable: (num_kv_heads, num_pairs, 2) flattened
+    float rope_theta = 0.0f;
+};
+
+/// Transformer feed-forward (SwiGLU) block descriptor.
+struct TransformerFFNBlockDesc {
+    std::string name;
+    int num_channels = 0;
+    int ffn_channels = 0;
+    bool use_swiglu = false;
+    TransformerRMSNormDesc pre_ln;
+    MatMulLayerDesc linear1;
+    MatMulLayerDesc linear_gate;  // only used when use_swiglu
+    MatMulLayerDesc linear2;
+};
+
 // ============================================================================
 // SGF Metadata Encoder (v15+)
 // ============================================================================
@@ -202,7 +265,9 @@ struct TrunkDesc {
     MatMulLayerDesc initial_matmul;
     std::optional<SGFMetadataEncoderDesc> sgf_metadata_encoder;
     std::vector<BlockEntry> blocks;
+    int trunk_norm_kind = TRUNK_NORM_KIND_STANDARD;
     BatchNormLayerDesc trunk_tip_bn;
+    RMSNormLayerDesc trunk_tip_rms_norm;
     ActivationLayerDesc trunk_tip_activation;
 };
 
@@ -280,8 +345,16 @@ struct KataGoModelDesc {
     PolicyHeadDesc policy_head;
     ValueHeadDesc value_head;
 
-    /// Get number of policy channels based on model version
+    /// Get number of policy channels based on model version.
+    /// Note: for version >= 17 the policy channel count (2 or 4) is not implied by the version
+    /// and must be read from the model's policy head (policy_out_channels / num_policy_channels);
+    /// this helper cannot determine it and throws to avoid returning a silently-wrong value.
     static int getPolicyChannels(int version) {
+        if (version >= 17) {
+            throw std::runtime_error(
+                "getPolicyChannels: policy channel count for version >= 17 is not implied by the "
+                "version; use the parsed policy head's policy_out_channels instead");
+        }
         if (version >= 16) return 4;
         if (version >= 12) return 2;
         return 1;

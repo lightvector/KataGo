@@ -26,7 +26,7 @@ def main():
 
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-model-kind', help='Model config name, e.g. b8c192nbt-fson-mish-rvglr-bnh', required=True)
-    parser.add_argument('-optimizer', help='Optimizer to use', choices=['sgd', 'adam', 'muon'], default='sgd')
+    parser.add_argument('-optimizer', help='Optimizer to use', choices=['sgd', 'adam', 'muon', 'aurora'], default='sgd')
     parser.add_argument('-ns-steps', help='Number of Newton-Schulz iterations for muon', type=int, default=5)
     parser.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon', action='store_true')
     parser.add_argument('-batch-size', help='Batch size', type=int, required=True)
@@ -65,11 +65,11 @@ def main():
     if use_amp and use_fp16:
         raise ValueError("-use-amp and -use-fp16 are mutually exclusive")
 
-    if optimizer_kind != "muon":
+    if optimizer_kind not in ("muon", "aurora"):
         if ns_steps != 5:
-            raise ValueError("-ns-steps can only be used with muon optimizer")
+            raise ValueError("-ns-steps can only be used with muon or aurora optimizer")
         if use_polar_express:
-            raise ValueError("-use-polar-express can only be used with muon optimizer")
+            raise ValueError("-use-polar-express can only be used with muon or aurora optimizer")
 
     device = torch.device(f"cuda:{gpu_idx}")
 
@@ -188,6 +188,9 @@ def main():
     elif optimizer_kind == "muon":
         from muon.muon import SingleDeviceMuonWithAuxAdam
         optimizer = SingleDeviceMuonWithAuxAdam(param_groups, adjust_lr_fn="match_rms_adamw", ns_steps=ns_steps, use_polar_express=use_polar_express)
+    elif optimizer_kind == "aurora":
+        from muon.muon import SingleDeviceMuonWithAuxAdam
+        optimizer = SingleDeviceMuonWithAuxAdam(param_groups, adjust_lr_fn="match_rms_adamw", use_aurora=True, ns_steps=ns_steps, use_polar_express=use_polar_express)
     else:
         optimizer = torch.optim.SGD(param_groups, lr=1e-5, momentum=0.9)
 

@@ -3672,7 +3672,9 @@ struct Buffers {
 
     trunk = createReadWriteBuffer(handle, m.trunk->trunkNumChannels * batchXYElts, useFP16);
 
-    if(m.modelVersion >= 16)
+    if(m.modelVersion >= 17)
+      testAssert(m.policyHead->p2Channels == 2 || m.policyHead->p2Channels == 4);
+    else if(m.modelVersion >= 16)
       testAssert(m.policyHead->p2Channels == 4);
     else if(m.modelVersion >= 12)
       testAssert(m.policyHead->p2Channels == 2);

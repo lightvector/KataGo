@@ -30,6 +30,8 @@ struct WeightEntry {
     FloatView data;            // non-owning view (replaces raw ptr + count)
     std::vector<int64_t> shape;
     uint64_t blob_offset = 0;  // Set during serialization
+    bool is_fp32 = false;      // Store as FP32 (set when the const was declared FP32, e.g. inside an
+                               // FP32 sub-region of an otherwise-FP16 model). Else stored per global mode.
 };
 
 /// Precomputed constants for identity mask optimization
@@ -66,9 +68,11 @@ public:
     const MaskConstants& getMaskConstants() const { return m_mask_constants; }
 
     /// Register a weight that lives in the model (stored as a non-owning view).
+    /// is_fp32 marks it for FP32 storage.
     std::string registerWeight(const std::string& name,
                                const std::vector<float>& data,
-                               const std::vector<int64_t>& shape);
+                               const std::vector<int64_t>& shape,
+                               bool is_fp32 = false);
 
     /// The stored WeightEntry is a non-owning view into `data`, so a temporary
     /// would leave it dangling. Deleted to reject such calls at compile time;

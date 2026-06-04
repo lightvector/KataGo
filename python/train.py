@@ -97,8 +97,11 @@ if __name__ == "__main__":
     optional_args.add_argument('-use-adamw', help='Use adamw optimizer', required=False, action='store_true')
     optional_args.add_argument('-use-muon', help='Use muon optimizer', required=False, action='store_true')
     optional_args.add_argument('-use-normuon', help='Use normuon optimizer (muon with neuron-wise normalization)', required=False, action='store_true')
-    optional_args.add_argument('-ns-steps', help='Number of Newton-Schulz iterations for muon/normuon', type=int, required=False, default=5)
-    optional_args.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon/normuon', required=False, action='store_true')
+    optional_args.add_argument('-use-aurora', help='Use aurora optimizer (leverage-aware muon variant)', required=False, action='store_true')
+    optional_args.add_argument('-aurora-pp-iterations', help='Number of preconditioning-polar iterations for aurora', type=int, required=False, default=2)
+    optional_args.add_argument('-aurora-pp-beta', help='Damping parameter for aurora diagonal preconditioner', type=float, required=False, default=0.5)
+    optional_args.add_argument('-ns-steps', help='Number of Newton-Schulz iterations for muon/normuon/aurora', type=int, required=False, default=5)
+    optional_args.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon/normuon/aurora', required=False, action='store_true')
 
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
     optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
@@ -218,15 +221,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     lookahead_print = args["lookahead_print"]
     use_adamw = args["use_adamw"]
     use_normuon = args["use_normuon"]
-    use_muon = args["use_muon"] or use_normuon
+    use_aurora = args["use_aurora"]
+    aurora_pp_iterations = args["aurora_pp_iterations"]
+    aurora_pp_beta = args["aurora_pp_beta"]
+    use_muon = args["use_muon"] or use_normuon or use_aurora
     ns_steps = args["ns_steps"]
     use_polar_express = args["use_polar_express"]
     if not use_muon:
         if ns_steps != 5:
-            raise ValueError("-ns-steps can only be used with muon or normuon optimizer")
+            raise ValueError("-ns-steps can only be used with muon or normuon or aurora optimizer")
         if use_polar_express:
-            raise ValueError("-use-polar-express can only be used with muon or normuon optimizer")
-    optimizer_name = "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
+            raise ValueError("-use-polar-express can only be used with muon or normuon or aurora optimizer")
+    optimizer_name = "Aurora" if use_aurora else "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
     use_fp16 = args["use_fp16"]
     no_compile = args["no_compile"]
     use_tf32_matmul = args["use_tf32_matmul"]
@@ -658,9 +664,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
             elif use_muon:
                 if world_size > 1:
-                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
                 else:
-                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
             else:
                 optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
 
@@ -755,9 +761,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
             elif use_muon:
                 if world_size > 1:
-                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
                 else:
-                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
             else:
                 optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
             if "optimizer" in state_dict:
@@ -840,6 +846,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     if use_muon:
         logging.info(f"ns_steps {ns_steps}")
         logging.info(f"use_polar_express {use_polar_express}")
+    if use_aurora:
+        logging.info(f"aurora_pp_iterations {aurora_pp_iterations}")
+        logging.info(f"aurora_pp_beta {aurora_pp_beta}")
 
     logging.info(f"Model norm normal baseline: " + str(train_state["modelnorm_normal_baseline"]))
     logging.info(f"Model norm input baseline: " + str(train_state["modelnorm_input_baseline"]))
