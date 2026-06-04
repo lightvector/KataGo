@@ -1046,6 +1046,14 @@ void NestedBottleneckResidualBlockDesc::releaseWeights() {
       NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->releaseWeights();
     }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      TransformerAttentionDesc* desc = (TransformerAttentionDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      TransformerFFNDesc* desc = (TransformerFFNDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
     else {
       ASSERT_UNREACHABLE;
     }
@@ -1105,6 +1113,11 @@ int64_t RMSNormLayerDesc::getNumParameters() const {
   return (int64_t)gamma.size() + (int64_t)beta.size();
 }
 
+void RMSNormLayerDesc::releaseWeights() {
+  std::vector<float>().swap(gamma);
+  std::vector<float>().swap(beta);
+}
+
 //-----------------------------------------------------------------------------
 
 TransformerRMSNormDesc::TransformerRMSNormDesc() : numChannels(0), epsilon(0) {}
@@ -1143,6 +1156,10 @@ TransformerRMSNormDesc& TransformerRMSNormDesc::operator=(TransformerRMSNormDesc
 
 int64_t TransformerRMSNormDesc::getNumParameters() const {
   return (int64_t)weight.size();
+}
+
+void TransformerRMSNormDesc::releaseWeights() {
+  std::vector<float>().swap(weight);
 }
 
 //-----------------------------------------------------------------------------
@@ -1269,6 +1286,15 @@ int64_t TransformerAttentionDesc::getNumParameters() const {
     vProj.getNumParameters() +
     outProj.getNumParameters() +
     (int64_t)ropeFreqs.size();  // learnable RoPE frequencies, empty for fixed/no RoPE
+}
+
+void TransformerAttentionDesc::releaseWeights() {
+  preLN.releaseWeights();
+  qProj.releaseWeights();
+  kProj.releaseWeights();
+  vProj.releaseWeights();
+  outProj.releaseWeights();
+  std::vector<float>().swap(ropeFreqs);
 }
 
 void TransformerAttentionDesc::computeRopeCosSin(int nnXLen, int nnYLen, int paddedNNXYLen, std::vector<float>& cosTable, std::vector<float>& sinTable) const {
@@ -1404,6 +1430,13 @@ int64_t TransformerFFNDesc::getNumParameters() const {
     linear1.getNumParameters() +
     linearGate.getNumParameters() +  // empty when not using SwiGLU
     linear2.getNumParameters();
+}
+
+void TransformerFFNDesc::releaseWeights() {
+  preLN.releaseWeights();
+  linear1.releaseWeights();
+  linearGate.releaseWeights();
+  linear2.releaseWeights();
 }
 
 //-----------------------------------------------------------------------------
@@ -1994,11 +2027,21 @@ void TrunkDesc::releaseWeights() {
       NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->releaseWeights();
     }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      TransformerAttentionDesc* desc = (TransformerAttentionDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      TransformerFFNDesc* desc = (TransformerFFNDesc*)blocks[i].second.get();
+      desc->releaseWeights();
+    }
     else {
       ASSERT_UNREACHABLE;
     }
   }
+  // Whichever trunk tip norm is unused has empty parameter vectors, so releasing both is safe.
   trunkTipBN.releaseWeights();
+  trunkTipRMSNorm.releaseWeights();
 }
 
 //-----------------------------------------------------------------------------

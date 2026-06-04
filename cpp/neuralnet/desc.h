@@ -254,6 +254,7 @@ struct RMSNormLayerDesc {
   RMSNormLayerDesc& operator=(RMSNormLayerDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 // Lightweight RMSNorm used inside transformer blocks (weight only, no bias, no spatial modes)
@@ -273,6 +274,7 @@ struct TransformerRMSNormDesc {
   TransformerRMSNormDesc& operator=(TransformerRMSNormDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 struct TransformerAttentionDesc {
@@ -308,6 +310,7 @@ struct TransformerAttentionDesc {
   TransformerAttentionDesc& operator=(TransformerAttentionDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 
   // Compute cos/sin tables for RoPE given board dimensions.
   // Output tables are indexed as:
@@ -338,6 +341,7 @@ struct TransformerFFNDesc {
   TransformerFFNDesc& operator=(TransformerFFNDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 struct SGFMetadataEncoderDesc {
