@@ -12,14 +12,22 @@
 namespace katagocoreml {
 
 namespace {
-// RAII: set a dtype slot to FLOAT32 for the current scope and restore it on exit. Used to emit a
-// sub-region of ops in FP32 inside an otherwise-FP16 model.
+// RAII: while active, force a dtype slot to FLOAT32 and restore it on scope exit. Used to emit a
+// sub-region of ops in FP32 inside an otherwise-FP16 model. Pass active=false to make the guard a
+// no-op (so callers can guard a conditional FP32 window without branching on construction). restore()
+// ends the window early and is idempotent, letting a caller drop back to FP16 before a trailing
+// cast-down while still getting an exception-safe restore if an op emission throws in between.
 struct ScopedFp32 {
-    CoreML::Specification::MILSpec::DataType& slot;
+    CoreML::Specification::MILSpec::DataType* slot;
     CoreML::Specification::MILSpec::DataType saved;
-    explicit ScopedFp32(CoreML::Specification::MILSpec::DataType& s)
-        : slot(s), saved(s) { s = CoreML::Specification::MILSpec::DataType::FLOAT32; }
-    ~ScopedFp32() { slot = saved; }
+    explicit ScopedFp32(CoreML::Specification::MILSpec::DataType& s, bool active = true)
+        : slot(active ? &s : nullptr), saved(s) {
+        if (slot) *slot = CoreML::Specification::MILSpec::DataType::FLOAT32;
+    }
+    void restore() {
+        if (slot) { *slot = saved; slot = nullptr; }
+    }
+    ~ScopedFp32() { restore(); }
     ScopedFp32(const ScopedFp32&) = delete;
     ScopedFp32& operator=(const ScopedFp32&) = delete;
 };
@@ -717,13 +725,12 @@ void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
     // models that actually need it pay that off-ANE cost; narrow models keep convs on the ANE.
     const bool convFp32 = m_conv_fp32;
     std::string convX = input, convW = weight_name, convOut = output;
-    auto savedConvDtype = m_weight_dtype;
     if (convFp32) {
         convX = castFixed(block, input, "fp32", {-1, layer.in_channels, m_board_y_size, m_board_x_size});
         convW = castFixed(block, weight_name, "fp32", layer.getWeightShape());
-        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
         convOut = output + "_cf32";
     }
+    ScopedFp32 fp32Scope(m_weight_dtype, convFp32);
 
     // Add conv operation referencing all const parameters
     auto* op = block->add_operations();
@@ -751,7 +758,7 @@ void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
     out_type->add_dimensions()->mutable_constant()->set_size(m_board_x_size);
 
     if (convFp32) {
-        m_weight_dtype = savedConvDtype;
+        fp32Scope.restore();
         addCastOp(block, convOut, output, "fp16", {-1, layer.out_channels, m_board_y_size, m_board_x_size});
     }
 }
@@ -1110,13 +1117,12 @@ void MILBuilder::addMatMulOp(CoreML::Specification::MILSpec::Block* block,
 
     // Non-spatial matmul in FP32 (KataGo FP16 convention; weights cast up at runtime, stored fp16).
     std::string mmIn = input, mmW = weight_name, mmOut = output;
-    auto savedMmDtype = m_weight_dtype;
     if (m_nonspatial_fp32) {
         mmIn = castFixed(block, input, "fp32", {-1, layer.in_channels});
         mmW = castFixed(block, weight_name, "fp32", layer.getWeightShape());
-        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
         mmOut = output + "_mmf32";
     }
+    ScopedFp32 fp32Scope(m_weight_dtype, m_nonspatial_fp32);
 
     // Add matmul operation
     auto* op = block->add_operations();
@@ -1137,7 +1143,7 @@ void MILBuilder::addMatMulOp(CoreML::Specification::MILSpec::Block* block,
     out_type->add_dimensions()->mutable_constant()->set_size(layer.out_channels);
 
     if (m_nonspatial_fp32) {
-        m_weight_dtype = savedMmDtype;
+        fp32Scope.restore();
         addCastOp(block, mmOut, output, "fp16", {-1, layer.out_channels});
     }
 }
@@ -1903,13 +1909,12 @@ std::string MILBuilder::addTransformerRMSNorm(CoreML::Specification::MILSpec::Bl
     // FP32, then cast 1/rms back down). The FP16 channel reduction loses too much precision on the
     // ANE; only this core is FP32 - the scaling/weight/mask below stay FP16. No addConstOp lives in
     // the flipped window, so weight serialization is unaffected.
-    auto savedDtype = m_weight_dtype;
     std::string sqSrc = input;
     if (m_use_fp16) {
         sqSrc = genVarName(prefix + "_in32");
         addCastOp(block, input, sqSrc, "fp32", {-1, C, H, W});
-        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
     }
+    ScopedFp32 fp32Scope(m_weight_dtype, m_use_fp16);
     std::string sq = genVarName(prefix + "_sq");
     emit2("mul", sqSrc, sqSrc, sq, {-1, C, H, W});
     // meanSq = reduce_mean(sq, axes=[1]) over channels. reduce_mean (not reduce_sum) is used so
@@ -1941,7 +1946,7 @@ std::string MILBuilder::addTransformerRMSNorm(CoreML::Specification::MILSpec::Bl
     }
     std::string inv = invCore;
     if (m_use_fp16) {
-        m_weight_dtype = savedDtype;
+        fp32Scope.restore();
         inv = genVarName(prefix + "_inv16");
         addCastOp(block, invCore, inv, "fp16", {-1, 1, H, W});
     }
@@ -1990,7 +1995,6 @@ std::string MILBuilder::addTrunkRMSNorm(CoreML::Specification::MILSpec::Block* b
     // norm in particular reduces over many elements and loses too much precision in FP16 on the
     // ANE; compute the core in FP32 and cast 1/rms back to FP16. Only the core is FP32 - gamma/beta,
     // the activation and the final mask below stay FP16. No addConstOp lives in the flipped window.
-    auto savedDtype = m_weight_dtype;
     std::string tinput = input;
     std::string tmask = mask;
     if (m_use_fp16) {
@@ -1998,8 +2002,8 @@ std::string MILBuilder::addTrunkRMSNorm(CoreML::Specification::MILSpec::Block* b
         addCastOp(block, input, tinput, "fp32", {-1, C, H, W});
         tmask = genVarName(prefix + "_mask32");
         addCastOp(block, mask, tmask, "fp32", {-1, 1, H, W});
-        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
     }
+    ScopedFp32 fp32Scope(m_weight_dtype, m_use_fp16);
     std::string masked = genVarName(prefix + "_premask");
     emit2("mul", tinput, tmask, masked, {-1, C, H, W});
     std::string sq = genVarName(prefix + "_sq");
@@ -2061,7 +2065,7 @@ std::string MILBuilder::addTrunkRMSNorm(CoreML::Specification::MILSpec::Block* b
     }
     std::string inv = invCore;
     if (m_use_fp16) {
-        m_weight_dtype = savedDtype;
+        fp32Scope.restore();
         inv = genVarName(prefix + "_inv16");
         addCastOp(block, invCore, inv, "fp16", denomDims);
     }
@@ -2166,11 +2170,8 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
         if (m_nonspatial_fp32) {
             std::string x32 = castFixed(block, x2d, "fp32", {-1, C});
             std::string w32 = castFixed(block, wName, "fp32", w.getWeightShape());
-            auto sd = m_weight_dtype;
-            m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
             std::string o32 = genVarName(nm + "_f32");
-            matmul(x32, w32, o32, {-1, total}, false, false);
-            m_weight_dtype = sd;
+            { ScopedFp32 fp32Scope(m_weight_dtype); matmul(x32, w32, o32, {-1, total}, false, false); }
             out = castFixed(block, o32, "fp16", {-1, total});
         } else {
             matmul(x2d, wName, out, {-1, total}, false, false);
@@ -2465,15 +2466,14 @@ std::string MILBuilder::buildTransformerFFNBlock(CoreML::Specification::MILSpec:
     std::string w2 = prefix + "_w2";
     addConstOp(block, w2, desc.linear2.weights, desc.linear2.getWeightShape());
 
-    auto savedDtype = m_weight_dtype;
     std::string mx2d = x2d, mw1 = w1, mwg = wg, mw2 = w2;
     if (m_nonspatial_fp32) {
         mx2d = castFixed(block, x2d, "fp32", {-1, C});
         mw1 = castFixed(block, w1, "fp32", desc.linear1.getWeightShape());
         mwg = castFixed(block, wg, "fp32", desc.linear_gate.getWeightShape());
         mw2 = castFixed(block, w2, "fp32", desc.linear2.getWeightShape());
-        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
     }
+    ScopedFp32 fp32Scope(m_weight_dtype, m_nonspatial_fp32);
     std::string a = genVarName(prefix + "_a");
     matmul(mx2d, mw1, a, {-1, ffn});
     std::string g = genVarName(prefix + "_g");
@@ -2495,7 +2495,7 @@ std::string MILBuilder::buildTransformerFFNBlock(CoreML::Specification::MILSpec:
     matmul(h, mw2, oCore, {-1, C});
     std::string o = oCore;
     if (m_nonspatial_fp32) {
-        m_weight_dtype = savedDtype;
+        fp32Scope.restore();
         o = castFixed(block, oCore, "fp16", {-1, C});
     }
 
