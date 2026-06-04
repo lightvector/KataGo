@@ -28,7 +28,8 @@ std::string KataGoOps::registerWeight(const std::string& name,
 
 std::string KataGoOps::registerOwnedWeight(const std::string& name,
                                             std::vector<float>&& data,
-                                            const std::vector<int64_t>& shape) {
+                                            const std::vector<int64_t>& shape,
+                                            bool is_fp32) {
     m_owned.push_back(std::move(data));
     const std::vector<float>& stored = m_owned.back();
     WeightEntry entry;
@@ -36,6 +37,7 @@ std::string KataGoOps::registerOwnedWeight(const std::string& name,
     entry.data = FloatView{stored.data(), stored.size()};
     entry.shape = shape;
     entry.blob_offset = 0;
+    entry.is_fp32 = is_fp32;
     m_weights.push_back(std::move(entry));
     return name;
 }

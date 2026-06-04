@@ -82,10 +82,12 @@ public:
                                const std::vector<int64_t>& shape) = delete;
 
     /// Register a derived/temporary weight; KataGoOps takes ownership so the
-    /// view stays valid through serialization.
+    /// view stays valid through serialization. is_fp32 marks it for FP32 storage
+    /// (mirrors registerWeight) so the stored dtype matches the declared const dtype.
     std::string registerOwnedWeight(const std::string& name,
                                     std::vector<float>&& data,
-                                    const std::vector<int64_t>& shape);
+                                    const std::vector<int64_t>& shape,
+                                    bool is_fp32 = false);
 
     /// Get all registered weights (mutable; serialization sets blob_offset)
     std::vector<WeightEntry>& getWeightsMutable() { return m_weights; }
