@@ -75,7 +75,7 @@ private:
     GlobalPoolingResidualBlockDesc parseGlobalPoolingResidualBlock(int model_version);
     NestedBottleneckResidualBlockDesc parseNestedBottleneckBlock(int model_version, int trunk_num_channels);
     TransformerAttentionBlockDesc parseTransformerAttentionBlock(int model_version, int trunk_num_channels);
-    TransformerFFNBlockDesc parseTransformerFFNBlock(int model_version);
+    TransformerFFNBlockDesc parseTransformerFFNBlock(int model_version, int trunk_num_channels);
     std::vector<BlockEntry> parseBlockStack(int model_version, int num_blocks, int trunk_num_channels);
 
     // Component parsing functions

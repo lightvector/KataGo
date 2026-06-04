@@ -500,7 +500,7 @@ TransformerAttentionBlockDesc KataGoParser::parseTransformerAttentionBlock(int m
     return block;
 }
 
-TransformerFFNBlockDesc KataGoParser::parseTransformerFFNBlock(int model_version) {
+TransformerFFNBlockDesc KataGoParser::parseTransformerFFNBlock(int model_version, int trunk_num_channels) {
     TransformerFFNBlockDesc block;
     block.name = readString();
     block.num_channels = readInt();
@@ -515,6 +515,21 @@ TransformerFFNBlockDesc KataGoParser::parseTransformerFFNBlock(int model_version
         block.linear_gate = parseMatMulLayer();
     }
     block.linear2 = parseMatMulLayer();
+
+    // Validate the FFN matmul dimensions, mirroring the attention block's projection checks above.
+    // The block adds its output back into the trunk residually, so numChannels must equal the trunk
+    // width; the linear layers chain numChannels -> ffnChannels -> numChannels (with the SwiGLU gate
+    // also projecting numChannels -> ffnChannels). A declared dimension that disagrees builds a graph
+    // that either fails to compile or computes nonsense, so reject it at parse time.
+    checkAttentionProjDim(block.name, "ffn.numChannels",       block.num_channels,         "trunkNumChannels", trunk_num_channels);
+    checkAttentionProjDim(block.name, "linear1.inChannels",    block.linear1.in_channels,  "numChannels",      block.num_channels);
+    checkAttentionProjDim(block.name, "linear1.outChannels",   block.linear1.out_channels, "ffnChannels",      block.ffn_channels);
+    if (block.use_swiglu) {
+        checkAttentionProjDim(block.name, "linearGate.inChannels",  block.linear_gate.in_channels,  "numChannels", block.num_channels);
+        checkAttentionProjDim(block.name, "linearGate.outChannels", block.linear_gate.out_channels, "ffnChannels", block.ffn_channels);
+    }
+    checkAttentionProjDim(block.name, "linear2.inChannels",    block.linear2.in_channels,  "ffnChannels",      block.ffn_channels);
+    checkAttentionProjDim(block.name, "linear2.outChannels",   block.linear2.out_channels, "numChannels",      block.num_channels);
     return block;
 }
 
@@ -553,7 +568,7 @@ std::vector<BlockEntry> KataGoParser::parseBlockStack(int model_version, int num
             entry.block = std::make_shared<BlockDesc>(std::move(desc));
         } else if (block_kind_name == "transformer_ffn_block") {
             entry.block_kind = TRANSFORMER_FFN_BLOCK_KIND;
-            auto desc = parseTransformerFFNBlock(model_version);
+            auto desc = parseTransformerFFNBlock(model_version, trunk_num_channels);
             entry.block = std::make_shared<BlockDesc>(std::move(desc));
         } else {
             throw std::runtime_error("Unknown block kind: " + block_kind_name);
