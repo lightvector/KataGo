@@ -1816,6 +1816,14 @@ struct ComputeContext {
   std::map<std::string, std::shared_ptr<const Model>> cachedModels;
   std::map<std::string, int> cachedModelsRefCount;
 
+  // True only when EVERY configured device index is MLX_MUX_ANE (set in
+  // createComputeContext). The ANE path re-reads the model from disk in
+  // convertModelToTemp and otherwise reads only scalar dims, so when no thread
+  // will ever build the MLX/GPU model we can free the in-memory FP32 weights via
+  // ModelDesc::releaseWeights(). Must stay false if any thread uses MLX_MUX_GPU,
+  // which would read the freed weights.
+  bool aneOnly = false;
+
   ComputeContext() = delete;
   ComputeContext(const ComputeContext&) = delete;
   ComputeContext& operator=(const ComputeContext&) = delete;
@@ -2156,6 +2164,17 @@ static swift::Optional<KataGoSwift::CoreMLComputeHandle> convertAndCreateCoreMLO
     serverThreadIdx
   );
 
+  // ANE-only context: the converter has just re-read the model from disk
+  // (modelPath) into CoreML form, and nothing afterward reads the in-memory
+  // weight arrays — the ComputeHandle ctor takes the MLX_MUX_ANE early-return
+  // before building any MLX/GPU model, and only scalar dims are read later
+  // (numInputChannels, ..., which releaseWeights() preserves). Runs under
+  // computeHandleMutex (held by createComputeHandle), so it is not racy;
+  // releaseWeights() is idempotent across the per-thread ANE handles.
+  if(context->aneOnly) {
+    const_cast<LoadedModel*>(loadedModel)->modelDesc.releaseWeights();
+  }
+
   // The Swift createCoreMLComputeHandle entry point expects a
   // MetalComputeContext. Construct one on-the-fly from MLX's context values.
   auto swiftContext = KataGoSwift::createMetalComputeContext(
@@ -2215,14 +2234,24 @@ ComputeContext* NeuralNet::createComputeContext(
   const LoadedModel* loadedModel,
   ConfigParser& cfg
 ) {
-  (void)gpuIdxs;
   (void)loadedModel;
   (void)cfg;
+
+  // aneOnly drives the ANE-path weight release in convertAndCreateCoreMLOnlyHandleMLX.
+  // INVARIANT: gpuIdxs must be the complete, deduplicated set of device indices any
+  // thread will use under this context. Free the in-memory weights only when every one
+  // is MLX_MUX_ANE; if a thread later used an MLX_MUX_GPU index not represented here it
+  // would read freed weights.
+  bool aneOnly = !gpuIdxs.empty();
+  for(int idx : gpuIdxs) {
+    if(idx != MLX_MUX_ANE) { aneOnly = false; break; }
+  }
 
   // MLX requires NHWC inputs; this is enforced per-handle via inputsUseNHWC in
   // createComputeHandle (the old context-level useNHWCMode param was removed
   // upstream when createComputeContext was consolidated onto ConfigParser).
   ComputeContext* context = new ComputeContext(nnXLen, nnYLen, useFP16Mode, homeDataDirOverride, logger);
+  context->aneOnly = aneOnly;
   return context;
 }
 
