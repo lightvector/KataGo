@@ -221,26 +221,27 @@ inline constexpr const char* kWinoInputSource = R"METAL(
               }
             }
           }
-          T tmp[4][4];
+          // Transform accumulates in fp32; only the stored V rounds to T (fp16-safe).
+          float tmp[4][4];
           for (int j = 0; j < 4; j++) {
-            T v0 = d[0][j], v1 = d[1][j], v2 = d[2][j], v3 = d[3][j];
+            float v0 = (float)d[0][j], v1 = (float)d[1][j], v2 = (float)d[2][j], v3 = (float)d[3][j];
             tmp[0][j] = v0 - v2;
             tmp[1][j] = v1 + v2;
             tmp[2][j] = v2 - v1;
             tmp[3][j] = v1 - v3;
           }
           for (int r = 0; r < 4; r++) {
-            T u0 = tmp[r][0], u1 = tmp[r][1], u2 = tmp[r][2], u3 = tmp[r][3];
-            T V0 = u0 - u2;
-            T V1 = u1 + u2;
-            T V2 = u2 - u1;
-            T V3 = u1 - u3;
+            float u0 = tmp[r][0], u1 = tmp[r][1], u2 = tmp[r][2], u3 = tmp[r][3];
+            float V0 = u0 - u2;
+            float V1 = u1 + u2;
+            float V2 = u2 - u1;
+            float V3 = u1 - u3;
             // outp [16, Ntiles, C] — C is the fast axis.
             int base = ((r * 4 + 0) * Ntiles_k + tileIdx) * C_k + c;
-            outp[base + 0 * Ntiles_k * C_k] = V0;
-            outp[base + 1 * Ntiles_k * C_k] = V1;
-            outp[base + 2 * Ntiles_k * C_k] = V2;
-            outp[base + 3 * Ntiles_k * C_k] = V3;
+            outp[base + 0 * Ntiles_k * C_k] = (T)V0;
+            outp[base + 1 * Ntiles_k * C_k] = (T)V1;
+            outp[base + 2 * Ntiles_k * C_k] = (T)V2;
+            outp[base + 3 * Ntiles_k * C_k] = (T)V3;
           }
         }
       }
@@ -272,26 +273,27 @@ inline constexpr const char* kWinoInputSource = R"METAL(
             }
           }
         }
-        T tmp[4][4];
+        // Transform accumulates in fp32; only the stored V rounds to T (fp16-safe).
+        float tmp[4][4];
         for (int j = 0; j < 4; j++) {
-          T v0 = d[0][j], v1 = d[1][j], v2 = d[2][j], v3 = d[3][j];
+          float v0 = (float)d[0][j], v1 = (float)d[1][j], v2 = (float)d[2][j], v3 = (float)d[3][j];
           tmp[0][j] = v0 - v2;
           tmp[1][j] = v1 + v2;
           tmp[2][j] = v2 - v1;
           tmp[3][j] = v1 - v3;
         }
         for (int r = 0; r < 4; r++) {
-          T u0 = tmp[r][0], u1 = tmp[r][1], u2 = tmp[r][2], u3 = tmp[r][3];
-          T V0 = u0 - u2;
-          T V1 = u1 + u2;
-          T V2 = u2 - u1;
-          T V3 = u1 - u3;
+          float u0 = tmp[r][0], u1 = tmp[r][1], u2 = tmp[r][2], u3 = tmp[r][3];
+          float V0 = u0 - u2;
+          float V1 = u1 + u2;
+          float V2 = u2 - u1;
+          float V3 = u1 - u3;
           // outp [16, Ntiles, C] — C is the fast axis.
           int base = ((r * 4 + 0) * Ntiles_k + tileIdx) * C_k + c;
-          outp[base + 0 * Ntiles_k * C_k] = V0;
-          outp[base + 1 * Ntiles_k * C_k] = V1;
-          outp[base + 2 * Ntiles_k * C_k] = V2;
-          outp[base + 3 * Ntiles_k * C_k] = V3;
+          outp[base + 0 * Ntiles_k * C_k] = (T)V0;
+          outp[base + 1 * Ntiles_k * C_k] = (T)V1;
+          outp[base + 2 * Ntiles_k * C_k] = (T)V2;
+          outp[base + 3 * Ntiles_k * C_k] = (T)V3;
         }
       }
     }
@@ -343,24 +345,25 @@ inline constexpr const char* kWinoOutputSource = R"METAL(
             mm[r][c2] = m[(p * Ntiles_k + tileIdx) * outC_k + oc];
           }
         }
-        T tmp[2][4];
+        // Untransform accumulates in fp32; only the stored Y rounds to T (fp16-safe).
+        float tmp[2][4];
         for (int c2 = 0; c2 < 4; c2++) {
-          T v0 = mm[0][c2], v1 = mm[1][c2], v2 = mm[2][c2], v3 = mm[3][c2];
+          float v0 = (float)mm[0][c2], v1 = (float)mm[1][c2], v2 = (float)mm[2][c2], v3 = (float)mm[3][c2];
           tmp[0][c2] = v0 + v1 + v2;
           tmp[1][c2] = v1 - v2 - v3;
         }
         for (int a = 0; a < 2; a++) {
-          T u0 = tmp[a][0], u1 = tmp[a][1], u2 = tmp[a][2], u3 = tmp[a][3];
-          T Y0 = u0 + u1 + u2;
-          T Y1 = u1 - u2 - u3;
+          float u0 = tmp[a][0], u1 = tmp[a][1], u2 = tmp[a][2], u3 = tmp[a][3];
+          float Y0 = u0 + u1 + u2;
+          float Y1 = u1 - u2 - u3;
           int oy0 = 2 * ty + a;
           if (oy0 < H_k) {
             int ox0 = 2 * tx + 0;
             if (ox0 < W_k)
-              outp[((n * H_k + oy0) * W_k + ox0) * outC_k + oc] = Y0;
+              outp[((n * H_k + oy0) * W_k + ox0) * outC_k + oc] = (T)Y0;
             int ox1 = 2 * tx + 1;
             if (ox1 < W_k)
-              outp[((n * H_k + oy0) * W_k + ox1) * outC_k + oc] = Y1;
+              outp[((n * H_k + oy0) * W_k + ox1) * outC_k + oc] = (T)Y1;
           }
         }
       }
