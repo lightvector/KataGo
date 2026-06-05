@@ -14,14 +14,21 @@ cmake_minimum_required(VERSION 3.18.2)
 # (A post-project set(CMAKE_OSX_DEPLOYMENT_TARGET) is a silent no-op for this
 # Swift project - the target is fixed during project()/enable_language - so it
 # is not pinned in the backend branches below either.)
-if(USE_BACKEND STREQUAL "MLX")
+# Normalize the backend name to uppercase BEFORE project(), so the
+# case-insensitive behavior of the post-project() string(TOUPPER ...) below
+# also applies to the pre-project() MLX version guard and the Swift language
+# selection. Without this, a lowercase -DUSE_BACKEND=mlx would silently skip
+# the 3.27 guard and the Swift enablement, then still build Swift sources later.
+string(TOUPPER "${USE_BACKEND}" USE_BACKEND_NORMALIZED)
+
+if(USE_BACKEND_NORMALIZED STREQUAL "MLX")
   if(CMAKE_VERSION VERSION_LESS 3.27)
     message(FATAL_ERROR "KataGo's USE_BACKEND=MLX path requires CMake 3.27 or newer. You have ${CMAKE_VERSION}. Install via: brew install cmake")
   endif()
   cmake_policy(VERSION 3.27)
 endif()
 
-if(USE_BACKEND STREQUAL "METAL" OR USE_BACKEND STREQUAL "MLX")
+if(USE_BACKEND_NORMALIZED STREQUAL "METAL" OR USE_BACKEND_NORMALIZED STREQUAL "MLX")
   project(katago LANGUAGES CXX Swift)
 else()
   project(katago)

@@ -1,8 +1,8 @@
 #!/bin/bash -eux
 
 # Usage: $0 [gpu|ane] [extra-override]
-#   gpu (default) — run against the MPSGraph/GPU path of the Metal backend
-#   ane           — run against the CoreML/ANE path of the Metal backend
+#   gpu (default) — run against the GPU path of the active backend (Metal or MLX)
+#   ane           — run against the CoreML/ANE path of the active backend (Metal or MLX)
 # Result files are suffixed (_ane) so the two runs can coexist; reference files
 # under $REFERENCEDIR are backend-independent and shared.
 # Optional second argument: extra config overrides appended (comma-separated) to the
