@@ -193,7 +193,8 @@ struct ModelParser {
   // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
   // Bumped 7->8 for the TensorRT ONNX overhaul (ONNX emitter as default path, NHWC trunk, FP32 pinning).
   // Bumped 8->9 for the TensorRT 11 strongly-typed port (FP32 engines; old FP16-pinned plans invalid).
-  static constexpr int tuneSalt = 9;
+  // Bumped 9->10 for the strongly-typed FP16 path (FP16 trunk emitted in the ONNX graph with casts).
+  static constexpr int tuneSalt = 10;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -1127,20 +1128,19 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: failed to create builder config");
     }
 
-    // TensorRT 11 removed weakly-typed networks along with the builder-driven mixed-precision
-    // machinery this backend used to rely on: the kFP16 builder flag, platformHasFastFp16(),
-    // per-layer setPrecision()/setOutputType(), and kOBEY/kPREFER_PRECISION_CONSTRAINTS are all
-    // gone. Every network is now strongly typed - precision is exactly what the network (or parsed
-    // ONNX graph) declares. This backend emits an FP32 graph, so the engine runs in FP32 (TensorRT
-    // may still pick TF32 tactics for convs/matmuls). FP16 can be reintroduced later by emitting an
-    // explicitly-typed FP16 graph with casts around the numerically-sensitive regions (the RMSNorm
-    // reductions and the policy/value heads).
-    usingFP16 = false;
-    if(ctx->useFP16Mode == enabled_t::True) {
+    // TensorRT 11 removed weakly-typed networks and the builder-driven mixed-precision machinery this
+    // backend used to rely on (the kFP16 builder flag, platformHasFastFp16(), per-layer
+    // setPrecision()/setOutputType(), and kOBEY/kPREFER_PRECISION_CONSTRAINTS). Every network is now
+    // strongly typed: precision is whatever the network (or parsed ONNX graph) declares. FP16 is
+    // therefore expressed in the ONNX graph itself - the ONNX emitter rewrites the trunk to FP16 while
+    // keeping the RMSNorm reductions, trunk tip, heads, and the graph inputs/outputs in FP32 (see
+    // OnnxModelBuilder::build / convertGraphToFloat16). useFP16=false forces a fully-FP32 engine; the
+    // hand-built ModelParser path (trtDisableOnnx) has no FP16 support and always runs FP32.
+    usingFP16 = (ctx->useFP16Mode != enabled_t::False) && useOnnxEmit;
+    if(ctx->useFP16Mode == enabled_t::True && !useOnnxEmit)
       logger->write(
-        "TensorRT backend: WARNING useFP16=true was requested, but FP16 is not yet supported on "
-        "TensorRT 11 (strongly-typed networks). Running in FP32.");
-    }
+        "TensorRT backend: WARNING useFP16=true is not supported by the non-ONNX ModelParser path "
+        "(trtDisableOnnx); running in FP32.");
 
     // Debug plan/engine dump (trtDumpDebugPlanToDir). Build a base path inside that dir, disambiguated
     // by board size + precision + exact/max so the multiple engines built in one process don't collide.
@@ -1177,7 +1177,7 @@ struct ComputeHandle {
     if(useOnnxEmit) {
       logger->write("TensorRT backend: building network via ONNX emitter");
       const ModelDesc& desc = loadedModel->modelDesc;
-      OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
+      OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, usingFP16, logger);
       onnxBytes = std::move(onnxResult.serializedModel);
 
       if(dumpDebugPlan) {
@@ -1199,18 +1199,17 @@ struct ComputeHandle {
         throw StringError(msg);
       }
 
-      // The emitted graph is FP32, so all outputs are already FP32; we only constrain them to a
-      // linear layout, since getOutput does a flat cudaMemcpy of each output buffer assuming linear
-      // layout. Under TensorRT 11 strongly-typed networks, ITensor::setType no longer exists - the
-      // tensor type is fixed by the graph.
+      // Graph outputs are always FP32 (the heads are kept FP32 even in FP16 mode); we only constrain
+      // them to a linear layout, since getOutput does a flat cudaMemcpy of each output buffer assuming
+      // linear layout. Under TensorRT 11 strongly-typed networks, ITensor::setType no longer exists -
+      // the tensor type is fixed by the graph.
       for(int i = 0; i < network->getNbOutputs(); i++) {
         network->getOutput(i)->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
       }
 
-      // No per-layer FP32 pinning is needed: the whole strongly-typed graph is already FP32. When an
-      // FP16 emitter path is added, the numerically-sensitive regions named in onnxResult
-      // (trunkTipAndHeadNodeNames, rmsNormNodeNames) should be emitted in FP32 with explicit casts
-      // in the ONNX graph rather than pinned here, since the builder no longer rewrites precision.
+      // No per-layer FP32 pinning here: precision is fixed in the ONNX graph. In FP16 mode the emitter
+      // already emitted the numerically-sensitive regions (onnxResult.trunkTipAndHeadNodeNames and
+      // rmsNormNodeNames) in FP32 with explicit casts; in FP32 mode the whole graph is FP32.
 
       // Set optimization profile dims for each input the parser created.
       auto setProfile = [&](const char* name, Dims4 minDims, Dims4 optMaxDims) {
