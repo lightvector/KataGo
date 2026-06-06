@@ -453,7 +453,16 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   # (cpp/external/onnx/onnx.proto) with protoc and link against our own protobuf; this is
   # symbol-isolated from the protobuf that TensorRT statically links into nvonnxparser, so
   # there is no ABI contact between the two (the handoff is serialized bytes).
+  # Protobuf >= 22 un-vendored abseil, so generated *.pb.cc references absl symbols
+  # directly (e.g. absl::log_internal_check_op, from the ABSL_DCHECK macros that
+  # protobuf headers expand to). Neither module-mode ${Protobuf_LIBRARIES} nor
+  # protobuf's exported imported target reliably names abseil on the link line, so
+  # under a linker defaulting to --as-needed (e.g. Gentoo) the link fails with
+  # "undefined reference to absl::...; DSO missing from command line". Find abseil
+  # explicitly and name the needed target on the link line below. Protobuf stays in
+  # module mode for the protobuf_generate_cpp() helper used just below.
   find_package(Protobuf REQUIRED)
+  find_package(absl CONFIG REQUIRED)
   message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
   set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
   protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
@@ -471,7 +480,11 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   if(NOT TENSORRT_ONNXPARSER_LIBRARY)
     message(FATAL_ERROR "${ColorBoldRed} libnvonnxparser was NOT found in the TensorRT lib dir. ${ColorReset}")
   endif()
-  target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY} ${Protobuf_LIBRARIES})
+  # ${Protobuf_LIBRARIES} for protobuf itself, plus the abseil target the generated
+  # code references directly. absl::log_internal_check_op carries its own transitive
+  # absl deps, so this one target resolves the check/log machinery; add further
+  # absl::... targets here if more undefined-absl-symbol errors surface.
+  target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY} ${Protobuf_LIBRARIES} absl::log_internal_check_op)
 elseif(USE_BACKEND STREQUAL "METAL")
   target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
   target_link_libraries(katago KataGoSwift katagocoreml
