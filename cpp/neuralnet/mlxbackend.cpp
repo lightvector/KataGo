@@ -299,14 +299,6 @@ static bool mlxWinotunerEnabled() {
   }();
   return enabled;
 }
-// KATAGO_MLX_WINOTUNER_FORCE=1 ignores cache file, retunes and overwrites.
-static bool mlxWinotunerForce() {
-  static const bool force = [](){
-    const char* e = std::getenv("KATAGO_MLX_WINOTUNER_FORCE");
-    return (e != nullptr && std::string(e) == "1");
-  }();
-  return force;
-}
 // GPU name for the tuner cache filename.
 // mlx::core::metal::device_info() is declared in the header but not exported
 // in all libmlx builds; fall back to a fixed string.
@@ -1918,11 +1910,14 @@ struct ComputeHandle {
           /*batchSize=*/8,
           mi,
           context->logger,
-          // The model-load path always tunes the coarse grid; the wide sweep
-          // is reached only through `./katago tuner -full`. Mirrors
-          // openclbackend.cpp, which pins full=false at load.
+          // The model-load path loads a valid cache or, on a miss, tunes the
+          // coarse grid once - it never re-tunes a valid cache and never sweeps
+          // the wide grid. Both are reached only through `./katago tuner`
+          // (add -full for the wide grid), which always re-runs and overwrites.
+          // Mirrors openclbackend.cpp, which has no load-time force-retune and
+          // pins full=false at load.
           /*full=*/false,
-          /*reTune=*/mlxWinotunerForce(),
+          /*reTune=*/false,
           /*useFP16=*/useFP16_,
           /*seedOverride=*/nullptr);
     }
