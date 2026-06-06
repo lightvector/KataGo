@@ -630,11 +630,11 @@ scoreOutputUntransformPerShape(const MLXWinograd::OutputUntransform& cfg,
 //     that time discriminating between near-equivalent (and run-to-run noisy)
 //     configs.
 //
-//   full=true (a deliberate "command" tune via KATAGO_MLX_WINOTUNER_FULL=1):
-//     the wide grid, for operators who want to squeeze the plateau. This is
-//     the analog of `./katago tuner --full` on OpenCL, where the model-load
-//     path pins full=false (openclbackend.cpp) and only the explicit tuner
-//     command passes --full.
+//   full=true (a deliberate command tune via `./katago tuner -full`):
+//     the wide grid, for operators who want to squeeze the plateau. Both
+//     backends pin full=false at model load (openclbackend.cpp /
+//     mlxbackend.cpp) and reach the wide grid only through the explicit
+//     tuner command.
 static const std::vector<int>& inputTg0Values(bool full) {
   static const std::vector<int> vFull   = {1,2,4,8,16,24,32,48,64,96,128,160,192,256,384,512,1024};
   static const std::vector<int> vCoarse = {8,16,32,64,128};

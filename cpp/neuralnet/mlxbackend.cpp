@@ -307,20 +307,6 @@ static bool mlxWinotunerForce() {
   }();
   return force;
 }
-// KATAGO_MLX_WINOTUNER_FULL=1 sweeps the wide candidate grid instead of the
-// default coarse one. This is the "command tune" analog of `./katago tuner
-// --full` (OpenCL): the model-load auto-tune stays coarse/fast, and an operator
-// who wants the thorough sweep opts in deliberately, typically paired with
-// KATAGO_MLX_WINOTUNER_FORCE=1 to overwrite the cached coarse result, e.g.
-//   KATAGO_MLX_WINOTUNER_FULL=1 KATAGO_MLX_WINOTUNER_FORCE=1 \
-//     ./katago benchmark -model <m>.bin.gz -config gtp_example.cfg
-static bool mlxWinotunerFull() {
-  static const bool full = [](){
-    const char* e = std::getenv("KATAGO_MLX_WINOTUNER_FULL");
-    return (e != nullptr && std::string(e) == "1");
-  }();
-  return full;
-}
 // GPU name for the tuner cache filename.
 // mlx::core::metal::device_info() is declared in the header but not exported
 // in all libmlx builds; fall back to a fixed string.
@@ -1932,7 +1918,10 @@ struct ComputeHandle {
           /*batchSize=*/8,
           mi,
           context->logger,
-          /*full=*/mlxWinotunerFull(),
+          // The model-load path always tunes the coarse grid; the wide sweep
+          // is reached only through `./katago tuner -full`. Mirrors
+          // openclbackend.cpp, which pins full=false at load.
+          /*full=*/false,
           /*reTune=*/mlxWinotunerForce(),
           /*useFP16=*/useFP16_,
           /*seedOverride=*/nullptr);
