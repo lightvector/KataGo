@@ -307,7 +307,13 @@ static bool mlxWinotunerForce() {
   }();
   return force;
 }
-// KATAGO_MLX_WINOTUNER_FULL=1 uses the wider grid ranges.
+// KATAGO_MLX_WINOTUNER_FULL=1 sweeps the wide candidate grid instead of the
+// default coarse one. This is the "command tune" analog of `./katago tuner
+// --full` (OpenCL): the model-load auto-tune stays coarse/fast, and an operator
+// who wants the thorough sweep opts in deliberately, typically paired with
+// KATAGO_MLX_WINOTUNER_FORCE=1 to overwrite the cached coarse result, e.g.
+//   KATAGO_MLX_WINOTUNER_FULL=1 KATAGO_MLX_WINOTUNER_FORCE=1 \
+//     ./katago benchmark -model <m>.bin.gz -config gtp_example.cfg
 static bool mlxWinotunerFull() {
   static const bool full = [](){
     const char* e = std::getenv("KATAGO_MLX_WINOTUNER_FULL");

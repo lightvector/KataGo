@@ -619,34 +619,52 @@ scoreOutputUntransformPerShape(const MLXWinograd::OutputUntransform& cfg,
   return out;
 }
 
+// Candidate axis value sets, in two breadths that mirror OpenCL's tuner:
+//
+//   full=false (default; the model-load AUTO-tune): a COARSE grid of a few
+//     representative threadgroup / work-per-thread points. Measured on this
+//     hardware, the winning configs form a broad plateau — many configs land
+//     within ~7% of each other and ~25-40% above the baked default — and
+//     geometry moves end-to-end throughput <=1.5%. So a coarse sweep finds the
+//     plateau in ~2s instead of the wide grid's ~16s, which otherwise burns
+//     that time discriminating between near-equivalent (and run-to-run noisy)
+//     configs.
+//
+//   full=true (a deliberate "command" tune via KATAGO_MLX_WINOTUNER_FULL=1):
+//     the wide grid, for operators who want to squeeze the plateau. This is
+//     the analog of `./katago tuner --full` on OpenCL, where the model-load
+//     path pins full=false (openclbackend.cpp) and only the explicit tuner
+//     command passes --full.
 static const std::vector<int>& inputTg0Values(bool full) {
-  static const std::vector<int> v = {1,2,4,8,16,24,32,48,64,96,128,160,192,256,384,512,1024};
-  (void)full;
-  return v;
+  static const std::vector<int> vFull   = {1,2,4,8,16,24,32,48,64,96,128,160,192,256,384,512,1024};
+  static const std::vector<int> vCoarse = {8,16,32,64,128};
+  return full ? vFull : vCoarse;
 }
 static const std::vector<int>& inputTg1Values(bool full) {
-  static const std::vector<int> vFull    = {1,2,4,5,8,10,16,20,25,32,40,50,64,100,128};
-  static const std::vector<int> vNonFull = {1,2,4,8,10,16,25,32,50,100};
-  return full ? vFull : vNonFull;
+  static const std::vector<int> vFull   = {1,2,4,5,8,10,16,20,25,32,40,50,64,100,128};
+  static const std::vector<int> vCoarse = {1,2,4,8,16};
+  return full ? vFull : vCoarse;
 }
 static const std::vector<int>& outputTg0Values(bool full) {
   // Mirror input set — treat tg0 symmetrically.
-  static const std::vector<int> v = {1,2,4,8,16,24,32,48,64,96,128,160,192,256,384,512,1024};
-  (void)full;
-  return v;
+  static const std::vector<int> vFull   = {1,2,4,8,16,24,32,48,64,96,128,160,192,256,384,512,1024};
+  static const std::vector<int> vCoarse = {8,16,32,64,128};
+  return full ? vFull : vCoarse;
 }
 static const std::vector<int>& outputTg1Values(bool full) {
-  // Symmetric with full set (the 8 entry is preserved in non-full).
-  static const std::vector<int> vFull    = {1,2,4,5,8,10,16,20,25,32,40,50,64,100,128};
-  static const std::vector<int> vNonFull = {1,2,4,8,10,16,25,32,50,100};
-  return full ? vFull : vNonFull;
+  static const std::vector<int> vFull   = {1,2,4,5,8,10,16,20,25,32,40,50,64,100,128};
+  static const std::vector<int> vCoarse = {1,2,4,8,16};
+  return full ? vFull : vCoarse;
 }
 
 // wptValues() is used by both stages; vwValues() is input-only
-// (output kernel is VW=1 monomorphic).
-static const std::vector<int>& wptValues() {
-  static const std::vector<int> v = {1, 2, 4, 8};
-  return v;
+// (output kernel is VW=1 monomorphic). wpt narrows under the coarse auto grid
+// too — the wpt=8 tail rarely wins for these tiny transform kernels. vw has
+// only three values, so coarse == full there.
+static const std::vector<int>& wptValues(bool full) {
+  static const std::vector<int> vFull   = {1, 2, 4, 8};
+  static const std::vector<int> vCoarse = {1, 2, 4};
+  return full ? vFull : vCoarse;
 }
 static const std::vector<int>& vwValues() {
   static const std::vector<int> v = {1, 2, 4};
@@ -683,7 +701,7 @@ buildInputCandidates(bool full, int C, int Ntiles, MLXWinograd::GridOrder go) {
   std::vector<MLXWinograd::InputTransform> out;
   for(int tg0 : inputTg0Values(full))
   for(int tg1 : inputTg1Values(full))
-  for(int wpt : wptValues())
+  for(int wpt : wptValues(full))
   for(int vw  : vwValues()) {
     if(!isInputCandidateValid(tg0, tg1, wpt, vw, go, C, Ntiles)) continue;
     out.push_back({tg0, tg1, wpt, vw, go});
@@ -695,7 +713,7 @@ buildOutputCandidates(bool full, int outC, int Ntiles) {
   std::vector<MLXWinograd::OutputUntransform> out;
   for(int tg0 : outputTg0Values(full))
   for(int tg1 : outputTg1Values(full))
-  for(int wpt : wptValues()) {
+  for(int wpt : wptValues(full)) {
     if(!isOutputCandidateValid(tg0, tg1, wpt, outC, Ntiles)) continue;
     out.push_back({tg0, tg1, wpt});
   }
