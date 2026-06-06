@@ -1167,6 +1167,11 @@ struct NestedBottleneckResidualBlock {
       postBN(desc.postBN, desc.postActivation.activation, useFP16),
       postConv(desc.postConv, inCfg, outCfg, useFP16)
   {
+    // Mirror parseResidualBlockStack (desc.cpp), which accepts the same five
+    // block kinds inside a nested bottleneck as in the trunk - including a
+    // nested bottleneck within a nested bottleneck. Keep this in sync with the
+    // trunk's block loop below; an unhandled kind is a loud bug, not a silent
+    // no-op block.
     for(size_t i = 0; i < desc.blocks.size(); i++) {
       int blockKind = desc.blocks[i].first;
       if(blockKind == ORDINARY_BLOCK_KIND) {
@@ -1175,11 +1180,17 @@ struct NestedBottleneckResidualBlock {
       else if(blockKind == GLOBAL_POOLING_BLOCK_KIND) {
         blocks.emplace_back(*static_cast<GlobalPoolingResidualBlockDesc*>(desc.blocks[i].second.get()), inCfg, outCfg, useFP16);
       }
+      else if(blockKind == NESTED_BOTTLENECK_BLOCK_KIND) {
+        blocks.emplace_back(*static_cast<NestedBottleneckResidualBlockDesc*>(desc.blocks[i].second.get()), inCfg, outCfg, nnX, nnY, useFP16);
+      }
       else if(blockKind == TRANSFORMER_ATTENTION_BLOCK_KIND) {
         blocks.emplace_back(*static_cast<TransformerAttentionDesc*>(desc.blocks[i].second.get()), nnX, nnY, useFP16);
       }
       else if(blockKind == TRANSFORMER_FFN_BLOCK_KIND) {
         blocks.emplace_back(*static_cast<TransformerFFNDesc*>(desc.blocks[i].second.get()), nnX, nnY, useFP16);
+      }
+      else {
+        ASSERT_UNREACHABLE;
       }
     }
   }
@@ -1221,7 +1232,11 @@ mx::array BlockVariant::apply(const mx::array& input, const mx::array& mask, con
     case TRANSFORMER_FFN:
       return ffn->apply(input, mask, useMask);
     default:
-      return input;
+      // All BlockVariant::Type values are handled above. Reaching the default
+      // means the tagged union holds an unrecognized type - fail loudly rather
+      // than silently returning the input (an identity no-op block). The
+      // default also satisfies -Wswitch-default (see cpp/CMakeLists.txt).
+      ASSERT_UNREACHABLE;
   }
 }
 
@@ -1326,6 +1341,12 @@ struct Trunk {
       }
       else if(blockKind == TRANSFORMER_FFN_BLOCK_KIND) {
         blocks.emplace_back(*static_cast<TransformerFFNDesc*>(desc.blocks[i].second.get()), nnX, nnY, useFP16);
+      }
+      else {
+        // parseResidualBlockStack (desc.cpp) rejects any other kind at load,
+        // so reaching here means a new block kind was added without backend
+        // support - fail loudly instead of silently dropping the block.
+        ASSERT_UNREACHABLE;
       }
     }
   }
