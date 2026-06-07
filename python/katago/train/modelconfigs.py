@@ -40,7 +40,7 @@ ModelConfig = Dict[str,Any]
 # version = 14 # V7 features, Squared softplus for error variance predictions
 # version = 15 # V7 features, Extra nonlinearity for pass output
 # version = 16 # V7 features, Q value predictions in the policy head
-# version = 17 # V7 features, dropped Q value predictions, introduced transformers and added guards to unused params
+# version = 17 # V7 features, Q value predictions made optional (config "predict_q_values"), introduced transformers and added guards to unused params
 
 def get_version(config: ModelConfig):
     return config["version"]
