@@ -149,6 +149,52 @@ if __name__ == "__main__":
 def get_longterm_checkpoints_dir(traindir):
     return os.path.join(traindir,"longterm_checkpoints")
 
+def load_npz_dir_num_rows_index(npz_dir):
+    """
+    Look for a consolidated "index.json" in npz_dir listing the row counts of the .npz files in that directory,
+    so the row count can be read without a per-file .json next to every .npz.
+    Expected format (tolerant of additional top-level or per-file fields):
+
+        {
+          "files": [
+            {"name": "data0.npz", "num_rows": 262144},
+            {"name": "data1.npz", "num_rows": 262144},
+            ...
+          ]
+        }
+
+    Returns a dict mapping npz basename -> num_rows if an index.json exists, or None if there is no index.json
+    in the directory (in which case callers fall back to the per-file <basename>.json convention).
+    """
+    indexpath = os.path.join(npz_dir, "index.json")
+    if not os.path.exists(indexpath):
+        return None
+    with open(indexpath) as f:
+        indexinfo = json.load(f)
+    num_rows_by_name = {}
+    for fileinfo in indexinfo["files"]:
+        num_rows_by_name[fileinfo["name"]] = fileinfo["num_rows"]
+    return num_rows_by_name
+
+def get_npz_num_rows(npz_path, index_cache):
+    """
+    Return the number of rows in the .npz file at npz_path.
+
+    Prefers a consolidated index.json in the same directory (see load_npz_dir_num_rows_index).
+    Falls back to a per-file <basename>.json containing {"num_rows": n} when no index.json is present.
+    index_cache is a dict mapping npz_dir -> index dict or None.
+    """
+    npz_dir = os.path.dirname(npz_path)
+    if npz_dir not in index_cache:
+        index_cache[npz_dir] = load_npz_dir_num_rows_index(npz_dir)
+    num_rows_by_name = index_cache[npz_dir]
+    if num_rows_by_name is not None:
+        return num_rows_by_name[os.path.basename(npz_path)]
+    jsonpath = os.path.splitext(npz_path)[0] + ".json"
+    with open(jsonpath) as f:
+        fileinfo = json.load(f)
+    return fileinfo["num_rows"]
+
 def make_dirs(args):
     traindir = args["traindir"]
     exportdir = args["exportdir"]
@@ -1168,6 +1214,10 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
 
             break
 
+    # Holds per-directory index.json lookups (npz_dir -> {name: num_rows} or None)
+    # So a consolidated index.json is parsed at most once per directory rather than once per subepoch.
+    npz_num_rows_index_cache = {}
+
     # Load all the files we should train on during a subepoch
     def get_files_for_subepoch():
         assert rank == 0, "Helper ddp training processes should not call get_files_for_subepoch"
@@ -1185,11 +1235,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             filename = trainingdatagenerator.peek()
             if filename is None:
                 break
-            jsonfilename = os.path.splitext(filename)[0] + ".json"
-            with open(jsonfilename) as f:
-                trainfileinfo = json.load(f)
+            num_rows_this_file = get_npz_num_rows(filename, npz_num_rows_index_cache)
 
-            num_batches_this_file = trainfileinfo["num_rows"] // batch_size
+            num_batches_this_file = num_rows_this_file // batch_size
             if num_batches_this_file <= 0:
                 # Useless file: consume and discard it (it counts as used), then look at the next one.
                 trainingdatagenerator.pop()
