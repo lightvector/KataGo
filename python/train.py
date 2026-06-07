@@ -21,6 +21,7 @@ import atexit
 from collections import defaultdict
 from typing import Dict, List
 
+import threading
 from threading import BrokenBarrierError
 
 import torch
@@ -171,15 +172,34 @@ def multiprocessing_setup(rank: int, world_size: int):
 
 def multiprocessing_cleanup():
     logging.info("Multiprocessing cleanup")
-    torch.distributed.destroy_process_group()
+    # destroy_process_group() does an NCCL barrier internally and can block forever
+    # if a peer has already died. Run it in a daemon thread and give it a short grace period
+    # If it doesn't return, we abandon it rather than hang the interpreter.
+    if not torch.distributed.is_initialized():
+        return
+    cleanup_thread = threading.Thread(target=torch.distributed.destroy_process_group, daemon=True)
+    cleanup_thread.start()
+    cleanup_thread.join(timeout=10.0)
+    if cleanup_thread.is_alive():
+        logging.warning("destroy_process_group did not return within 10s, abandoning it")
 
 def safe_barrier(barrier, rank):
     if barrier is not None:
         try:
             barrier.wait()
         except BrokenBarrierError:
-            logging.info("Barrier was broken, so we are exiting {rank=}")
-            safe_exit(barrier,0)
+            # A broken barrier means a peer aborted it, typically because that peer
+            # died (cleanly via safe_exit, or abnormally via the uncaught-exception
+            # handler in main). Either way this process should stop now. Hard-exit
+            # to avoid blocking in the NCCL destroy_process_group atexit handler,
+            # whose peer may already be gone.
+            logging.info(f"Barrier was broken, so we are exiting {rank=}")
+            for handler in logging.getLogger().handlers:
+                try:
+                    handler.flush()
+                except BaseException:
+                    pass
+            os._exit(0)
 
 def safe_exit(barrier, exit_code):
     if barrier is not None:
@@ -190,6 +210,37 @@ def safe_exit(barrier, exit_code):
 
 
 def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
+    try:
+        _main_impl(rank, world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)
+    except SystemExit:
+        # safe_exit() and normal clean shutdown raise SystemExit. Let it propagate.
+        raise
+    except BaseException as e:
+        # An uncaught exception in one rank must not silently hang the whole job.
+        # torch.multiprocessing.spawn's parent-side traceback re-raise is unreliable
+        # here because the NCCL destroy_process_group atexit handler can block
+        # forever waiting on the (now-stuck) peer. So we: (1) log the traceback
+        # ourselves, (2) abort the barrier to wake the other rank(s), and
+        # (3) os._exit() to bypass atexit (the hanging destroy_process_group).
+        logging.error(f"Uncaught exception in rank {rank}, aborting all processes:")
+        logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+        try:
+            if barrier is not None:
+                logging.error("Aborting barrier so other ddp processes also exit")
+                barrier.abort()
+        except BaseException:
+            logging.error("Failed to abort barrier:\n" + traceback.format_exc())
+        # Flush logs before the hard exit, since os._exit skips normal flushing.
+        for handler in logging.getLogger().handlers:
+            try:
+                handler.flush()
+            except BaseException:
+                pass
+        sys.stderr.flush()
+        os._exit(1)
+
+
+def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
     traindir = args["traindir"]
     datadir = args["datadir"]
     latestdatadir = args["latestdatadir"]
