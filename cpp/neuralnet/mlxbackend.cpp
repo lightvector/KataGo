@@ -299,13 +299,6 @@ static bool mlxWinotunerEnabled() {
   }();
   return enabled;
 }
-// GPU name for the tuner cache filename.
-// mlx::core::metal::device_info() is declared in the header but not exported
-// in all libmlx builds; fall back to a fixed string.
-static std::string mlxGpuName() {
-  return "AppleSilicon";
-}
-
 // Layers --------------------------------------------------------------------------------------------------------------
 
 struct ConvLayer {
@@ -1899,7 +1892,7 @@ struct ComputeHandle {
       tuneParams = MLXWinogradTuner::loadOrAutoTune(
           /*tunerFile=*/"",
           context->homeDataDirOverride,
-          mlxGpuName(),
+          MLXWinogradTuner::detectGpuName(),
           context->nnXLen, context->nnYLen,
           // Tuner times the Winograd input/output transform kernels at this
           // batch size only (the matmul stage is untuned). Probed re-tuning

@@ -63,6 +63,14 @@ namespace MLXWinogradTuner {
   std::vector<ShapePlan> planShapeRotationForTesting(
       const std::vector<std::pair<int,int>>& histogram);
 
+  // Chip-specific identifier for the cache-file key (e.g. "Apple M3 Max" via
+  // sysctl machdep.cpu.brand_string). The optimal Winograd launch geometry
+  // differs across Apple GPU variants, so different chips must not share one
+  // tuned cache; defaultFileName() strips this to [A-Za-z0-9]. Both the backend
+  // load path and the `tuner` command call this so their keys always match.
+  // Falls back to "AppleSilicon" if the query fails.
+  std::string detectGpuName();
+
   std::string defaultDirectory(bool makeDir, const std::string& homeDataDirOverride);
   std::string defaultFileName(const std::string& gpuName,
                               int nnXLen, int nnYLen,

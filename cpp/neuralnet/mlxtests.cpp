@@ -700,6 +700,22 @@ void runMLXWinotunerTests() {
          << nameF32 << " vs " << nameF16 << endl;
   }
 
+  // detectGpuName() must yield a stable, non-empty, chip-specific cache key so
+  // that different Apple chips don't share one Winograd cache file, and must be
+  // filesystem-safe once threaded through defaultFileName (no spaces).
+  {
+    std::string gpu = MLXWinogradTuner::detectGpuName();
+    testAssert(!gpu.empty());
+    // Deterministic: the backend load path and the `tuner` command must derive
+    // the identical key on the same machine.
+    testAssert(MLXWinogradTuner::detectGpuName() == gpu);
+    std::string name = MLXWinogradTuner::defaultFileName(gpu, 19, 19, 384, 13, /*useFP16=*/true);
+    testAssert(name.find(' ') == std::string::npos);
+    testAssert(name.find("_gpu") != std::string::npos);
+    testAssert(name.size() >= 4 && name.substr(name.size()-4) == ".txt");
+    cout << "  detectGpuName OK: \"" << gpu << "\" -> " << name << endl;
+  }
+
   // ---- Corrupt-version rejection ----
   {
     std::string tmp = "/tmp/katago_mlx_winotuner_badversion.txt";

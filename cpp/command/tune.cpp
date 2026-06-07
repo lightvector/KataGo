@@ -316,8 +316,9 @@ int MainCmds::tuner(const vector<string>& args) {
     modelInfo.conv3x3OutputHistogram = std::move(histograms.second);
   }
 
-  // Matches mlxGpuName() in mlxbackend.cpp; part of the cache filename key.
-  const string gpuName = "AppleSilicon";
+  // Chip-specific cache key, shared with the backend's model-load path so the
+  // command writes exactly the file the backend reads; part of the filename key.
+  const string gpuName = MLXWinogradTuner::detectGpuName();
 
   string outputFile;
   if(outputFileFromArg == "") {

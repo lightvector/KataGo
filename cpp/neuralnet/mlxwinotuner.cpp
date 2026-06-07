@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+#include <sys/sysctl.h>  // sysctlbyname, for detectGpuName()
+
 #include "../core/fileutils.h"
 #include "../core/global.h"
 #include "../core/logger.h"
@@ -155,6 +157,25 @@ string MLXWinogradTuner::defaultFileName(const string& gpuName,
                            MLX_WINO_TUNER_VERSION, clean.c_str(),
                            nnXLen, nnYLen, trunkNumChannels, modelVersion,
                            dtypeSuffix);
+}
+
+string MLXWinogradTuner::detectGpuName() {
+  // The optimal Winograd launch geometry differs across Apple GPU variants, so
+  // the cache key must distinguish them; otherwise a cache tuned on one chip
+  // (e.g. M1) would be loaded verbatim on another (e.g. M4 Max). MLX does not
+  // reliably export a device name (mlx::core::metal::device_info() is declared
+  // but not exported in all libmlx builds), so query the chip brand string
+  // directly. On Apple Silicon this returns e.g. "Apple M3 Max";
+  // defaultFileName() sanitizes it to [A-Za-z0-9].
+  char buf[128];
+  size_t len = sizeof(buf);
+  if(sysctlbyname("machdep.cpu.brand_string", buf, &len, nullptr, 0) == 0 && len > 1) {
+    buf[sizeof(buf) - 1] = '\0';  // guarantee NUL-termination
+    string name(buf);             // stops at the first NUL
+    if(!name.empty())
+      return name;
+  }
+  return "AppleSilicon";
 }
 
 namespace mx = mlx::core;
