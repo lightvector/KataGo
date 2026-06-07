@@ -877,6 +877,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
 
             else:
                 logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
+                train_state["optimizer_name"] = optimizer_name
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
