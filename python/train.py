@@ -39,7 +39,7 @@ from muon.muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 from katago.train import modelconfigs
 from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder
 from katago.train.metrics_pytorch import Metrics
-from katago.utils.push_back_generator import PushBackGenerator
+from katago.utils.training_data_generator import TrainingDataGenerator
 from katago.train import load_model
 from katago.train import data_processing_pytorch
 from katago.train.metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
@@ -801,10 +801,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_state["window_start_data_row_idx"] = 0
     if "total_num_data_rows" not in train_state:
         train_state["total_num_data_rows"] = 0
-    if "old_train_data_dirs" not in train_state:
-        train_state["old_train_data_dirs"] = []
-    if "data_files_used" not in train_state:
-        train_state["data_files_used"] = set()
     if "swa_sample_accum" not in train_state:
         train_state["swa_sample_accum"] = 0.0
 
@@ -1010,13 +1006,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # DATA RELOADING GENERATOR ------------------------------------------------------------
 
     # Some globals
+    # Note: last_curdatadir is a plain local, NOT part of train_state, so it is reset to None on every
+    # process start and is not checkpointed. Consequently the first maybe_reload_training_data() call after
+    # a restart always sees curdatadir != last_curdatadir and re-enters the "new shuffle" block below, even
+    # when resuming on the same data dir, which is what lets a resumed run finish the remainder of an
+    # in-progress epoch before repeating files.
     last_curdatadir = None
-    trainfilegenerator = None
     vdatadir = None
+    # Owns all "which training files have been used" logic.
+    trainingdatagenerator = TrainingDataGenerator(train_state, no_repeat_files)
 
     def maybe_reload_training_data():
         nonlocal last_curdatadir
-        nonlocal trainfilegenerator
         nonlocal vdatadir
 
         assert rank == 0, "Helper ddp training processes should not call maybe_reload_training_data"
@@ -1090,16 +1091,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 logging.info("Train steps since last reload: %.0f -> 0" % train_state["train_steps_since_last_reload"])
                 train_state["train_steps_since_last_reload"] = 0
 
-                # Load training data files
+                # Load training data files. The generator handles all "which files have been used" and no_repeat_files semantics.
                 tdatadir = os.path.join(curdatadir,"train")
-                train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".npz")]
-                epoch0_train_files = [path for path in train_files if path not in train_state["data_files_used"]]
-                if no_repeat_files:
-                    logging.info(f"Dropping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used")
-                else:
-                    logging.info(f"Skipping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used first pass")
-
-                if len(train_files) <= 0 or (no_repeat_files and len(epoch0_train_files) <= 0):
+                loaded_any_data = trainingdatagenerator.set_data_dir_if_has_remaining_files(tdatadir)
+                if not loaded_any_data:
                     if quit_if_no_data:
                         logging.info(f"No new training files found in: {tdatadir}, quitting")
                         safe_exit(barrier,0)
@@ -1107,32 +1102,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     time.sleep(30)
                     continue
 
-                # Update history of what training data we used
-                if tdatadir not in train_state["old_train_data_dirs"]:
-                    train_state["old_train_data_dirs"].append(tdatadir)
-                # Clear out tracking of sufficiently old files
-                while len(train_state["old_train_data_dirs"]) > 20:
-                    old_dir = train_state["old_train_data_dirs"][0]
-                    train_state["old_train_data_dirs"] = train_state["old_train_data_dirs"][1:]
-                    for filename in list(train_state["data_files_used"]):
-                        if filename.startswith(old_dir):
-                            train_state["data_files_used"].remove(filename)
-
-                def train_files_gen():
-                    train_files_shuffled = epoch0_train_files.copy()
-                    while True:
-                        random.shuffle(train_files_shuffled)
-                        for filename in train_files_shuffled:
-                            logging.info("Yielding training file for dataset: " + filename)
-                            train_state["data_files_used"].add(filename)
-                            yield filename
-                        if no_repeat_files:
-                            break
-                        else:
-                            train_files_shuffled = train_files.copy()
-                            train_state["data_files_used"] = set()
-
-                trainfilegenerator = PushBackGenerator(train_files_gen())
                 vdatadir = os.path.join(curdatadir,"val")
 
             # Same directory as before, no new shuffle
@@ -1150,8 +1119,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     # Load all the files we should train on during a subepoch
     def get_files_for_subepoch():
-        nonlocal trainfilegenerator
-
         assert rank == 0, "Helper ddp training processes should not call get_files_for_subepoch"
 
         num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
@@ -1161,27 +1128,35 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_files_to_use = []
         batches_to_use_so_far = 0
         found_enough = False
-        for filename in trainfilegenerator:
+        while True:
+            # peek (rather than pop) so that a file we decide not to take this subepoch is left in the generator
+            # un-consumed and unmarked, to be served at the start of the next subepoch.
+            filename = trainingdatagenerator.peek()
+            if filename is None:
+                break
             jsonfilename = os.path.splitext(filename)[0] + ".json"
             with open(jsonfilename) as f:
                 trainfileinfo = json.load(f)
 
             num_batches_this_file = trainfileinfo["num_rows"] // batch_size
             if num_batches_this_file <= 0:
+                # Useless file: consume and discard it (it counts as used), then look at the next one.
+                trainingdatagenerator.pop()
                 continue
 
             if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
                 # If we're going over the desired amount, randomly skip the file with probability equal to the
                 # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
                 if batches_to_use_so_far > 0 and random.random() <= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
-                    trainfilegenerator.push_back(filename)
+                    # Leave it un-popped for the next subepoch (do not mark it used).
                     found_enough = True
                     break
 
+            trainingdatagenerator.pop()
             train_files_to_use.append(filename)
             batches_to_use_so_far += num_batches_this_file
 
-            #Sanity check - load a max of 100000 files.
+            # Sanity check - load a max of 100000 files.
             if batches_to_use_so_far >= num_batches_per_subepoch or len(train_files_to_use) > 100000:
                 found_enough = True
                 break
