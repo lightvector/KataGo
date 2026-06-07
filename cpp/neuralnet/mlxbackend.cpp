@@ -810,10 +810,19 @@ struct TransformerAttentionBlock {
     }
 
     // Step 4: scores = scale * Q @ K^T -> [N, numHeads, seq(query), seq(key)].
-    // matmul result dtype follows q's compute dtype; a float32 scalar multiply
-    // keeps that dtype (scalar promotes to the array dtype, not vice versa).
+    // Keep the whole attention chain that follows (scores, softmax, attn@V,
+    // out-proj, and the residual stream) in the compute dtype. MLX C++ has no
+    // weak scalars: mx::array(scale) is a strong float32 array, so
+    // `matmul(q,kT) * mx::array(scale)` would promote scores -- and everything
+    // downstream, since each transformer block adds its output into the trunk --
+    // to fp32. Cast scale to the compute dtype so the fp16 path stays fp16
+    // end-to-end (maximize-fp16 on the GPU path; fp16 attention accuracy is gated
+    // by testgpuerror). The pooling/BN/RMSNorm layers handle this same MLX
+    // promotion rule by casting their fp32 intermediates back with a trailing
+    // astype; attention does it here at the source instead.
     mx::array kT = mx::transpose(k, std::vector<int>{0, 1, 3, 2});  // [N, numHeads, qHeadDim, seq]
-    mx::array scores = mx::matmul(q, kT) * mx::array(scale);
+    mx::array scaleArr = useFP16 ? mx::astype(mx::array(scale), mx::float16) : mx::array(scale);
+    mx::array scores = mx::matmul(q, kT) * scaleArr;
 
     // Masked softmax over the key axis (last). Keys with mask==0 get -inf so
     // they contribute 0; fully-masked query rows are zeroed afterward to match
