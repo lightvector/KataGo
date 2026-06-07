@@ -2708,6 +2708,29 @@ b20c384h12tflrs = {
     "v2_size":128,
 }
 
+b21c384h12tflrs = {
+    "version":17,
+    "norm_kind":"fixup",
+    "bnorm_epsilon": 1e-4,
+    "bnorm_running_avg_momentum": 0.001,
+    "initial_conv_1x1": False,
+    "gamma_weight_decay_center_1":True,
+    "trunk_num_channels":384,
+    "mid_num_channels":384,
+    "gpool_num_channels":64,
+    "transformer_ffn_channels":1024,
+    "transformer_heads":12,
+    "transformer_kv_heads":12,
+    "learnable_rope":True,
+    "block_kind": [item for i in range(1,22) for item in [[f"attn{i}","attnrope"],[f"ffn{i}","ffnsg"]]],
+    "p1_num_channels":64,
+    "g1_num_channels":64,
+    "v1_num_channels":128,
+    "sbv2_num_channels":128,
+    "num_scorebeliefs":8,
+    "v2_size":128,
+}
+
 b30c512h16tfrs = {
     "version":17,
     "norm_kind":"fixup",
@@ -3171,6 +3194,7 @@ base_config_of_name = {
     # b28c512nbt-comparable tier
     "b20c384h12tfrs": b20c384h12tfrs,
     "b20c384h12tflrs": b20c384h12tflrs,
+    "b21c384h12tflrs": b21c384h12tflrs,
     "b35c256h8tfrs": b35c256h8tfrs,
     "b35c256h8tflrs": {**b35c256h8tfrs, "learnable_rope": True},
     "b32c256h8tflrs": {**b35c256h8tfrs, "learnable_rope": True,
@@ -3178,6 +3202,9 @@ base_config_of_name = {
     "b26c320h10tfrs": b26c320h10tfrs,
     "b22c384h8tfrs": b22c384h8tfrs,
     "b9c768h12nbttflrs": b9c768h12nbttflrs,
+    "b9c768h12nbttflrs-ireg16": {**b9c768h12nbttflrs,
+        "inline_registers": True,
+        "attention_num_rw_registers": 16 },
     "b15c512h8nbttflrs": b15c512h8nbttflrs,
     "b10c512h8nbt3tflrs": b10c512h8nbt3tflrs,
     "b14c512h8nbttflrs": {**b15c512h8nbttflrs,
