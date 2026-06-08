@@ -81,8 +81,6 @@ namespace MLXWinogradTuner {
   // grid searches, saves the result, and returns it.
   // useFP16: passed to defaultFileName for cache-file naming AND to the
   // search-timing kernels so geometry is measured at the active precision.
-  // seedOverride: reserved for API stability; currently ignored by the flat
-  // sweep. Production callers pass nullptr.
   MLXWinogradTuneParams loadOrAutoTune(
     std::string tunerFile,
     const std::string& homeDataDirOverride,
@@ -92,8 +90,7 @@ namespace MLXWinogradTuner {
     Logger* logger,
     bool full,
     bool reTune,
-    bool useFP16,
-    const MLXWinogradTuneParams* seedOverride = nullptr
+    bool useFP16
   );
 
   // Test-only — exposes the per-model candidate enumeration. Not part of the

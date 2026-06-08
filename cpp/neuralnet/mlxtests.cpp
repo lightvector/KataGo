@@ -48,6 +48,7 @@ namespace mx = mlx::core;
 // ConvLayer classes, so they cannot move here.
 void runMLXBatchNormFP16Test();
 void runMLXConvLayerFP16WinogradTest();
+void runMLXTransformerLayerFP16Test();
 
 void runMLXWinogradTests() {
   cout << "Running MLX Winograd F(2,3) tests" << endl;
@@ -109,6 +110,17 @@ void runMLXWinogradTests() {
       maxErr=std::max(maxErr,(double)std::fabs(refv[i]-od[i]));
     cout<<"  MLX-metal winograd maxErr="<<maxErr<<endl;
     testAssert(maxErr < 2e-3);
+    // Also assert against the naive direct-conv oracle. cpuConv2d3x3 is itself a
+    // Winograd F(2,3) impl sharing the same B/G/A transform matrices the GPU
+    // kernel hard-codes, so a shared sign/transpose error in those matrices would
+    // cancel in both and pass. `direct` is an independent O(K^2) conv, so it
+    // catches such a shared-transform-matrix bug that cpuConv2d3x3 would mask.
+    auto refDirect = direct(in,N,H,W,Cin,w,Cout);
+    double maxErrD=0.0;
+    for(size_t i=0;i<refDirect.size();i++)
+      maxErrD=std::max(maxErrD,(double)std::fabs(refDirect[i]-od[i]));
+    cout<<"  MLX-metal winograd vs direct maxErr="<<maxErrD<<endl;
+    testAssert(maxErrD < 2e-3);
   }
 
   // FP16 Winograd: input/weights/output all fp16, compared against fp32 CPU oracle.
@@ -139,10 +151,19 @@ void runMLXWinogradTests() {
       maxErr=std::max(maxErr,(double)std::fabs(refv[i]-od[i]));
     cout<<"  MLX-metal winograd FP16 maxErr="<<maxErr<<endl;
     testAssert(maxErr < 5e-2);
+    // Independent oracle (see GPU block above): catch a shared-transform-matrix
+    // error that cpuConv2d3x3 would mask, here at the fp16 tolerance.
+    auto refDirect = direct(in,N,H,W,Cin,w,Cout);
+    double maxErrD=0.0;
+    for(size_t i=0;i<refDirect.size();i++)
+      maxErrD=std::max(maxErrD,(double)std::fabs(refDirect[i]-od[i]));
+    cout<<"  MLX-metal winograd FP16 vs direct maxErr="<<maxErrD<<endl;
+    testAssert(maxErrD < 5e-2);
   }
 
   runMLXBatchNormFP16Test();
   runMLXConvLayerFP16WinogradTest();
+  runMLXTransformerLayerFP16Test();
 
   // Smoke test — verify Winograd plumbing.
   // Trivial 4x4x1 input, 1 output channel, all-ones filter.

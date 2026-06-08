@@ -1920,8 +1920,7 @@ struct ComputeHandle {
           // pins full=false at load.
           /*full=*/false,
           /*reTune=*/false,
-          /*useFP16=*/useFP16_,
-          /*seedOverride=*/nullptr);
+          /*useFP16=*/useFP16_);
     }
 
     modelCacheKey = makeCacheKey(loadedModel, tuneParams, useFP16_);
@@ -2723,6 +2722,252 @@ void runMLXConvLayerFP16WinogradTest() {
     maxErr=std::max(maxErr,(double)std::fabs(refv[i]-od[i]));
   cout<<"  ConvLayer fp16 winograd maxErr="<<maxErr<<endl;
   testAssert(maxErr < 5e-2);
+}
+
+// Directly-asserting unit test for the transformer layer path
+// (TransformerRMSNormLayer + TransformerAttentionBlock). These structs are
+// file-local to this TU, so the test lives here (mirroring the BatchNorm/Conv
+// tests above); it is forward-declared and called from runMLXWinogradTests().
+//
+// Guards covered:
+//   1. RMSNorm fp32 numeric correctness + weight stays fp32.
+//   2. RMSNorm fp16 dtype + closeness + finiteness.
+//   3. Attention OUTPUT dtype-preservation under useFP16 (THE "§1" guard: a
+//      stray mx::array(scale) is a strong fp32 array in MLX C++, which silently
+//      promoted the attention output -- and the whole residual stream -- to
+//      fp32). Plus fp16-vs-fp32 closeness, mask on/off, and a fixed-RoPE variant.
+//   4. Structural residual anchor: outProj all-zeros => apply() == trunk exactly.
+void runMLXTransformerLayerFP16Test() {
+  namespace mxc = mx;  // reuse the file-scope `mx` alias
+  using std::cout;
+  using std::endl;
+
+  std::mt19937 rng(20260607u);
+  std::uniform_real_distribution<float> dist(-0.3f, 0.3f);  // keep fp16 well-conditioned
+  auto fillRand = [&](std::vector<float>& v){ for(auto& x : v) x = dist(rng); };
+
+  // ---- (1)+(2) RMSNorm correctness + dtype ----
+  {
+    const int N=1,H=3,W=3,C=8;
+    const float eps=1e-5f;
+    std::vector<float> weightV(C); fillRand(weightV);
+    // Bias the weights to ~1.0 so the normalize is not degenerate.
+    for(auto& x : weightV) x += 1.0f;
+
+    TransformerRMSNormDesc desc;
+    desc.name = "rmsnormFP16Test";
+    desc.numChannels = C;
+    desc.epsilon = eps;
+    desc.weight = weightV;
+
+    std::vector<float> inV((size_t)N*H*W*C); fillRand(inV);
+    std::vector<float> maskV((size_t)N*H*W*1, 1.0f);
+
+    mxc::array inArrF32(inV.data(), {N,H,W,C}, mxc::float32);
+    mxc::array maskF32(maskV.data(), {N,H,W,1}, mxc::float32);
+
+    // fp32 layer; useMask=false.
+    TransformerRMSNormLayer rmsF32(desc, /*useFP16=*/false);
+    testAssert(rmsF32.weight.dtype() == mxc::float32);
+    mxc::array outF32 = rmsF32.apply(inArrF32, maskF32, /*useMask=*/false);
+    mxc::eval(outF32);
+    const float* op = outF32.data<float>();
+
+    // CPU reference: per position, ms = mean_c(x^2); r = 1/sqrt(ms+eps);
+    // out_c = x_c * r * weight_c.
+    double maxErr=0.0;
+    for(int pos=0; pos<N*H*W; pos++) {
+      double ms=0.0;
+      for(int c=0;c<C;c++){ float x=inV[(size_t)pos*C+c]; ms += (double)x*x; }
+      ms /= C;
+      double r = 1.0/std::sqrt(ms+eps);
+      for(int c=0;c<C;c++){
+        double ref = inV[(size_t)pos*C+c]*r*weightV[c];
+        maxErr = std::max(maxErr, std::fabs(ref - (double)op[(size_t)pos*C+c]));
+      }
+    }
+    cout<<"  TransformerRMSNorm fp32 maxErr="<<maxErr<<endl;
+    testAssert(maxErr < 1e-4);
+
+    // fp16 layer: dtype, closeness, finiteness.
+    TransformerRMSNormLayer rmsF16(desc, /*useFP16=*/true);
+    testAssert(rmsF16.weight.dtype() == mxc::float32);  // weight stays fp32
+    mxc::array inArrF16 = mxc::astype(inArrF32, mxc::float16);
+    mxc::array maskF16 = mxc::astype(maskF32, mxc::float16);
+    mxc::array outF16 = rmsF16.apply(inArrF16, maskF16, /*useMask=*/false);
+    mxc::eval(outF16);
+    testAssert(outF16.dtype() == mxc::float16);
+    mxc::array outF16to32 = mxc::astype(outF16, mxc::float32);
+    mxc::eval(outF16to32);
+    const float* op16 = outF16to32.data<float>();
+    double maxErr16=0.0; bool allFinite=true;
+    for(size_t i=0;i<(size_t)N*H*W*C;i++){
+      if(!std::isfinite(op16[i])) allFinite=false;
+      maxErr16 = std::max(maxErr16, std::fabs((double)op[i] - (double)op16[i]));
+    }
+    cout<<"  TransformerRMSNorm fp16 dtype OK, vs-fp32 maxErr="<<maxErr16<<endl;
+    testAssert(allFinite);
+    testAssert(maxErr16 < 5e-2);
+  }
+
+  // Build a TransformerAttentionDesc with the standard projection shapes.
+  // qProj  : [inChannels, numHeads*qHeadDim]
+  // kProj  : [inChannels, numKVHeads*qHeadDim]
+  // vProj  : [inChannels, numKVHeads*vHeadDim]
+  // outProj: [numHeads*vHeadDim, inChannels]
+  // preLN  : TransformerRMSNormDesc(numChannels=inChannels)
+  auto makeMatMulDesc = [&](MatMulLayerDesc& d, const std::string& nm,
+                            int inC, int outC, bool zero){
+    d.name = nm; d.inChannels = inC; d.outChannels = outC;
+    d.weights.assign((size_t)inC*outC, 0.0f);
+    if(!zero) fillRand(d.weights);
+  };
+  auto buildAttnDesc = [&](TransformerAttentionDesc& desc,
+                           int inChannels, int numHeads, int numKVHeads,
+                           int qHeadDim, int vHeadDim,
+                           bool useRope, bool zeroOutProj){
+    desc.name = "attnFP16Test";
+    desc.numHeads = numHeads;
+    desc.numKVHeads = numKVHeads;
+    desc.qHeadDim = qHeadDim;
+    desc.vHeadDim = vHeadDim;
+    desc.useRope = useRope;
+    desc.learnableRope = false;       // fixed RoPE only here
+    desc.ropeTheta = 10000.0f;        // standard base; only read when useRope
+    // preLN.
+    desc.preLN.name = "attnPreLN";
+    desc.preLN.numChannels = inChannels;
+    desc.preLN.epsilon = 1e-5f;
+    std::vector<float> lnW(inChannels); fillRand(lnW);
+    for(auto& x : lnW) x += 1.0f;
+    desc.preLN.weight = lnW;
+    // Projections.
+    makeMatMulDesc(desc.qProj,  "qProj",  inChannels, numHeads*qHeadDim,   false);
+    makeMatMulDesc(desc.kProj,  "kProj",  inChannels, numKVHeads*qHeadDim, false);
+    makeMatMulDesc(desc.vProj,  "vProj",  inChannels, numKVHeads*vHeadDim, false);
+    makeMatMulDesc(desc.outProj,"outProj",numHeads*vHeadDim, inChannels,   zeroOutProj);
+  };
+
+  // ---- (3) Attention dtype preservation (THE §1 guard) + fp16-vs-fp32 ----
+  {
+    const int N=1, nnX=3, nnY=3;  // seq=9
+    const int inChannels=8, numHeads=2, numKVHeads=1, qHeadDim=4, vHeadDim=4;
+
+    // Fixed weights (one RNG draw) reused by the fp16 and fp32 blocks so the two
+    // can be compared. Build the desc once for fp16 and an identical one for fp32.
+    auto runVariant = [&](bool useRope){
+      // descF16 and descF32 must get BIT-IDENTICAL weights so the only difference
+      // between the two blocks is the compute dtype. buildOne therefore seeds a
+      // FRESH RNG from the same base seed on every call (a single shared RNG would
+      // hand the second desc a different draw, i.e. a different random network --
+      // the comparison would then measure network divergence, not fp16 error).
+      const unsigned baseSeed = 424242u + (useRope?1u:0u);
+      auto buildOne = [&](TransformerAttentionDesc& desc){
+        std::mt19937 localRng(baseSeed);
+        std::uniform_real_distribution<float> ld(-0.3f, 0.3f);
+        auto lfill = [&](std::vector<float>& v){ for(auto& x:v) x=ld(localRng); };
+        desc.name = "attnFP16Test";
+        desc.numHeads = numHeads; desc.numKVHeads = numKVHeads;
+        desc.qHeadDim = qHeadDim; desc.vHeadDim = vHeadDim;
+        desc.useRope = useRope; desc.learnableRope = false; desc.ropeTheta = 10000.0f;
+        desc.preLN.name = "attnPreLN"; desc.preLN.numChannels = inChannels; desc.preLN.epsilon = 1e-5f;
+        std::vector<float> lnW(inChannels); lfill(lnW); for(auto& x:lnW) x+=1.0f; desc.preLN.weight = lnW;
+        auto mk = [&](MatMulLayerDesc& d, const std::string& nm, int inC, int outC){
+          d.name=nm; d.inChannels=inC; d.outChannels=outC;
+          d.weights.assign((size_t)inC*outC,0.0f); lfill(d.weights);
+        };
+        mk(desc.qProj,  "qProj",  inChannels, numHeads*qHeadDim);
+        mk(desc.kProj,  "kProj",  inChannels, numKVHeads*qHeadDim);
+        mk(desc.vProj,  "vProj",  inChannels, numKVHeads*vHeadDim);
+        mk(desc.outProj,"outProj",numHeads*vHeadDim, inChannels);
+      };
+
+      TransformerAttentionDesc descF16; buildOne(descF16);
+      TransformerAttentionDesc descF32; buildOne(descF32);  // same RNG seed => same weights
+
+      std::vector<float> trunkV((size_t)N*nnY*nnX*inChannels);
+      { std::mt19937 tr(99u); std::uniform_real_distribution<float> td(-0.3f,0.3f);
+        for(auto& x:trunkV) x=td(tr); }
+      std::vector<float> maskV((size_t)N*nnY*nnX*1, 1.0f);
+      // For the useMask=true case, mask out two positions.
+      maskV[2]=0.0f; maskV[5]=0.0f;
+
+      mxc::array trunkF32(trunkV.data(), {N,nnY,nnX,inChannels}, mxc::float32);
+      mxc::array maskF32(maskV.data(), {N,nnY,nnX,1}, mxc::float32);
+      mxc::array trunkF16 = mxc::astype(trunkF32, mxc::float16);
+      mxc::array maskF16  = mxc::astype(maskF32,  mxc::float16);
+
+      TransformerAttentionBlock blkF16(descF16, nnX, nnY, /*useFP16=*/true);
+      TransformerAttentionBlock blkF32(descF32, nnX, nnY, /*useFP16=*/false);
+
+      for(bool useMask : {true, false}) {
+        mxc::array oF16 = blkF16.apply(trunkF16, maskF16, useMask);
+        mxc::eval(oF16);
+        // THE guard: output dtype must stay fp16 (a stray fp32 scalar promotes it).
+        testAssert(oF16.dtype() == mxc::float16);
+        mxc::array oF16to32 = mxc::astype(oF16, mxc::float32);
+        mxc::eval(oF16to32);
+        const float* p16 = oF16to32.data<float>();
+        bool finite=true; for(size_t i=0;i<trunkV.size();i++) if(!std::isfinite(p16[i])) finite=false;
+        testAssert(finite);
+
+        mxc::array oF32 = blkF32.apply(trunkF32, maskF32, useMask);
+        mxc::eval(oF32);
+        const float* p32 = oF32.data<float>();
+        double maxErr=0.0, maxAbs=0.0;
+        for(size_t i=0;i<trunkV.size();i++) {
+          maxErr = std::max(maxErr, std::fabs((double)p16[i]-(double)p32[i]));
+          maxAbs = std::max(maxAbs, std::fabs((double)p32[i]));
+        }
+        double relErr = maxErr / (maxAbs + 1e-6);
+        cout<<"  TransformerAttention fp16 dtype OK (useRope="<<useRope
+            <<" useMask="<<useMask<<") vs-fp32 maxErr="<<maxErr
+            <<" maxAbs="<<maxAbs<<" relErr="<<relErr<<endl;
+        // The dtype assert above is the precise §1 regression guard. This is a
+        // secondary numeric check: fp16 and fp32 run the SAME weights, so this
+        // measures genuine fp16 accuracy of the whole chain (preLN -> Q/K/V
+        // matmuls -> masked softmax -> @V -> out-proj). The bound is RELATIVE to
+        // the output scale because the attention-delta magnitude is set by the
+        // (random) projection scale. fp16 here lands a few % relative; 0.10 keeps
+        // comfortable margin while still catching a real fp16/fp32 divergence.
+        testAssert(relErr < 0.10);
+      }
+    };
+
+    runVariant(/*useRope=*/false);
+    // Fixed RoPE setup is straightforward (computeRopeCosSin reads only ropeTheta
+    // and qHeadDim for the non-learnable path, and qHeadDim=4 is even), so cover
+    // useRope=true too. Learnable RoPE is NOT covered here (it needs ropeFreqs).
+    runVariant(/*useRope=*/true);
+  }
+
+  // ---- (4) Structural residual anchor: outProj all zeros => apply() == trunk ----
+  {
+    const int N=1, nnX=3, nnY=3;
+    const int inChannels=8, numHeads=2, numKVHeads=1, qHeadDim=4, vHeadDim=4;
+    TransformerAttentionDesc desc;
+    buildAttnDesc(desc, inChannels, numHeads, numKVHeads, qHeadDim, vHeadDim,
+                  /*useRope=*/false, /*zeroOutProj=*/true);
+
+    std::vector<float> trunkV((size_t)N*nnY*nnX*inChannels); fillRand(trunkV);
+    std::vector<float> maskV((size_t)N*nnY*nnX*1, 1.0f);
+    mxc::array trunkF32(trunkV.data(), {N,nnY,nnX,inChannels}, mxc::float32);
+    mxc::array maskF32(maskV.data(), {N,nnY,nnX,1}, mxc::float32);
+
+    TransformerAttentionBlock blk(desc, nnX, nnY, /*useFP16=*/false);
+    // useMask=false to avoid mask interactions: zero out-proj => added spatial
+    // term is exactly 0, so apply() must return exactly trunk.
+    mxc::array out = blk.apply(trunkF32, maskF32, /*useMask=*/false);
+    mxc::eval(out);
+    const float* op = out.data<float>();
+    double maxErr=0.0;
+    for(size_t i=0;i<trunkV.size();i++)
+      maxErr = std::max(maxErr, std::fabs((double)trunkV[i]-(double)op[i]));
+    cout<<"  TransformerAttention zero-outProj residual maxErr="<<maxErr<<endl;
+    testAssert(maxErr < 1e-3);
+  }
+
+  cout << "  TransformerLayer fp16 tests OK" << endl;
 }
 
 #endif // USE_MLX_BACKEND

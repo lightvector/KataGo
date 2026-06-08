@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <sys/sysctl.h>  // sysctlbyname, for detectGpuName()
+#include <unistd.h>      // getpid(), for atomic temp-file save
 
 #include "../core/fileutils.h"
 #include "../core/global.h"
@@ -85,8 +86,12 @@ bool MLXWinogradTuneParams::isValid() const {
 }
 
 void MLXWinogradTuneParams::save(const string& filename, const MLXWinogradTuneParams& params) {
+  // Write to a per-process-unique temp path, then atomically rename onto the
+  // final path. This prevents two katago processes that both cache-miss on the
+  // same model and tune concurrently from tearing the shared cache file.
+  const string tmpPath = filename + ".tmp." + std::to_string((long)getpid());
   ofstream out;
-  FileUtils::open(out, filename);
+  FileUtils::open(out, tmpPath);
   out << MLX_WINO_TUNEPARAMS_VERSION_LINE << "\n";
   out << "#inputTransform\n";
   out << "tg0=" << params.inputTransform.tg0
@@ -100,6 +105,8 @@ void MLXWinogradTuneParams::save(const string& filename, const MLXWinogradTunePa
       << " wpt=" << params.outputUntransform.wpt << "\n";
   out.flush();
   out.close();
+  // Atomic publish: only fully-written content ever appears at `filename`.
+  FileUtils::rename(tmpPath, filename);
 }
 
 MLXWinogradTuneParams MLXWinogradTuneParams::load(const string& filename) {
@@ -932,8 +939,7 @@ MLXWinogradTuneParams MLXWinogradTuner::loadOrAutoTune(
     Logger* logger,
     bool full,
     bool reTune,
-    bool useFP16,
-    const MLXWinogradTuneParams* /*seedOverride*/) {
+    bool useFP16) {
   if(tunerFile.empty()) {
     string dir = defaultDirectory(true, homeDataDirOverride);
     tunerFile = dir + "/" + defaultFileName(gpuName, nnXLen, nnYLen,

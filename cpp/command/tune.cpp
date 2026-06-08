@@ -346,8 +346,7 @@ int MainCmds::tuner(const vector<string>& args) {
     &logger,
     /*full=*/full,
     /*reTune=*/true,
-    /*useFP16=*/useFP16,
-    /*seedOverride=*/nullptr
+    /*useFP16=*/useFP16
   );
 
   cout << "Done, results saved to " << outputFile << endl;
