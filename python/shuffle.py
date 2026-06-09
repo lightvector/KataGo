@@ -19,11 +19,12 @@ import gc
 import multiprocessing
 
 import numpy as np
+from typing import Sequence
 
 # Needs to be kept in sync with QVALUE_SPATIAL_TARGET_NUM_CHANNELS in trainingwrite.cpp C++ code among other places.
 EXPECTED_Q_VALUE_TARGETS_NCMOVE_CHANNELS = 3
 
-def assert_keys(npz, include_meta, include_qvalues):
+def assert_keys(npz, include_meta: bool, include_qvalues: bool):
     keys = [
         "binaryInputNCHWPacked",
         "globalInputNC",
@@ -40,28 +41,101 @@ def assert_keys(npz, include_meta, include_qvalues):
     actual_keys = set(npz.keys())
     if "qValueTargetsNCMove" in actual_keys:
         expected_keys.add("qValueTargetsNCMove")
-    assert(actual_keys == expected_keys)
+    assert actual_keys == expected_keys
 
-def is_temp_npz_like(filename):
+def is_temp_npz_like(filename: str) -> bool:
     return "_" in filename
 
-def joint_shuffle_take_first_n(n,arrs):
+def assert_batch_dim_matches(arrs: Sequence[np.ndarray | None], assert_size_equals: int | None = None):
+    # arrs[0] (binaryInputNCHWPacked) is always present and is used as the reference length.
+    assert arrs[0] is not None
     for arr in arrs:
-        assert(len(arr) == len(arrs[0]))
+        if arr is not None:
+            assert arr.shape[0] == arrs[0].shape[0]
+    if assert_size_equals is not None:
+        assert arrs[0].shape[0] == assert_size_equals
+
+def assert_list_lengths_match(arrlists: Sequence[list[np.ndarray] | None]):
+    # arrlists[0] (binaryInputNCHWPackedList) is always present and is the reference.
+    assert arrlists[0] is not None
+    for arrlist in arrlists:
+        if arrlist is not None:
+            assert len(arrlist) == len(arrlists[0])
+
+def joint_shuffle_take_first_n(n: int, arrs: Sequence[np.ndarray | None]) -> list[np.ndarray | None]:
+    assert_batch_dim_matches(arrs)
     perm = np.random.permutation(len(arrs[0]))
     perm = perm[:n]
-    shuffled_arrs = []
+    shuffled_arrs: list[np.ndarray | None] = []
     for arr in arrs:
-        shuffled_arrs.append(arr[perm])
+        if arr is not None:
+            shuffled_arrs.append(arr[perm])
+        else:
+            shuffled_arrs.append(None)
     return shuffled_arrs
+
+def joint_concatenate(arrlists: Sequence[list[np.ndarray] | None]) -> list[np.ndarray | None]:
+    assert_list_lengths_match(arrlists)
+    if len(arrlists[0]) == 1:
+        return [(arrlist[0] if arrlist is not None else None) for arrlist in arrlists]
+    return [(np.concatenate(arrlist, axis=0) if arrlist is not None else None) for arrlist in arrlists]
 
 def memusage_mb():
     return psutil.Process(os.getpid()).memory_info().rss // 1048576
 
-def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob, include_meta, include_qvalues):
+
+def save_output_npz(
+    filename: str,
+    arrs: Sequence[np.ndarray | None],
+    include_meta: bool,
+    include_qvalues: bool,
+    start: int,
+    stop: int,
+):
+    assert len(arrs) == 8
+    [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC,qValueTargetsNCMove] = (
+        arrs
+    )
+    assert binaryInputNCHWPacked is not None
+    assert globalInputNC is not None
+    assert policyTargetsNCMove is not None
+    assert globalTargetsNC is not None
+    assert scoreDistrN is not None
+    assert valueTargetsNCHW is not None
+    assert (metadataInputNC is not None) == include_meta
+    assert (qValueTargetsNCMove is not None) == include_qvalues
+
+    save_dict = {
+        "binaryInputNCHWPacked": binaryInputNCHWPacked[start:stop],
+        "globalInputNC": globalInputNC[start:stop],
+        "policyTargetsNCMove": policyTargetsNCMove[start:stop],
+        "globalTargetsNC": globalTargetsNC[start:stop],
+        "scoreDistrN": scoreDistrN[start:stop],
+        "valueTargetsNCHW": valueTargetsNCHW[start:stop],
+    }
+    if metadataInputNC is not None:
+        save_dict["metadataInputNC"] = metadataInputNC[start:stop]
+    if qValueTargetsNCMove is not None:
+        save_dict["qValueTargetsNCMove"] = qValueTargetsNCMove[start:stop]
+
+    np.savez_compressed(
+        filename,
+        **save_dict
+    )
+
+
+def shardify(
+    input_idx: int,
+    input_file_group: list[str],
+    num_out_files: int,
+    out_tmp_dirs: list[str],
+    keep_prob: float,
+    include_meta: bool,
+    include_qvalues: bool
+):
     np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(4)])
 
-    assert(len(input_file_group) > 0)
+    assert len(input_file_group) > 0
     num_files_not_found = 0
 
     binaryInputNCHWPackedList = []
@@ -70,8 +144,8 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     globalTargetsNCList = []
     scoreDistrNList = []
     valueTargetsNCHWList = []
-    metadataInputNCList = []
-    qValueTargetsNCMoveList = []
+    metadataInputNCList = [] if include_meta else None
+    qValueTargetsNCMoveList = [] if include_qvalues else None
 
     for input_file in input_file_group:
         try:
@@ -83,8 +157,9 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
                 globalTargetsNCList.append(npz["globalTargetsNC"])
                 scoreDistrNList.append(npz["scoreDistrN"])
                 valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
-                metadataInputNCList.append(npz["metadataInputNC"] if include_meta else None)
-                if include_qvalues:
+                if metadataInputNCList is not None:
+                    metadataInputNCList.append(npz["metadataInputNC"])
+                if qValueTargetsNCMoveList is not None:
                     if "qValueTargetsNCMove" in npz:
                         assert npz["qValueTargetsNCMove"].shape[1] == EXPECTED_Q_VALUE_TARGETS_NCMOVE_CHANNELS
                         qValueTargetsNCMoveList.append(npz["qValueTargetsNCMove"])
@@ -93,8 +168,6 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
                         shape = list(npz["policyTargetsNCMove"].shape)
                         shape[1] = EXPECTED_Q_VALUE_TARGETS_NCMOVE_CHANNELS
                         qValueTargetsNCMoveList.append(np.zeros(shape, dtype=np.int16))
-                else:
-                    qValueTargetsNCMoveList.append(None)
 
         except FileNotFoundError:
             num_files_not_found += 1
@@ -104,74 +177,20 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
     if len(binaryInputNCHWPackedList) <= 0:
         return num_files_not_found # Early quit since we don't know shapes
 
-    if len(input_file_group) == 1:
-        binaryInputNCHWPacked = binaryInputNCHWPackedList[0]
-        globalInputNC = globalInputNCList[0]
-        policyTargetsNCMove = policyTargetsNCMoveList[0]
-        globalTargetsNC = globalTargetsNCList[0]
-        scoreDistrN = scoreDistrNList[0]
-        valueTargetsNCHW = valueTargetsNCHWList[0]
-        metadataInputNC = metadataInputNCList[0]
-        qValueTargetsNCMove = qValueTargetsNCMoveList[0]
-    else:
-        binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackedList, axis=0)
-        globalInputNC = np.concatenate(globalInputNCList, axis=0)
-        policyTargetsNCMove = np.concatenate(policyTargetsNCMoveList, axis=0)
-        globalTargetsNC = np.concatenate(globalTargetsNCList, axis=0)
-        scoreDistrN = np.concatenate(scoreDistrNList, axis=0)
-        valueTargetsNCHW = np.concatenate(valueTargetsNCHWList, axis=0)
-        metadataInputNC = np.concatenate(metadataInputNCList, axis=0) if include_meta else None
-        qValueTargetsNCMove = np.concatenate(qValueTargetsNCMoveList, axis=0) if include_qvalues else None
+    concatenated_arrs = (
+        joint_concatenate(
+            [binaryInputNCHWPackedList,globalInputNCList,policyTargetsNCMoveList,globalTargetsNCList,scoreDistrNList,valueTargetsNCHWList,metadataInputNCList,qValueTargetsNCMoveList]
+        )
+    )
 
-    num_rows_to_keep = binaryInputNCHWPacked.shape[0]
-    assert(globalInputNC.shape[0] == num_rows_to_keep)
-    assert(policyTargetsNCMove.shape[0] == num_rows_to_keep)
-    assert(globalTargetsNC.shape[0] == num_rows_to_keep)
-    assert(scoreDistrN.shape[0] == num_rows_to_keep)
-    assert(valueTargetsNCHW.shape[0] == num_rows_to_keep)
-    assert(metadataInputNC.shape[0] == num_rows_to_keep if include_meta else True)
-    assert(qValueTargetsNCMove.shape[0] == num_rows_to_keep if include_qvalues else True)
+    assert_batch_dim_matches(concatenated_arrs)
 
+    num_rows_to_keep = concatenated_arrs[0].shape[0]
     if keep_prob < 1.0:
         num_rows_to_keep = min(num_rows_to_keep,int(round(num_rows_to_keep * keep_prob)))
 
-    if include_meta and include_qvalues:
-        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC,qValueTargetsNCMove] = (
-            joint_shuffle_take_first_n(
-                num_rows_to_keep,
-                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC,qValueTargetsNCMove]
-            )
-        )
-    elif include_meta:
-        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC] = (
-            joint_shuffle_take_first_n(
-                num_rows_to_keep,
-                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC]
-            )
-        )
-    elif include_qvalues:
-        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,qValueTargetsNCMove] = (
-            joint_shuffle_take_first_n(
-                num_rows_to_keep,
-                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,qValueTargetsNCMove]
-            )
-        )
-    else:
-        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
-            joint_shuffle_take_first_n(
-                num_rows_to_keep,
-                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW]
-            )
-        )
-
-    assert(binaryInputNCHWPacked.shape[0] == num_rows_to_keep)
-    assert(globalInputNC.shape[0] == num_rows_to_keep)
-    assert(policyTargetsNCMove.shape[0] == num_rows_to_keep)
-    assert(globalTargetsNC.shape[0] == num_rows_to_keep)
-    assert(scoreDistrN.shape[0] == num_rows_to_keep)
-    assert(valueTargetsNCHW.shape[0] == num_rows_to_keep)
-    assert(metadataInputNC.shape[0] == num_rows_to_keep if include_meta else True)
-    assert(qValueTargetsNCMove.shape[0] == num_rows_to_keep if include_qvalues else True)
+    concatenated_arrs = joint_shuffle_take_first_n(num_rows_to_keep, concatenated_arrs)
+    assert_batch_dim_matches(concatenated_arrs, num_rows_to_keep)
 
     rand_assts = np.random.randint(num_out_files,size=[num_rows_to_keep])
     counts = np.bincount(rand_assts,minlength=num_out_files)
@@ -185,27 +204,27 @@ def shardify(input_idx, input_file_group, num_out_files, out_tmp_dirs, keep_prob
         start = countsums[out_idx]-counts[out_idx]
         stop = countsums[out_idx]
 
-        save_dict = {
-            "binaryInputNCHWPacked": binaryInputNCHWPacked[start:stop],
-            "globalInputNC": globalInputNC[start:stop],
-            "policyTargetsNCMove": policyTargetsNCMove[start:stop],
-            "globalTargetsNC": globalTargetsNC[start:stop],
-            "scoreDistrN": scoreDistrN[start:stop],
-            "valueTargetsNCHW": valueTargetsNCHW[start:stop],
-        }
-        if include_meta:
-            save_dict["metadataInputNC"] = metadataInputNC[start:stop]
-        if include_qvalues:
-            save_dict["qValueTargetsNCMove"] = qValueTargetsNCMove[start:stop]
-
-        np.savez_compressed(
-            os.path.join(out_tmp_dirs[out_idx], str(input_idx) + ".npz"),
-            **save_dict
+        save_output_npz(
+            filename=os.path.join(out_tmp_dirs[out_idx], str(input_idx) + ".npz"),
+            arrs=concatenated_arrs,
+            include_meta=include_meta,
+            include_qvalues=include_qvalues,
+            start=start,
+            stop=stop,
         )
 
     return num_files_not_found
 
-def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_batch_multiple, output_npz, include_meta, include_qvalues):
+def merge_shards(
+    filename: str,
+    num_shards_to_merge: int,
+    out_tmp_dir: str,
+    batch_size: int,
+    ensure_batch_multiple: int,
+    output_npz: bool,
+    include_meta: bool,
+    include_qvalues: bool
+):
     np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(5)])
 
     if output_npz:
@@ -213,14 +232,14 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
     else:
         assert False, "No longer supports outputting tensorflow data"
 
-    binaryInputNCHWPackeds = []
-    globalInputNCs = []
-    policyTargetsNCMoves = []
-    globalTargetsNCs = []
-    scoreDistrNs = []
-    valueTargetsNCHWs = []
-    metadataInputNCs = []
-    qValueTargetsNCMoves = []
+    binaryInputNCHWPackedList = []
+    globalInputNCList = []
+    policyTargetsNCMoveList = []
+    globalTargetsNCList = []
+    scoreDistrNList = []
+    valueTargetsNCHWList = []
+    metadataInputNCList = [] if include_meta else None
+    qValueTargetsNCMoveList = [] if include_qvalues else None
 
     for input_idx in range(num_shards_to_merge):
         shard_filename = os.path.join(out_tmp_dir, str(input_idx) + ".npz")
@@ -237,81 +256,34 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
                 metadataInputNC = npz["metadataInputNC"] if include_meta else None
                 qValueTargetsNCMove = npz["qValueTargetsNCMove"] if include_qvalues else None
 
-                binaryInputNCHWPackeds.append(binaryInputNCHWPacked)
-                globalInputNCs.append(globalInputNC)
-                policyTargetsNCMoves.append(policyTargetsNCMove)
-                globalTargetsNCs.append(globalTargetsNC)
-                scoreDistrNs.append(scoreDistrN)
-                valueTargetsNCHWs.append(valueTargetsNCHW)
-                if include_meta:
-                    metadataInputNCs.append(metadataInputNC)
-                if include_qvalues:
-                    qValueTargetsNCMoves.append(qValueTargetsNCMove)
+                binaryInputNCHWPackedList.append(binaryInputNCHWPacked)
+                globalInputNCList.append(globalInputNC)
+                policyTargetsNCMoveList.append(policyTargetsNCMove)
+                globalTargetsNCList.append(globalTargetsNC)
+                scoreDistrNList.append(scoreDistrN)
+                valueTargetsNCHWList.append(valueTargetsNCHW)
+                if metadataInputNCList is not None:
+                    metadataInputNCList.append(metadataInputNC)
+                if qValueTargetsNCMoveList is not None:
+                    qValueTargetsNCMoveList.append(qValueTargetsNCMove)
         except FileNotFoundError:
             print("WARNING: Empty shard in merge_shards for shard :", input_idx, filename)
 
-    if len(binaryInputNCHWPackeds) <= 0:
+    if len(binaryInputNCHWPackedList) <= 0:
         print("WARNING: empty merge file: ", filename)
         return 0
 
-    ###
-    # WARNING - if adding anything here, also add it to joint_shuffle below!
-    ###
-    binaryInputNCHWPacked = np.concatenate(binaryInputNCHWPackeds)
-    globalInputNC = np.concatenate(globalInputNCs)
-    policyTargetsNCMove = np.concatenate(policyTargetsNCMoves)
-    globalTargetsNC = np.concatenate(globalTargetsNCs)
-    scoreDistrN = np.concatenate(scoreDistrNs)
-    valueTargetsNCHW = np.concatenate(valueTargetsNCHWs)
-    metadataInputNC = np.concatenate(metadataInputNCs) if include_meta else None
-    qValueTargetsNCMove = np.concatenate(qValueTargetsNCMoves) if include_qvalues else None
+    concatenated_arrs = (
+        joint_concatenate(
+            [binaryInputNCHWPackedList,globalInputNCList,policyTargetsNCMoveList,globalTargetsNCList,scoreDistrNList,valueTargetsNCHWList,metadataInputNCList,qValueTargetsNCMoveList]
+        )
+    )
 
-    num_rows = binaryInputNCHWPacked.shape[0]
-    assert(globalInputNC.shape[0] == num_rows)
-    assert(policyTargetsNCMove.shape[0] == num_rows)
-    assert(globalTargetsNC.shape[0] == num_rows)
-    assert(scoreDistrN.shape[0] == num_rows)
-    assert(valueTargetsNCHW.shape[0] == num_rows)
-    assert(metadataInputNC.shape[0] == num_rows if include_meta else True)
-    assert(qValueTargetsNCMove.shape[0] == num_rows if include_qvalues else True)
+    assert_batch_dim_matches(concatenated_arrs)
+    num_rows = concatenated_arrs[0].shape[0]
 
-    if include_meta and include_qvalues:
-        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC,qValueTargetsNCMove] = (
-            joint_shuffle_take_first_n(
-                num_rows,
-                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC,qValueTargetsNCMove],
-            )
-        )
-    elif include_meta:
-        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC] = (
-            joint_shuffle_take_first_n(
-                num_rows,
-                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,metadataInputNC],
-            )
-        )
-    elif include_qvalues:
-        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,qValueTargetsNCMove] = (
-            joint_shuffle_take_first_n(
-                num_rows,
-                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW,qValueTargetsNCMove],
-            )
-        )
-    else:
-        [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW] = (
-            joint_shuffle_take_first_n(
-                num_rows,
-                [binaryInputNCHWPacked,globalInputNC,policyTargetsNCMove,globalTargetsNC,scoreDistrN,valueTargetsNCHW],
-            )
-        )
-
-    assert(binaryInputNCHWPacked.shape[0] == num_rows)
-    assert(globalInputNC.shape[0] == num_rows)
-    assert(policyTargetsNCMove.shape[0] == num_rows)
-    assert(globalTargetsNC.shape[0] == num_rows)
-    assert(scoreDistrN.shape[0] == num_rows)
-    assert(valueTargetsNCHW.shape[0] == num_rows)
-    assert(metadataInputNC.shape[0] == num_rows if include_meta else True)
-    assert(qValueTargetsNCMove.shape[0] == num_rows if include_qvalues else True)
+    concatenated_arrs = joint_shuffle_take_first_n(num_rows, concatenated_arrs)
+    assert_batch_dim_matches(concatenated_arrs, num_rows)
 
     # print("%s: Merge writing... (mem usage %dMB)" % (str(datetime.datetime.now()),memusage_mb()), flush=True)
 
@@ -321,22 +293,13 @@ def merge_shards(filename, num_shards_to_merge, out_tmp_dir, batch_size, ensure_
         start = 0
         stop = num_batches*batch_size
 
-        save_dict = {
-            "binaryInputNCHWPacked": binaryInputNCHWPacked[start:stop],
-            "globalInputNC": globalInputNC[start:stop],
-            "policyTargetsNCMove": policyTargetsNCMove[start:stop],
-            "globalTargetsNC": globalTargetsNC[start:stop],
-            "scoreDistrN": scoreDistrN[start:stop],
-            "valueTargetsNCHW": valueTargetsNCHW[start:stop],
-        }
-        if include_meta:
-            save_dict["metadataInputNC"] = metadataInputNC[start:stop]
-        if include_qvalues:
-            save_dict["qValueTargetsNCMove"] = qValueTargetsNCMove[start:stop]
-
-        np.savez_compressed(
-            filename,
-            **save_dict
+        save_output_npz(
+            filename=filename,
+            arrs=concatenated_arrs,
+            include_meta=include_meta,
+            include_qvalues=include_qvalues,
+            start=start,
+            stop=stop,
         )
     else:
         assert False, "No longer supports outputting tensorflow data"
