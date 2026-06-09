@@ -123,6 +123,43 @@ def save_output_npz(
         **save_dict
     )
 
+def load_and_accumulate_input_contents(
+    input_file: str,
+    binaryInputNCHWPackedList: list[np.ndarray],
+    globalInputNCList: list[np.ndarray],
+    policyTargetsNCMoveList: list[np.ndarray],
+    globalTargetsNCList: list[np.ndarray],
+    scoreDistrNList: list[np.ndarray],
+    valueTargetsNCHWList: list[np.ndarray],
+    metadataInputNCList: list[np.ndarray] | None,
+    qValueTargetsNCMoveList: list[np.ndarray] | None,
+    include_meta: bool,
+    include_qvalues: bool,
+    fill_in_qvalues: bool
+):
+    with np.load(input_file) as npz:
+        assert_keys(npz, include_meta, include_qvalues)
+        binaryInputNCHWPackedList.append(npz["binaryInputNCHWPacked"])
+        globalInputNCList.append(npz["globalInputNC"])
+        policyTargetsNCMoveList.append(npz["policyTargetsNCMove"])
+        globalTargetsNCList.append(npz["globalTargetsNC"])
+        scoreDistrNList.append(npz["scoreDistrN"])
+        valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
+        if metadataInputNCList is not None:
+            metadataInputNCList.append(npz["metadataInputNC"])
+        if qValueTargetsNCMoveList is not None:
+            if fill_in_qvalues:
+                if "qValueTargetsNCMove" in npz:
+                    assert npz["qValueTargetsNCMove"].shape[1] == EXPECTED_Q_VALUE_TARGETS_NCMOVE_CHANNELS
+                    qValueTargetsNCMoveList.append(npz["qValueTargetsNCMove"])
+                else:
+                    # Create zeros array with shape matching policyTargetsNCMove but with different C dimension
+                    shape = list(npz["policyTargetsNCMove"].shape)
+                    shape[1] = EXPECTED_Q_VALUE_TARGETS_NCMOVE_CHANNELS
+                    qValueTargetsNCMoveList.append(np.zeros(shape, dtype=np.int16))
+            else:
+                qValueTargetsNCMoveList.append(npz["qValueTargetsNCMove"])
+
 
 def shardify(
     input_idx: int,
@@ -149,25 +186,7 @@ def shardify(
 
     for input_file in input_file_group:
         try:
-            with np.load(input_file) as npz:
-                assert_keys(npz, include_meta, include_qvalues)
-                binaryInputNCHWPackedList.append(npz["binaryInputNCHWPacked"])
-                globalInputNCList.append(npz["globalInputNC"])
-                policyTargetsNCMoveList.append(npz["policyTargetsNCMove"])
-                globalTargetsNCList.append(npz["globalTargetsNC"])
-                scoreDistrNList.append(npz["scoreDistrN"])
-                valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
-                if metadataInputNCList is not None:
-                    metadataInputNCList.append(npz["metadataInputNC"])
-                if qValueTargetsNCMoveList is not None:
-                    if "qValueTargetsNCMove" in npz:
-                        assert npz["qValueTargetsNCMove"].shape[1] == EXPECTED_Q_VALUE_TARGETS_NCMOVE_CHANNELS
-                        qValueTargetsNCMoveList.append(npz["qValueTargetsNCMove"])
-                    else:
-                        # Create zeros array with shape matching policyTargetsNCMove but with different C dimension
-                        shape = list(npz["policyTargetsNCMove"].shape)
-                        shape[1] = EXPECTED_Q_VALUE_TARGETS_NCMOVE_CHANNELS
-                        qValueTargetsNCMoveList.append(np.zeros(shape, dtype=np.int16))
+            load_and_accumulate_input_contents(input_file,binaryInputNCHWPackedList,globalInputNCList,policyTargetsNCMoveList,globalTargetsNCList,scoreDistrNList,valueTargetsNCHWList,metadataInputNCList,qValueTargetsNCMoveList,include_meta,include_qvalues,fill_in_qvalues=True)
 
         except FileNotFoundError:
             num_files_not_found += 1
@@ -221,16 +240,10 @@ def merge_shards(
     out_tmp_dir: str,
     batch_size: int,
     ensure_batch_multiple: int,
-    output_npz: bool,
     include_meta: bool,
     include_qvalues: bool
 ):
     np.random.seed([int.from_bytes(os.urandom(4), byteorder='little') for i in range(5)])
-
-    if output_npz:
-        record_writer = None
-    else:
-        assert False, "No longer supports outputting tensorflow data"
 
     binaryInputNCHWPackedList = []
     globalInputNCList = []
@@ -244,28 +257,7 @@ def merge_shards(
     for input_idx in range(num_shards_to_merge):
         shard_filename = os.path.join(out_tmp_dir, str(input_idx) + ".npz")
         try:
-            with np.load(shard_filename) as npz:
-                assert_keys(npz, include_meta, include_qvalues)
-
-                binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-                globalInputNC = npz["globalInputNC"]
-                policyTargetsNCMove = npz["policyTargetsNCMove"]
-                globalTargetsNC = npz["globalTargetsNC"]
-                scoreDistrN = npz["scoreDistrN"]
-                valueTargetsNCHW = npz["valueTargetsNCHW"]
-                metadataInputNC = npz["metadataInputNC"] if include_meta else None
-                qValueTargetsNCMove = npz["qValueTargetsNCMove"] if include_qvalues else None
-
-                binaryInputNCHWPackedList.append(binaryInputNCHWPacked)
-                globalInputNCList.append(globalInputNC)
-                policyTargetsNCMoveList.append(policyTargetsNCMove)
-                globalTargetsNCList.append(globalTargetsNC)
-                scoreDistrNList.append(scoreDistrN)
-                valueTargetsNCHWList.append(valueTargetsNCHW)
-                if metadataInputNCList is not None:
-                    metadataInputNCList.append(metadataInputNC)
-                if qValueTargetsNCMoveList is not None:
-                    qValueTargetsNCMoveList.append(qValueTargetsNCMove)
+            load_and_accumulate_input_contents(shard_filename,binaryInputNCHWPackedList,globalInputNCList,policyTargetsNCMoveList,globalTargetsNCList,scoreDistrNList,valueTargetsNCHWList,metadataInputNCList,qValueTargetsNCMoveList,include_meta,include_qvalues,fill_in_qvalues=False)
         except FileNotFoundError:
             print("WARNING: Empty shard in merge_shards for shard :", input_idx, filename)
 
@@ -289,27 +281,22 @@ def merge_shards(
 
     # Just truncate and lose the batch at the end, it's fine
     num_batches = (num_rows // (batch_size * ensure_batch_multiple)) * ensure_batch_multiple
-    if output_npz:
-        start = 0
-        stop = num_batches*batch_size
 
-        save_output_npz(
-            filename=filename,
-            arrs=concatenated_arrs,
-            include_meta=include_meta,
-            include_qvalues=include_qvalues,
-            start=start,
-            stop=stop,
-        )
-    else:
-        assert False, "No longer supports outputting tensorflow data"
+    start = 0
+    stop = num_batches*batch_size
+
+    save_output_npz(
+        filename=filename,
+        arrs=concatenated_arrs,
+        include_meta=include_meta,
+        include_qvalues=include_qvalues,
+        start=start,
+        stop=stop,
+    )
 
     jsonfilename = os.path.splitext(filename)[0] + ".json"
     with open(jsonfilename,"w") as f:
         json.dump({"num_rows":num_rows,"num_batches":num_batches},f)
-
-    if record_writer is not None:
-        record_writer.close()
 
     # Clean up scratch dir for this output file now that we're done with it,
     # to reduce peak disk usage when there are many output files.
@@ -843,7 +830,7 @@ if __name__ == '__main__':
         with TimeStuff("Merging"):
             num_shards_to_merge = len(desired_input_file_groups)
             merge_results = pool.starmap(merge_shards, [
-                (out_files[idx], num_shards_to_merge, out_tmp_dirs[idx], batch_size, ensure_batch_multiple, output_npz, include_meta, include_qvalues)
+                (out_files[idx], num_shards_to_merge, out_tmp_dirs[idx], batch_size, ensure_batch_multiple, include_meta, include_qvalues)
                 for idx in range(len(out_files))
             ])
         print("Number of rows by output file:",flush=True)
