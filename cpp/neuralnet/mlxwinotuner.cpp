@@ -416,7 +416,10 @@ static double scoreInputTransform(const MLXWinograd::InputTransform& cfg,
                      samples.begin() + samples.size() / 2,
                      samples.end());
     double median = samples[samples.size() / 2];
-    if(!std::isfinite(median)) median = 0.0;  // defensive — never emit nan
+    // A non-finite measurement (nan/inf from a failed/pathological kernel run)
+    // must NEVER win selection. The tuner minimizes time, so map it to +inf so
+    // this candidate loses every comparison rather than mapping to 0 (best).
+    if(!std::isfinite(median)) median = std::numeric_limits<double>::infinity();
     score += plan[i].weight * median;
   }
   return score;
@@ -457,7 +460,10 @@ static double scoreOutputUntransform(const MLXWinograd::OutputUntransform& cfg,
                      samples.begin() + samples.size() / 2,
                      samples.end());
     double median = samples[samples.size() / 2];
-    if(!std::isfinite(median)) median = 0.0;
+    // A non-finite measurement (nan/inf from a failed/pathological kernel run)
+    // must NEVER win selection. The tuner minimizes time, so map it to +inf so
+    // this candidate loses every comparison rather than mapping to 0 (best).
+    if(!std::isfinite(median)) median = std::numeric_limits<double>::infinity();
     score += plan[i].weight * median;
   }
   return score;

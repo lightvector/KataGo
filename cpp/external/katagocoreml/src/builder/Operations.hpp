@@ -80,6 +80,14 @@ public:
     std::string registerWeight(const std::string& name,
                                std::vector<float>&& data,
                                const std::vector<int64_t>& shape) = delete;
+    // Also block the is_fp32-bearing call shape: without this overload, a call
+    // like registerWeight(name, std::move(vec), shape, true) has 4 arguments and
+    // would NOT match the 3-arg deleted overload above, instead binding the
+    // temporary to the const-ref live overload and leaving a dangling view.
+    std::string registerWeight(const std::string& name,
+                               std::vector<float>&& data,
+                               const std::vector<int64_t>& shape,
+                               bool is_fp32) = delete;
 
     /// Register a derived/temporary weight; KataGoOps takes ownership so the
     /// view stays valid through serialization. is_fp32 marks it for FP32 storage

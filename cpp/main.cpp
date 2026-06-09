@@ -36,7 +36,7 @@ match : Run self-play match games based on a config, more efficient than gtp due
 version : Print version and exit.
 
 analysis : Runs an engine designed to analyze entire games in parallel.
-tuner : (OpenCL only) Run tuning to find and optimize parameters that work on your GPU.
+tuner : (OpenCL and MLX) Run tuning to find and optimize parameters that work on your GPU.
 
 ---Selfplay training subcommands---------
 

@@ -161,6 +161,61 @@ void runMLXWinogradTests() {
     testAssert(maxErrD < 5e-2);
   }
 
+  // FP16 Winograd stage-2 matmul ACCUMULATION guard, at production width.
+  //
+  // The small-Cin absolute-tol block above only sums ~72 terms per output, so a
+  // regression of the stage-2 matmul accumulator (MLX steel gemm AccumType: float ->
+  // half) would stay under its 5e-2 bound and slip through. A larger Cin can't reuse
+  // an absolute tolerance either: output magnitude grows ~sqrt(9*Cin), so the fp16
+  // STORAGE round-trip error grows with it and at Cin=384 the max ABSOLUTE error
+  // (~0.05) already coincides with 5e-2.
+  //
+  // So measure a scale-invariant NORMALIZED error (maxAbsErr / outMagMax) at two
+  // widths and compare. With fp32 accumulation the error is storage-bound, hence both
+  // small AND roughly FLAT in Cin (measured ~8e-4 at both Cin=8 and Cin=384, even
+  // dipping slightly). fp16 accumulation instead adds error that grows with the number
+  // of summed terms, so its Cin=384 value would exceed the storage floor and grow far
+  // above the Cin=8 (~72-term) value. We assert both: (a) the Cin=384 normalized error
+  // stays under a generous storage-floor bound, and (b) it does not grow much vs Cin=8.
+  // The ratio check needs no absolute-magnitude tuning, so it is hardware-independent.
+  {
+    namespace mxc = mlx::core;
+    int N=2,H=19,W=19,Cout=64;
+    auto normErrAtCin = [&](int Cin, int seed) {
+      std::mt19937 grng(seed);
+      std::uniform_real_distribution<float> gdist(-1.f,1.f);
+      vector<float> in((size_t)N*H*W*Cin); for(auto&x:in)x=gdist(grng);
+      vector<float> w((size_t)Cout*Cin*9); for(auto&x:w)x=gdist(grng);
+      auto refv = MLXWinograd::cpuConv2d3x3(in,N,H,W,Cin,w,Cout);
+      mxc::array inArrF32(in.data(),{N,H,W,Cin},mxc::float32);
+      mxc::array inArr = mxc::astype(inArrF32, mxc::float16);
+      auto Uw = MLXWinograd::makeWinogradWeights(w,Cout,Cin,/*useFP16=*/true);
+      MLXWinograd::InputTransform inCfg;
+      MLXWinograd::OutputUntransform outCfg;
+      mxc::array o = MLXWinograd::winogradConv2d(inArr,Uw,Cout,inCfg,outCfg,/*useFP16=*/true);
+      mxc::eval(o);
+      testAssert(o.dtype() == mxc::float16);
+      mxc::array oF32 = mxc::astype(o, mxc::float32); mxc::eval(oF32);
+      const float* od = oF32.data<float>();
+      double maxErr=0.0, outMagMax=0.0;
+      for(size_t i=0;i<refv.size();i++){
+        maxErr=std::max(maxErr,(double)std::fabs(refv[i]-od[i]));
+        outMagMax=std::max(outMagMax,(double)std::fabs(refv[i]));
+      }
+      return maxErr / (outMagMax + 1e-3);
+    };
+    double relErrSmall = normErrAtCin(8,   778);   // ~72-term reductions
+    double relErrBig   = normErrAtCin(384, 779);   // ~3456-term reductions
+    cout<<"  MLX-metal winograd FP16 accum guard: relErr(Cin=8)="<<relErrSmall
+        <<" relErr(Cin=384)="<<relErrBig<<" ratio="<<(relErrBig/relErrSmall)<<endl;
+    // fp32 accumulation: normalized error storage-bound (~8e-4) and flat in Cin
+    // (measured ratio < 1). 1e-2 is ~12x over that floor (robust across chips); the
+    // 3x growth bound catches an fp16-accum regression, whose Cin=384 error climbs
+    // with the term count while the Cin=8 value barely moves.
+    testAssert(relErrBig < 1e-2);
+    testAssert(relErrBig < 3.0 * relErrSmall);
+  }
+
   runMLXBatchNormFP16Test();
   runMLXConvLayerFP16WinogradTest();
   runMLXTransformerLayerFP16Test();
