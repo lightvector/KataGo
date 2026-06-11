@@ -324,7 +324,7 @@ int MainCmds::tuner(const vector<string>& args) {
   if(outputFileFromArg == "") {
     string dir = MLXWinogradTuner::defaultDirectory(true,homeDataDirOverride);
     outputFile = dir + "/" + MLXWinogradTuner::defaultFileName(
-      gpuName, nnXLen, nnYLen, modelInfo.trunkNumChannels, modelInfo.modelVersion, useFP16);
+      gpuName, nnXLen, nnYLen, modelInfo.trunkNumChannels, modelInfo.modelVersion, useFP16, full);
   }
   else {
     outputFile = outputFileFromArg;

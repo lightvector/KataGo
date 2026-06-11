@@ -655,6 +655,31 @@ void runMLXWinotunerTests() {
       testAssert(plan[1].measureReps >= 3);
     }
 
+    // Case G: coarse rep budget (full=false, the per-model-load path). Single
+    // dominant shape gets the entire 7-rep coarse budget (vs 19 for full).
+    {
+      auto plan = MLXWinogradTuner::planShapeRotationForTesting({{384, 72}}, /*full=*/false);
+      testAssert(plan.size() == 1);
+      testAssert(plan[0].channels == 384);
+      testAssert(plan[0].measureReps == 7);
+      testAssert(std::abs(plan[0].weight - 1.0) < 1e-9);
+    }
+
+    // Case H: coarse budget, three shapes above threshold. 200:10, 100:10,
+    // 50:10 → shares 57.1%, 28.6%, 14.3%; lround(share*7) = 4,2,1; the 2-rep
+    // coarse floor bumps the trailing 1 up to 2, deficit out of the dominant
+    // → (3,2,2), Σ=7. Mirrors Case E but on the coarse budget.
+    {
+      auto plan = MLXWinogradTuner::planShapeRotationForTesting(
+          {{200, 10}, {100, 10}, {50, 10}}, /*full=*/false);
+      testAssert(plan.size() == 3);
+      int total = plan[0].measureReps + plan[1].measureReps + plan[2].measureReps;
+      testAssert(total == 7);
+      testAssert(plan[2].measureReps >= 2);   // coarse floor is 2, not 3
+      testAssert(plan[0].measureReps >= plan[1].measureReps);
+      testAssert(plan[1].measureReps >= plan[2].measureReps);
+    }
+
     std::cout << "  planShapeRotation OK" << std::endl;
   }
 
@@ -774,6 +799,24 @@ void runMLXWinotunerTests() {
     testAssert(nameF16.size() >= 4 && nameF16.substr(nameF16.size()-4) == ".txt");
     cout << "  defaultFileName dtype suffix OK: "
          << nameF32 << " vs " << nameF16 << endl;
+  }
+
+  // Fast (coarse) and full (wide) tunes must not collide on disk. The fast tune
+  // keeps the legacy name (no mode suffix) for backward compat; full gains
+  // "_full". Verify the two are distinct and the fast default is unchanged.
+  {
+    std::string fast = MLXWinogradTuner::defaultFileName(
+      "AppleSilicon", 19, 19, 384, 13, /*useFP16=*/true, /*full=*/false);
+    std::string full = MLXWinogradTuner::defaultFileName(
+      "AppleSilicon", 19, 19, 384, 13, /*useFP16=*/true, /*full=*/true);
+    std::string legacy = MLXWinogradTuner::defaultFileName(
+      "AppleSilicon", 19, 19, 384, 13, /*useFP16=*/true);  // default full=false
+    testAssert(fast != full);
+    testAssert(fast == legacy);                              // fast == legacy name
+    testAssert(full.find("_full") != std::string::npos);
+    testAssert(fast.find("_full") == std::string::npos);
+    testAssert(full.size() >= 4 && full.substr(full.size()-4) == ".txt");
+    cout << "  defaultFileName fast/full suffix OK: " << fast << " vs " << full << endl;
   }
 
   // detectGpuName() must yield a stable, non-empty, chip-specific cache key so

@@ -56,12 +56,16 @@ namespace MLXWinogradTuner {
   //   1. work_i = count_i * channels_i; sort desc by work; take top-3.
   //   2. drop shapes with work < 3% of the post-top3 total work; renormalize.
   //   3. weight_i = work_i / total_work after renormalization.
-  //   4. allocate 19 measureReps proportionally; bump any below 3 up to 3,
-  //      taking the deficit from the dominant shape; repair rounding so the
-  //      dominant absorbs the +/-1 to make Σ measureReps == 19 exactly.
+  //   4. allocate the rep budget proportionally; bump any below the floor up to
+  //      the floor, taking the deficit from the dominant shape; repair rounding
+  //      so the dominant absorbs the +/-1 to make Σ measureReps == budget exactly.
+  //      Budget/floor are 19/3 for full=true, 7/2 for full=false (model load).
   // Asserts on empty input.
+  // full selects the rep budget (true: 19-rep precise; false: 7-rep coarse,
+  // the per-model-load path). Defaults true so existing call sites are
+  // unaffected; pass false to exercise the coarse-budget allocation.
   std::vector<ShapePlan> planShapeRotationForTesting(
-      const std::vector<std::pair<int,int>>& histogram);
+      const std::vector<std::pair<int,int>>& histogram, bool full = true);
 
   // Chip-specific identifier for the cache-file key (e.g. "Apple M3 Max" via
   // sysctl machdep.cpu.brand_string). The optimal Winograd launch geometry
@@ -72,10 +76,13 @@ namespace MLXWinogradTuner {
   std::string detectGpuName();
 
   std::string defaultDirectory(bool makeDir, const std::string& homeDataDirOverride);
+  // full selects the cache-file variant: false → coarse "fast" tune (legacy
+  // name, no mode suffix), true → wide "full" tune ("_full" suffix). The two
+  // produce different winners so they must not share a file. Defaults false.
   std::string defaultFileName(const std::string& gpuName,
                               int nnXLen, int nnYLen,
                               int trunkNumChannels, int modelVersion,
-                              bool useFP16);
+                              bool useFP16, bool full = false);
 
   // Loads existing tune file if present and valid; otherwise runs the two
   // grid searches, saves the result, and returns it.
@@ -105,11 +112,11 @@ namespace MLXWinogradTuner {
   double scoreInputTransformForTesting(const MLXWinograd::InputTransform& cfg,
                                        int N, int H, int W,
                                        const ModelInfoForTuning& mi,
-                                       bool useFP16);
+                                       bool useFP16, bool full = true);
   double scoreOutputUntransformForTesting(const MLXWinograd::OutputUntransform& cfg,
                                           int N, int H, int W,
                                           const ModelInfoForTuning& mi,
-                                          bool useFP16);
+                                          bool useFP16, bool full = true);
 
   // Per-shape median timing for diagnostic logging. Same rotation as the
   // scoring functions, but reports median per planned shape instead of a
@@ -120,12 +127,12 @@ namespace MLXWinogradTuner {
   scoreInputTransformPerShapeForTesting(const MLXWinograd::InputTransform& cfg,
                                         int N, int H, int W,
                                         const ModelInfoForTuning& mi,
-                                        bool useFP16);
+                                        bool useFP16, bool full = true);
   std::vector<std::pair<int,double>>
   scoreOutputUntransformPerShapeForTesting(const MLXWinograd::OutputUntransform& cfg,
                                            int N, int H, int W,
                                            const ModelInfoForTuning& mi,
-                                           bool useFP16);
+                                           bool useFP16, bool full = true);
 
   // Conv-3x3 shape distribution log: one-line summary of the model's 3x3
   // conv shape mix, computed at model load and printed alongside the tuner
