@@ -28,6 +28,7 @@
 #include <unistd.h>  // For getpid()
 #include <iostream>
 #include <cstring>
+#include <cstdlib>     // malloc / std::getenv
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -63,6 +64,19 @@ static constexpr int MLX_MUX_ANE = 100;  // CoreML on CPU+ANE via katagocoreml +
 // different offset than expected." Mirrors metalbackend.cpp's
 // computeHandleMutex.
 static std::mutex computeHandleMutex;
+
+// Serializes MLX/GPU evaluation across NN server threads. MLX's GPU streams
+// have no per-stream worker thread (scheduler.h pushes nullptr for gpu
+// streams); gpu::eval runs inline on the calling thread and every handle
+// shares MLX's single global default GPU stream. Two server threads calling
+// mx::eval() concurrently therefore open two compute command encoders on the
+// same MTLCommandBuffer, which aborts with the Metal assertion "A command
+// encoder is already encoding to this command buffer". The app runs 2+ GPU
+// server threads on macOS, so guard the whole MLX graph-build + eval + result
+// read in applyCompiled with this lock. One Apple GPU serializes the actual
+// work anyway; KataGo's batching is the real throughput lever, and input prep
+// in getOutput stays outside the lock so it still overlaps.
+static std::mutex mlxGpuEvalMutex;
 
 //------------------------------------------------------------------------------
 // CoreML Model Conversion - reuses katagocoreml library, mirrors metalbackend.cpp
@@ -1657,6 +1671,12 @@ struct Model {
     float* scoreValueOut,
     float* ownershipOut
   ) const {
+    // Serialize all MLX/GPU work: graph build, eval, and result read share
+    // MLX's single global GPU stream / command buffer, which is not safe for
+    // concurrent encoding across the app's multiple NN server threads. See
+    // mlxGpuEvalMutex for the full rationale.
+    std::lock_guard<std::mutex> gpuLock(mlxGpuEvalMutex);
+
     // Create input tensors - NHWC format
     mx::Shape inputShape = {batchSize, nnYLen, nnXLen, numInputChannels};
     mx::array input = mx::array(inputSpatial, inputShape, mx::float32);
