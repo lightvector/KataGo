@@ -1772,9 +1772,45 @@ static swift::Optional<KataGoSwift::CoreMLComputeHandle> createCoreMLOnlyHandleI
 // is alive), so a forced re-tune in a later session runs afresh instead of
 // reusing a stale entry. Sequential context creation in gtp.cpp means the
 // check/tune/store below needs no lock held across the (long) tune itself.
-static std::mutex g_winoTuneMemoMutex;
-static std::map<std::string, MLXWinogradTuneParams> g_winoTuneMemo;
-static int g_liveComputeContexts = 0;
+//
+// All state (the map, its mutex, and the live-context refcount that drives the
+// session-scoped clear) lives in this one unit so the locking obligation and the
+// "clear on last release" invariant are defined in one place rather than spread
+// across createComputeContext / freeComputeContext / the ComputeHandle ctor.
+struct WinogradTuneMemo {
+  // Returns the memoized params for this shape key, or nullopt on a miss.
+  std::optional<MLXWinogradTuneParams> tryGet(const std::string& key) {
+    std::lock_guard<std::mutex> lk(mutex);
+    auto it = memo.find(key);
+    if(it == memo.end())
+      return std::nullopt;
+    return it->second;
+  }
+  void put(const std::string& key, const MLXWinogradTuneParams& params) {
+    std::lock_guard<std::mutex> lk(mutex);
+    memo[key] = params;
+  }
+  // retain/release track how many ComputeContexts are alive. The memo is a
+  // session-scoped cache: when the last context goes away the session is over,
+  // so drop everything (a later forced re-tune must not reuse this session's
+  // results).
+  void retain() {
+    std::lock_guard<std::mutex> lk(mutex);
+    liveContexts++;
+  }
+  void release() {
+    std::lock_guard<std::mutex> lk(mutex);
+    if(--liveContexts <= 0) {
+      liveContexts = 0;
+      memo.clear();
+    }
+  }
+private:
+  std::mutex mutex;
+  std::map<std::string, MLXWinogradTuneParams> memo;
+  int liveContexts = 0;
+};
+static WinogradTuneMemo g_winoTuneMemo;
 
 struct ComputeContext {
   const int nnXLen;
@@ -1823,6 +1859,80 @@ struct ComputeContext {
     assert(cachedModels.size() == 0);
   }
 };
+
+// Resolve the Winograd transform geometry for a GPU-path model load: honor the
+// cross-context session memo (g_winoTuneMemo) first, then fall back to
+// loadOrAutoTune (disk cache or a fresh sweep), storing the result in the memo.
+// Returns default-constructed (identity) transforms when Winograd or the
+// winotuner is disabled. Reads only ComputeContext + LoadedModel state and
+// touches no ComputeHandle, so it lives as a free function the ctor calls.
+static MLXWinogradTuneParams resolveTuneParams(
+    ComputeContext* context, const LoadedModel& loadedModel, bool useFP16) {
+  MLXWinogradTuneParams tuneParams;
+  if(!(mlxWinogradEnabled() && mlxWinotunerEnabled()))
+    return tuneParams;
+
+  // Shape diagnostic: print the model's 3x3 conv shape distribution before
+  // calling the tuner so the log carries this signal on every load, including
+  // cache-hit runs where loadOrAutoTune short-circuits.
+  if(context->logger != NULL) {
+    context->logger->write(
+        MLXWinogradTuner::formatConv3x3Distribution(loadedModel.modelDesc));
+  }
+  MLXWinogradTuner::ModelInfoForTuning mi;
+  mi.trunkNumChannels   = loadedModel.modelDesc.trunk.trunkNumChannels;
+  mi.modelVersion       = loadedModel.modelDesc.modelVersion;
+  auto [inHist, outHist] =
+      MLXWinogradTuner::buildConv3x3Histograms(loadedModel.modelDesc);
+  mi.conv3x3InputHistogram  = std::move(inHist);
+  mi.conv3x3OutputHistogram = std::move(outHist);
+
+  // Cross-context shape memo (see g_winoTuneMemo): if a same-shape GPU
+  // handle already tuned this session, reuse its result and skip the sweep
+  // entirely. This is what keeps the main + human b18c384 nets at a single
+  // tune instead of two — halving model-load tuning time at zero quality
+  // cost (identical shape ⇒ identical optimal geometry).
+  const std::string shapeKey =
+      std::to_string(mi.trunkNumChannels)
+      + "_" + std::to_string(context->nnXLen)
+      + "x" + std::to_string(context->nnYLen)
+      + (useFP16 ? "_fp16" : "_fp32")
+      + (context->tunerFull ? "_full" : "_fast");
+  if(auto memoized = g_winoTuneMemo.tryGet(shapeKey)) {
+    if(context->logger != NULL)
+      context->logger->write("Reusing MLX Winograd tuning for shape " + shapeKey
+                             + " (already tuned this session)");
+    return *memoized;
+  }
+
+  tuneParams = MLXWinogradTuner::loadOrAutoTune(
+      /*tunerFile=*/"",
+      context->homeDataDirOverride,
+      MLXWinogradTuner::detectGpuName(),
+      context->nnXLen, context->nnYLen,
+      // Tuner times the Winograd input/output transform kernels at this
+      // batch size only (the matmul stage is untuned). Probed re-tuning
+      // at 8/16/32/64: the winning configs do differ per batch size, but
+      // end-to-end throughput stayed flat within ~1.5% run-to-run noise.
+      // OpenCL's tuner pins a single batch size too. Not worth
+      // parameterizing.
+      /*batchSize=*/8,
+      mi,
+      context->logger,
+      // full / reTune come from the app's MLX/GPU tuning UI via
+      // -override-config (mlxTunerFull / mlxReTune), read into the
+      // ComputeContext in createComputeContext. Defaults are false/false:
+      // load a valid cache, or on a miss tune the coarse "fast" grid once.
+      // full=true selects the wide grid (cached under a distinct "_full"
+      // file); reTune=true forces a fresh tune that overwrites the current
+      // mode's cache. `./katago tuner` (optionally -full) remains a separate
+      // always-overwrite entry point.
+      /*full=*/context->tunerFull,
+      /*reTune=*/context->tunerReTune,
+      /*useFP16=*/useFP16);
+  g_winoTuneMemo.put(shapeKey, tuneParams);
+  return tuneParams;
+}
 
 struct ComputeHandle {
   ComputeContext* context;
@@ -1911,90 +2021,13 @@ struct ComputeHandle {
 
     if(gpuIdx_ == MLX_MUX_ANE) {
       // ANE path: MLX inference state is intentionally left uninitialized.
-      // Enforce the "exactly one path" invariant.
-      bool hasMLX = (model != nullptr);
-      bool hasCoreML = static_cast<bool>(coremlOnlyHandle);
-      if(hasMLX == hasCoreML) {
-        throw runtime_error(
-          string("MLX backend: Logic error - expected exactly one compute handle, got ") +
-          (hasMLX && hasCoreML ? "both" : "neither") +
-          " (gpuIdx=" + to_string(gpuIdx_) + ")");
-      }
+      checkExactlyOnePath();
       return;
     }
 
-    // GPU path: initialize MLX tuner + compile cache + weights as before.
-    MLXWinogradTuneParams tuneParams;
-    if(mlxWinogradEnabled() && mlxWinotunerEnabled()) {
-      // Shape diagnostic: print the model's 3x3 conv shape distribution before
-      // calling the tuner so the log carries this signal on every load, including
-      // cache-hit runs where loadOrAutoTune short-circuits.
-      if(context->logger != NULL) {
-        context->logger->write(
-            MLXWinogradTuner::formatConv3x3Distribution(loadedModel.modelDesc));
-      }
-      MLXWinogradTuner::ModelInfoForTuning mi;
-      mi.trunkNumChannels   = loadedModel.modelDesc.trunk.trunkNumChannels;
-      mi.modelVersion       = loadedModel.modelDesc.modelVersion;
-      auto [inHist, outHist] =
-          MLXWinogradTuner::buildConv3x3Histograms(loadedModel.modelDesc);
-      mi.conv3x3InputHistogram  = std::move(inHist);
-      mi.conv3x3OutputHistogram = std::move(outHist);
-
-      // Cross-context shape memo (see g_winoTuneMemo): if a same-shape GPU
-      // handle already tuned this session, reuse its result and skip the sweep
-      // entirely. This is what keeps the main + human b18c384 nets at a single
-      // tune instead of two — halving model-load tuning time at zero quality
-      // cost (identical shape ⇒ identical optimal geometry).
-      const std::string shapeKey =
-          std::to_string(mi.trunkNumChannels)
-          + "_" + std::to_string(context->nnXLen)
-          + "x" + std::to_string(context->nnYLen)
-          + (useFP16_ ? "_fp16" : "_fp32")
-          + (context->tunerFull ? "_full" : "_fast");
-      bool reusedMemo = false;
-      {
-        std::lock_guard<std::mutex> lk(g_winoTuneMemoMutex);
-        auto it = g_winoTuneMemo.find(shapeKey);
-        if(it != g_winoTuneMemo.end()) {
-          tuneParams = it->second;
-          reusedMemo = true;
-        }
-      }
-      if(reusedMemo) {
-        if(context->logger != NULL)
-          context->logger->write("Reusing MLX Winograd tuning for shape " + shapeKey
-                                 + " (already tuned this session)");
-      } else {
-        tuneParams = MLXWinogradTuner::loadOrAutoTune(
-            /*tunerFile=*/"",
-            context->homeDataDirOverride,
-            MLXWinogradTuner::detectGpuName(),
-            context->nnXLen, context->nnYLen,
-            // Tuner times the Winograd input/output transform kernels at this
-            // batch size only (the matmul stage is untuned). Probed re-tuning
-            // at 8/16/32/64: the winning configs do differ per batch size, but
-            // end-to-end throughput stayed flat within ~1.5% run-to-run noise.
-            // OpenCL's tuner pins a single batch size too. Not worth
-            // parameterizing.
-            /*batchSize=*/8,
-            mi,
-            context->logger,
-            // full / reTune come from the app's MLX/GPU tuning UI via
-            // -override-config (mlxTunerFull / mlxReTune), read into the
-            // ComputeContext in createComputeContext. Defaults are false/false:
-            // load a valid cache, or on a miss tune the coarse "fast" grid once.
-            // full=true selects the wide grid (cached under a distinct "_full"
-            // file); reTune=true forces a fresh tune that overwrites the current
-            // mode's cache. `./katago tuner` (optionally -full) remains a separate
-            // always-overwrite entry point.
-            /*full=*/context->tunerFull,
-            /*reTune=*/context->tunerReTune,
-            /*useFP16=*/useFP16_);
-        std::lock_guard<std::mutex> lk(g_winoTuneMemoMutex);
-        g_winoTuneMemo[shapeKey] = tuneParams;
-      }
-    }
+    // GPU path: resolve the Winograd geometry (session memo → disk cache →
+    // fresh sweep; see resolveTuneParams), then build/cache the Model below.
+    MLXWinogradTuneParams tuneParams = resolveTuneParams(context, loadedModel, useFP16_);
 
     modelCacheKey = makeCacheKey(loadedModel, tuneParams, useFP16_);
 
@@ -2008,13 +2041,21 @@ struct ComputeHandle {
     context->cachedModelsRefCount[modelCacheKey] += 1;
 
     // GPU path invariant check.
+    checkExactlyOnePath();
+  }
+
+  // Invariant: exactly one inference path is live — the MLX/GPU `model` OR the
+  // CoreML/ANE `coremlOnlyHandle`, never both or neither. Reads members set in
+  // the init list (gpuIdx, coremlOnlyHandle) and `model` as assigned so far, so
+  // it is valid at the end of either ctor path.
+  void checkExactlyOnePath() const {
     bool hasMLX = (model != nullptr);
     bool hasCoreML = static_cast<bool>(coremlOnlyHandle);
     if(hasMLX == hasCoreML) {
       throw runtime_error(
         string("MLX backend: Logic error - expected exactly one compute handle, got ") +
         (hasMLX && hasCoreML ? "both" : "neither") +
-        " (gpuIdx=" + to_string(gpuIdx_) + ")");
+        " (gpuIdx=" + to_string(gpuIdx) + ")");
     }
   }
 
@@ -2268,10 +2309,7 @@ ComputeContext* NeuralNet::createComputeContext(
   context->aneOnly = aneOnly;
   // Track live contexts so the cross-context tune memo can be cleared when this
   // engine session ends (see g_winoTuneMemo).
-  {
-    std::lock_guard<std::mutex> lk(g_winoTuneMemoMutex);
-    g_liveComputeContexts++;
-  }
+  g_winoTuneMemo.retain();
   // MLX/GPU Winograd autotuner controls (app sets these via -override-config).
   // Read here so the GPU ComputeHandle ctor can honor them; harmless on the ANE
   // path, which returns before the tuner. Calling getBool marks the keys "used"
@@ -2283,16 +2321,10 @@ ComputeContext* NeuralNet::createComputeContext(
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
   delete computeContext;
-  // When the last context of this engine session goes away, drop the
+  // When the last context of this engine session goes away, release() drops the
   // cross-context tune memo so the next session (e.g. a forced re-tune) starts
   // fresh rather than reusing this session's results.
-  {
-    std::lock_guard<std::mutex> lk(g_winoTuneMemoMutex);
-    if(--g_liveComputeContexts <= 0) {
-      g_liveComputeContexts = 0;
-      g_winoTuneMemo.clear();
-    }
-  }
+  g_winoTuneMemo.release();
 }
 
 ComputeHandle* NeuralNet::createComputeHandle(
