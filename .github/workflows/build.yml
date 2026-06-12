@@ -245,7 +245,7 @@ jobs:
     - name: Configure CMake
       working-directory: cpp
       run: |
-        cmake . -G "Visual Studio 17 2022" -A x64 `
+        cmake . -A x64 `
           -DUSE_BACKEND=OPENCL `
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
 
