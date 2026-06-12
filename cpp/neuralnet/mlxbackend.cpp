@@ -65,17 +65,21 @@ static constexpr int MLX_MUX_ANE = 100;  // CoreML on CPU+ANE via katagocoreml +
 // computeHandleMutex.
 static std::mutex computeHandleMutex;
 
-// Serializes MLX/GPU evaluation across NN server threads. MLX's GPU streams
-// have no per-stream worker thread (scheduler.h pushes nullptr for gpu
-// streams); gpu::eval runs inline on the calling thread and every handle
-// shares MLX's single global default GPU stream. Two server threads calling
-// mx::eval() concurrently therefore open two compute command encoders on the
-// same MTLCommandBuffer, which aborts with the Metal assertion "A command
-// encoder is already encoding to this command buffer". The app runs 2+ GPU
-// server threads on macOS, so guard the whole MLX graph-build + eval + result
-// read in applyCompiled with this lock. One Apple GPU serializes the actual
-// work anyway; KataGo's batching is the real throughput lever, and input prep
-// in getOutput stays outside the lock so it still overlaps.
+// Serializes MLX/GPU graph construction and command encoding across NN server
+// threads. MLX's GPU streams have no per-stream worker thread (scheduler.h
+// pushes nullptr for gpu streams); encoding runs inline on the calling thread
+// and every handle shares MLX's single global default GPU stream. Two server
+// threads encoding concurrently therefore open two compute command encoders on
+// the same MTLCommandBuffer, which aborts with the Metal assertion "A command
+// encoder is already encoding to this command buffer". So applyCompiled holds
+// this lock across input-array creation, the compiled-graph call, and
+// mx::async_eval (which performs all Metal command encoding synchronously on
+// the calling thread before returning). The wait for GPU completion
+// (array::wait, a per-array shared-event block) and the result readback
+// (data<float>() on already-materialized buffers) do not encode, so they run
+// OUTSIDE the lock: with numNNServerThreadsPerModel=2, one server thread
+// encodes its batch while the other waits on the GPU, keeping the GPU fed
+// back-to-back instead of idling during encode + readback.
 static std::mutex mlxGpuEvalMutex;
 
 //------------------------------------------------------------------------------
@@ -1671,43 +1675,52 @@ struct Model {
     float* scoreValueOut,
     float* ownershipOut
   ) const {
-    // Serialize all MLX/GPU work: graph build, eval, and result read share
-    // MLX's single global GPU stream / command buffer, which is not safe for
-    // concurrent encoding across the app's multiple NN server threads. See
-    // mlxGpuEvalMutex for the full rationale.
-    std::lock_guard<std::mutex> gpuLock(mlxGpuEvalMutex);
+    std::vector<mx::array> outputs;
+    {
+      // Serialize graph construction + command encoding only. async_eval
+      // encodes all GPU work synchronously on this thread before returning;
+      // the completion wait and result readback below run outside the lock
+      // so another server thread can encode its batch while this one waits.
+      // See mlxGpuEvalMutex for the full rationale.
+      std::lock_guard<std::mutex> gpuLock(mlxGpuEvalMutex);
 
-    // Create input tensors - NHWC format
-    mx::Shape inputShape = {batchSize, nnYLen, nnXLen, numInputChannels};
-    mx::array input = mx::array(inputSpatial, inputShape, mx::float32);
-    mx::Shape globalShape = {batchSize, numInputGlobalChannels};
-    mx::array inputGlobalArr = mx::array(inputGlobal, globalShape, mx::float32);
+      // Create input tensors - NHWC format
+      mx::Shape inputShape = {batchSize, nnYLen, nnXLen, numInputChannels};
+      mx::array input = mx::array(inputSpatial, inputShape, mx::float32);
+      mx::Shape globalShape = {batchSize, numInputGlobalChannels};
+      mx::array inputGlobalArr = mx::array(inputGlobal, globalShape, mx::float32);
 
-    // Extract mask from first channel of input
-    mx::Shape sliceStart = {0, 0, 0, 0};
-    mx::Shape sliceEnd = {batchSize, nnYLen, nnXLen, 1};
-    mx::array mask = mx::slice(input, sliceStart, sliceEnd);
+      // Extract mask from first channel of input
+      mx::Shape sliceStart = {0, 0, 0, 0};
+      mx::Shape sliceEnd = {batchSize, nnYLen, nnXLen, 1};
+      mx::array mask = mx::slice(input, sliceStart, sliceEnd);
 
-    // Compute mask sum
-    std::vector<int> sumAxes = {1, 2};
-    mx::array maskSum = requireExactNNLen
-      ? mx::full({batchSize, 1, 1, 1}, static_cast<float>(nnXLen * nnYLen))
-      : mx::sum(mask, sumAxes, /*keepdims=*/true);
+      // Compute mask sum
+      std::vector<int> sumAxes = {1, 2};
+      mx::array maskSum = requireExactNNLen
+        ? mx::full({batchSize, 1, 1, 1}, static_cast<float>(nnXLen * nnYLen))
+        : mx::sum(mask, sumAxes, /*keepdims=*/true);
 
-    // Build input vector for compiled function
-    std::vector<mx::array> inputs = {input, inputGlobalArr, mask, maskSum};
+      // Build input vector for compiled function
+      std::vector<mx::array> inputs = {input, inputGlobalArr, mask, maskSum};
 
-    // Add metadata if present
-    if(numInputMetaChannels > 0 && inputMeta != nullptr) {
-      mx::Shape metaShape = {batchSize, numInputMetaChannels};
-      inputs.push_back(mx::array(inputMeta, metaShape, mx::float32));
+      // Add metadata if present
+      if(numInputMetaChannels > 0 && inputMeta != nullptr) {
+        mx::Shape metaShape = {batchSize, numInputMetaChannels};
+        inputs.push_back(mx::array(inputMeta, metaShape, mx::float32));
+      }
+
+      // Call compiled function and encode the GPU work
+      outputs = compiledFunc(inputs);
+      mx::async_eval(outputs);
     }
 
-    // Call compiled function
-    std::vector<mx::array> outputs = compiledFunc(inputs);
-
-    // Force evaluation
-    mx::eval(outputs);
+    // Wait for GPU completion. array::wait() blocks on the array's shared
+    // completion event without touching the command stream, so it is safe
+    // (and intended) to run while another thread holds mlxGpuEvalMutex to
+    // encode the next batch.
+    for(mx::array& out : outputs)
+      out.wait();
 
     // Extract results - outputs are [policy, policyPass, value, scoreValue, ownership]
     mx::array& policy = outputs[0];
