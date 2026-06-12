@@ -786,6 +786,48 @@ buildOutputCandidates(bool full, int outC, int Ntiles) {
   return out;
 }
 
+// Renders the per-shape median-timing suffix " shape_ms=c<C>:<ms>,..." shared
+// by both flat sweeps. An empty vector yields an empty string.
+static std::string renderPerShapeMs(const std::vector<std::pair<int,double>>& perShape) {
+  std::string s = " shape_ms=";
+  for(size_t i = 0; i < perShape.size(); i++) {
+    if(i > 0) s += ",";
+    s += "c" + std::to_string(perShape[i].first)
+       + ":" + Global::strprintf("%.3f", perShape[i].second);
+  }
+  return s;
+}
+
+// Writes the two-line sweep diagnostic shared by flatSweepInput/flatSweepOutput:
+// an optional skipped-count line, then the considered/best/baseline/delta/per-shape
+// summary. `label` is the sweep name (e.g. "flatSweepInput"); `bestFields` is the
+// caller-rendered "tg0=.. tg1=.. .." body (input adds vw/gridOrder, output omits
+// them) and is unused when haveBest is false; `perShapeStr` is the renderPerShapeMs
+// suffix or empty. delta_pct is computed here on the same (haveBest && baseline>=1e-9)
+// condition the callers use to build perShapeStr, so the "nan" degenerate branch
+// stays in lockstep. This function owns the regex-pinned log format (see mlxtests.cpp).
+static void logFlatSweep(
+    Logger* logger, const char* label, int considered, int skipped,
+    bool haveBest, const std::string& bestFields, double bestTime,
+    double baselineMs, const std::string& perShapeStr) {
+  if(logger == nullptr) return;
+  if(skipped > 0)
+    logger->write(std::string("MLX tuner ") + label + " skipped=" + std::to_string(skipped)
+                  + " candidate(s) that failed to score; kept best valid config");
+  // %+.1f always emits a sign; the gated log-format test regex relies on this
+  // (matches [-+], not [-+]?). Don't drop the + flag.
+  const std::string deltaStr = (haveBest && baselineMs >= 1e-9)
+      ? Global::strprintf("%+.1f", (bestTime - baselineMs) / baselineMs * 100.0)
+      : std::string("nan");
+  logger->write(std::string("MLX tuner ") + label + ": considered=" + std::to_string(considered)
+                + (haveBest
+                   ? " best=" + bestFields + " time_ms=" + Global::strprintf("%.3f", bestTime)
+                   : " best=none")
+                + " baseline_ms=" + Global::strprintf("%.3f", baselineMs)
+                + " delta_pct=" + deltaStr
+                + perShapeStr);
+}
+
 // Flat sweep over (tg0, tg1, wpt, vw, gridOrder) for the input transform.
 // Returns the best (lowest-time)
 // candidate that passes isInputCandidateValid; nullopt if no candidate is
@@ -895,46 +937,25 @@ flatSweepInput(int N, int H, int W,
       }
     }
   }
-  if(logger && skipped > 0)
-    logger->write("MLX tuner flatSweepInput skipped=" + std::to_string(skipped)
-                  + " candidate(s) that failed to score; kept best valid config");
-  if(logger) {
-    std::string deltaStr;
-    std::string perShapeStr;
-    if(best && baselineMs >= 1e-9) {
-      double deltaPct = (bestTime - baselineMs) / baselineMs * 100.0;
-      // %+.1f always emits a sign; the gated log-format test regex relies on
-      // this (matches [-+], not [-+]?). Don't drop the + flag.
-      deltaStr = Global::strprintf("%+.1f", deltaPct);
-
+  // Render this sweep's best-config fields (input carries vw/gridOrder) and the
+  // per-shape suffix, then hand off to the shared logger. perShapeStr is built
+  // only on the same (best && baseline>=1e-9) condition logFlatSweep uses for
+  // delta_pct, keeping the degenerate best=none / nan branch in lockstep.
+  std::string bestFields, perShapeStr;
+  if(best) {
+    bestFields = "tg0=" + std::to_string(best->tg0)
+               + " tg1=" + std::to_string(best->tg1)
+               + " wpt=" + std::to_string(best->wpt)
+               + " vw="  + std::to_string(best->vw)
+               + " gridOrder=" + std::to_string((int)best->gridOrder);
+    if(baselineMs >= 1e-9) {
       // Per-shape median timing on the winner — diagnostic only; winner
       // selection above used the weighted score from scoreInputTransform.
-      auto perShape = scoreInputTransformPerShape(*best, N, H, W, mi, useFP16, full);
-      perShapeStr = " shape_ms=";
-      for(size_t i = 0; i < perShape.size(); i++) {
-        if(i > 0) perShapeStr += ",";
-        perShapeStr += "c" + std::to_string(perShape[i].first)
-                    + ":" + Global::strprintf("%.3f", perShape[i].second);
-      }
-    } else {
-      deltaStr = "nan";
-      // best=none branch: omit per-shape fields (matches existing degenerate
-      // log shape).
-      perShapeStr = "";
+      perShapeStr = renderPerShapeMs(scoreInputTransformPerShape(*best, N, H, W, mi, useFP16, full));
     }
-    logger->write("MLX tuner flatSweepInput: considered=" + std::to_string(considered)
-                  + (best
-                     ? " best=tg0=" + std::to_string(best->tg0)
-                       + " tg1=" + std::to_string(best->tg1)
-                       + " wpt=" + std::to_string(best->wpt)
-                       + " vw="  + std::to_string(best->vw)
-                       + " gridOrder=" + std::to_string((int)best->gridOrder)
-                       + " time_ms=" + Global::strprintf("%.3f", bestTime)
-                     : " best=none")
-                  + " baseline_ms=" + Global::strprintf("%.3f", baselineMs)
-                  + " delta_pct=" + deltaStr
-                  + perShapeStr);
   }
+  logFlatSweep(logger, "flatSweepInput", considered, skipped,
+               (bool)best, bestFields, bestTime, baselineMs, perShapeStr);
   if(consideredOut) *consideredOut = considered;
   return best;
 }
@@ -1016,40 +1037,17 @@ flatSweepOutput(int N, int H, int W,
       if(t < bestTime) { bestTime = t; best = cand; }
     }
   }
-  if(logger && skipped > 0)
-    logger->write("MLX tuner flatSweepOutput skipped=" + std::to_string(skipped)
-                  + " candidate(s) that failed to score; kept best valid config");
-  if(logger) {
-    std::string deltaStr;
-    std::string perShapeStr;
-    if(best && baselineMs >= 1e-9) {
-      double deltaPct = (bestTime - baselineMs) / baselineMs * 100.0;
-      // %+.1f always emits a sign; the gated log-format test regex relies on
-      // this (matches [-+], not [-+]?). Don't drop the + flag.
-      deltaStr = Global::strprintf("%+.1f", deltaPct);
-
-      auto perShape = scoreOutputUntransformPerShape(*best, N, H, W, mi, useFP16, full);
-      perShapeStr = " shape_ms=";
-      for(size_t i = 0; i < perShape.size(); i++) {
-        if(i > 0) perShapeStr += ",";
-        perShapeStr += "c" + std::to_string(perShape[i].first)
-                    + ":" + Global::strprintf("%.3f", perShape[i].second);
-      }
-    } else {
-      deltaStr = "nan";
-      perShapeStr = "";
-    }
-    logger->write("MLX tuner flatSweepOutput: considered=" + std::to_string(considered)
-                  + (best
-                     ? " best=tg0=" + std::to_string(best->tg0)
-                       + " tg1=" + std::to_string(best->tg1)
-                       + " wpt=" + std::to_string(best->wpt)
-                       + " time_ms=" + Global::strprintf("%.3f", bestTime)
-                     : " best=none")
-                  + " baseline_ms=" + Global::strprintf("%.3f", baselineMs)
-                  + " delta_pct=" + deltaStr
-                  + perShapeStr);
+  // Symmetric to flatSweepInput; the output best-config has no vw/gridOrder.
+  std::string bestFields, perShapeStr;
+  if(best) {
+    bestFields = "tg0=" + std::to_string(best->tg0)
+               + " tg1=" + std::to_string(best->tg1)
+               + " wpt=" + std::to_string(best->wpt);
+    if(baselineMs >= 1e-9)
+      perShapeStr = renderPerShapeMs(scoreOutputUntransformPerShape(*best, N, H, W, mi, useFP16, full));
   }
+  logFlatSweep(logger, "flatSweepOutput", considered, skipped,
+               (bool)best, bestFields, bestTime, baselineMs, perShapeStr);
   if(consideredOut) *consideredOut = considered;
   return best;
 }
