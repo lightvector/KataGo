@@ -129,6 +129,28 @@ inline std::vector<float> cpuConv2d3x3(
 namespace MLXWinograd {
 namespace mx = mlx::core;
 
+// Output-untransform epilogue fused into the store. None keeps the kernel
+// byte-identical to the unfused path. BNAct applies (scale*x+bias) then an
+// activation in fp32 on the rounded-to-T conv value; Residual adds a same-shape
+// T tensor in T arithmetic. Pointers (not values) so the default is trivially
+// None and callers pass arrays they already hold alive across the synchronous
+// winogradConv2d call. act: 0=identity, 1=mish, 2=relu (kernel-local vocab).
+struct Epilogue {
+  enum Mode { None = 0, BNAct = 1, Residual = 2 };
+  Mode mode = None;
+  const mx::array* scale = nullptr;   // BNAct: fp32 [Cout]
+  const mx::array* bias  = nullptr;   // BNAct: fp32 [Cout]
+  int act = 0;                        // BNAct: kernel-local activation id
+  const mx::array* resid = nullptr;   // Residual: T [N,H,W,Cout]
+  static Epilogue none() { return Epilogue{}; }
+  static Epilogue bnAct(const mx::array& s, const mx::array& b, int a) {
+    Epilogue e; e.mode = BNAct; e.scale = &s; e.bias = &b; e.act = a; return e;
+  }
+  static Epilogue residual(const mx::array& r) {
+    Epilogue e; e.mode = Residual; e.resid = &r; return e;
+  }
+};
+
 // Host-side weight transform: OIHW [Cout][Cin][3][3] -> U array.
 // Layout: [16, Cin, Cout] — Cout fast (matmul sees [16,Ntiles,Cin] x [16,Cin,Cout] -> [16,Ntiles,Cout]).
 // Output layout: Std only.
@@ -370,12 +392,125 @@ inline constexpr const char* kWinoOutputSource = R"METAL(
     }
 )METAL";
 
+// Output untransform + fused BN/activation epilogue. Extra inputs: scale,bias
+// (fp32 [outC]). Template arg ACT: 0 identity, 1 mish, 2 relu. The epilogue
+// consumes the rounded-to-T conv value (float)(T)Y to match the unfused path
+// (which stores the conv as T, then a separate BN kernel reads it).
+inline constexpr const char* kWinoOutputSourceBNAct = R"METAL(
+    static_assert(WPT >= 1, "WPT must be positive");
+    int Ntiles_k = m_shape[1];
+    int outC_k   = m_shape[2];
+    int H_k      = nhwc[1];
+    int W_k      = nhwc[2];
+    int tilesY_k = (H_k + 1) / 2;
+    int tilesX_k = (W_k + 1) / 2;
+    uint oc_group = thread_position_in_grid.x;
+    uint t_group  = thread_position_in_grid.y;
+    for (int w = 0; w < WPT; w++) {
+      int tileIdx = (int)t_group * WPT + w;
+      if (tileIdx >= Ntiles_k) break;
+      int rem = tileIdx;
+      int n   = rem / (tilesY_k * tilesX_k); rem -= n * tilesY_k * tilesX_k;
+      int ty  = rem / tilesX_k;
+      int tx  = rem % tilesX_k;
+      {
+        int oc = (int)oc_group;
+        if (oc >= outC_k) break;
+        T mm[4][4];
+        for (int r = 0; r < 4; r++)
+          for (int c2 = 0; c2 < 4; c2++)
+            mm[r][c2] = m[((r*4+c2) * Ntiles_k + tileIdx) * outC_k + oc];
+        float tmp[2][4];
+        for (int c2 = 0; c2 < 4; c2++) {
+          float v0=(float)mm[0][c2], v1=(float)mm[1][c2], v2=(float)mm[2][c2], v3=(float)mm[3][c2];
+          tmp[0][c2] = v0 + v1 + v2;
+          tmp[1][c2] = v1 - v2 - v3;
+        }
+        float sc = (float)scale[oc];
+        float bi = (float)bias[oc];
+        for (int a = 0; a < 2; a++) {
+          float u0=tmp[a][0], u1=tmp[a][1], u2=tmp[a][2], u3=tmp[a][3];
+          float Y0 = u0 + u1 + u2;
+          float Y1 = u1 - u2 - u3;
+          // Round to T first (match unfused stored-then-read), then BN+act in fp32.
+          float x0 = (float)(T)Y0, x1 = (float)(T)Y1;
+          x0 = x0*sc + bi; x1 = x1*sc + bi;
+          if (ACT == 1) {            // mish: x * tanh(softplus(x)), softplus = logaddexp(0,x)
+            float s0 = metal::max(0.0f,x0) + metal::precise::log(1.0f + metal::precise::exp(-metal::abs(x0)));
+            float s1 = metal::max(0.0f,x1) + metal::precise::log(1.0f + metal::precise::exp(-metal::abs(x1)));
+            x0 = x0 * metal::precise::tanh(s0);
+            x1 = x1 * metal::precise::tanh(s1);
+          } else if (ACT == 2) {     // relu
+            x0 = metal::max(0.0f,x0); x1 = metal::max(0.0f,x1);
+          }
+          int oy0 = 2*ty + a;
+          if (oy0 < H_k) {
+            int ox0 = 2*tx + 0;
+            if (ox0 < W_k) outp[((n*H_k+oy0)*W_k+ox0)*outC_k + oc] = (T)x0;
+            int ox1 = 2*tx + 1;
+            if (ox1 < W_k) outp[((n*H_k+oy0)*W_k+ox1)*outC_k + oc] = (T)x1;
+          }
+        }
+      }
+    }
+)METAL";
+
+// Output untransform + fused residual add. Extra input: resid (T [N,H,W,outC]).
+// Adds in T arithmetic on the rounded conv value -> bit-identical to unfused
+// (T)conv + resid.
+inline constexpr const char* kWinoOutputSourceResidual = R"METAL(
+    static_assert(WPT >= 1, "WPT must be positive");
+    int Ntiles_k = m_shape[1];
+    int outC_k   = m_shape[2];
+    int H_k      = nhwc[1];
+    int W_k      = nhwc[2];
+    int tilesY_k = (H_k + 1) / 2;
+    int tilesX_k = (W_k + 1) / 2;
+    uint oc_group = thread_position_in_grid.x;
+    uint t_group  = thread_position_in_grid.y;
+    for (int w = 0; w < WPT; w++) {
+      int tileIdx = (int)t_group * WPT + w;
+      if (tileIdx >= Ntiles_k) break;
+      int rem = tileIdx;
+      int n   = rem / (tilesY_k * tilesX_k); rem -= n * tilesY_k * tilesX_k;
+      int ty  = rem / tilesX_k;
+      int tx  = rem % tilesX_k;
+      {
+        int oc = (int)oc_group;
+        if (oc >= outC_k) break;
+        T mm[4][4];
+        for (int r = 0; r < 4; r++)
+          for (int c2 = 0; c2 < 4; c2++)
+            mm[r][c2] = m[((r*4+c2) * Ntiles_k + tileIdx) * outC_k + oc];
+        float tmp[2][4];
+        for (int c2 = 0; c2 < 4; c2++) {
+          float v0=(float)mm[0][c2], v1=(float)mm[1][c2], v2=(float)mm[2][c2], v3=(float)mm[3][c2];
+          tmp[0][c2] = v0 + v1 + v2;
+          tmp[1][c2] = v1 - v2 - v3;
+        }
+        for (int a = 0; a < 2; a++) {
+          float u0=tmp[a][0], u1=tmp[a][1], u2=tmp[a][2], u3=tmp[a][3];
+          float Y0 = u0 + u1 + u2;
+          float Y1 = u1 - u2 - u3;
+          int oy0 = 2*ty + a;
+          if (oy0 < H_k) {
+            int ox0 = 2*tx + 0;
+            if (ox0 < W_k) { int idx=((n*H_k+oy0)*W_k+ox0)*outC_k+oc; outp[idx] = (T)Y0 + resid[idx]; }
+            int ox1 = 2*tx + 1;
+            if (ox1 < W_k) { int idx=((n*H_k+oy0)*W_k+ox1)*outC_k+oc; outp[idx] = (T)Y1 + resid[idx]; }
+          }
+        }
+      }
+    }
+)METAL";
+
 inline mx::array winogradConv2d(const mx::array& input,
                                 const mx::array& Uw,
                                 int Cout,
                                 const InputTransform& inCfg,
                                 const OutputUntransform& outCfg,
-                                bool useFP16 = false) {
+                                bool useFP16 = false,
+                                const Epilogue& epi = Epilogue::none()) {
   int N = input.shape(0);
   int H = input.shape(1);
   int W = input.shape(2);
@@ -399,7 +534,6 @@ inline mx::array winogradConv2d(const mx::array& input,
          + "_w" + std::to_string(wpt);
   };
   std::string inName  = inSuffix ("wino_input_transform",    inCfg.wpt,  inCfg.vw,  inCfg.gridOrder);
-  std::string outName = outSuffix("wino_output_untransform", outCfg.wpt);
 
   auto makeInTemplateArgs = [&](int wpt, int vw, GridOrder go) {
     return std::vector<std::pair<std::string, mx::fast::TemplateArg>>{
@@ -407,12 +541,6 @@ inline mx::array winogradConv2d(const mx::array& input,
       {"WPT",           wpt},
       {"VW",            vw},
       {"GRID_ORDER",    (int)go}
-    };
-  };
-  auto makeOutTemplateArgs = [&](int wpt) {
-    return std::vector<std::pair<std::string, mx::fast::TemplateArg>>{
-      {"T",             dtype},
-      {"WPT",           wpt}
     };
   };
 
@@ -450,26 +578,46 @@ inline mx::array winogradConv2d(const mx::array& input,
   // T=half, so fp32 accumulation is automatic.
   mx::array m = mx::matmul(t, Uw);
 
-  // Stage 3: output untransform -> [N, H, W, Cout]
-  // Output kernel is VW=1 monomorphic and Cfast monomorphic.
-  // Grid x = Cout, grid y = ceil(Ntiles / WPT).
+  // Stage 3: output untransform (+ optional fused epilogue) -> [N, H, W, Cout]
   int nhwc_arr[4] = {N, H, W, Cout};
   mx::array nhwcArr(nhwc_arr, {4}, mx::int32);
   int gridX_out = Cout;
   int gridY_out = (Ntiles + outCfg.wpt - 1) / outCfg.wpt;
 
+  std::string outName;
+  const char* outSrc;
+  std::vector<std::string> outInputNames;
+  std::vector<mx::array> outInputs;
+  std::vector<std::pair<std::string, mx::fast::TemplateArg>> outTpl = {
+    {"T", dtype}, {"WPT", outCfg.wpt}
+  };
+  if(epi.mode == Epilogue::None) {
+    outName = outSuffix("wino_output_untransform", outCfg.wpt);     // unchanged name
+    outSrc = kWinoOutputSource;
+    outInputNames = {"m", "nhwc"};
+    outInputs = {m, nhwcArr};
+  } else if(epi.mode == Epilogue::BNAct) {
+    outName = outSuffix("wino_output_untransform", outCfg.wpt) + "_bnact_a" + std::to_string(epi.act);
+    outSrc = kWinoOutputSourceBNAct;
+    outInputNames = {"m", "nhwc", "scale", "bias"};
+    outInputs = {m, nhwcArr, *epi.scale, *epi.bias};
+    outTpl.push_back({"ACT", epi.act});
+  } else { // Residual
+    outName = outSuffix("wino_output_untransform", outCfg.wpt) + "_resid";
+    outSrc = kWinoOutputSourceResidual;
+    outInputNames = {"m", "nhwc", "resid"};
+    outInputs = {m, nhwcArr, *epi.resid};
+  }
+
   auto outFn = mx::fast::metal_kernel(
-      outName.c_str(),
-      /*input_names=*/{"m", "nhwc"},
-      /*output_names=*/{"outp"},
-      /*source=*/kWinoOutputSource);
+      outName.c_str(), outInputNames, /*output_names=*/{"outp"}, outSrc);
   auto outOuts = outFn(
-      /*inputs=*/{m, nhwcArr},
+      outInputs,
       /*output_shapes=*/{ mx::Shape{N, H, W, Cout} },
       /*output_dtypes=*/{ dtype },
       /*grid=*/std::make_tuple(gridX_out, gridY_out, 1),
       /*threadgroup=*/std::make_tuple(outCfg.tg0, outCfg.tg1, 1),
-      /*template_args=*/makeOutTemplateArgs(outCfg.wpt),
+      /*template_args=*/outTpl,
       /*init_value=*/std::nullopt,
       /*verbose=*/false,
       /*stream=*/mx::StreamOrDevice{});

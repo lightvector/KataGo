@@ -1007,6 +1007,43 @@ static mx::array applyValueHeadPooling(const mx::array& input, const mx::array& 
 }
 
 // Residual Block
+// Map KataGo activation enum -> kWinoOutputSourceBNAct ACT id; -1 = unsupported
+// (caller must fall back to the unfused path).
+static int mapEpilogueAct(int activation) {
+  switch(activation) {
+    case ACTIVATION_IDENTITY: return 0;
+    case ACTIVATION_MISH:     return 1;
+    case ACTIVATION_RELU:     return 2;
+    default:                  return -1;   // SILU etc.: not fused
+  }
+}
+
+// conv -> BN+activation, fused into the Winograd untransform when the conv is
+// Winograd, the batch is unmasked, and the activation is supported. Otherwise
+// the exact pre-existing decomposition.
+static mx::array fusedConvBNAct(const ConvLayer& conv, const BatchNormLayer& bn,
+                                const mx::array& x, const mx::array& mask, bool useMask) {
+  int act = mapEpilogueAct(bn.activation);
+  if(conv.useWinograd && !useMask && act >= 0) {
+    return MLXWinograd::winogradConv2d(
+      x, conv.winogradWeights, conv.outChannels, conv.winoInCfg, conv.winoOutCfg, conv.useFP16,
+      MLXWinograd::Epilogue::bnAct(bn.mergedScale, bn.mergedBias, act));
+  }
+  return bn.apply(conv.apply(x), mask, useMask);
+}
+
+// conv -> (residual + conv), fused into the Winograd untransform when the conv
+// is Winograd and the batch is unmasked. Otherwise the exact decomposition.
+static mx::array fusedConvResidual(const ConvLayer& conv, const mx::array& x,
+                                   const mx::array& resid, bool useMask) {
+  if(conv.useWinograd && !useMask) {
+    return MLXWinograd::winogradConv2d(
+      x, conv.winogradWeights, conv.outChannels, conv.winoInCfg, conv.winoOutCfg, conv.useFP16,
+      MLXWinograd::Epilogue::residual(resid));
+  }
+  return resid + conv.apply(x);
+}
+
 struct ResidualBlock {
   const string name;
   const BatchNormLayer preBN;
@@ -1031,10 +1068,8 @@ struct ResidualBlock {
 
   mx::array apply(const mx::array& input, const mx::array& mask, bool useMask) const {
     mx::array out = preBN.apply(input, mask, useMask);
-    out = regularConv.apply(out);
-    out = midBN.apply(out, mask, useMask);
-    out = finalConv.apply(out);
-    return input + out;
+    out = fusedConvBNAct(regularConv, midBN, out, mask, useMask);  // fuse regularConv -> midBN
+    return fusedConvResidual(finalConv, out, input, useMask);      // fuse finalConv -> input + out
   }
 };
 
@@ -1196,15 +1231,11 @@ struct NestedBottleneckResidualBlock {
   mx::array apply(const mx::array& input, const mx::array& mask, const mx::array& maskSum, bool useMask) const {
     mx::array out = preBN.apply(input, mask, useMask);
     out = preConv.apply(out);
-
     for(const auto& block : blocks) {
       out = block.apply(out, mask, maskSum, useMask);
     }
-
     out = postBN.apply(out, mask, useMask);
-    out = postConv.apply(out);
-
-    return input + out;
+    return fusedConvResidual(postConv, out, input, useMask);       // fuse postConv -> input + out
   }
 };
 

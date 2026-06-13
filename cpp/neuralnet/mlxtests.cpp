@@ -50,6 +50,70 @@ void runMLXBatchNormFP16Test();
 void runMLXConvLayerFP16WinogradTest();
 void runMLXTransformerLayerFP16Test();
 
+// Fused-epilogue parity: winogradConv2d(Epilogue::bnAct/residual) must equal
+// the unfused decomposition (conv -> BN+act, conv -> +residual) computed with
+// plain MLX ops. fp32: exact (Tier 1). fp16: bit-exact for residual; bnAct
+// allows a tiny tolerance for in-kernel vs JIT transcendental last bits (Tier 2).
+static void runMLXWinogradEpilogueTests() {
+  namespace mxc = mlx::core;
+  using namespace MLXWinograd;
+  cout << "Running MLX Winograd epilogue-fusion tests" << endl;
+  const int N=2,H=19,W=19,C=24;            // square 3x3, Cin==Cout for residual
+  std::mt19937 rng(9091);
+  std::uniform_real_distribution<float> d(-1.f,1.f);
+  vector<float> in((size_t)N*H*W*C); for(auto&x:in) x=d(rng);
+  vector<float> w((size_t)C*C*9);     for(auto&x:w) x=d(rng);
+  vector<float> scale(C), bias(C);    for(int i=0;i<C;i++){scale[i]=0.5f+d(rng)*0.1f; bias[i]=d(rng)*0.1f;}
+
+  for(bool fp16 : {false, true}) {
+    const mxc::Dtype dt = fp16 ? mxc::float16 : mxc::float32;
+    mxc::array inF(in.data(), {N,H,W,C}, mxc::float32);
+    mxc::array x = fp16 ? mxc::astype(inF, dt) : inF;
+    mxc::array Uw = makeWinogradWeights(w, C, C, fp16);
+    mxc::array sc(scale.data(), {C}, mxc::float32);   // BN params always fp32
+    mxc::array bi(bias.data(),  {C}, mxc::float32);
+    InputTransform inCfg; OutputUntransform outCfg;
+
+    // --- Pattern A: BN + mish ---
+    {
+      mxc::array conv = winogradConv2d(x, Uw, C, inCfg, outCfg, fp16);          // unfused conv
+      mxc::array xr = mxc::astype(conv, dt);                                     // emulate stored-as-T
+      mxc::array normed = mxc::astype(xr, mxc::float32) * sc + bi;
+      mxc::array sp = mxc::logaddexp(mxc::array(0.0f), normed);
+      mxc::array unfused = mxc::astype(normed * mxc::tanh(sp), dt);
+      mxc::array fused = winogradConv2d(x, Uw, C, inCfg, outCfg, fp16,
+                          Epilogue::bnAct(sc, bi, /*ACT mish*/1));
+      mxc::eval(unfused); mxc::eval(fused);
+      // Bind the float32 views to named arrays before data<float>() so their
+      // buffers outlive the read (a temporary astype result would be freed at
+      // the end of the full expression, leaving the pointer dangling in fp16).
+      mxc::array uF=mxc::astype(unfused,mxc::float32); mxc::eval(uF);
+      auto* a=uF.data<float>();
+      mxc::array fF=mxc::astype(fused,mxc::float32); mxc::eval(fF);
+      auto* b=fF.data<float>();
+      double mx=0; for(size_t i=0;i<in.size();i++) mx=std::max(mx,(double)std::fabs(a[i]-b[i]));
+      cout << "  bnAct " << (fp16?"fp16":"fp32") << " maxErr=" << mx << endl;
+      testAssert(mx < (fp16 ? 3e-3 : 1e-5));   // fp32 ~exact; fp16 Tier-2 last-bit band
+    }
+    // --- Pattern B: residual add ---
+    {
+      mxc::array resid = fp16 ? mxc::astype(inF, dt) : inF;                      // same-shape addend
+      mxc::array conv = winogradConv2d(x, Uw, C, inCfg, outCfg, fp16);
+      mxc::array unfused = mxc::astype(conv, dt) + resid;                        // T+T add
+      mxc::array fused = winogradConv2d(x, Uw, C, inCfg, outCfg, fp16,
+                          Epilogue::residual(resid));
+      mxc::eval(unfused); mxc::eval(fused);
+      mxc::array uF=mxc::astype(unfused,mxc::float32); mxc::eval(uF);
+      mxc::array fF=mxc::astype(fused,mxc::float32);   mxc::eval(fF);
+      auto* a=uF.data<float>(); auto* b=fF.data<float>();
+      double mx=0; for(size_t i=0;i<in.size();i++) mx=std::max(mx,(double)std::fabs(a[i]-b[i]));
+      cout << "  residual " << (fp16?"fp16":"fp32") << " maxErr=" << mx << endl;
+      testAssert(mx == 0.0);    // residual is T+T both ways -> exact
+    }
+  }
+  cout << "MLX Winograd epilogue-fusion tests OK" << endl;
+}
+
 void runMLXWinogradTests() {
   cout << "Running MLX Winograd F(2,3) tests" << endl;
   // Naive direct 3x3 "same" conv NHWC, OIHW weights, as independent oracle.
@@ -516,6 +580,8 @@ void runMLXWinogradTests() {
     testAssert(std::abs(sumAbs - expectedSumAbs) / expectedSumAbs < 0.005);
     std::cout << "  Output-kernel monomorphic smoke test OK" << std::endl;
   }
+
+  runMLXWinogradEpilogueTests();
 }
 
 void runMLXWinotunerTests() {
