@@ -1764,12 +1764,15 @@ struct Model {
     mx::array& scoreValue = outputs[3];
     mx::array& ownership = outputs[4];
 
-    // Copy results to output buffers
-    memcpy(policyOut, policy.data<float>(), batchSize * numPolicyChannels * nnXLen * nnYLen * sizeof(float));
-    memcpy(policyPassOut, policyPass.data<float>(), batchSize * numPolicyPassChannels * sizeof(float));
-    memcpy(valueOut, value.data<float>(), batchSize * numValueChannels * sizeof(float));
-    memcpy(scoreValueOut, scoreValue.data<float>(), batchSize * numScoreValueChannels * sizeof(float));
-    memcpy(ownershipOut, ownership.data<float>(), batchSize * numOwnershipChannels * nnXLen * nnYLen * sizeof(float));
+    // Copy results to output buffers. Cast the leading operand to size_t so the
+    // byte-count product is computed in size_t throughout: the operands are all
+    // int, and on a large board (USE_BIGGER_BOARDS_EXPENSIVE) with a big batch
+    // the int sub-product could otherwise overflow before the sizeof promotion.
+    memcpy(policyOut, policy.data<float>(), (size_t)batchSize * numPolicyChannels * nnXLen * nnYLen * sizeof(float));
+    memcpy(policyPassOut, policyPass.data<float>(), (size_t)batchSize * numPolicyPassChannels * sizeof(float));
+    memcpy(valueOut, value.data<float>(), (size_t)batchSize * numValueChannels * sizeof(float));
+    memcpy(scoreValueOut, scoreValue.data<float>(), (size_t)batchSize * numScoreValueChannels * sizeof(float));
+    memcpy(ownershipOut, ownership.data<float>(), (size_t)batchSize * numOwnershipChannels * nnXLen * nnYLen * sizeof(float));
   }
 };
 

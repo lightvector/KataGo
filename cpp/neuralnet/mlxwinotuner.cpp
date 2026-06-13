@@ -73,10 +73,22 @@ static int requireKey(const map<string,int>& kvs, const string& key, const strin
 bool MLXWinogradTuneParams::isValid() const {
   if(inputTransform.tg0 <= 0 || inputTransform.tg1 <= 0) return false;
   if(outputUntransform.tg0 <= 0 || outputUntransform.tg1 <= 0) return false;
+  // Bound each threadgroup dim before multiplying. These values come from the
+  // cache file via an unchecked int parse; a corrupt large pair (e.g.
+  // 46341*46341) would overflow the int product below (UB) and could wrap to a
+  // small value that slips past the > 1024 gate. A single Metal threadgroup
+  // dim can't exceed 1024 anyway, so cap each first.
+  if(inputTransform.tg0 > 1024 || inputTransform.tg1 > 1024) return false;
+  if(outputUntransform.tg0 > 1024 || outputUntransform.tg1 > 1024) return false;
   if(inputTransform.tg0 * inputTransform.tg1 > 1024) return false;
   if(outputUntransform.tg0 * outputUntransform.tg1 > 1024) return false;
   if(inputTransform.wpt < 1 || outputUntransform.wpt < 1) return false;
   if(inputTransform.vw  < 1) return false;
+  // gridOrder is cast from a cache-file int with no range check; reject any
+  // value outside the defined enum so a corrupt cache re-tunes instead of
+  // running an unintended (possibly VW-invalid) geometry as if it were Tfast.
+  if(inputTransform.gridOrder != MLXWinograd::GridOrder::Cfast
+     && inputTransform.gridOrder != MLXWinograd::GridOrder::Tfast) return false;
   // Tfast (GRID_ORDER=1) requires VW=1 in the kernels. Reject any input
   // candidate that violates this — surfaces the constraint earlier than
   // the Metal JIT static_assert. (Output VW is gone; global gridOrder
