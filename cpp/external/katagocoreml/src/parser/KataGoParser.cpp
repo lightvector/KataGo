@@ -308,6 +308,14 @@ MatMulLayerDesc KataGoParser::parseMatMulLayer() {
     layer.in_channels = readInt();
     layer.out_channels = readInt();
 
+    // Match master desc.cpp's MatMulLayerDesc validation (inChannels/outChannels
+    // <= 0): reject non-positive dims so a malformed model fails loudly here
+    // rather than building a degenerate matmul or, on a negative value,
+    // computing a huge size_t allocation below.
+    if (layer.in_channels <= 0 || layer.out_channels <= 0) {
+        throw std::runtime_error(layer.name + ": invalid matmul in/out channels");
+    }
+
     // Weights in [ic, oc] order
     size_t num_weights = static_cast<size_t>(layer.in_channels) * layer.out_channels;
     layer.weights = readFloats(num_weights, layer.name);
@@ -453,6 +461,12 @@ TransformerAttentionBlockDesc KataGoParser::parseTransformerAttentionBlock(int m
     if (block.num_heads < 1 || block.num_kv_heads < 1 || (block.num_heads % block.num_kv_heads != 0)) {
         throw std::runtime_error(block.name + ": invalid numHeads/numKVHeads");
     }
+    // Match master desc.cpp (qHeadDim < 1 || vHeadDim < 1): a degenerate head dim
+    // makes scale = 1/sqrt(0) = inf and reshape dims degenerate. The projection
+    // cross-checks below only catch *inconsistent* dims, not a consistently-zero one.
+    if (block.q_head_dim < 1 || block.v_head_dim < 1) {
+        throw std::runtime_error(block.name + ": qHeadDim and vHeadDim must be >= 1");
+    }
     if (block.use_rope && (block.q_head_dim % 2 != 0)) {
         throw std::runtime_error(block.name + ": qHeadDim must be even when RoPE is used");
     }
@@ -495,6 +509,14 @@ TransformerAttentionBlockDesc KataGoParser::parseTransformerAttentionBlock(int m
         } else {
             readString();  // ropeTheta name
             block.rope_theta = readFloat();
+            // Match master desc.cpp (ropeTheta <= 0). Without this, a non-positive
+            // theta makes pow(theta, frac) NaN/Inf, which flows into the derived
+            // cos/sin RoPE tables. Those are builder-derived (not parsed) weights,
+            // so they bypass the readFloats NaN/Inf gate and would otherwise yield
+            // a structurally-valid model that silently computes garbage.
+            if (block.rope_theta <= 0.0f) {
+                throw std::runtime_error(block.name + ": ropeTheta must be > 0");
+            }
         }
     }
     return block;

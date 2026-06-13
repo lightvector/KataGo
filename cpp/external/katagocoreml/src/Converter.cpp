@@ -60,6 +60,12 @@ void KataGoConverter::convert(const std::string& input_path,
 
     // Update options with model metadata for serialization
     ConversionOptions final_options = options;
+    // The builder may downgrade IO to FP32 for narrow transformers; reflect its
+    // effective decision so the serialized feature descriptors (and the spec-
+    // version bump below) match the MIL program's actual IO dtype. Without this,
+    // a narrow transformer with use_fp16_io=true emits FP32 IO tensors while the
+    // model spec still declares FP16 IO — a mismatch that fails to load.
+    final_options.use_fp16_io = builder.getUseFp16Io();
     final_options.model_version = model.model_version;
     final_options.meta_encoder_version = model.meta_encoder_version;
     final_options.num_input_meta_channels = model.num_input_meta_channels;

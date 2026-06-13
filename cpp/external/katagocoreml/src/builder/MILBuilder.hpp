@@ -32,6 +32,11 @@ public:
     /// Get weight entries for blob serialization (mutable; serialization sets blob_offset)
     std::vector<WeightEntry>& getWeightsMutable() { return m_ops.getWeightsMutable(); }
 
+    /// Effective FP16-IO decision after any narrow-transformer FP32 downgrade in
+    /// the constructor. The serializer must use this (not the raw request) so the
+    /// feature-descriptor IO dtype matches the MIL program's actual IO tensors.
+    bool getUseFp16Io() const { return m_use_fp16_io; }
+
     /// Get board dimensions
     int getBoardXSize() const { return m_board_x_size; }
     int getBoardYSize() const { return m_board_y_size; }
