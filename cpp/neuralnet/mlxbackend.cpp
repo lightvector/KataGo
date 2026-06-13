@@ -1124,9 +1124,11 @@ struct GlobalPoolingResidualBlock {
     mx::array combined = regularOut + bias;
 
     combined = midBN.apply(combined, mask, useMask);
-    mx::array finalOut = finalConv.apply(combined);
 
-    return input + finalOut;
+    // Fuse finalConv -> input + finalOut, mirroring ResidualBlock /
+    // NestedBottleneckResidualBlock (gpool's bias-add path stays unfused; it
+    // is a broadcast add, not a full-tensor residual).
+    return fusedConvResidual(finalConv, combined, input, useMask);
   }
 };
 
