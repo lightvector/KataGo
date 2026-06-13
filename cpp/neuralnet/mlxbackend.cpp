@@ -1044,6 +1044,22 @@ static mx::array fusedConvResidual(const ConvLayer& conv, const mx::array& x,
   return resid + conv.apply(x);
 }
 
+// conv -> (+ broadcast bias) -> BN+activation, fused into the Winograd untransform
+// when the conv is Winograd, unmasked, and the activation is supported. gbias is
+// the gpool bias [N,outC] (T). Otherwise the exact pre-existing decomposition.
+static mx::array fusedConvBiasBNAct(const ConvLayer& conv, const BatchNormLayer& bn,
+                                    const mx::array& x, const mx::array& gbias,
+                                    const mx::array& mask, bool useMask) {
+  int act = mapEpilogueAct(bn.activation);
+  if(conv.useWinograd && !useMask && act >= 0) {
+    return MLXWinograd::winogradConv2d(
+      x, conv.winogradWeights, conv.outChannels, conv.winoInCfg, conv.winoOutCfg, conv.useFP16,
+      MLXWinograd::Epilogue::biasBNAct(gbias, bn.mergedScale, bn.mergedBias, act));
+  }
+  mx::Shape bShape = {static_cast<int>(gbias.shape()[0]), 1, 1, static_cast<int>(gbias.shape()[1])};
+  return bn.apply(conv.apply(x) + mx::reshape(gbias, bShape), mask, useMask);
+}
+
 struct ResidualBlock {
   const string name;
   const BatchNormLayer preBN;
@@ -1105,29 +1121,15 @@ struct GlobalPoolingResidualBlock {
   mx::array apply(const mx::array& input, const mx::array& mask, const mx::array& maskSum, bool useMask) const {
     mx::array preOut = preBN.apply(input, mask, useMask);
 
-    // Regular path
-    mx::array regularOut = regularConv.apply(preOut);
-
-    // Global pooling path
+    // Global pooling path -> broadcast bias [N, outC]
     mx::array gpoolOut = gpoolConv.apply(preOut);
     gpoolOut = gpoolBN.apply(gpoolOut, mask, useMask);
     mx::array pooled = applyGlobalPooling(gpoolOut, mask, maskSum, useMask);
-
-    // Squeeze spatial dims for matmul: [N, 1, 1, C*3] -> [N, C*3]
     std::vector<int> squeezeAxes = {1, 2};
-    mx::array pooledFlat = mx::squeeze(pooled, squeezeAxes);
-    mx::array bias = gpoolToBiasMul.apply(pooledFlat);
+    mx::array bias = gpoolToBiasMul.apply(mx::squeeze(pooled, squeezeAxes));   // [N, outC], T
 
-    // Add bias to regular path (broadcast): [N, outC] -> [N, 1, 1, outC]
-    mx::Shape biasShape = {static_cast<int>(bias.shape()[0]), 1, 1, static_cast<int>(bias.shape()[1])};
-    bias = mx::reshape(bias, biasShape);
-    mx::array combined = regularOut + bias;
-
-    combined = midBN.apply(combined, mask, useMask);
-
-    // Fuse finalConv -> input + finalOut, mirroring ResidualBlock /
-    // NestedBottleneckResidualBlock (gpool's bias-add path stays unfused; it
-    // is a broadcast add, not a full-tensor residual).
+    // Fuse regularConv -> (+bias) -> midBN(BN+act), then finalConv -> input + out.
+    mx::array combined = fusedConvBiasBNAct(regularConv, midBN, preOut, bias, mask, useMask);
     return fusedConvResidual(finalConv, combined, input, useMask);
   }
 };

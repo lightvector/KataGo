@@ -136,18 +136,22 @@ namespace mx = mlx::core;
 // None and callers pass arrays they already hold alive across the synchronous
 // winogradConv2d call. act: 0=identity, 1=mish, 2=relu (kernel-local vocab).
 struct Epilogue {
-  enum Mode { None = 0, BNAct = 1, Residual = 2 };
+  enum Mode { None = 0, BNAct = 1, Residual = 2, BiasBNAct = 3 };
   Mode mode = None;
-  const mx::array* scale = nullptr;   // BNAct: fp32 [Cout]
-  const mx::array* bias  = nullptr;   // BNAct: fp32 [Cout]
-  int act = 0;                        // BNAct: kernel-local activation id
+  const mx::array* scale = nullptr;   // BNAct/BiasBNAct: fp32 [Cout]
+  const mx::array* bias  = nullptr;   // BNAct/BiasBNAct: fp32 [Cout]
+  int act = 0;                        // BNAct/BiasBNAct: kernel-local activation id
   const mx::array* resid = nullptr;   // Residual: T [N,H,W,Cout]
+  const mx::array* gbias = nullptr;   // BiasBNAct: broadcast bias [N,outC], T
   static Epilogue none() { return Epilogue{}; }
   static Epilogue bnAct(const mx::array& s, const mx::array& b, int a) {
     Epilogue e; e.mode = BNAct; e.scale = &s; e.bias = &b; e.act = a; return e;
   }
   static Epilogue residual(const mx::array& r) {
     Epilogue e; e.mode = Residual; e.resid = &r; return e;
+  }
+  static Epilogue biasBNAct(const mx::array& gb, const mx::array& s, const mx::array& b, int a) {
+    Epilogue e; e.mode = BiasBNAct; e.gbias = &gb; e.scale = &s; e.bias = &b; e.act = a; return e;
   }
 };
 
@@ -455,6 +459,71 @@ inline constexpr const char* kWinoOutputSourceBNAct = R"METAL(
     }
 )METAL";
 
+// Output untransform + fused broadcast-bias add then BN/activation. Identical to
+// kWinoOutputSourceBNAct except a per-(n,oc) broadcast bias gbias ([N,outC], T) is
+// added to the rounded-to-T conv value before BN+act (matches gpool's regularOut +
+// bias). Extra inputs: gbias (T [N,outC]), scale,bias (fp32 [outC]). Template arg
+// ACT: 0 identity, 1 mish, 2 relu.
+inline constexpr const char* kWinoOutputSourceBiasBNAct = R"METAL(
+    static_assert(WPT >= 1, "WPT must be positive");
+    int Ntiles_k = m_shape[1];
+    int outC_k   = m_shape[2];
+    int H_k      = nhwc[1];
+    int W_k      = nhwc[2];
+    int tilesY_k = (H_k + 1) / 2;
+    int tilesX_k = (W_k + 1) / 2;
+    uint oc_group = thread_position_in_grid.x;
+    uint t_group  = thread_position_in_grid.y;
+    for (int w = 0; w < WPT; w++) {
+      int tileIdx = (int)t_group * WPT + w;
+      if (tileIdx >= Ntiles_k) break;
+      int rem = tileIdx;
+      int n   = rem / (tilesY_k * tilesX_k); rem -= n * tilesY_k * tilesX_k;
+      int ty  = rem / tilesX_k;
+      int tx  = rem % tilesX_k;
+      {
+        int oc = (int)oc_group;
+        if (oc >= outC_k) break;
+        T mm[4][4];
+        for (int r = 0; r < 4; r++)
+          for (int c2 = 0; c2 < 4; c2++)
+            mm[r][c2] = m[((r*4+c2) * Ntiles_k + tileIdx) * outC_k + oc];
+        float tmp[2][4];
+        for (int c2 = 0; c2 < 4; c2++) {
+          float v0=(float)mm[0][c2], v1=(float)mm[1][c2], v2=(float)mm[2][c2], v3=(float)mm[3][c2];
+          tmp[0][c2] = v0 + v1 + v2;
+          tmp[1][c2] = v1 - v2 - v3;
+        }
+        float sc = (float)scale[oc];
+        float bi = (float)bias[oc];
+        for (int a = 0; a < 2; a++) {
+          float u0=tmp[a][0], u1=tmp[a][1], u2=tmp[a][2], u3=tmp[a][3];
+          float Y0 = u0 + u1 + u2;
+          float Y1 = u1 - u2 - u3;
+          // Broadcast bias add (T+T, matches gpool's regularOut + bias), then round, then BN+act.
+          T gb = gbias[n * outC_k + oc];
+          float x0 = (float)((T)Y0 + gb), x1 = (float)((T)Y1 + gb);
+          x0 = x0*sc + bi; x1 = x1*sc + bi;
+          if (ACT == 1) {            // mish: x * tanh(softplus(x)), softplus = logaddexp(0,x)
+            float s0 = metal::max(0.0f,x0) + metal::precise::log(1.0f + metal::precise::exp(-metal::abs(x0)));
+            float s1 = metal::max(0.0f,x1) + metal::precise::log(1.0f + metal::precise::exp(-metal::abs(x1)));
+            x0 = x0 * metal::precise::tanh(s0);
+            x1 = x1 * metal::precise::tanh(s1);
+          } else if (ACT == 2) {     // relu
+            x0 = metal::max(0.0f,x0); x1 = metal::max(0.0f,x1);
+          }
+          int oy0 = 2*ty + a;
+          if (oy0 < H_k) {
+            int ox0 = 2*tx + 0;
+            if (ox0 < W_k) outp[((n*H_k+oy0)*W_k+ox0)*outC_k + oc] = (T)x0;
+            int ox1 = 2*tx + 1;
+            if (ox1 < W_k) outp[((n*H_k+oy0)*W_k+ox1)*outC_k + oc] = (T)x1;
+          }
+        }
+      }
+    }
+)METAL";
+
 // Output untransform + fused residual add. Extra input: resid (T [N,H,W,outC]).
 // Adds in T arithmetic on the rounded conv value -> bit-identical to unfused
 // (T)conv + resid.
@@ -601,6 +670,12 @@ inline mx::array winogradConv2d(const mx::array& input,
     outSrc = kWinoOutputSourceBNAct;
     outInputNames = {"m", "nhwc", "scale", "bias"};
     outInputs = {m, nhwcArr, *epi.scale, *epi.bias};
+    outTpl.push_back({"ACT", epi.act});
+  } else if(epi.mode == Epilogue::BiasBNAct) {
+    outName = outSuffix("wino_output_untransform", outCfg.wpt) + "_biasbnact_a" + std::to_string(epi.act);
+    outSrc = kWinoOutputSourceBiasBNAct;
+    outInputNames = {"m", "nhwc", "gbias", "scale", "bias"};
+    outInputs = {m, nhwcArr, *epi.gbias, *epi.scale, *epi.bias};
     outTpl.push_back({"ACT", epi.act});
   } else { // Residual
     outName = outSuffix("wino_output_untransform", outCfg.wpt) + "_resid";

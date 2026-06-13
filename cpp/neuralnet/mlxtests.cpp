@@ -110,6 +110,28 @@ static void runMLXWinogradEpilogueTests() {
       cout << "  residual " << (fp16?"fp16":"fp32") << " maxErr=" << mx << endl;
       testAssert(mx == 0.0);    // residual is T+T both ways -> exact
     }
+    // --- Pattern C: broadcast bias add + BN + mish (gpool regular path) ---
+    {
+      std::vector<float> gb((size_t)N*C); for(auto&v:gb) v=d(rng);
+      mxc::array gbF(gb.data(), {N,C}, mxc::float32);
+      mxc::array gbT = fp16 ? mxc::astype(gbF, dt) : gbF;            // bias is compute dtype T
+      mxc::array conv = winogradConv2d(x, Uw, C, inCfg, outCfg, fp16);
+      mxc::array convT = mxc::astype(conv, dt);
+      mxc::array biasB = mxc::reshape(gbT, {N,1,1,C});
+      mxc::array combined = mxc::astype(convT + biasB, dt);          // (T)conv + bias, T+T
+      mxc::array normed = mxc::astype(combined, mxc::float32) * sc + bi;
+      mxc::array sp = mxc::logaddexp(mxc::array(0.0f), normed);
+      mxc::array unfused = mxc::astype(normed * mxc::tanh(sp), dt);
+      mxc::array fused = winogradConv2d(x, Uw, C, inCfg, outCfg, fp16,
+                          Epilogue::biasBNAct(gbT, sc, bi, /*ACT mish*/1));
+      mxc::eval(unfused); mxc::eval(fused);
+      mxc::array uF=mxc::astype(unfused,mxc::float32); mxc::eval(uF);
+      mxc::array fF=mxc::astype(fused,mxc::float32);   mxc::eval(fF);
+      auto* aa=uF.data<float>(); auto* bb=fF.data<float>();
+      double mxe=0; for(size_t i=0;i<in.size();i++) mxe=std::max(mxe,(double)std::fabs(aa[i]-bb[i]));
+      cout << "  biasBNAct " << (fp16?"fp16":"fp32") << " maxErr=" << mxe << endl;
+      testAssert(mxe < (fp16 ? 3e-3 : 1e-5));
+    }
   }
   cout << "MLX Winograd epilogue-fusion tests OK" << endl;
 }
