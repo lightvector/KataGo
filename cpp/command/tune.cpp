@@ -19,8 +19,8 @@
 
 using namespace std;
 
-int MainCmds::tuner(const vector<string>& args) {
 #if defined(USE_OPENCL_BACKEND)
+static int runOpenCLTuner(const vector<string>& args) {
 
   ConfigParser cfg;
   string modelFile;
@@ -228,8 +228,9 @@ int MainCmds::tuner(const vector<string>& args) {
   }
 
   return 0;
-
+}
 #elif defined(USE_MLX_BACKEND)
+static int runMLXTuner(const vector<string>& args) {
 
   // MLX (Apple GPU) tuner: searches the Winograd input/output transform grids
   // and writes the winning parameters to the same cache the backend reads at
@@ -352,7 +353,14 @@ int MainCmds::tuner(const vector<string>& args) {
   cout << "Done, results saved to " << outputFile << endl;
 
   return 0;
+}
+#endif
 
+int MainCmds::tuner(const vector<string>& args) {
+#if defined(USE_OPENCL_BACKEND)
+  return runOpenCLTuner(args);
+#elif defined(USE_MLX_BACKEND)
+  return runMLXTuner(args);
 #else
   cout << "Currently this command only does anything for the OpenCL and MLX versions of KataGo" << endl;
   (void)args;
