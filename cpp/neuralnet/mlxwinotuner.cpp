@@ -82,8 +82,12 @@ bool MLXWinogradTuneParams::isValid() const {
   if(outputUntransform.tg0 > 1024 || outputUntransform.tg1 > 1024) return false;
   if(inputTransform.tg0 * inputTransform.tg1 > 1024) return false;
   if(outputUntransform.tg0 * outputUntransform.tg1 > 1024) return false;
-  if(inputTransform.wpt < 1 || outputUntransform.wpt < 1) return false;
-  if(inputTransform.vw  < 1) return false;
+  // Upper-bound wpt/vw too (also unchecked cache-file ints): the kernels support
+  // wpt in {1,2,4,8} and vw in {1,2,4}; a corrupt larger value would otherwise
+  // validate and run a pathological geometry.
+  if(inputTransform.wpt < 1 || inputTransform.wpt > 8) return false;
+  if(outputUntransform.wpt < 1 || outputUntransform.wpt > 8) return false;
+  if(inputTransform.vw  < 1 || inputTransform.vw > 4) return false;
   // gridOrder is cast from a cache-file int with no range check; reject any
   // value outside the defined enum so a corrupt cache re-tunes instead of
   // running an unintended (possibly VW-invalid) geometry as if it were Tfast.
@@ -906,6 +910,15 @@ flatSweepInput(int N, int H, int W,
       return MLXWinograd::InputTransform{ tg0v[idx[0]], tg1v[idx[1]], wptv[idx[2]],
                                           goVw[idx[3]].vw, goVw[idx[3]].go };
     };
+    // Guard the hard-coded seed indices against silent drift: if someone reorders
+    // the coarse value sets above, the seed must still decode to the baked default.
+    {
+      const MLXWinograd::InputTransform sd = decode(seed), def{};
+      if(sd.tg0 != def.tg0 || sd.tg1 != def.tg1 || sd.wpt != def.wpt
+         || sd.vw != def.vw || sd.gridOrder != def.gridOrder)
+        throw StringError("MLX winotuner: greedy input seed no longer maps to the baked "
+                          "default; update the seed indices for the reordered value sets");
+    }
     auto scoreFn = [&](const std::vector<int>& idx) -> double {
       MLXWinograd::InputTransform cand = decode(idx);
       if(!isInputCandidateValid(cand.tg0, cand.tg1, cand.wpt, cand.vw, cand.gridOrder, C, Ntiles))
@@ -1011,6 +1024,12 @@ flatSweepOutput(int N, int H, int W,
     const std::vector<int> order = {0, 1, 2};
     // Indices into the coarse value sets above — update if those sets change.
     const std::vector<int> seed  = {1, 0, 0};  // {tg0=32,tg1=1,wpt=1}
+    // Guard the hard-coded seed against silent drift if the value sets are reordered.
+    {
+      const MLXWinograd::OutputUntransform sd{ tg0v[seed[0]], tg1v[seed[1]], wptv[seed[2]] }, def{};
+      if(sd.tg0 != def.tg0 || sd.tg1 != def.tg1 || sd.wpt != def.wpt)
+        throw StringError("MLX winotuner: greedy output seed no longer maps to the baked default");
+    }
 
     auto scoreFn = [&](const std::vector<int>& idx) -> double {
       MLXWinograd::OutputUntransform cand{ tg0v[idx[0]], tg1v[idx[1]], wptv[idx[2]] };

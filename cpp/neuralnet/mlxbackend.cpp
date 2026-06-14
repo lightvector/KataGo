@@ -1943,12 +1943,25 @@ static MLXWinogradTuneParams resolveTuneParams(
   // entirely. This is what keeps the main + human b18c384 nets at a single
   // tune instead of two — halving model-load tuning time at zero quality
   // cost (identical shape ⇒ identical optimal geometry).
+  // Include a signature of the 3x3-conv distribution: that histogram (not just
+  // trunkNumChannels) is what actually drives the tuned geometry via
+  // planShapeRotation, so two nets with the same trunk width but different conv
+  // shapes must NOT share a tune. modelVersion is deliberately omitted — same
+  // shape, different version (e.g. b18c384 main v14 + human v15) should share.
+  // The histograms are std::map-derived, hence deterministically sorted.
+  std::string histSig;
+  for(const auto& p : mi.conv3x3InputHistogram)
+    histSig += std::to_string(p.first) + ":" + std::to_string(p.second) + ",";
+  histSig += "/";
+  for(const auto& p : mi.conv3x3OutputHistogram)
+    histSig += std::to_string(p.first) + ":" + std::to_string(p.second) + ",";
   const std::string shapeKey =
       std::to_string(mi.trunkNumChannels)
       + "_" + std::to_string(context->nnXLen)
       + "x" + std::to_string(context->nnYLen)
       + (useFP16 ? "_fp16" : "_fp32")
-      + (context->tunerFull ? "_full" : "_fast");
+      + (context->tunerFull ? "_full" : "_fast")
+      + "_" + histSig;
   if(auto memoized = g_winoTuneMemo.tryGet(shapeKey)) {
     if(context->logger != NULL)
       context->logger->write("Reusing MLX Winograd tuning for shape " + shapeKey
@@ -2599,7 +2612,10 @@ void NeuralNet::getOutput(
       policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
     }
     else {
-      assert(numPolicyChannels == 1);
+      // Fail loud (not a release-elided assert) on an unsupported channel count:
+      // anything other than 1 here would silently mis-stride the single-channel read.
+      if(numPolicyChannels != 1)
+        throw StringError("MLX backend: unsupported numPolicyChannels=" + Global::intToString(numPolicyChannels));
       SymmetryHelpers::copyOutputsWithSymmetry(policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
       policyProbs[inputBuffers->singlePolicyResultElts] = policyPassSrcBuf[0];
     }
