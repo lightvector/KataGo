@@ -426,6 +426,12 @@ TransformerRMSNormDesc KataGoParser::parseTransformerRMSNorm() {
     if (layer.num_channels < 1) {
         throw std::runtime_error(layer.name + ": transformer rmsnorm numChannels must be >= 1");
     }
+    // Match master desc.cpp (rmsnorm epsilon <= 0 || > 1.0f): reject a non-positive
+    // or too-large epsilon so a malformed model fails loudly here instead of
+    // producing a structurally-valid model that computes garbage via rsqrt(x+eps).
+    if (layer.epsilon <= 0.0f || layer.epsilon > 1.0f) {
+        throw std::runtime_error(layer.name + ": transformer rmsnorm epsilon must be in (0, 1]");
+    }
     layer.weight = readFloats(layer.num_channels, layer.name + "/weight");
     return layer;
 }
@@ -442,6 +448,10 @@ RMSNormLayerDesc KataGoParser::parseRMSNormLayer() {
     }
     if (layer.cgroup_size != 0) {
         throw std::runtime_error(layer.name + ": grouped spatial RMSNorm is not supported");
+    }
+    // Match master desc.cpp (rmsnorm epsilon <= 0 || > 1.0f).
+    if (layer.epsilon <= 0.0f || layer.epsilon > 1.0f) {
+        throw std::runtime_error(layer.name + ": rmsnorm epsilon must be in (0, 1]");
     }
     layer.gamma = readFloats(layer.num_channels, layer.name + "/gamma");
     layer.beta = readFloats(layer.num_channels, layer.name + "/beta");
