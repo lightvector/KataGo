@@ -327,6 +327,12 @@ MatBiasLayerDesc KataGoParser::parseMatBiasLayer() {
     MatBiasLayerDesc layer;
     layer.name = readString();
     layer.num_channels = readInt();
+    // Match master desc.cpp (matbias numChannels <= 0): fail loud before
+    // readFloats turns a negative into a huge size_t allocation.
+    if (layer.num_channels <= 0) {
+        throw std::runtime_error(layer.name + ": matbias numChannels must be >= 1, got " +
+                                 std::to_string(layer.num_channels));
+    }
     layer.weights = readFloats(layer.num_channels, layer.name);
 
     return layer;
@@ -371,6 +377,13 @@ NestedBottleneckResidualBlockDesc KataGoParser::parseNestedBottleneckBlock(int m
     NestedBottleneckResidualBlockDesc block;
     block.name = readString();
     block.num_blocks = readInt();
+    // Match master desc.cpp (nested numBlocks < 1): validate before parseBlockStack
+    // reserves on this count, so a crafted/corrupt model can't force a huge
+    // allocation (or a confusing length_error on a negative) from a tiny file.
+    if (block.num_blocks < 1) {
+        throw std::runtime_error(block.name + ": nested numBlocks must be >= 1, got " +
+                                 std::to_string(block.num_blocks));
+    }
 
     block.pre_bn = parseBatchNormLayer();
     block.pre_activation = parseActivationLayer(model_version);
