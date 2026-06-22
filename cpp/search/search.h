@@ -86,6 +86,10 @@ struct Search {
   Board rootBoard;
   BoardHistory rootHistory;
   Hash128 rootGraphHash;
+  //Hash of the search params, folded into the eval cache key so that cached search results are not shared
+  //across different params (the eval cache persists across param changes and, in the analysis engine, is
+  //shared across threads that may be running with different params). Recomputed at the start of each search.
+  Hash128 evalCacheParamsHash;
   Loc rootHintLoc;
 
   //External user-specified moves that are illegal or that should be nontrivially searched, and the number of turns for which they should
@@ -648,6 +652,10 @@ private:
   // search.cpp
   //----------------------------------------------------------------------------------------
   uint32_t createMutexIdxForNode(SearchThread& thread) const;
+
+  // Key to look up or store a node in the eval cache so that distinct params never share cached search results.
+  Hash128 getEvalCacheKey(Hash128 graphHash) const { return graphHash ^ evalCacheParamsHash; }
+
   SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash);
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
