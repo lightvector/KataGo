@@ -25,7 +25,10 @@ def read_npz_training_data(
     num_global_features = modelconfigs.get_num_global_input_features(model_config)
     (h_base,h_builder) = build_history_matrices(model_config, device)
 
-    include_qvalues = model_config["version"] >= 16
+    # Version 16 always predicts q values; version 17+ does so only when configured.
+    include_qvalues = model_config["version"] == 16 or (
+        model_config["version"] >= 17 and bool(model_config.get("predict_q_values"))
+    )
 
     def load_npz_file(npz_file):
         with np.load(npz_file) as npz:

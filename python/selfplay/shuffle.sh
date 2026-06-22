@@ -4,14 +4,13 @@ set -o pipefail
 #Shuffles and copies selfplay training from selfplay/ to shuffleddata/current/
 #Should be run periodically.
 
-if [[ $# -lt 4 ]]
+if [[ $# -lt 3 ]]
 then
-    echo "Usage: $0 BASEDIR TMPDIR NTHREADS BATCHSIZE"
+    echo "Usage: $0 BASEDIR TMPDIR NTHREADS"
     echo "Currently expects to be run from within the 'python' directory of the KataGo repo, or otherwise in the same dir as shuffle.py."
     echo "BASEDIR containing selfplay data and models and related directories"
     echo "TMPDIR scratch space, ideally on fast local disk, unique to this loop"
     echo "NTHREADS number of parallel threads/processes to use in shuffle"
-    echo "BATCHSIZE number of samples to concat together per batch for training"
     exit 0
 fi
 BASEDIR="$1"
@@ -19,8 +18,6 @@ shift
 TMPDIR="$1"
 shift
 NTHREADS="$1"
-shift
-BATCHSIZE="$1"
 shift
 
 #------------------------------------------------------------------------------
@@ -50,10 +47,9 @@ then
            -out-tmp-dir "$TMPDIR"/train \
            -approx-rows-per-out-file 70000 \
            -num-processes "$NTHREADS" \
-           -batch-size "$BATCHSIZE" \
+           -keep-target-rows 20000000 \
            -only-include-md5-path-prop-lbound 0.00 \
            -only-include-md5-path-prop-ubound 1.00 \
-           -output-npz \
            "$@" \
            2>&1 | tee "$BASEDIR"/shuffleddata/"$OUTDIR".tmp/outtrain.txt &
 
@@ -70,10 +66,9 @@ else
            -out-tmp-dir "$TMPDIR"/val \
            -approx-rows-per-out-file 70000 \
            -num-processes "$NTHREADS" \
-           -batch-size "$BATCHSIZE" \
+           -keep-target-rows 20000000 \
            -only-include-md5-path-prop-lbound 0.95 \
            -only-include-md5-path-prop-ubound 1.00 \
-           -output-npz \
            "$@" \
            2>&1 | tee "$BASEDIR"/shuffleddata/"$OUTDIR".tmp/outval.txt &
 
@@ -88,10 +83,9 @@ else
            -out-tmp-dir "$TMPDIR"/train \
            -approx-rows-per-out-file 70000 \
            -num-processes "$NTHREADS" \
-           -batch-size "$BATCHSIZE" \
+           -keep-target-rows 20000000 \
            -only-include-md5-path-prop-lbound 0.00 \
            -only-include-md5-path-prop-ubound 0.95 \
-           -output-npz \
            "$@" \
            2>&1 | tee "$BASEDIR"/shuffleddata/"$OUTDIR".tmp/outtrain.txt &
 

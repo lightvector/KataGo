@@ -283,7 +283,10 @@ def load_batch(data_path, batch_size, pos_len, model_config, device):
     """Load a single batch from an npz file."""
     num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
     num_global_features = modelconfigs.get_num_global_input_features(model_config)
-    include_qvalues = model_config["version"] >= 16
+    # Version 16 always predicts q values; version 17+ does so only when configured.
+    include_qvalues = model_config["version"] == 16 or (
+        model_config["version"] >= 17 and bool(model_config.get("predict_q_values"))
+    )
 
     with np.load(data_path) as npz:
         binaryInputNCHWPacked = npz["binaryInputNCHWPacked"][:batch_size]

@@ -176,6 +176,9 @@ struct SearchParams {
   bool operator==(const SearchParams& other) const;
   bool operator!=(const SearchParams& other) const;
 
+  // Hash of all parameters, such that params that compare unequal hash differently (with high probability).
+  Hash128 getHash() const;
+
   nlohmann::json changeableParametersToJson() const;
   void printParams(std::ostream& out) const;
 
