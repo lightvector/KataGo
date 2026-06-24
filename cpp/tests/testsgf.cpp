@@ -639,6 +639,129 @@ Last moves F1 C1 M3
 
   //============================================================================
   {
+    const char* name = "Sgf board edit range (rectangle) placement test";
+    string sgfStr = "(;GM[1]FF[4]SZ[19]PL[B]AB[ja:jd][ke][ld][lf:of][pe:qe][rc:sc][rd][rf]AW[ka:kd][le:oe][mc][pd][qc][rb:sb])";
+    parseAndPrintSgfLinear(sgfStr);
+    string expected = R"%%(
+xSize 19
+ySize 19
+depth 1
+komi 7.5
+placements
+X K19
+X K18
+X K17
+X K16
+X L15
+X M16
+X M14
+X N14
+X O14
+X P14
+X Q15
+X R15
+X S17
+X T17
+X S16
+X S14
+O L19
+O L18
+O L17
+O L16
+O M15
+O N15
+O O15
+O P15
+O N17
+O Q16
+O R17
+O S18
+O T18
+moves
+Initial board hist
+pla Black
+HASH: 43E8F2D6F5D808841E17E40EBE44889D
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . X O . . . . . . . .
+18 . . . . . . . . . X O . . . . . . O O
+17 . . . . . . . . . X O . O . . . O X X
+16 . . . . . . . . . X O X . . . O . X .
+15 . . . . . . . . . . X O O O O X X . .
+14 . . . . . . . . . . . X X X X . . X .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Approx valid turns this phase 0
+Approx consec valid turns this game 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves
+Final board hist
+pla Black
+HASH: 43E8F2D6F5D808841E17E40EBE44889D
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . X O . . . . . . . .
+18 . . . . . . . . . X O . . . . . . O O
+17 . . . . . . . . . X O . O . . . O X X
+16 . . . . . . . . . X O X . . . O . X .
+15 . . . . . . . . . . X O O O O X X . .
+14 . . . . . . . . . . . X X X X . . X .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Approx valid turns this phase 0
+Approx consec valid turns this game 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
     const char* name = "Sgf parsing with whitespace and placements and comments";
     string sgfStr = R"%%((;GM[1]FF[4]SZ[9]
 GN[]
