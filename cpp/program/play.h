@@ -201,6 +201,7 @@ class MatchPairer {
     int botIdx;
     std::string botName;
     NNEvaluator* nnEval;
+    NNEvaluator* humanEval = NULL;
     SearchParams baseParams;
   };
 
