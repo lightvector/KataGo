@@ -974,7 +974,8 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
 
     # EPOCHS AND LR ---------------------------------------------------------------------
 
-    def update_and_return_lr_and_wd():
+    def update_and_return_lr_and_wd(log_if="changed"):
+        assert log_if in ("always", "changed", "never")
         # Warmup for initial training
         warmup_scale = 1.0
         if no_lr_warmup:
@@ -1078,7 +1079,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
 
-            if changed:
+            if log_if == "always" or (log_if == "changed" and changed):
                 logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
@@ -1390,7 +1391,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         if use_fp16:
             logging.info(f"Current grad scale: {scaler.get_scale()}")
 
-        lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+        lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="always")
         maybe_update_brenorm_params()
 
         # SUB EPOCH LOOP -----------
@@ -1616,10 +1617,10 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                     log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
-                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 20 == 0:
-                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
-                if train_state["global_step_samples"] <= 500000000 and batch_count_this_epoch % 200 == 0:
-                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+                if train_state["global_step_samples"] <= 200000000 and batch_count_this_epoch % 5 == 0:
+                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if=("changed" if batch_count_this_epoch % 50 == 0 else "never"))
+                elif batch_count_this_epoch % 50 == 0:
+                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="never")
 
                 # Update batch renorm parameters
                 if batch_count_this_epoch % 500 == 0:
