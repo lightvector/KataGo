@@ -36,6 +36,9 @@ namespace Tests {
   void runSgfTests();
   void runSgfFileTests();
 
+  //testhumansltuner.cpp
+  void runHumanSLTunerTests();
+
   //testnninputs.cpp
   void runNNInputsV3V4Tests();
 

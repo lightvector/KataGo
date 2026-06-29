@@ -321,6 +321,7 @@ add_executable(katago
   program/playutils.cpp
   program/playsettings.cpp
   program/play.cpp
+  program/humansltuner.cpp
   program/selfplaymanager.cpp
   ${GIT_HEADER_FILE_ALWAYS_UPDATED}
   tests/testboardarea.cpp
@@ -333,6 +334,7 @@ add_executable(katago
   tests/testrules.cpp
   tests/testscore.cpp
   tests/testsgf.cpp
+  tests/testhumansltuner.cpp
   tests/testsymmetries.cpp
   tests/testnninputs.cpp
   tests/testownership.cpp
@@ -365,6 +367,7 @@ add_executable(katago
   command/selfplay.cpp
   command/startposes.cpp
   command/tune.cpp
+  command/tunehuman.cpp
   command/writetrainingdata.cpp
   main.cpp
   )

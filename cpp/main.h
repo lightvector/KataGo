@@ -9,6 +9,7 @@ namespace MainCmds {
   int genconfig(const std::vector<std::string>& args, const std::string& firstCommand);
   int gtp(const std::vector<std::string>& args);
   int tuner(const std::vector<std::string>& args);
+  int tunehuman(const std::vector<std::string>& args);
   int match(const std::vector<std::string>& args);
   int selfplay(const std::vector<std::string>& args);
 
