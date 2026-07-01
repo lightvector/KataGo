@@ -12,8 +12,10 @@ namespace GTPConfig {
     double maxTime,
     double maxPonderTime,
     const std::vector<int>& deviceIdxs,
+    int nnMaxBatchSize,
     int nnCacheSizePowerOfTwo,
     int nnMutexPoolSizePowerOfTwo,
+    int numNNServerThreadsPerModel,
     int numSearchThreads
   );
 }
