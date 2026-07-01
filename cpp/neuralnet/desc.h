@@ -36,6 +36,8 @@ struct ConvLayerDesc {
   int64_t getNumParameters() const;
 
   void scaleOutputChannels(const std::vector<float>& scaling);
+
+  void releaseWeights();
 };
 
 struct BatchNormLayerDesc {
@@ -68,6 +70,8 @@ struct BatchNormLayerDesc {
   void extractChannelFactorsAbsLtOne(std::vector<float>& channelFactors);
   void extractChannelFactorsAbsLtOneWithInverses(std::vector<float>& channelFactors, std::vector<float>& invChannelFactors);
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ActivationLayerDesc {
@@ -105,6 +109,8 @@ struct MatMulLayerDesc {
   int64_t getNumParameters() const;
 
   void scaleOutputChannels(const std::vector<float>& scaling);
+
+  void releaseWeights();
 };
 
 struct MatBiasLayerDesc {
@@ -124,6 +130,8 @@ struct MatBiasLayerDesc {
   int64_t getNumParameters() const;
 
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ResidualBlockDesc {
@@ -150,6 +158,8 @@ struct ResidualBlockDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct GlobalPoolingResidualBlockDesc {
@@ -181,6 +191,8 @@ struct GlobalPoolingResidualBlockDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct NestedBottleneckResidualBlockDesc {
@@ -215,6 +227,8 @@ struct NestedBottleneckResidualBlockDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 // Trunk final normalization kind (stored in trunk header)
@@ -240,6 +254,7 @@ struct RMSNormLayerDesc {
   RMSNormLayerDesc& operator=(RMSNormLayerDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 // Lightweight RMSNorm used inside transformer blocks (weight only, no bias, no spatial modes)
@@ -259,6 +274,7 @@ struct TransformerRMSNormDesc {
   TransformerRMSNormDesc& operator=(TransformerRMSNormDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 struct TransformerAttentionDesc {
@@ -294,6 +310,7 @@ struct TransformerAttentionDesc {
   TransformerAttentionDesc& operator=(TransformerAttentionDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 
   // Compute cos/sin tables for RoPE given board dimensions.
   // Output tables are indexed as:
@@ -324,6 +341,7 @@ struct TransformerFFNDesc {
   TransformerFFNDesc& operator=(TransformerFFNDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 struct SGFMetadataEncoderDesc {
@@ -349,6 +367,7 @@ struct SGFMetadataEncoderDesc {
   SGFMetadataEncoderDesc& operator=(SGFMetadataEncoderDesc&& other);
 
   int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 
@@ -397,6 +416,8 @@ struct TrunkDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct PolicyHeadDesc {
@@ -431,6 +452,8 @@ struct PolicyHeadDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ValueHeadDesc {
@@ -463,6 +486,8 @@ struct ValueHeadDesc {
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ModelPostProcessParams {
@@ -533,6 +558,11 @@ struct ModelDesc {
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
   Rules getSupportedRules(const Rules& desiredRules, bool& supported) const;
+
+  // Frees all weight arrays (conv/matmul/bias/batchnorm), keeping scalar shape
+  // metadata intact. Safe once weights are no longer needed (e.g. CoreML/ANE
+  // inference, which reads weights from the compiled .mlmodelc).
+  void releaseWeights();
 
 };
 
