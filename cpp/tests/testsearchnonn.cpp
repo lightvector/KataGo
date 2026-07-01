@@ -1,10 +1,12 @@
 #include "../tests/tests.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <iterator>
 #include <iomanip>
 
 #include "../core/fileutils.h"
+#include "../dataio/files.h"
 #include "../dataio/sgf.h"
 #include "../neuralnet/nninputs.h"
 #include "../search/asyncbot.h"
@@ -2656,4 +2658,573 @@ x.x.x
   cout << "Done" << endl;
 }
 
+namespace {
 
+struct PersistentMCTSTestPosition {
+  string sgfFile;
+  int64_t turnIdx;
+  Board board;
+  Player nextPla;
+  BoardHistory hist;
+};
+
+struct PersistentMCTSTestCase {
+  string sgfFile;
+  vector<PersistentMCTSTestPosition> positions;
+  vector<int> rootSequence;
+  vector<int> exportSteps;
+};
+
+struct PersistentMCTSRootSnapshot {
+  int64_t visits;
+  map<Loc,int64_t> edgeVisitsByLoc;
+  ReportedSearchValues values;
+  vector<double> ownership;
+};
+
+static string resolvePersistentMCTSTestPath(const string& path) {
+  if(FileUtils::exists(path))
+    return path;
+  if(FileUtils::exists("cpp/" + path))
+    return "cpp/" + path;
+  if(FileUtils::exists("../" + path))
+    return "../" + path;
+  return path;
+}
+
+static SearchParams makePersistentMCTSTestParams(int64_t maxPlayouts) {
+  SearchParams params;
+  params.dynamicScoreUtilityFactor = 0.0;
+  params.useGraphSearch = true;
+  params.useEvalCache = false;
+  params.useNoisePruning = false;
+  params.useUncertainty = false;
+  params.rootNoiseEnabled = false;
+  params.rootSymmetryPruning = false;
+  params.rootNumSymmetriesToSample = 1;
+  params.rootDesiredPerChildVisitsCoeff = 0.0;
+  params.rootPolicyOptimism = 0.0;
+  params.policyOptimism = 0.0;
+  params.wideRootNoise = 0.0;
+  params.enablePassingHacks = false;
+  params.enableMorePassingHacks = false;
+  params.playoutDoublingAdvantage = 0.0;
+  params.playoutDoublingAdvantagePla = C_EMPTY;
+  params.subtreeValueBiasFactor = 0.0;
+  params.numThreads = 1;
+  params.minPlayoutsPerThread = 0.0;
+  params.maxVisits = ((int64_t)1L << 50);
+  params.maxPlayouts = maxPlayouts;
+  params.maxTime = 1.0e20;
+  params.searchFactorAfterOnePass = 1.0;
+  params.searchFactorAfterTwoPass = 1.0;
+  return params;
+}
+
+static bool persistentMCTSApproxEqual(double a, double b) {
+  const double atol = 1e-4;
+  const double rtol = 1e-3;
+  return std::fabs(a-b) <= atol + rtol * std::max(std::fabs(a), std::fabs(b));
+}
+
+static void assertPersistentMCTSApprox(
+  double actual,
+  double expected,
+  const string& label,
+  const string& context
+) {
+  if(!persistentMCTSApproxEqual(actual,expected)) {
+    cout << "Persistent MCTS mismatch at " << context << " for " << label
+         << ": actual=" << actual << " expected=" << expected << endl;
+    testAssert(false);
+  }
+}
+
+static PersistentMCTSRootSnapshot capturePersistentMCTSRootSnapshot(Search* search) {
+  PersistentMCTSRootSnapshot snapshot;
+  snapshot.visits = search->getRootVisits();
+  snapshot.values = search->getRootValuesRequireSuccess();
+  snapshot.ownership = search->getAverageTreeOwnership();
+
+  ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+  int childrenCapacity = children.getCapacity();
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    Loc moveLoc = children[i].getMoveLoc();
+    int64_t edgeVisits = children[i].getEdgeVisits();
+    if(edgeVisits > 0)
+      snapshot.edgeVisitsByLoc[moveLoc] = edgeVisits;
+  }
+  return snapshot;
+}
+
+static void comparePersistentMCTSRootSnapshots(
+  const PersistentMCTSRootSnapshot& actual,
+  const PersistentMCTSRootSnapshot& expected,
+  const Board& board,
+  const string& context
+) {
+  if(actual.visits != expected.visits) {
+    cout << "Persistent MCTS visit mismatch at " << context
+         << ": actual=" << actual.visits << " expected=" << expected.visits << endl;
+    testAssert(false);
+  }
+
+  set<Loc> locs;
+  for(const auto& entry: actual.edgeVisitsByLoc)
+    locs.insert(entry.first);
+  for(const auto& entry: expected.edgeVisitsByLoc)
+    locs.insert(entry.first);
+  double actualVisitDenom = std::max((int64_t)1, actual.visits);
+  double expectedVisitDenom = std::max((int64_t)1, expected.visits);
+  for(Loc loc: locs) {
+    int64_t actualVisits = actual.edgeVisitsByLoc.count(loc) ? actual.edgeVisitsByLoc.at(loc) : 0;
+    int64_t expectedVisits = expected.edgeVisitsByLoc.count(loc) ? expected.edgeVisitsByLoc.at(loc) : 0;
+    double actualProp = (double)actualVisits / actualVisitDenom;
+    double expectedProp = (double)expectedVisits / expectedVisitDenom;
+    assertPersistentMCTSApprox(
+      actualProp,
+      expectedProp,
+      string("edge distribution ") + Location::toString(loc,board),
+      context
+    );
+  }
+
+  assertPersistentMCTSApprox(actual.values.winValue, expected.values.winValue, "root winValue", context);
+  assertPersistentMCTSApprox(actual.values.winLossValue, expected.values.winLossValue, "root winLossValue", context);
+  assertPersistentMCTSApprox(actual.values.expectedScore, expected.values.expectedScore, "root expectedScore", context);
+  assertPersistentMCTSApprox(actual.values.lead, expected.values.lead, "root lead", context);
+
+  if(actual.ownership.size() != expected.ownership.size()) {
+    cout << "Persistent MCTS ownership size mismatch at " << context
+         << ": actual=" << actual.ownership.size() << " expected=" << expected.ownership.size() << endl;
+    testAssert(false);
+  }
+  for(size_t i = 0; i<actual.ownership.size(); i++)
+    assertPersistentMCTSApprox(actual.ownership[i], expected.ownership[i], "ownership", context);
+}
+
+static PersistentMCTSRootSnapshot runStandardPersistentMCTSReference(
+  const SearchParams& baseParams,
+  NNEvaluator* nnEval,
+  Logger* logger,
+  const PersistentMCTSTestPosition& pos,
+  int64_t visits,
+  int64_t numSearchesBegunBeforeRun
+) {
+  SearchParams params = baseParams;
+  params.maxVisits = ((int64_t)1L << 50);
+  params.maxPlayouts = visits;
+  Search standard(params, nnEval, logger, "persistentMCTSSgfPersistentSeed");
+  standard.setAlwaysIncludeOwnerMap(true);
+  standard.numSearchesBegun = numSearchesBegunBeforeRun;
+  standard.setPosition(pos.nextPla,pos.board,pos.hist);
+  int64_t visitsRemaining = visits;
+  while(visitsRemaining > 0) {
+    int64_t chunk = std::min<int64_t>(64, visitsRemaining);
+    standard.searchParams.maxPlayouts = chunk;
+    standard.runWholeSearch(pos.nextPla);
+    visitsRemaining -= chunk;
+  }
+  PersistentMCTSRootSnapshot snapshot = capturePersistentMCTSRootSnapshot(&standard);
+  if(snapshot.visits != visits) {
+    cout << "Standard MCTS reference did not hit requested visits for "
+         << pos.sgfFile << " turn " << pos.turnIdx
+         << ": requested=" << visits << " actual=" << snapshot.visits << endl;
+    testAssert(false);
+  }
+  return snapshot;
+}
+
+static vector<string> collectPersistentMCTSSgfFiles() {
+  vector<string> files;
+  vector<string> fixedFiles = {
+    "tests/data/sampletest/sampletest7x7.sgf",
+    "tests/data/sampletest/sampletest9x9.sgf",
+    "tests/data/humanslbigdiff.sgf",
+    "tests/data/sampletest2/messy.sgf"
+  };
+  for(const string& path: fixedFiles) {
+    string resolved = resolvePersistentMCTSTestPath(path);
+    if(FileUtils::exists(resolved))
+      files.push_back(resolved);
+  }
+
+  const char* includeExternalSgfs = std::getenv("KATAGO_PERSISTENT_MCTS_EXTERNAL_SGFS");
+  if(includeExternalSgfs != NULL && string(includeExternalSgfs) == "1") {
+    vector<string> dirs = {
+      "../sgfs",
+      "../../sgfs"
+    };
+    for(const string& dir: dirs) {
+      if(FileUtils::exists(dir)) {
+        vector<string> collected;
+        FileHelpers::collectSgfsFromDirOrFile(dir,collected);
+        files.insert(files.end(),collected.begin(),collected.end());
+      }
+    }
+  }
+
+  sort(files.begin(),files.end());
+  files.erase(unique(files.begin(),files.end()),files.end());
+  Rand rand("persistentMCTSSgfFileOrder");
+  rand.shuffle(files);
+  return files;
+}
+
+static bool makePersistentMCTSTestCase(
+  const string& sgfFile,
+  Rand& rand,
+  PersistentMCTSTestCase& testCase
+) {
+  std::unique_ptr<CompactSgf> sgf;
+  try {
+    sgf = CompactSgf::loadFile(sgfFile);
+  }
+  catch(const StringError& e) {
+    cout << "Skipping SGF for persistent MCTS test due to parse error: " << sgfFile << " " << e.what() << endl;
+    return false;
+  }
+  if(sgf == nullptr || sgf->moves.size() <= 20)
+    return false;
+  if(sgf->xSize > NNPos::MAX_BOARD_LEN || sgf->ySize > NNPos::MAX_BOARD_LEN)
+    return false;
+
+  Rules rules = Rules::getTrompTaylorish();
+  try {
+    rules = sgf->getRulesOrFailAllowUnspecified(rules);
+  }
+  catch(const StringError& e) {
+    cout << "Skipping SGF for persistent MCTS test due to rules error: " << sgfFile << " " << e.what() << endl;
+    return false;
+  }
+
+  int64_t latestStart = (int64_t)sgf->moves.size() - 20;
+  int64_t start = (int64_t)rand.nextUInt64((uint64_t)latestStart + 1);
+  vector<uint32_t> offsets(20);
+  for(uint32_t i = 0; i<offsets.size(); i++)
+    offsets[i] = i;
+  rand.shuffle(offsets);
+
+  testCase.sgfFile = sgfFile;
+  testCase.positions.clear();
+  for(int i = 0; i<offsets.size() && testCase.positions.size() < 15; i++) {
+    int64_t turnIdx = start + offsets[i];
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    try {
+      sgf->setupBoardAndHistTolerant(rules,board,nextPla,hist,turnIdx,false);
+    }
+    catch(const StringError& e) {
+      continue;
+    }
+    if(hist.isGameFinished)
+      continue;
+    PersistentMCTSTestPosition pos;
+    pos.sgfFile = sgfFile;
+    pos.turnIdx = turnIdx;
+    pos.board = board;
+    pos.nextPla = nextPla;
+    pos.hist = hist;
+    testCase.positions.push_back(pos);
+  }
+  if(testCase.positions.size() < 15)
+    return false;
+
+  testCase.rootSequence.clear();
+  vector<int> initialOrder(15);
+  for(int i = 0; i<15; i++)
+    initialOrder[i] = i;
+  rand.shuffle(initialOrder);
+  for(int i = 0; i<15; i++)
+    testCase.rootSequence.push_back(initialOrder[i]);
+  while(testCase.rootSequence.size() < 105)
+    testCase.rootSequence.push_back((int)rand.nextUInt(15));
+
+  vector<int> exportCandidates(105);
+  for(int i = 0; i<105; i++)
+    exportCandidates[i] = i;
+  rand.shuffle(exportCandidates);
+  testCase.exportSteps.assign(exportCandidates.begin(),exportCandidates.begin()+7);
+  sort(testCase.exportSteps.begin(),testCase.exportSteps.end());
+  return true;
+}
+
+static vector<PersistentMCTSTestCase> makePersistentMCTSTestCases(int numCases) {
+  vector<PersistentMCTSTestCase> cases;
+  vector<string> sgfFiles = collectPersistentMCTSSgfFiles();
+  Rand rand("persistentMCTSSgfCaseSeed");
+  for(const string& sgfFile: sgfFiles) {
+    PersistentMCTSTestCase testCase;
+    if(makePersistentMCTSTestCase(sgfFile,rand,testCase)) {
+      cases.push_back(testCase);
+      if(cases.size() >= (size_t)numCases)
+        break;
+    }
+  }
+  if(cases.size() < (size_t)numCases) {
+    cout << "Only found " << cases.size() << " persistent MCTS SGF cases" << endl;
+  }
+  testAssert(cases.size() > 0);
+  return cases;
+}
+
+static void runPersistentMCTSSgfCorrectnessTest(
+  const SearchParams& baseParams,
+  NNEvaluator* nnEval,
+  Logger* logger
+) {
+  vector<PersistentMCTSTestCase> cases = makePersistentMCTSTestCases(2);
+  for(size_t caseIdx = 0; caseIdx<cases.size(); caseIdx++) {
+    const PersistentMCTSTestCase& testCase = cases[caseIdx];
+    cout << "Persistent MCTS correctness SGF case " << caseIdx
+         << ": " << testCase.sgfFile << endl;
+
+    SearchParams params = baseParams;
+    params.maxPlayouts = 64;
+    Search persistent(params, nnEval, logger, "persistentMCTSSgfPersistentSeed");
+    persistent.setAlwaysIncludeOwnerMap(true);
+    persistent.setPersistentMCTSEnabled(true);
+
+    size_t nextExportIdx = 0;
+    for(int step = 0; step<testCase.rootSequence.size(); step++) {
+      const PersistentMCTSTestPosition& pos = testCase.positions[testCase.rootSequence[step]];
+      persistent.setPositionForMCTSPersistence(pos.nextPla,pos.board,pos.hist);
+      persistent.searchParams.maxPlayouts = 64;
+      int64_t numSearchesBegunBeforeRun = persistent.numSearchesBegun;
+      persistent.runWholeSearch(pos.nextPla);
+
+      PersistentMCTSRootSnapshot persistentSnapshot = capturePersistentMCTSRootSnapshot(&persistent);
+      string context =
+        testCase.sgfFile + " step " + Global::intToString(step) +
+        " turn " + Global::int64ToString(pos.turnIdx);
+      PersistentMCTSRootSnapshot standardSnapshot =
+        runStandardPersistentMCTSReference(baseParams,nnEval,logger,pos,persistentSnapshot.visits,numSearchesBegunBeforeRun);
+      comparePersistentMCTSRootSnapshots(persistentSnapshot,standardSnapshot,pos.board,context);
+
+      if(nextExportIdx < testCase.exportSteps.size() && step == testCase.exportSteps[nextExportIdx]) {
+        string exportPath =
+          "/tmp/katago_persistent_mcts_sgf_" + Global::uint64ToString(caseIdx) +
+          "_" + Global::intToString(step) + ".json";
+        persistent.exportPersistentMCTS(exportPath);
+        persistent.clearSearch();
+        persistent.importPersistentMCTS(exportPath);
+        PersistentMCTSRootSnapshot importedSnapshot = capturePersistentMCTSRootSnapshot(&persistent);
+        comparePersistentMCTSRootSnapshots(importedSnapshot,persistentSnapshot,pos.board,context + " import");
+        nextExportIdx++;
+      }
+    }
+  }
+}
+
+static int64_t countPersistentMCTSExportNodes(const string& path) {
+  ifstream in;
+  FileUtils::open(in,path);
+  nlohmann::json data;
+  in >> data;
+  if(!data.contains("nodes"))
+    return 0;
+  return (int64_t)data["nodes"].size();
+}
+
+static void runPersistentMCTSSgfStressTest(
+  const SearchParams& baseParams,
+  NNEvaluator* nnEval,
+  Logger* logger
+) {
+  vector<PersistentMCTSTestCase> cases = makePersistentMCTSTestCases(1);
+  const PersistentMCTSTestCase& testCase = cases[0];
+  cout << "Persistent MCTS stress SGF case: " << testCase.sgfFile << endl;
+
+  SearchParams params = baseParams;
+  params.maxPlayouts = 1024;
+  Search persistent(params, nnEval, logger, "persistentMCTSSgfStressSeed");
+  persistent.setAlwaysIncludeOwnerMap(true);
+  persistent.setPersistentMCTSEnabled(true);
+
+  int64_t totalRequestedPlayouts = 0;
+  size_t nextExportIdx = 0;
+  for(int step = 0; step<testCase.rootSequence.size(); step++) {
+    const PersistentMCTSTestPosition& pos = testCase.positions[testCase.rootSequence[step]];
+    persistent.setPositionForMCTSPersistence(pos.nextPla,pos.board,pos.hist);
+    persistent.searchParams.maxPlayouts = 1024;
+    persistent.runWholeSearch(pos.nextPla);
+    totalRequestedPlayouts += 1024;
+    testAssert(persistent.getRootVisits() > 0);
+
+    if(nextExportIdx < testCase.exportSteps.size() && step == testCase.exportSteps[nextExportIdx]) {
+      string exportPath =
+        "/tmp/katago_persistent_mcts_stress_" + Global::intToString(step) + ".json";
+      PersistentMCTSRootSnapshot before = capturePersistentMCTSRootSnapshot(&persistent);
+      persistent.exportPersistentMCTS(exportPath);
+      persistent.clearSearch();
+      persistent.importPersistentMCTS(exportPath);
+      PersistentMCTSRootSnapshot after = capturePersistentMCTSRootSnapshot(&persistent);
+      comparePersistentMCTSRootSnapshots(
+        after,
+        before,
+        pos.board,
+        testCase.sgfFile + " stress step " + Global::intToString(step)
+      );
+      nextExportIdx++;
+    }
+  }
+
+  string finalExportPath = "/tmp/katago_persistent_mcts_stress_final.json";
+  persistent.exportPersistentMCTS(finalExportPath);
+  int64_t exportedNodes = countPersistentMCTSExportNodes(finalExportPath);
+  int64_t reasonableNodeBound = totalRequestedPlayouts + (int64_t)testCase.positions.size() + 4096;
+  cout << "Persistent MCTS stress nodes=" << exportedNodes
+       << " requestedPlayouts=" << totalRequestedPlayouts
+       << " bound=" << reasonableNodeBound << endl;
+  testAssert(exportedNodes > 0);
+  testAssert(exportedNodes <= reasonableNodeBound);
+}
+
+}
+
+void Tests::runPersistentMCTSTests() {
+  cout << "Running persistent MCTS tests" << endl;
+  NeuralNet::globalInitialize();
+
+  string modelFile = "/dev/null";
+  const bool logToStdout = false;
+  const bool logToStderr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
+
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"persistent",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+
+  SearchParams params = makePersistentMCTSTestParams(80);
+  params.maxVisits = 1000000;
+  params.maxPlayouts = 80;
+  Search* search = new Search(params, nnEval, &logger, "persistentMCTSTestSeed");
+  search->setPersistentMCTSEnabled(true);
+
+  Rules rules = Rules::getTrompTaylorish();
+  Board board = Board::parseBoard(7,7,R"%%(
+.......
+..x.o..
+.......
+...x...
+.......
+..o.x..
+.......
+)%%");
+  Player nextPla = P_BLACK;
+  BoardHistory hist(board,nextPla,rules,0);
+
+  search->setPositionForMCTSPersistence(nextPla,board,hist);
+  search->runWholeSearch(nextPla);
+
+  auto collectRootEdges = [&]() {
+    vector<pair<Loc,int64_t>> rootEdges;
+    ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+    int childrenCapacity = children.getCapacity();
+    for(int i = 0; i<childrenCapacity; i++) {
+      const SearchNode* child = children[i].getIfAllocated();
+      if(child == NULL)
+        break;
+      Loc moveLoc = children[i].getMoveLoc();
+      int64_t edgeVisits = children[i].getEdgeVisits();
+      if(edgeVisits > 0)
+        rootEdges.push_back(make_pair(moveLoc,edgeVisits));
+    }
+    return rootEdges;
+  };
+  auto getRootEdgeVisits = [&] (Loc loc) {
+    ConstSearchNodeChildrenReference children = search->rootNode->getChildren();
+    int childrenCapacity = children.getCapacity();
+    for(int i = 0; i<childrenCapacity; i++) {
+      const SearchNode* child = children[i].getIfAllocated();
+      if(child == NULL)
+        break;
+      if(children[i].getMoveLoc() == loc)
+        return children[i].getEdgeVisits();
+    }
+    return (int64_t)0;
+  };
+  auto assertRootEdgesMatch = [&] (const vector<pair<Loc,int64_t>>& expectedEdges) {
+    for(const pair<Loc,int64_t>& expected: expectedEdges)
+      testAssert(getRootEdgeVisits(expected.first) == expected.second);
+  };
+
+  vector<pair<Loc,int64_t>> rootEdgesBefore = collectRootEdges();
+  Loc locToDescend = Board::NULL_LOC;
+  int64_t locToDescendEdgeVisits = -1;
+  for(const pair<Loc,int64_t>& edge: rootEdgesBefore) {
+    if(edge.first != Board::PASS_LOC && edge.second > locToDescendEdgeVisits) {
+      locToDescend = edge.first;
+      locToDescendEdgeVisits = edge.second;
+    }
+  }
+  testAssert(locToDescend != Board::NULL_LOC);
+  testAssert(locToDescendEdgeVisits > 0);
+
+  Board childBoard = board;
+  BoardHistory childHist = hist;
+  childHist.makeBoardMoveAssumeLegal(childBoard,locToDescend,nextPla,NULL);
+  Player childPla = getOpp(nextPla);
+
+  search->setPositionForMCTSPersistence(childPla,childBoard,childHist);
+  int64_t inheritedChildRootVisits = search->getRootVisits();
+  testAssert(inheritedChildRootVisits >= locToDescendEdgeVisits);
+
+  search->searchParams.maxPlayouts = 200;
+  search->runWholeSearch(childPla);
+  testAssert(search->getRootVisits() > inheritedChildRootVisits);
+  int64_t childRootVisitsAfterChildSearch = search->getRootVisits();
+
+  search->setPositionForMCTSPersistence(nextPla,board,hist);
+  assertRootEdgesMatch(rootEdgesBefore);
+
+  search->searchParams.maxPlayouts = search->getRootVisits() + 240;
+  search->runWholeSearch(nextPla);
+  int64_t locToDescendEdgeVisitsAfterAncestorSearch = getRootEdgeVisits(locToDescend);
+  testAssert(locToDescendEdgeVisitsAfterAncestorSearch > locToDescendEdgeVisits);
+
+  search->setPositionForMCTSPersistence(childPla,childBoard,childHist);
+  testAssert(search->getRootVisits() > childRootVisitsAfterChildSearch);
+
+  search->setPositionForMCTSPersistence(nextPla,board,hist);
+  vector<pair<Loc,int64_t>> rootEdgesBeforeExport = collectRootEdges();
+
+  string exportPath = "/tmp/katago_persistent_mcts_test.json";
+  search->exportPersistentMCTS(exportPath);
+  search->clearSearch();
+  search->importPersistentMCTS(exportPath);
+  testAssert(search->getPersistentMCTSEnabled());
+  testAssert(search->rootNode != NULL);
+  assertRootEdgesMatch(rootEdgesBeforeExport);
+
+  delete search;
+  delete nnEval;
+
+  NeuralNet::globalCleanup();
+  cout << "Persistent MCTS tests passed" << endl;
+}
+
+void Tests::runPersistentMCTSStrictTests() {
+  cout << "Running strict persistent MCTS tests" << endl;
+  NeuralNet::globalInitialize();
+
+  string modelFile = "/dev/null";
+  const bool logToStdout = false;
+  const bool logToStderr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
+
+  NNEvaluator* nnEval = startNNEval(modelFile,logger,"persistent-strict",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+
+  SearchParams sgfTestParams = makePersistentMCTSTestParams(64);
+  runPersistentMCTSSgfCorrectnessTest(sgfTestParams, nnEval, &logger);
+  runPersistentMCTSSgfStressTest(sgfTestParams, nnEval, &logger);
+
+  delete nnEval;
+
+  NeuralNet::globalCleanup();
+  cout << "Strict persistent MCTS tests passed" << endl;
+}

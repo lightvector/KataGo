@@ -7,6 +7,30 @@
 #include "../core/using.h"
 //------------------------
 
+static void copyNNOutputsAndExpandedStateIfPresent(const SearchNode& sourceNode, SearchNode& targetNode) {
+  std::shared_ptr<NNOutput>* sourceNNOutput = sourceNode.nnOutput.load(std::memory_order_acquire);
+  if(sourceNNOutput != NULL && targetNode.getNNOutput() == NULL) {
+    std::shared_ptr<NNOutput>* copy = new std::shared_ptr<NNOutput>(*sourceNNOutput);
+    bool suc = targetNode.storeNNOutputIfNull(copy);
+    if(!suc)
+      delete copy;
+  }
+  std::shared_ptr<NNOutput>* sourceHumanOutput = sourceNode.humanOutput.load(std::memory_order_acquire);
+  if(sourceHumanOutput != NULL && targetNode.getHumanOutput() == NULL) {
+    std::shared_ptr<NNOutput>* copy = new std::shared_ptr<NNOutput>(*sourceHumanOutput);
+    bool suc = targetNode.storeHumanOutputIfNull(copy);
+    if(!suc)
+      delete copy;
+  }
+  if(sourceNNOutput != NULL) {
+    SearchNodeState stateValue = targetNode.state.load(std::memory_order_acquire);
+    if(stateValue < SearchNode::STATE_EXPANDED0) {
+      targetNode.initializeChildren();
+      targetNode.state.store(SearchNode::STATE_EXPANDED0,std::memory_order_release);
+    }
+  }
+}
+
 
 void Search::addLeafValue(
   SearchNode& node,
@@ -36,6 +60,9 @@ void Search::addLeafValue(
   }
 
   utility += getPatternBonus(node.patternBonusHash,getOpp(node.nextPla));
+
+  if(persistentMCTSEnabled)
+    addPersistentDirectLeafValue(node,winLossValue,noResultValue,scoreMean,scoreMeanSq,lead,utility,weight);
 
   double utilitySq = utility * utility;
   double weightSq = weight * weight;
@@ -78,6 +105,147 @@ void Search::addLeafValue(
     node.stats.visits.fetch_add(1,std::memory_order_release);
     node.statsLock.clear(std::memory_order_release);
   }
+}
+
+void Search::addPersistentDirectLeafValue(
+  SearchNode& node,
+  double winLossValue,
+  double noResultValue,
+  double scoreMean,
+  double scoreMeanSq,
+  double lead,
+  double utility,
+  double weight
+) {
+  NodeStats stats;
+  stats.visits = 1;
+  stats.winLossValueAvg = winLossValue;
+  stats.noResultValueAvg = noResultValue;
+  stats.scoreMeanAvg = scoreMean;
+  stats.scoreMeanSqAvg = scoreMeanSq;
+  stats.leadAvg = lead;
+  stats.utilityAvg = utility;
+  stats.utilitySqAvg = utility * utility;
+  stats.weightSum = weight;
+  stats.weightSqSum = weight * weight;
+  while(node.statsLock.test_and_set(std::memory_order_acquire));
+  node.addPersistentDirectStats(persistentCurrentRootKey,stats);
+  node.statsLock.clear(std::memory_order_release);
+  mirrorPersistentDirectStatsToRootCopy(node,stats);
+}
+
+bool Search::ensurePersistentDirectStatsForCurrentRoot(SearchNode& node, SearchThread& thread) {
+  if(!persistentMCTSEnabled || node.getNNOutput() == NULL)
+    return false;
+
+  vector<Hash128> visibleRootKeys = {persistentCurrentRootKey};
+  NodeStats directStats = node.getPersistentDirectStats(visibleRootKeys);
+  if(directStats.visits > 0 && directStats.weightSum > 0.0)
+    return false;
+
+  int64_t visibleVisits = node.stats.visits.load(std::memory_order_acquire);
+  double visibleWeight = node.stats.weightSum.load(std::memory_order_acquire);
+  bool assumeNoExistingWeight = visibleVisits <= 0 || visibleWeight <= 0.0;
+  addCurrentNNOutputAsLeafValue(node,assumeNoExistingWeight);
+  if(!assumeNoExistingWeight)
+    materializePersistentNode(node,thread,false);
+  return true;
+}
+
+void Search::addEdgeVisits(SearchNode& parent, SearchChildPointer& childPointer, int64_t delta) {
+  childPointer.addEdgeVisits(delta);
+  if(persistentMCTSEnabled) {
+    {
+      std::lock_guard<std::mutex> lock(mutexPool->getMutex(parent.mutexIdx));
+      childPointer.addPersistentEdgeVisits(persistentCurrentRootKey,delta);
+    }
+    mirrorPersistentEdgeVisitsToRootCopy(parent,childPointer,delta);
+    SearchNode* child = childPointer.getIfAllocated();
+    if(child != NULL) {
+      for(int64_t i = 0; i<delta; i++)
+        addPersistentDescendantCredit(*child);
+    }
+  }
+}
+
+void Search::mirrorPersistentDirectStatsToRootCopy(const SearchNode& sourceNode, const NodeStats& stats) {
+  if(!persistentMCTSEnabled)
+    return;
+  auto iter = persistentRootNodes.find(sourceNode.graphHash);
+  if(iter == persistentRootNodes.end())
+    return;
+  SearchNode* rootCopy = iter->second;
+  if(rootCopy == &sourceNode)
+    return;
+  {
+    std::lock_guard<std::mutex> lock(mutexPool->getMutex(rootCopy->mutexIdx));
+    copyNNOutputsAndExpandedStateIfPresent(sourceNode,*rootCopy);
+  }
+  while(rootCopy->statsLock.test_and_set(std::memory_order_acquire));
+  rootCopy->addPersistentDirectStats(persistentCurrentRootKey,stats);
+  rootCopy->statsLock.clear(std::memory_order_release);
+}
+
+void Search::mirrorPersistentEdgeVisitsToRootCopy(
+  const SearchNode& sourceParent,
+  const SearchChildPointer& sourceChildPointer,
+  int64_t delta
+) {
+  if(!persistentMCTSEnabled || delta == 0)
+    return;
+  auto iter = persistentRootNodes.find(sourceParent.graphHash);
+  if(iter == persistentRootNodes.end())
+    return;
+  SearchNode* rootCopy = iter->second;
+  if(rootCopy == &sourceParent)
+    return;
+
+  Loc moveLoc = sourceChildPointer.getMoveLocRelaxed();
+  SearchNode* child = const_cast<SearchNode*>(sourceChildPointer.getIfAllocated());
+  if(child == NULL || moveLoc == Board::NULL_LOC)
+    return;
+
+  std::lock_guard<std::mutex> lock(mutexPool->getMutex(rootCopy->mutexIdx));
+  copyNNOutputsAndExpandedStateIfPresent(sourceParent,*rootCopy);
+  SearchNodeState stateValue = rootCopy->state.load(std::memory_order_acquire);
+  if(stateValue < SearchNode::STATE_EXPANDED0) {
+    rootCopy->initializeChildren();
+    rootCopy->state.store(SearchNode::STATE_EXPANDED0,std::memory_order_release);
+    stateValue = SearchNode::STATE_EXPANDED0;
+  }
+
+  SearchNodeChildrenReference children = rootCopy->getChildren(stateValue);
+  int childrenCapacity = children.getCapacity();
+  int numChildrenFound = 0;
+  for(; numChildrenFound<childrenCapacity; numChildrenFound++) {
+    SearchNode* existingChild = children[numChildrenFound].getIfAllocated();
+    if(existingChild == NULL)
+      break;
+    if(children[numChildrenFound].getMoveLocRelaxed() == moveLoc) {
+      children[numChildrenFound].addPersistentEdgeVisits(persistentCurrentRootKey,delta);
+      return;
+    }
+  }
+
+  bool suc = rootCopy->maybeExpandChildrenCapacityForNewChild(stateValue,numChildrenFound+1);
+  assert(suc);
+  children = rootCopy->getChildren(stateValue);
+  SearchChildPointer& targetChildPointer = children[numChildrenFound];
+  targetChildPointer.setMoveLocRelaxed(moveLoc);
+  targetChildPointer.store(child);
+  targetChildPointer.addPersistentEdgeVisits(persistentCurrentRootKey,delta);
+}
+
+void Search::addPersistentDescendantCredit(const SearchNode& descendant) {
+  if(
+    !persistentMCTSEnabled ||
+    !persistentPropagateDescendantCredits ||
+    persistentConsumingPendingVisits ||
+    descendant.graphHash == persistentCurrentRootKey
+  )
+    return;
+  std::lock_guard<std::mutex> lock(persistentPendingVisitsMutex);
+  persistentPendingVisitsByRoot[descendant.graphHash] += 1;
 }
 
 void Search::addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight) {
@@ -159,6 +327,127 @@ void Search::updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, boo
     numVisitsCompleted = newDirtyCounter;
     continue;
   }
+}
+
+void Search::recomputeNodeStatsFromPersistentStats(SearchNode& node, SearchThread& thread, const NodeStats& directStats, bool isRoot) {
+  vector<MoreNodeStats>& statsBuf = thread.statsBuf;
+  int numGoodChildren = 0;
+
+  ConstSearchNodeChildrenReference children = node.getChildren();
+  int childrenCapacity = children.getCapacity();
+  double origTotalChildWeight = 0.0;
+  int64_t thisNodeVisits = directStats.visits;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
+    if(child == NULL)
+      break;
+    MoreNodeStats& stats = statsBuf[numGoodChildren];
+
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
+    int64_t edgeVisits = childPointer.getEdgeVisits();
+    stats.stats = NodeStats(child->stats);
+
+    if(stats.stats.visits <= 0 || stats.stats.weightSum <= 0.0 || edgeVisits <= 0)
+      continue;
+
+    double childUtility = stats.stats.utilityAvg;
+    stats.selfUtility = node.nextPla == P_WHITE ? childUtility : -childUtility;
+    stats.weightAdjusted = stats.stats.getChildWeight(edgeVisits);
+    stats.prevMoveLoc = moveLoc;
+
+    origTotalChildWeight += stats.weightAdjusted;
+    thisNodeVisits += edgeVisits;
+    numGoodChildren++;
+  }
+
+  double currentTotalChildWeight = origTotalChildWeight;
+
+  if(searchParams.useNoisePruning && numGoodChildren > 0 && !(searchParams.antiMirror && mirroringPla != C_EMPTY)) {
+    double policyProbsBuf[NNPos::MAX_NN_POLICY_SIZE];
+    {
+      const NNOutput* nnOutput = node.getNNOutput();
+      assert(nnOutput != NULL);
+      const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+      for(int i = 0; i<numGoodChildren; i++)
+        policyProbsBuf[i] = std::max(1e-30, (double)policyProbs[getPos(statsBuf[i].prevMoveLoc)]);
+    }
+    currentTotalChildWeight = pruneNoiseWeight(statsBuf, numGoodChildren, currentTotalChildWeight, policyProbsBuf);
+  }
+
+  {
+    double amountToSubtract = 0.0;
+    double amountToPrune = 0.0;
+    if(isRoot && searchParams.rootNoiseEnabled && !searchParams.useNoisePruning) {
+      double maxChildWeight = 0.0;
+      for(int i = 0; i<numGoodChildren; i++) {
+        if(statsBuf[i].weightAdjusted > maxChildWeight)
+          maxChildWeight = statsBuf[i].weightAdjusted;
+      }
+      amountToSubtract = std::min(searchParams.chosenMoveSubtract, maxChildWeight/64.0);
+      amountToPrune = std::min(searchParams.chosenMovePrune, maxChildWeight/64.0);
+    }
+
+    downweightBadChildrenAndNormalizeWeight(
+      numGoodChildren, currentTotalChildWeight, currentTotalChildWeight,
+      amountToSubtract, amountToPrune, statsBuf
+    );
+  }
+
+  double winLossValueSum = 0.0;
+  double noResultValueSum = 0.0;
+  double scoreMeanSum = 0.0;
+  double scoreMeanSqSum = 0.0;
+  double leadSum = 0.0;
+  double utilitySum = 0.0;
+  double utilitySqSum = 0.0;
+  double weightSqSum = 0.0;
+  double weightSum = currentTotalChildWeight;
+  for(int i = 0; i<numGoodChildren; i++) {
+    const NodeStats& stats = statsBuf[i].stats;
+
+    double desiredWeight = statsBuf[i].weightAdjusted;
+    double weightScaling = desiredWeight / stats.weightSum;
+
+    winLossValueSum += desiredWeight * stats.winLossValueAvg;
+    noResultValueSum += desiredWeight * stats.noResultValueAvg;
+    scoreMeanSum += desiredWeight * stats.scoreMeanAvg;
+    scoreMeanSqSum += desiredWeight * stats.scoreMeanSqAvg;
+    leadSum += desiredWeight * stats.leadAvg;
+    utilitySum += desiredWeight * stats.utilityAvg;
+    utilitySqSum += desiredWeight * stats.utilitySqAvg;
+    weightSqSum += weightScaling * weightScaling * stats.weightSqSum;
+  }
+
+  if(directStats.weightSum > 0.0) {
+    winLossValueSum += directStats.winLossValueAvg * directStats.weightSum;
+    noResultValueSum += directStats.noResultValueAvg * directStats.weightSum;
+    scoreMeanSum += directStats.scoreMeanAvg * directStats.weightSum;
+    scoreMeanSqSum += directStats.scoreMeanSqAvg * directStats.weightSum;
+    leadSum += directStats.leadAvg * directStats.weightSum;
+    utilitySum += directStats.utilityAvg * directStats.weightSum;
+    utilitySqSum += directStats.utilitySqAvg * directStats.weightSum;
+    weightSum += directStats.weightSum;
+    weightSqSum += directStats.weightSqSum;
+  }
+
+  if(weightSum <= 0.0) {
+    setNodeStats(node,directStats);
+    return;
+  }
+
+  NodeStats newStats;
+  newStats.visits = thisNodeVisits;
+  newStats.winLossValueAvg = winLossValueSum / weightSum;
+  newStats.noResultValueAvg = noResultValueSum / weightSum;
+  newStats.scoreMeanAvg = scoreMeanSum / weightSum;
+  newStats.scoreMeanSqAvg = scoreMeanSqSum / weightSum;
+  newStats.leadAvg = leadSum / weightSum;
+  newStats.utilityAvg = utilitySum / weightSum;
+  newStats.utilitySqAvg = utilitySqSum / weightSum;
+  newStats.weightSum = weightSum;
+  newStats.weightSqSum = weightSqSum;
+  setNodeStats(node,newStats);
 }
 
 //Recompute all the stats of this node based on its children, except its visits and virtual losses, which are not child-dependent and

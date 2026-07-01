@@ -57,6 +57,8 @@ runnnsymmetriestest : Run neural net on a hardcoded rectangle board and dump sym
 runownershiptests : Run neural net search on some hardcoded positions and print avg ownership
 
 runoutputtests : Run a bunch of things and dump details to stdout
+runpersistentmctstests : Run persistent MCTS correctness tests
+runpersistentmctsstricttests : Run strict persistent MCTS SGF alignment tests
 runsearchtests : Run a bunch of things using a neural net and dump details to stdout
 runsearchtestsv3 : Run a bunch more things using a neural net and dump details to stdout
 runsearchtestsv8 : Run a bunch more things using a neural net and dump details to stdout
@@ -103,6 +105,10 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::runownershiptests(subArgs);
   else if(subcommand == "runoutputtests")
     return MainCmds::runoutputtests(subArgs);
+  else if(subcommand == "runpersistentmctstests")
+    return MainCmds::runpersistentmctstests(subArgs);
+  else if(subcommand == "runpersistentmctsstricttests")
+    return MainCmds::runpersistentmctsstricttests(subArgs);
   else if(subcommand == "runsearchtests")
     return MainCmds::runsearchtests(subArgs);
   else if(subcommand == "runsearchtestsv3")

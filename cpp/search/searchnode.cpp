@@ -3,6 +3,8 @@
 #include "../search/search.h"
 #include "../core/test.h"
 
+using namespace std;
+
 NodeStatsAtomic::NodeStatsAtomic()
   :visits(0),
    winLossValueAvg(0.0),
@@ -77,8 +79,13 @@ MoreNodeStats::~MoreNodeStats()
 SearchChildPointer::SearchChildPointer():
   data(NULL),
   edgeVisits(0),
-  moveLoc(Board::NULL_LOC)
+  moveLoc(Board::NULL_LOC),
+  persistentEdgeVisitsByRoot(NULL)
 {}
+
+SearchChildPointer::~SearchChildPointer() {
+  delete persistentEdgeVisitsByRoot;
+}
 
 void SearchChildPointer::storeAll(const SearchChildPointer& other) {
   SearchNode* d = other.data.load(std::memory_order_acquire);
@@ -87,6 +94,9 @@ void SearchChildPointer::storeAll(const SearchChildPointer& other) {
   moveLoc.store(m,std::memory_order_release);
   edgeVisits.store(e,std::memory_order_release);
   data.store(d,std::memory_order_release);
+  delete persistentEdgeVisitsByRoot;
+  persistentEdgeVisitsByRoot =
+    other.persistentEdgeVisitsByRoot == NULL ? NULL : new vector<pair<Hash128,int64_t>>(*other.persistentEdgeVisitsByRoot);
 }
 
 bool SearchChildPointer::storeIfNull(SearchNode* node) {
@@ -95,6 +105,44 @@ bool SearchChildPointer::storeIfNull(SearchNode* node) {
 }
 bool SearchChildPointer::compexweakEdgeVisits(int64_t& expected, int64_t desired) {
   return edgeVisits.compare_exchange_weak(expected, desired, std::memory_order_acq_rel);
+}
+
+void SearchChildPointer::addPersistentEdgeVisits(Hash128 rootKey, int64_t delta) {
+  if(delta == 0)
+    return;
+  if(persistentEdgeVisitsByRoot == NULL)
+    persistentEdgeVisitsByRoot = new vector<pair<Hash128,int64_t>>();
+  for(pair<Hash128,int64_t>& entry: *persistentEdgeVisitsByRoot) {
+    if(entry.first == rootKey) {
+      entry.second += delta;
+      return;
+    }
+  }
+  persistentEdgeVisitsByRoot->push_back(make_pair(rootKey,delta));
+}
+
+int64_t SearchChildPointer::getPersistentEdgeVisits(const vector<Hash128>& rootKeys) const {
+  if(persistentEdgeVisitsByRoot == NULL)
+    return 0;
+  int64_t ret = 0;
+  for(const pair<Hash128,int64_t>& entry: *persistentEdgeVisitsByRoot) {
+    for(const Hash128& rootKey: rootKeys) {
+      if(entry.first == rootKey) {
+        ret += entry.second;
+        break;
+      }
+    }
+  }
+  return ret;
+}
+
+const vector<pair<Hash128,int64_t>>* SearchChildPointer::getPersistentEdgeVisitsByRoot() const {
+  return persistentEdgeVisitsByRoot;
+}
+
+void SearchChildPointer::setPersistentEdgeVisitsByRootForLoad(const vector<pair<Hash128,int64_t>>& entries) {
+  delete persistentEdgeVisitsByRoot;
+  persistentEdgeVisitsByRoot = entries.empty() ? NULL : new vector<pair<Hash128,int64_t>>(entries);
 }
 
 
@@ -121,7 +169,8 @@ SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx, Hash128 gh)
    subtreeValueBiasTableEntry(),
    graphHash(gh),
    evalCacheEntry(nullptr),
-   dirtyCounter(0)
+   dirtyCounter(0),
+   persistentDirectStatsByRoot(NULL)
 {
 }
 
@@ -144,7 +193,10 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
    subtreeValueBiasTableEntry(),
    graphHash(other.graphHash),
    evalCacheEntry(other.evalCacheEntry),
-   dirtyCounter(other.dirtyCounter.load(std::memory_order_acquire))
+   dirtyCounter(other.dirtyCounter.load(std::memory_order_acquire)),
+   persistentDirectStatsByRoot(
+     other.persistentDirectStatsByRoot == NULL ? NULL : new vector<pair<Hash128,NodeStats>>(*other.persistentDirectStatsByRoot)
+   )
 {
   {
     std::shared_ptr<NNOutput>* otherVal = other.nnOutput.load(std::memory_order_acquire);
@@ -334,6 +386,68 @@ void SearchNode::collapseChildrenCapacity(int numGoodChildren) {
   }
 }
 
+static void addNodeStatsInPlace(NodeStats& dst, const NodeStats& src) {
+  if(src.visits == 0 && src.weightSum == 0.0 && src.weightSqSum == 0.0)
+    return;
+  if(dst.visits == 0 && dst.weightSum == 0.0 && dst.weightSqSum == 0.0) {
+    dst = src;
+    return;
+  }
+
+  double oldWeightSum = dst.weightSum;
+  double newWeightSum = oldWeightSum + src.weightSum;
+  if(newWeightSum > 0.0) {
+    dst.winLossValueAvg = (dst.winLossValueAvg * oldWeightSum + src.winLossValueAvg * src.weightSum) / newWeightSum;
+    dst.noResultValueAvg = (dst.noResultValueAvg * oldWeightSum + src.noResultValueAvg * src.weightSum) / newWeightSum;
+    dst.scoreMeanAvg = (dst.scoreMeanAvg * oldWeightSum + src.scoreMeanAvg * src.weightSum) / newWeightSum;
+    dst.scoreMeanSqAvg = (dst.scoreMeanSqAvg * oldWeightSum + src.scoreMeanSqAvg * src.weightSum) / newWeightSum;
+    dst.leadAvg = (dst.leadAvg * oldWeightSum + src.leadAvg * src.weightSum) / newWeightSum;
+    dst.utilityAvg = (dst.utilityAvg * oldWeightSum + src.utilityAvg * src.weightSum) / newWeightSum;
+    dst.utilitySqAvg = (dst.utilitySqAvg * oldWeightSum + src.utilitySqAvg * src.weightSum) / newWeightSum;
+  }
+  dst.visits += src.visits;
+  dst.weightSum = newWeightSum;
+  dst.weightSqSum += src.weightSqSum;
+}
+
+void SearchNode::addPersistentDirectStats(Hash128 rootKey, const NodeStats& statsToAdd) {
+  if(statsToAdd.visits == 0 && statsToAdd.weightSum == 0.0 && statsToAdd.weightSqSum == 0.0)
+    return;
+  if(persistentDirectStatsByRoot == NULL)
+    persistentDirectStatsByRoot = new vector<pair<Hash128,NodeStats>>();
+  for(pair<Hash128,NodeStats>& entry: *persistentDirectStatsByRoot) {
+    if(entry.first == rootKey) {
+      addNodeStatsInPlace(entry.second, statsToAdd);
+      return;
+    }
+  }
+  persistentDirectStatsByRoot->push_back(make_pair(rootKey,statsToAdd));
+}
+
+NodeStats SearchNode::getPersistentDirectStats(const vector<Hash128>& rootKeys) const {
+  NodeStats ret;
+  if(persistentDirectStatsByRoot == NULL)
+    return ret;
+  for(const pair<Hash128,NodeStats>& entry: *persistentDirectStatsByRoot) {
+    for(const Hash128& rootKey: rootKeys) {
+      if(entry.first == rootKey) {
+        addNodeStatsInPlace(ret, entry.second);
+        break;
+      }
+    }
+  }
+  return ret;
+}
+
+const vector<pair<Hash128,NodeStats>>* SearchNode::getPersistentDirectStatsByRoot() const {
+  return persistentDirectStatsByRoot;
+}
+
+void SearchNode::setPersistentDirectStatsByRootForLoad(const vector<pair<Hash128,NodeStats>>& entries) {
+  delete persistentDirectStatsByRoot;
+  persistentDirectStatsByRoot = entries.empty() ? NULL : new vector<pair<Hash128,NodeStats>>(entries);
+}
+
 NNOutput* SearchNode::getNNOutput() {
   std::shared_ptr<NNOutput>* nn = nnOutput.load(std::memory_order_acquire);
   if(nn == NULL)
@@ -406,4 +520,5 @@ SearchNode::~SearchNode() {
     delete nnOutput;
   if(humanOutput != NULL)
     delete humanOutput;
+  delete persistentDirectStatsByRoot;
 }

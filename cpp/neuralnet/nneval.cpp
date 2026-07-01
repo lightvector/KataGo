@@ -13,6 +13,7 @@ NNResultBuf::NNResultBuf()
     includeOwnerMap(false),
     boardXSizeForServer(0),
     boardYSizeForServer(0),
+    nnHashForServer(),
     rowSpatialBuf(),
     rowGlobalBuf(),
     rowMetaBuf(),
@@ -613,6 +614,11 @@ void NNEvaluator::serve(
         testAssert(resultBuf->hasResult == false);
         resultBuf->result = std::make_shared<NNOutput>();
 
+        string deterministicSeedBase = randSeed + ":DebugSkip:" + resultBuf->nnHashForServer.toString();
+        Rand policyRand(deterministicSeedBase + ":Policy");
+        Rand ownerRand(deterministicSeedBase + ":Owner");
+        Rand valueRand(deterministicSeedBase + ":Value");
+
         float* policyProbs = resultBuf->result->policyProbs;
         for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++)
           policyProbs[i] = 0;
@@ -623,10 +629,10 @@ void NNEvaluator::serve(
         for(int y = 0; y<boardYSize; y++) {
           for(int x = 0; x<boardXSize; x++) {
             int pos = NNPos::xyToPos(x,y,nnXLen);
-            policyProbs[pos] = (float)rand.nextGaussian();
+            policyProbs[pos] = (float)policyRand.nextGaussian();
           }
         }
-        policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,nnXLen,nnYLen)] = (float)rand.nextGaussian();
+        policyProbs[NNPos::locToPos(Board::PASS_LOC,boardXSize,nnXLen,nnYLen)] = (float)policyRand.nextGaussian();
 
         resultBuf->result->nnXLen = nnXLen;
         resultBuf->result->nnYLen = nnYLen;
@@ -637,7 +643,7 @@ void NNEvaluator::serve(
           for(int y = 0; y<boardYSize; y++) {
             for(int x = 0; x<boardXSize; x++) {
               int pos = NNPos::xyToPos(x,y,nnXLen);
-              whiteOwnerMap[pos] = (float)rand.nextGaussian() * 0.20f;
+              whiteOwnerMap[pos] = (float)ownerRand.nextGaussian() * 0.20f;
             }
           }
           resultBuf->result->whiteOwnerMap = whiteOwnerMap;
@@ -647,11 +653,11 @@ void NNEvaluator::serve(
         }
 
         // These aren't really probabilities. Win/Loss/NoResult will get softmaxed later
-        double whiteWinProb = 0.0 + rand.nextGaussian() * 0.20;
-        double whiteLossProb = 0.0 + rand.nextGaussian() * 0.20;
-        double whiteScoreMean = 0.0 + rand.nextGaussian() * 0.20;
-        double whiteScoreMeanSq = 0.0 + rand.nextGaussian() * 0.20;
-        double whiteNoResultProb = 0.0 + rand.nextGaussian() * 0.20;
+        double whiteWinProb = 0.0 + valueRand.nextGaussian() * 0.20;
+        double whiteLossProb = 0.0 + valueRand.nextGaussian() * 0.20;
+        double whiteScoreMean = 0.0 + valueRand.nextGaussian() * 0.20;
+        double whiteScoreMeanSq = 0.0 + valueRand.nextGaussian() * 0.20;
+        double whiteNoResultProb = 0.0 + valueRand.nextGaussian() * 0.20;
         double varTimeLeft = 0.5 * boardXSize * boardYSize;
         resultBuf->result->whiteWinProb = (float)whiteWinProb;
         resultBuf->result->whiteLossProb = (float)whiteLossProb;
@@ -901,6 +907,7 @@ void NNEvaluator::evaluate(
 
   buf.boardXSizeForServer = board.x_size;
   buf.boardYSizeForServer = board.y_size;
+  buf.nnHashForServer = nnHash;
 
   if(!debugSkipNeuralNet) {
     fillRowBufs(board, history, nextPlayer, sgfMeta, nnInputParams, buf);
