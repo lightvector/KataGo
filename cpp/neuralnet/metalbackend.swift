@@ -570,6 +570,12 @@ public class MPSGraphModelHandle {
         ownership: UnsafeMutablePointer<Float32>,
         batchSize: Int
     ) {
+      // Drain the per-call MPS objects (command buffer, the MPSNDArray / MPSGraphTensorData input
+      // feeds, and the encode result tensors) on every invocation. Without this pool they are
+      // autoreleased onto the long-lived NN-eval server thread, which never exits during a
+      // multi-game run (e.g. tunehuman), so they accumulate unboundedly — ~1 GB leaked per game.
+      // Mirrors the per-inference autoreleasepool in the CoreML apply() above.
+      autoreleasepool {
         let channelAxis = InputShape.getChannelAxis()
         let numInputChannelsNS = input.shape[channelAxis]
         let numInputGlobalChannelsNS = inputGlobal.shape[channelAxis]
@@ -665,6 +671,7 @@ public class MPSGraphModelHandle {
         readOrDie(valueHead.valueTensor, value, "value")
         readOrDie(valueHead.scoreValueTensor, scoreValue, "scoreValue")
         readOrDie(valueHead.ownershipTensor, ownership, "ownership")
+      }
     }
 }
 
