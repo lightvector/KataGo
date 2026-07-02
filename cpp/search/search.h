@@ -29,6 +29,7 @@ typedef int SearchNodeState; // See SearchNode::STATE_*
 struct SearchNode;
 struct SearchThread;
 struct Search;
+struct NodeStats;
 struct DistributionTable;
 struct PatternBonusTable;
 struct PolicySortEntry;
@@ -126,6 +127,15 @@ struct Search {
   double effectiveSearchTimeCarriedOver; //Effective search time carried over from previous moves due to ponder/tree reuse
 
   std::string randSeed;
+
+  bool persistentMCTSEnabled;
+  Hash128 persistentCurrentRootKey;
+  std::vector<Hash128> persistentCurrentRootAncestorKeys;
+  std::map<Hash128,SearchNode*> persistentRootNodes;
+  std::map<Hash128,int64_t> persistentPendingVisitsByRoot;
+  mutable std::mutex persistentPendingVisitsMutex;
+  bool persistentPropagateDescendantCredits;
+  bool persistentConsumingPendingVisits;
 
   //Contains all koHashes of positions/situations up to and including the root
   KoHashTable* rootKoHashTable;
@@ -246,6 +256,14 @@ struct Search {
 
   //Just directly clear search without changing anything
   void clearSearch();
+
+  //Persistent-MCTS mode keeps root copies across arbitrary root changes and materializes
+  //the view for the current root from root-tagged primitive statistics. Off by default.
+  void setPersistentMCTSEnabled(bool enabled);
+  bool getPersistentMCTSEnabled() const;
+  void setPositionForMCTSPersistence(Player pla, const Board& board, const BoardHistory& history);
+  void exportPersistentMCTS(const std::string& path) const;
+  void importPersistentMCTS(const std::string& path);
 
   //Updates position and preserves the relevant subtree of search
   //If the move is not legal for the specified player, returns false and does nothing, else returns true
@@ -599,6 +617,7 @@ private:
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
     int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc, bool& countEdgeVisit,
+    bool& bestChildIsNew,
     bool isRoot
   ) const;
 
@@ -618,12 +637,37 @@ private:
     bool isTerminal,
     bool assumeNoExistingWeight
   );
+  void addPersistentDirectLeafValue(
+    SearchNode& node,
+    double winLossValue,
+    double noResultValue,
+    double scoreMean,
+    double scoreMeanSq,
+    double lead,
+    double utility,
+    double weight
+  );
   void addCurrentNNOutputAsLeafValue(SearchNode& node, bool assumeNoExistingWeight);
+  bool ensurePersistentDirectStatsForCurrentRoot(SearchNode& node, SearchThread& thread);
 
   double computeWeightFromNNOutput(const NNOutput* nnOutput) const;
 
   void updateStatsAfterPlayout(SearchNode& node, SearchThread& thread, bool isRoot);
   void recomputeNodeStats(SearchNode& node, SearchThread& thread, int32_t numVisitsToAdd, bool isRoot);
+  void addEdgeVisits(SearchNode& parent, SearchChildPointer& childPointer, int64_t delta);
+  void mirrorPersistentDirectStatsToRootCopy(const SearchNode& sourceNode, const NodeStats& stats);
+  void mirrorPersistentEdgeVisitsToRootCopy(const SearchNode& sourceParent, const SearchChildPointer& sourceChildPointer, int64_t delta);
+  void addPersistentDescendantCredit(const SearchNode& descendant);
+  void consumePersistentPendingVisits();
+  void recomputeNodeStatsFromPersistentStats(SearchNode& node, SearchThread& thread, const NodeStats& directStats, bool isRoot);
+  void materializePersistentMCTS(bool filterRootChildren);
+  void materializePersistentNode(SearchNode& node, SearchThread& thread, bool filterRootChildren);
+  void materializePersistentSubtree(SearchNode& node, SearchThread& thread, bool filterRootChildren, std::unordered_set<SearchNode*>& visited);
+  Hash128 getPersistentRootKey(const BoardHistory& history, Player pla) const;
+  std::vector<Hash128> getPersistentRootAncestorKeys(const BoardHistory& history, Player pla) const;
+  SearchNode* findPersistentNodeInTable(Hash128 graphHash, bool forceNonTerminal) const;
+  SearchNode* getOrCreatePersistentRootNode(Hash128 rootKey, bool forceNonTerminal);
+  void setNodeStats(SearchNode& node, const NodeStats& stats);
 
   void adjustEvalsFromCacheHelper(
     const std::shared_ptr<EvalCacheEntry>& evalCacheEntry,

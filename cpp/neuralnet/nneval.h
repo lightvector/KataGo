@@ -51,6 +51,7 @@ struct NNResultBuf {
   bool includeOwnerMap;
   int boardXSizeForServer;
   int boardYSizeForServer;
+  Hash128 nnHashForServer;
   std::vector<float> rowSpatialBuf;
   std::vector<float> rowGlobalBuf;
   std::vector<float> rowMetaBuf;

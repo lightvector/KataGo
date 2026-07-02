@@ -107,8 +107,10 @@ private:
   std::atomic<SearchNode*> data;
   std::atomic<int64_t> edgeVisits;
   std::atomic<Loc> moveLoc; // Generally this will be always guarded under release semantics of data or of the array itself.
+  std::vector<std::pair<Hash128,int64_t>>* persistentEdgeVisitsByRoot;
 public:
   SearchChildPointer();
+  ~SearchChildPointer();
 
   SearchChildPointer(const SearchChildPointer&) = delete;
   SearchChildPointer& operator=(const SearchChildPointer&) = delete;
@@ -135,6 +137,11 @@ public:
   inline Loc getMoveLocRelaxed() const { return moveLoc.load(std::memory_order_relaxed); }
   inline void setMoveLoc(Loc loc) { moveLoc.store(loc, std::memory_order_release); }
   inline void setMoveLocRelaxed(Loc loc) { moveLoc.store(loc, std::memory_order_relaxed); }
+
+  void addPersistentEdgeVisits(Hash128 rootKey, int64_t delta);
+  int64_t getPersistentEdgeVisits(const std::vector<Hash128>& rootKeys) const;
+  const std::vector<std::pair<Hash128,int64_t>>* getPersistentEdgeVisitsByRoot() const;
+  void setPersistentEdgeVisitsByRootForLoad(const std::vector<std::pair<Hash128,int64_t>>& entries);
 };
 
 namespace SearchChildrenSizes {
@@ -234,6 +241,8 @@ struct SearchNode {
 
   std::atomic<int32_t> dirtyCounter;
 
+  std::vector<std::pair<Hash128,NodeStats>>* persistentDirectStatsByRoot;
+
   //--------------------------------------------------------------------------------
   SearchNode(Player prevPla, bool forceNonTerminal, uint32_t mutexIdx, Hash128 graphHash);
   SearchNode(const SearchNode&, bool forceNonTerminal, bool copySubtreeValueBias);
@@ -269,6 +278,11 @@ struct SearchNode {
   void initializeChildren();
   bool maybeExpandChildrenCapacityForNewChild(SearchNodeState& stateValue, int numChildrenFullPlusOne);
   void collapseChildrenCapacity(int numGoodChildren);
+
+  void addPersistentDirectStats(Hash128 rootKey, const NodeStats& stats);
+  NodeStats getPersistentDirectStats(const std::vector<Hash128>& rootKeys) const;
+  const std::vector<std::pair<Hash128,NodeStats>>* getPersistentDirectStatsByRoot() const;
+  void setPersistentDirectStatsByRootForLoad(const std::vector<std::pair<Hash128,NodeStats>>& entries);
 
 private:
   bool tryExpandingChildrenCapacityAssumeFull(SearchNodeState& stateValue);

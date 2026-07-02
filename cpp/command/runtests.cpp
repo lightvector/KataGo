@@ -92,6 +92,28 @@ int MainCmds::runoutputtests(const vector<string>& args) {
   return 0;
 }
 
+int MainCmds::runpersistentmctstests(const vector<string>& args) {
+  (void)args;
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runPersistentMCTSTests();
+
+  ScoreValue::freeTables();
+  return 0;
+}
+
+int MainCmds::runpersistentmctsstricttests(const vector<string>& args) {
+  (void)args;
+  Board::initHash();
+  ScoreValue::initTables();
+
+  Tests::runPersistentMCTSStrictTests();
+
+  ScoreValue::freeTables();
+  return 0;
+}
+
 int MainCmds::runsearchtests(const vector<string>& args) {
   Board::initHash();
   ScoreValue::initTables();
@@ -773,4 +795,3 @@ int MainCmds::runconfigtests(const vector<string>& args) {
   Tests::runParseAllConfigsTest();
   return 0;
 }
-

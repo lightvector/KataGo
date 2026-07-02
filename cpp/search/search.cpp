@@ -6,7 +6,9 @@
 #include "../search/search.h"
 
 #include <algorithm>
+#include <fstream>
 #include <numeric>
+#include <unordered_map>
 
 #include "../core/fancymath.h"
 #include "../core/test.h"
@@ -89,6 +91,14 @@ Search::Search(const SearchParams& params, NNEvaluator* nnEval, NNEvaluator* hum
    lastSearchNumPlayouts(0),
    effectiveSearchTimeCarriedOver(0.0),
    randSeed(rSeed),
+   persistentMCTSEnabled(false),
+   persistentCurrentRootKey(),
+   persistentCurrentRootAncestorKeys(),
+   persistentRootNodes(),
+   persistentPendingVisitsByRoot(),
+   persistentPendingVisitsMutex(),
+   persistentPropagateDescendantCredits(true),
+   persistentConsumingPendingVisits(false),
    rootKoHashTable(NULL),
    valueWeightDistribution(NULL),
    patternBonusTable(NULL),
@@ -295,16 +305,452 @@ void Search::setNNEval(NNEvaluator* nnEval) {
 
 void Search::clearSearch() {
   effectiveSearchTimeCarriedOver = 0.0;
+  if(rootNode == NULL && persistentRootNodes.size() > 0) {
+    for(auto& entry: persistentRootNodes)
+      delete entry.second;
+    persistentRootNodes.clear();
+  }
   if(rootNode != NULL) {
     deleteAllTableNodesMulithreaded();
-    //Root is not stored in node table
-    if(rootNode != NULL) {
-      delete rootNode;
+    if(persistentRootNodes.size() > 0) {
+      for(auto& entry: persistentRootNodes)
+        delete entry.second;
+      persistentRootNodes.clear();
       rootNode = NULL;
     }
+    else {
+      //Root is not stored in node table
+      if(rootNode != NULL) {
+        delete rootNode;
+        rootNode = NULL;
+      }
+    }
   }
+  persistentCurrentRootKey = Hash128();
+  persistentCurrentRootAncestorKeys.clear();
+  persistentPendingVisitsByRoot.clear();
+  persistentPropagateDescendantCredits = true;
+  persistentConsumingPendingVisits = false;
   clearOldNNOutputs();
   searchNodeAge = 0;
+}
+
+void Search::setPersistentMCTSEnabled(bool enabled) {
+  if(persistentMCTSEnabled == enabled)
+    return;
+  clearSearch();
+  persistentMCTSEnabled = enabled;
+}
+
+bool Search::getPersistentMCTSEnabled() const {
+  return persistentMCTSEnabled;
+}
+
+void Search::setPositionForMCTSPersistence(Player pla, const Board& board, const BoardHistory& history) {
+  if(!persistentMCTSEnabled) {
+    setPosition(pla,board,history);
+    return;
+  }
+
+  rootPla = pla;
+  plaThatSearchIsFor = C_EMPTY;
+  rootBoard = board;
+  rootHistory = history;
+  rootKoHashTable->recompute(rootHistory);
+  avoidMoveUntilByLocBlack.clear();
+  avoidMoveUntilByLocWhite.clear();
+
+  persistentCurrentRootKey = getPersistentRootKey(rootHistory,rootPla);
+  persistentCurrentRootAncestorKeys = getPersistentRootAncestorKeys(rootHistory,rootPla);
+
+  const bool forceNonTerminal = rootHistory.isGameFinished;
+  rootNode = getOrCreatePersistentRootNode(persistentCurrentRootKey, forceNonTerminal);
+  rootGraphHash = persistentCurrentRootKey;
+  materializePersistentMCTS(false);
+  consumePersistentPendingVisits();
+}
+
+static nlohmann::json nodeStatsToJson(const NodeStats& stats) {
+  nlohmann::json data;
+  data["visits"] = stats.visits;
+  data["winLossValueAvg"] = stats.winLossValueAvg;
+  data["noResultValueAvg"] = stats.noResultValueAvg;
+  data["scoreMeanAvg"] = stats.scoreMeanAvg;
+  data["scoreMeanSqAvg"] = stats.scoreMeanSqAvg;
+  data["leadAvg"] = stats.leadAvg;
+  data["utilityAvg"] = stats.utilityAvg;
+  data["utilitySqAvg"] = stats.utilitySqAvg;
+  data["weightSum"] = stats.weightSum;
+  data["weightSqSum"] = stats.weightSqSum;
+  return data;
+}
+
+static NodeStats nodeStatsOfJson(const nlohmann::json& data) {
+  NodeStats stats;
+  stats.visits = data["visits"].get<int64_t>();
+  stats.winLossValueAvg = data["winLossValueAvg"].get<double>();
+  stats.noResultValueAvg = data["noResultValueAvg"].get<double>();
+  stats.scoreMeanAvg = data["scoreMeanAvg"].get<double>();
+  stats.scoreMeanSqAvg = data["scoreMeanSqAvg"].get<double>();
+  stats.leadAvg = data["leadAvg"].get<double>();
+  stats.utilityAvg = data["utilityAvg"].get<double>();
+  stats.utilitySqAvg = data["utilitySqAvg"].get<double>();
+  stats.weightSum = data["weightSum"].get<double>();
+  stats.weightSqSum = data["weightSqSum"].get<double>();
+  return stats;
+}
+
+static nlohmann::json nnOutputToJson(const NNOutput* nnOutput) {
+  nlohmann::json data;
+  if(nnOutput == NULL)
+    return data;
+  data["nnHash"] = nnOutput->nnHash.toString();
+  data["whiteWinProb"] = nnOutput->whiteWinProb;
+  data["whiteLossProb"] = nnOutput->whiteLossProb;
+  data["whiteNoResultProb"] = nnOutput->whiteNoResultProb;
+  data["whiteScoreMean"] = nnOutput->whiteScoreMean;
+  data["whiteScoreMeanSq"] = nnOutput->whiteScoreMeanSq;
+  data["whiteLead"] = nnOutput->whiteLead;
+  data["varTimeLeft"] = nnOutput->varTimeLeft;
+  data["shorttermWinlossError"] = nnOutput->shorttermWinlossError;
+  data["shorttermScoreError"] = nnOutput->shorttermScoreError;
+  data["policyOptimismUsed"] = nnOutput->policyOptimismUsed;
+  data["nnXLen"] = nnOutput->nnXLen;
+  data["nnYLen"] = nnOutput->nnYLen;
+  data["policyProbs"] = vector<float>(nnOutput->policyProbs, nnOutput->policyProbs + NNPos::MAX_NN_POLICY_SIZE);
+  if(nnOutput->whiteOwnerMap != NULL)
+    data["whiteOwnerMap"] = vector<float>(nnOutput->whiteOwnerMap, nnOutput->whiteOwnerMap + nnOutput->nnXLen * nnOutput->nnYLen);
+  if(nnOutput->noisedPolicyProbs != NULL)
+    data["noisedPolicyProbs"] = vector<float>(nnOutput->noisedPolicyProbs, nnOutput->noisedPolicyProbs + NNPos::MAX_NN_POLICY_SIZE);
+  return data;
+}
+
+static shared_ptr<NNOutput> nnOutputOfJson(const nlohmann::json& data) {
+  if(data.is_null() || data.empty())
+    return nullptr;
+  shared_ptr<NNOutput> nnOutput = make_shared<NNOutput>();
+  nnOutput->nnHash = Hash128::ofString(data["nnHash"].get<string>());
+  nnOutput->whiteWinProb = data["whiteWinProb"].get<float>();
+  nnOutput->whiteLossProb = data["whiteLossProb"].get<float>();
+  nnOutput->whiteNoResultProb = data["whiteNoResultProb"].get<float>();
+  nnOutput->whiteScoreMean = data["whiteScoreMean"].get<float>();
+  nnOutput->whiteScoreMeanSq = data["whiteScoreMeanSq"].get<float>();
+  nnOutput->whiteLead = data["whiteLead"].get<float>();
+  nnOutput->varTimeLeft = data["varTimeLeft"].get<float>();
+  nnOutput->shorttermWinlossError = data["shorttermWinlossError"].get<float>();
+  nnOutput->shorttermScoreError = data["shorttermScoreError"].get<float>();
+  nnOutput->policyOptimismUsed = data["policyOptimismUsed"].get<float>();
+  nnOutput->nnXLen = data["nnXLen"].get<int>();
+  nnOutput->nnYLen = data["nnYLen"].get<int>();
+  vector<float> policyProbs = data["policyProbs"].get<vector<float>>();
+  testAssert(policyProbs.size() == NNPos::MAX_NN_POLICY_SIZE);
+  std::copy(policyProbs.begin(), policyProbs.end(), nnOutput->policyProbs);
+  if(data.contains("whiteOwnerMap")) {
+    vector<float> whiteOwnerMap = data["whiteOwnerMap"].get<vector<float>>();
+    testAssert(whiteOwnerMap.size() == nnOutput->nnXLen * nnOutput->nnYLen);
+    nnOutput->whiteOwnerMap = new float[whiteOwnerMap.size()];
+    std::copy(whiteOwnerMap.begin(), whiteOwnerMap.end(), nnOutput->whiteOwnerMap);
+  }
+  if(data.contains("noisedPolicyProbs")) {
+    vector<float> noisedPolicyProbs = data["noisedPolicyProbs"].get<vector<float>>();
+    testAssert(noisedPolicyProbs.size() == NNPos::MAX_NN_POLICY_SIZE);
+    nnOutput->noisedPolicyProbs = new float[NNPos::MAX_NN_POLICY_SIZE];
+    std::copy(noisedPolicyProbs.begin(), noisedPolicyProbs.end(), nnOutput->noisedPolicyProbs);
+  }
+  return nnOutput;
+}
+
+static nlohmann::json positionToJson(const Board& board, Player pla, const BoardHistory& history) {
+  nlohmann::json data;
+  data["rootBoard"] = Board::toJson(board);
+  data["rootPla"] = PlayerIO::playerToString(pla);
+  data["initialBoard"] = Board::toJson(history.initialBoard);
+  data["initialPla"] = PlayerIO::playerToString(history.initialPla);
+  data["initialEncorePhase"] = history.initialEncorePhase;
+  data["initialTurnNumber"] = history.initialTurnNumber;
+  data["assumeMultipleStartingBlackMovesAreHandicap"] = history.assumeMultipleStartingBlackMovesAreHandicap;
+  data["overrideNumHandicapStones"] = history.overrideNumHandicapStones;
+  data["rules"] = history.rules.toJson();
+  data["moves"] = nlohmann::json::array();
+  for(size_t i = 0; i< history.moveHistory.size(); i++) {
+    nlohmann::json moveData;
+    moveData["loc"] = history.moveHistory[i].loc;
+    moveData["pla"] = PlayerIO::playerToString(history.moveHistory[i].pla);
+    moveData["preventEncore"] = (bool)history.preventEncoreHistory[i];
+    data["moves"].push_back(moveData);
+  }
+  return data;
+}
+
+static void positionOfJson(
+  const nlohmann::json& data,
+  Board& board,
+  Player& pla,
+  BoardHistory& history
+) {
+  Board initialBoard = Board::ofJson(data["initialBoard"]);
+  Player initialPla = PlayerIO::parsePlayer(data["initialPla"].get<string>());
+  Rules rules = Rules::parseRules(data["rules"].dump());
+  int initialEncorePhase = data["initialEncorePhase"].get<int>();
+  BoardHistory rebuiltHistory(initialBoard, initialPla, rules, initialEncorePhase);
+  rebuiltHistory.setInitialTurnNumber(data["initialTurnNumber"].get<int64_t>());
+  rebuiltHistory.setAssumeMultipleStartingBlackMovesAreHandicap(
+    data["assumeMultipleStartingBlackMovesAreHandicap"].get<bool>()
+  );
+  rebuiltHistory.setOverrideNumHandicapStones(data["overrideNumHandicapStones"].get<int>());
+
+  Board rebuiltBoard = initialBoard;
+  for(const nlohmann::json& moveData: data["moves"]) {
+    Loc loc = (Loc)moveData["loc"].get<int>();
+    Player movePla = PlayerIO::parsePlayer(moveData["pla"].get<string>());
+    bool preventEncore = moveData.value("preventEncore", false);
+    bool suc = rebuiltHistory.makeBoardMoveTolerant(rebuiltBoard, loc, movePla, preventEncore);
+    if(!suc)
+      throw IOError("Could not replay move in persistent MCTS position import");
+  }
+
+  Board savedRootBoard = Board::ofJson(data["rootBoard"]);
+  if(!rebuiltBoard.isEqualForTesting(savedRootBoard))
+    throw IOError("Persistent MCTS import position history does not reconstruct saved root board");
+
+  board = rebuiltBoard;
+  pla = PlayerIO::parsePlayer(data["rootPla"].get<string>());
+  if(rebuiltHistory.presumedNextMovePla != pla)
+    throw IOError("Persistent MCTS import position root player does not match replayed history");
+  history = rebuiltHistory;
+}
+
+void Search::exportPersistentMCTS(const string& path) const {
+  nlohmann::json data;
+  data["version"] = 1;
+  data["persistentMCTSEnabled"] = persistentMCTSEnabled;
+  data["rootPla"] = PlayerIO::playerToString(rootPla);
+  data["position"] = positionToJson(rootBoard,rootPla,rootHistory);
+  data["rootKey"] = persistentCurrentRootKey.toString();
+  data["rootAncestorKeys"] = nlohmann::json::array();
+  for(const Hash128& key: persistentCurrentRootAncestorKeys)
+    data["rootAncestorKeys"].push_back(key.toString());
+  data["pendingVisits"] = nlohmann::json::array();
+  {
+    std::lock_guard<std::mutex> lock(persistentPendingVisitsMutex);
+    for(const auto& entry: persistentPendingVisitsByRoot) {
+      if(entry.second <= 0)
+        continue;
+      nlohmann::json pending;
+      pending["root"] = entry.first.toString();
+      pending["visits"] = entry.second;
+      data["pendingVisits"].push_back(pending);
+    }
+  }
+  data["rootCopies"] = nlohmann::json::array();
+
+  unordered_map<const SearchNode*,int> idByNode;
+  vector<const SearchNode*> nodes;
+  vector<bool> inNodeTable;
+  auto addNode = [&](const SearchNode* node, bool isInNodeTable) {
+    auto iter = idByNode.find(node);
+    if(iter != idByNode.end()) {
+      if(isInNodeTable)
+        inNodeTable[iter->second] = true;
+      return iter->second;
+    }
+    int id = (int)nodes.size();
+    idByNode[node] = id;
+    nodes.push_back(node);
+    inNodeTable.push_back(isInNodeTable);
+    return id;
+  };
+  for(const auto& entry: persistentRootNodes)
+    addNode(entry.second,false);
+  for(const std::map<Hash128,SearchNode*>& nodeMap: nodeTable->entries) {
+    for(const auto& entry: nodeMap)
+      addNode(entry.second,true);
+  }
+  for(size_t idx = 0; idx<nodes.size(); idx++) {
+    const SearchNode* node = nodes[idx];
+    ConstSearchNodeChildrenReference children = node->getChildren();
+    int childrenCapacity = children.getCapacity();
+    for(int i = 0; i<childrenCapacity; i++) {
+      const SearchNode* child = children[i].getIfAllocated();
+      if(child == NULL)
+        break;
+      addNode(child,false);
+    }
+  }
+
+  for(const auto& entry: persistentRootNodes) {
+    nlohmann::json rootCopy;
+    rootCopy["key"] = entry.first.toString();
+    rootCopy["node"] = idByNode[entry.second];
+    data["rootCopies"].push_back(rootCopy);
+  }
+  data["nodes"] = nlohmann::json::array();
+  for(size_t idx = 0; idx<nodes.size(); idx++) {
+    const SearchNode* node = nodes[idx];
+    nlohmann::json nodeData;
+    nodeData["id"] = (int)idx;
+    nodeData["inNodeTable"] = (bool)inNodeTable[idx];
+    nodeData["nextPla"] = (int)node->nextPla;
+    nodeData["forceNonTerminal"] = node->forceNonTerminal;
+    nodeData["mutexIdx"] = node->mutexIdx;
+    nodeData["graphHash"] = node->graphHash.toString();
+    nodeData["direct"] = nlohmann::json::array();
+    const vector<pair<Hash128,NodeStats>>* directStats = node->getPersistentDirectStatsByRoot();
+    if(directStats != NULL) {
+      for(const pair<Hash128,NodeStats>& entry: *directStats) {
+        nlohmann::json direct;
+        direct["root"] = entry.first.toString();
+        direct["stats"] = nodeStatsToJson(entry.second);
+        nodeData["direct"].push_back(direct);
+      }
+    }
+    nodeData["nnOutput"] = nnOutputToJson(node->getNNOutput());
+    nodeData["humanOutput"] = nnOutputToJson(node->getHumanOutput());
+    nodeData["children"] = nlohmann::json::array();
+    ConstSearchNodeChildrenReference children = node->getChildren();
+    int childrenCapacity = children.getCapacity();
+    for(int i = 0; i<childrenCapacity; i++) {
+      const SearchChildPointer& childPointer = children[i];
+      const SearchNode* child = childPointer.getIfAllocated();
+      if(child == NULL)
+        break;
+      nlohmann::json childData;
+      childData["moveLoc"] = childPointer.getMoveLoc();
+      childData["node"] = idByNode[child];
+      childData["edgeVisits"] = nlohmann::json::array();
+      const vector<pair<Hash128,int64_t>>* edgeVisits = childPointer.getPersistentEdgeVisitsByRoot();
+      if(edgeVisits != NULL) {
+        for(const pair<Hash128,int64_t>& entry: *edgeVisits) {
+          nlohmann::json edge;
+          edge["root"] = entry.first.toString();
+          edge["visits"] = entry.second;
+          childData["edgeVisits"].push_back(edge);
+        }
+      }
+      nodeData["children"].push_back(childData);
+    }
+    data["nodes"].push_back(nodeData);
+  }
+
+  ofstream out;
+  out.open(path);
+  if(!out)
+    throw IOError("Could not open persistent MCTS export file for writing: " + path);
+  out << data.dump(2) << "\n";
+}
+
+void Search::importPersistentMCTS(const string& path) {
+  ifstream in;
+  in.open(path);
+  if(!in)
+    throw IOError("Could not open persistent MCTS import file for reading: " + path);
+  nlohmann::json data;
+  in >> data;
+  clearSearch();
+  persistentMCTSEnabled = data.value("persistentMCTSEnabled", true);
+  bool hasStoredRootKey = data.contains("rootKey");
+  Hash128 storedRootKey;
+  if(hasStoredRootKey)
+    storedRootKey = Hash128::ofString(data["rootKey"].get<string>());
+
+  if(data.contains("position")) {
+    positionOfJson(data["position"],rootBoard,rootPla,rootHistory);
+    rootKoHashTable->recompute(rootHistory);
+    Hash128 recomputedRootKey = getPersistentRootKey(rootHistory,rootPla);
+    if(hasStoredRootKey && storedRootKey != recomputedRootKey)
+      throw IOError("Persistent MCTS import root key does not match saved position");
+    persistentCurrentRootKey = recomputedRootKey;
+    persistentCurrentRootAncestorKeys = getPersistentRootAncestorKeys(rootHistory,rootPla);
+    rootGraphHash = recomputedRootKey;
+  }
+  else {
+    if(data.contains("rootPla"))
+      rootPla = PlayerIO::parsePlayer(data["rootPla"].get<string>());
+    if(hasStoredRootKey)
+      persistentCurrentRootKey = storedRootKey;
+    persistentCurrentRootAncestorKeys.clear();
+    if(data.contains("rootAncestorKeys")) {
+      for(const nlohmann::json& key: data["rootAncestorKeys"])
+        persistentCurrentRootAncestorKeys.push_back(Hash128::ofString(key.get<string>()));
+    }
+  }
+  persistentPendingVisitsByRoot.clear();
+  if(data.contains("pendingVisits")) {
+    for(const nlohmann::json& pending: data["pendingVisits"]) {
+      Hash128 key = Hash128::ofString(pending["root"].get<string>());
+      int64_t visits = pending["visits"].get<int64_t>();
+      if(visits > 0)
+        persistentPendingVisitsByRoot[key] += visits;
+    }
+  }
+  vector<SearchNode*> nodes;
+  if(data.contains("nodes")) {
+    nodes.resize(data["nodes"].size(),NULL);
+    for(const nlohmann::json& nodeData: data["nodes"]) {
+      int id = nodeData["id"].get<int>();
+      Player nextPla = (Player)nodeData["nextPla"].get<int>();
+      bool forceNonTerminal = nodeData["forceNonTerminal"].get<bool>();
+      uint32_t mutexIdx = nodeData["mutexIdx"].get<uint32_t>();
+      Hash128 graphHash = Hash128::ofString(nodeData["graphHash"].get<string>());
+      SearchNode* node = new SearchNode(nextPla,forceNonTerminal,mutexIdx,graphHash);
+      vector<pair<Hash128,NodeStats>> directEntries;
+      for(const nlohmann::json& direct: nodeData["direct"])
+        directEntries.push_back(make_pair(Hash128::ofString(direct["root"].get<string>()), nodeStatsOfJson(direct["stats"])));
+      node->setPersistentDirectStatsByRootForLoad(directEntries);
+      shared_ptr<NNOutput> nnOutput = nnOutputOfJson(nodeData["nnOutput"]);
+      if(nnOutput != nullptr)
+        node->storeNNOutputIfNull(new shared_ptr<NNOutput>(nnOutput));
+      shared_ptr<NNOutput> humanOutput = nnOutputOfJson(nodeData["humanOutput"]);
+      if(humanOutput != nullptr)
+        node->storeHumanOutputIfNull(new shared_ptr<NNOutput>(humanOutput));
+      nodes[id] = node;
+    }
+    for(const nlohmann::json& nodeData: data["nodes"]) {
+      int id = nodeData["id"].get<int>();
+      SearchNode* node = nodes[id];
+      const nlohmann::json& childrenData = nodeData["children"];
+      if(childrenData.size() > 0) {
+        node->initializeChildren();
+        SearchNodeState stateValue = SearchNode::STATE_EXPANDED0;
+        node->state.store(stateValue,std::memory_order_release);
+        for(int i = 0; i<childrenData.size(); i++) {
+          bool suc = node->maybeExpandChildrenCapacityForNewChild(stateValue,i+1);
+          testAssert(suc);
+          SearchNodeChildrenReference children = node->getChildren(stateValue);
+          SearchChildPointer& childPointer = children[i];
+          childPointer.setMoveLoc((Loc)childrenData[i]["moveLoc"].get<int>());
+          childPointer.store(nodes[childrenData[i]["node"].get<int>()]);
+          vector<pair<Hash128,int64_t>> edgeEntries;
+          for(const nlohmann::json& edge: childrenData[i]["edgeVisits"])
+            edgeEntries.push_back(make_pair(Hash128::ofString(edge["root"].get<string>()), edge["visits"].get<int64_t>()));
+          childPointer.setPersistentEdgeVisitsByRootForLoad(edgeEntries);
+        }
+      }
+      else if(node->getNNOutput() != NULL) {
+        node->initializeChildren();
+        node->state.store(SearchNode::STATE_EXPANDED0,std::memory_order_release);
+      }
+      if(nodeData["inNodeTable"].get<bool>()) {
+        Hash128 childHash = node->graphHash;
+        if(node->forceNonTerminal)
+          childHash ^= Hash128(0xd4c31800cb8809e2ULL,0xf75f9d2083f2ffcaULL);
+        uint32_t nodeTableIdx = nodeTable->getIndex(childHash.hash0);
+        nodeTable->entries[nodeTableIdx][childHash] = node;
+      }
+    }
+    for(const nlohmann::json& rootCopy: data["rootCopies"]) {
+      Hash128 key = Hash128::ofString(rootCopy["key"].get<string>());
+      SearchNode* node = nodes[rootCopy["node"].get<int>()];
+      persistentRootNodes[key] = node;
+    }
+    auto rootIter = persistentRootNodes.find(persistentCurrentRootKey);
+    if(rootIter != persistentRootNodes.end())
+      rootNode = rootIter->second;
+    else if(persistentRootNodes.size() > 0)
+      rootNode = persistentRootNodes.begin()->second;
+    materializePersistentMCTS(false);
+    consumePersistentPendingVisits();
+  }
 }
 
 bool Search::isLegalTolerant(Loc moveLoc, Player movePla) const {
@@ -322,6 +768,32 @@ bool Search::makeMove(Loc moveLoc, Player movePla) {
 bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
   if(!isLegalTolerant(moveLoc,movePla))
     return false;
+
+  if(persistentMCTSEnabled) {
+    if(movePla != rootPla)
+      setPlayerAndClearHistory(movePla);
+
+    float oldWhiteHandicapBonusScore = rootHistory.whiteHandicapBonusScore;
+    Board newBoard = rootBoard;
+    BoardHistory newHistory = rootHistory;
+    KoHashTable newKoHashTable;
+    newKoHashTable.recompute(newHistory);
+    newHistory.makeBoardMoveAssumeLegal(newBoard,moveLoc,movePla,&newKoHashTable,preventEncore);
+    Player newPla = getOpp(movePla);
+
+    setPositionForMCTSPersistence(newPla,newBoard,newHistory);
+
+    avoidMoveUntilByLocBlack.clear();
+    avoidMoveUntilByLocWhite.clear();
+
+    if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
+      clearSearch();
+    if(searchParams.conservativePass && rootHistory.passWouldEndGame(rootBoard,rootPla))
+      clearSearch();
+    if(preventEncore && rootHistory.passWouldEndPhase(rootBoard,rootPla))
+      clearSearch();
+    return true;
+  }
 
   if(movePla != rootPla)
     setPlayerAndClearHistory(movePla);
@@ -609,6 +1081,9 @@ void Search::runWholeSearch(
     }
   }
 
+  if(persistentMCTSEnabled && rootNode != NULL)
+    materializePersistentMCTS(true);
+
   if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != nullptr && rootNode != NULL && mirroringPla == C_EMPTY) {
     recursivelyRecordEvalCache(*rootNode);
   }
@@ -663,6 +1138,13 @@ void Search::beginSearch(bool pondering) {
   //cout << "BEGINSEARCH " << PlayerIO::playerToString(rootPla) << " " << PlayerIO::playerToString(plaThatSearchIsFor) << endl;
 
   clearOldNNOutputs();
+  if(persistentMCTSEnabled) {
+    persistentCurrentRootKey = getPersistentRootKey(rootHistory,rootPla);
+    persistentCurrentRootAncestorKeys = getPersistentRootAncestorKeys(rootHistory,rootPla);
+    const bool forceNonTerminal = rootHistory.isGameFinished;
+    rootNode = getOrCreatePersistentRootNode(persistentCurrentRootKey, forceNonTerminal);
+    materializePersistentMCTS(false);
+  }
   computeRootValues();
 
   //Prepare value bias table if we need it
@@ -707,10 +1189,13 @@ void Search::beginSearch(bool pondering) {
     rootSymmetries.push_back(0);
   }
 
+  if(persistentMCTSEnabled)
+    materializePersistentMCTS(true);
+
   SearchThread dummyThread(-1, *this);
 
   //If we're using graph search, we recompute the graph hash from scratch at the start of search.
-  if(searchParams.useGraphSearch)
+  if(searchParams.useGraphSearch || persistentMCTSEnabled)
     rootGraphHash = GraphHash::getGraphHashFromScratch(rootHistory, rootPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite);
   else
     rootGraphHash = Hash128();
@@ -736,7 +1221,7 @@ void Search::beginSearch(bool pondering) {
     SearchNodeChildrenReference children = node.getChildren();
     int childrenCapacity = children.getCapacity();
     bool anyFiltered = false;
-    if(childrenCapacity > 0) {
+    if(childrenCapacity > 0 && !persistentMCTSEnabled) {
 
       //This filtering, by deleting children, doesn't conform to the normal invariants that hold during search.
       //However nothing else should be running at this time and the search hasn't actually started yet, so this is okay.
@@ -823,6 +1308,9 @@ void Search::beginSearch(bool pondering) {
     }
   }
 
+  if(persistentMCTSEnabled)
+    consumePersistentPendingVisits();
+
   //Clear unused stuff in value bias table since we may have pruned rootNode stuff
   if(searchParams.subtreeValueBiasFactor != 0 && subtreeValueBiasTable != NULL)
     subtreeValueBiasTable->clearUnusedSynchronous();
@@ -838,12 +1326,220 @@ uint32_t Search::createMutexIdxForNode(SearchThread& thread) const {
 //Based on sha256 of "search.cpp FORCE_NON_TERMINAL_HASH"
 static const Hash128 FORCE_NON_TERMINAL_HASH = Hash128(0xd4c31800cb8809e2ULL,0xf75f9d2083f2ffcaULL);
 
+Hash128 Search::getPersistentRootKey(const BoardHistory& history, Player pla) const {
+  return GraphHash::getGraphHashFromScratch(
+    history, pla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
+  );
+}
+
+vector<Hash128> Search::getPersistentRootAncestorKeys(const BoardHistory& historyOrig, Player pla) const {
+  vector<Hash128> ret;
+  BoardHistory history = historyOrig.copyToInitial();
+  Board board = history.getRecentBoard(0);
+  Hash128 graphHash;
+
+  for(size_t i = 0; i <= historyOrig.moveHistory.size(); i++) {
+    Player nextPla = (i < historyOrig.moveHistory.size()) ? historyOrig.moveHistory[i].pla : pla;
+    graphHash = GraphHash::getGraphHash(
+      graphHash, history, nextPla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
+    );
+    ret.push_back(graphHash);
+    if(i < historyOrig.moveHistory.size()) {
+      bool suc = history.makeBoardMoveTolerant(
+        board, historyOrig.moveHistory[i].loc, historyOrig.moveHistory[i].pla, historyOrig.preventEncoreHistory[i]
+      );
+      testAssert(suc);
+    }
+  }
+  return ret;
+}
+
+SearchNode* Search::findPersistentNodeInTable(Hash128 graphHash, bool forceNonTerminal) const {
+  Hash128 childHash = graphHash;
+  if(forceNonTerminal)
+    childHash ^= FORCE_NON_TERMINAL_HASH;
+  uint32_t nodeTableIdx = nodeTable->getIndex(childHash.hash0);
+  const std::map<Hash128,SearchNode*>& nodeMap = nodeTable->entries[nodeTableIdx];
+  auto iter = nodeMap.find(childHash);
+  if(iter == nodeMap.end())
+    return NULL;
+  return iter->second;
+}
+
+SearchNode* Search::getOrCreatePersistentRootNode(Hash128 rootKey, bool forceNonTerminal) {
+  auto iter = persistentRootNodes.find(rootKey);
+  if(iter != persistentRootNodes.end())
+    return iter->second;
+
+  SearchNode* node = NULL;
+  SearchNode* tableNode = findPersistentNodeInTable(rootKey, forceNonTerminal);
+  if(tableNode != NULL) {
+    const bool copySubtreeValueBias = false;
+    node = new SearchNode(*tableNode, forceNonTerminal, copySubtreeValueBias);
+  }
+  else {
+    uint32_t mutexIdx = nonSearchRand.nextUInt() & (mutexPool->getNumMutexes()-1);
+    node = new SearchNode(rootPla, forceNonTerminal, mutexIdx, rootKey);
+  }
+  persistentRootNodes[rootKey] = node;
+  return node;
+}
+
+void Search::setNodeStats(SearchNode& node, const NodeStats& stats) {
+  while(node.statsLock.test_and_set(std::memory_order_acquire));
+  node.stats.winLossValueAvg.store(stats.winLossValueAvg,std::memory_order_release);
+  node.stats.noResultValueAvg.store(stats.noResultValueAvg,std::memory_order_release);
+  node.stats.scoreMeanAvg.store(stats.scoreMeanAvg,std::memory_order_release);
+  node.stats.scoreMeanSqAvg.store(stats.scoreMeanSqAvg,std::memory_order_release);
+  node.stats.leadAvg.store(stats.leadAvg,std::memory_order_release);
+  node.stats.utilityAvg.store(stats.utilityAvg,std::memory_order_release);
+  node.stats.utilitySqAvg.store(stats.utilitySqAvg,std::memory_order_release);
+  node.stats.weightSqSum.store(stats.weightSqSum,std::memory_order_release);
+  node.stats.weightSum.store(stats.weightSum,std::memory_order_release);
+  node.stats.visits.store(stats.visits,std::memory_order_release);
+  node.statsLock.clear(std::memory_order_release);
+}
+
+void Search::materializePersistentNode(SearchNode& node, SearchThread& thread, bool filterRootChildren) {
+  SearchNodeChildrenReference children = node.getChildren();
+  int childrenCapacity = children.getCapacity();
+  bool hasVisibleChildren = false;
+  bool isRoot = (&node == rootNode);
+  vector<Hash128> visibleRootKeys = {persistentCurrentRootKey};
+  for(int i = 0; i<childrenCapacity; i++) {
+    SearchChildPointer& childPointer = children[i];
+    SearchNode* child = childPointer.getIfAllocated();
+    if(child == NULL)
+      break;
+    int64_t edgeVisits = childPointer.getPersistentEdgeVisits(visibleRootKeys);
+    if(filterRootChildren && isRoot) {
+      Loc moveLoc = childPointer.getMoveLocRelaxed();
+      if(!rootHistory.isLegal(rootBoard,moveLoc,rootPla) || !isAllowedRootMove(moveLoc))
+        edgeVisits = 0;
+    }
+    childPointer.setEdgeVisits(edgeVisits);
+    if(edgeVisits > 0)
+      hasVisibleChildren = true;
+  }
+
+  NodeStats directStats = node.getPersistentDirectStats(visibleRootKeys);
+  if(hasVisibleChildren)
+    recomputeNodeStatsFromPersistentStats(node,thread,directStats,isRoot);
+  else
+    setNodeStats(node,directStats);
+}
+
+void Search::materializePersistentMCTS(bool filterRootChildren) {
+  if(!persistentMCTSEnabled || rootNode == NULL)
+    return;
+
+  int numAdditionalThreads = numAdditionalThreadsToUseForTasks();
+  vector<SearchThread*> dummyThreads(numAdditionalThreads+1, NULL);
+  for(int threadIdx = 0; threadIdx<numAdditionalThreads+1; threadIdx++)
+    dummyThreads[threadIdx] = new SearchThread(threadIdx, *this);
+
+  std::function<void(SearchNode*,int)> f = [&](SearchNode* node, int threadIdx) {
+    materializePersistentNode(*node, *dummyThreads[threadIdx], filterRootChildren);
+  };
+  applyRecursivelyPostOrderMulithreaded({rootNode},&f);
+
+  for(int threadIdx = 0; threadIdx<numAdditionalThreads+1; threadIdx++)
+    delete dummyThreads[threadIdx];
+}
+
+void Search::materializePersistentSubtree(
+  SearchNode& node,
+  SearchThread& thread,
+  bool filterRootChildren,
+  std::unordered_set<SearchNode*>& visited
+) {
+  if(!persistentMCTSEnabled)
+    return;
+  auto result = visited.insert(&node);
+  if(!result.second)
+    return;
+
+  SearchNodeChildrenReference children = node.getChildren();
+  int childrenCapacity = children.getCapacity();
+  for(int i = 0; i<childrenCapacity; i++) {
+    SearchNode* child = children[i].getIfAllocated();
+    if(child == NULL)
+      break;
+    materializePersistentSubtree(*child,thread,filterRootChildren,visited);
+  }
+  materializePersistentNode(node,thread,filterRootChildren);
+}
+
+void Search::consumePersistentPendingVisits() {
+  if(!persistentMCTSEnabled || rootNode == NULL || persistentConsumingPendingVisits)
+    return;
+
+  int64_t pendingVisits = 0;
+  {
+    std::lock_guard<std::mutex> lock(persistentPendingVisitsMutex);
+    auto iter = persistentPendingVisitsByRoot.find(persistentCurrentRootKey);
+    if(iter != persistentPendingVisitsByRoot.end()) {
+      pendingVisits = iter->second;
+      persistentPendingVisitsByRoot.erase(iter);
+    }
+  }
+  if(pendingVisits <= 0)
+    return;
+
+  rootGraphHash = getPersistentRootKey(rootHistory,rootPla);
+  if(!searchParams.rootSymmetryPruning) {
+    std::fill(rootSymDupLoc,rootSymDupLoc+Board::MAX_ARR_SIZE,false);
+    rootSymmetries.clear();
+    rootSymmetries.push_back(0);
+  }
+  else {
+    const std::vector<int>& avoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
+    if(rootPruneOnlySymmetries.size() > 0)
+      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,&rootPruneOnlySymmetries,avoidMoveUntilByLoc,rootSymDupLoc,rootSymmetries);
+    else
+      SymmetryHelpers::markDuplicateMoveLocs(rootBoard,rootHistory,NULL,avoidMoveUntilByLoc,rootSymDupLoc,rootSymmetries);
+  }
+  computeRootValues();
+  if(rootNode == NULL) {
+    const bool forceNonTerminal = rootHistory.isGameFinished;
+    rootNode = getOrCreatePersistentRootNode(persistentCurrentRootKey, forceNonTerminal);
+  }
+  materializePersistentMCTS(true);
+
+  bool oldPropagateDescendantCredits = persistentPropagateDescendantCredits;
+  bool oldConsumingPendingVisits = persistentConsumingPendingVisits;
+  Player oldPlaThatSearchIsFor = plaThatSearchIsFor;
+  Player oldPlaThatSearchIsForLastSearch = plaThatSearchIsForLastSearch;
+  persistentPropagateDescendantCredits = false;
+  persistentConsumingPendingVisits = true;
+  if(plaThatSearchIsFor == C_EMPTY)
+    plaThatSearchIsFor = rootPla;
+
+  SearchThread thread(0,*this);
+  int64_t consumedVisits = 0;
+  int64_t attempts = 0;
+  while(consumedVisits < pendingVisits) {
+    bool counted = runSinglePlayout(thread, (double)(pendingVisits - consumedVisits));
+    if(counted)
+      consumedVisits++;
+    attempts++;
+    if(attempts > pendingVisits * 100 + 1000)
+      throw StringError("Persistent MCTS pending visit catch-up failed to make progress");
+  }
+
+  persistentPropagateDescendantCredits = oldPropagateDescendantCredits;
+  persistentConsumingPendingVisits = oldConsumingPendingVisits;
+  plaThatSearchIsFor = oldPlaThatSearchIsFor;
+  plaThatSearchIsForLastSearch = oldPlaThatSearchIsForLastSearch;
+  materializePersistentMCTS(true);
+}
+
 //Must be called AFTER making the bestChildMoveLoc in the thread board and hist.
 SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash) {
   //Hash to use as a unique id for this node in the table, for transposition detection.
   //If this collides, we will be sad, but it should be astronomically rare since our hash is 128 bits.
   Hash128 childHash;
-  if(searchParams.useGraphSearch) {
+  if(searchParams.useGraphSearch || persistentMCTSEnabled) {
     childHash = graphHash;
     if(forceNonTerminal)
       childHash ^= FORCE_NON_TERMINAL_HASH;
@@ -1191,6 +1887,23 @@ bool Search::playoutDescend(
   }
 
   SearchNodeState nodeState = node.state.load(std::memory_order_acquire);
+  if(persistentMCTSEnabled && nodeState >= SearchNode::STATE_EXPANDED0) {
+    int64_t visibleVisits = node.stats.visits.load(std::memory_order_acquire);
+    double visibleWeight = node.stats.weightSum.load(std::memory_order_acquire);
+    if(visibleVisits <= 0 || visibleWeight <= 0.0) {
+      if(node.getNNOutput() == NULL) {
+        bool suc = initNodeNNOutput(thread,node,isRoot,false,false);
+        if(!suc) {
+          thread.shouldCountPlayout = false;
+          return false;
+        }
+        return true;
+      }
+      addCurrentNNOutputAsLeafValue(node,true);
+      return true;
+    }
+    ensurePersistentDirectStatsForCurrentRoot(node,thread);
+  }
   if(nodeState == SearchNode::STATE_UNEVALUATED) {
     //Always attempt to set a new nnOutput. That way, if some GPU is slow and malfunctioning, we don't get blocked by it.
     {
@@ -1231,10 +1944,11 @@ bool Search::playoutDescend(
   int bestChildIdx;
   Loc bestChildMoveLoc;
   bool countEdgeVisit;
+  bool bestChildIsNew;
 
   SearchNode* child = NULL;
   while(true) {
-    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,countEdgeVisit,isRoot);
+    selectBestChildToDescend(thread,node,nodeState,numChildrenFound,bestChildIdx,bestChildMoveLoc,countEdgeVisit,bestChildIsNew,isRoot);
 
     //The absurdly rare case that the move chosen is not legal
     //(this should only happen either on a bug or where the nnHash doesn't have full legality information or when there's an actual hash collision).
@@ -1293,8 +2007,8 @@ bool Search::playoutDescend(
     }
 
     //Do we think we are searching a new child for the first time?
-    if(bestChildIdx >= numChildrenFound) {
-      assert(bestChildIdx == numChildrenFound);
+    if(bestChildIsNew) {
+      assert(bestChildIdx >= numChildrenFound);
       assert(bestChildIdx < NNPos::MAX_NN_POLICY_SIZE);
       bool suc = node.maybeExpandChildrenCapacityForNewChild(nodeState, numChildrenFound+1);
       //Someone else is expanding. Loop again trying to select the best child to explore.
@@ -1317,7 +2031,7 @@ bool Search::playoutDescend(
       //Make the move! We need to make the move before we create the node so we can see the new state and get the right graphHash.
       thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
       thread.pla = getOpp(thread.pla);
-      if(searchParams.useGraphSearch)
+      if(searchParams.useGraphSearch || persistentMCTSEnabled)
         thread.graphHash = GraphHash::getGraphHash(
           thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
         );
@@ -1329,6 +2043,11 @@ bool Search::playoutDescend(
         canForceNonTerminalDueToFriendlyPass
       );
       child = allocateOrFindNode(thread, thread.pla, bestChildMoveLoc, forceNonTerminal, thread.graphHash);
+      if(persistentMCTSEnabled) {
+        std::unordered_set<SearchNode*> visited;
+        materializePersistentSubtree(*child,thread,false,visited);
+        ensurePersistentDirectStatsForCurrentRoot(*child,thread);
+      }
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
       {
@@ -1367,6 +2086,11 @@ bool Search::playoutDescend(
       child = children[bestChildIdx].getIfAllocated();
       assert(child != NULL);
 
+      if(persistentMCTSEnabled) {
+        std::unordered_set<SearchNode*> visited;
+        materializePersistentSubtree(*child,thread,false,visited);
+        ensurePersistentDirectStatsForCurrentRoot(*child,thread);
+      }
       child->virtualLosses.fetch_add(1,std::memory_order_release);
 
       //If edge visits is too much smaller than the child's visits, we can avoid descending.
@@ -1381,7 +2105,7 @@ bool Search::playoutDescend(
       //Make the move!
       thread.history.makeBoardMoveAssumeLegal(thread.board,bestChildMoveLoc,thread.pla,rootKoHashTable);
       thread.pla = getOpp(thread.pla);
-      if(searchParams.useGraphSearch)
+      if(searchParams.useGraphSearch || persistentMCTSEnabled)
         thread.graphHash = GraphHash::getGraphHash(
           thread.graphHash, thread.history, thread.pla, searchParams.graphSearchRepBound, searchParams.drawEquivalentWinsForWhite
         );
@@ -1400,7 +2124,7 @@ bool Search::playoutDescend(
     if(!result.second) {
       if(countEdgeVisit) {
         SearchNodeChildrenReference children = node.getChildren(nodeState);
-        children[bestChildIdx].addEdgeVisits(1);
+        addEdgeVisits(node,children[bestChildIdx],1);
         updateStatsAfterPlayout(node,thread,isRoot);
       }
       // Regardless of whether we count an edge visit or not here, we
@@ -1421,7 +2145,7 @@ bool Search::playoutDescend(
   if(shouldUpdateChildAncestors) {
     nodeState = node.state.load(std::memory_order_acquire);
     SearchNodeChildrenReference children = node.getChildren(nodeState);
-    children[bestChildIdx].addEdgeVisits(1);
+    addEdgeVisits(node,children[bestChildIdx],1);
     updateStatsAfterPlayout(node,thread,isRoot);
   }
   child->virtualLosses.fetch_add(-1,std::memory_order_release);
@@ -1467,6 +2191,14 @@ bool Search::maybeCatchUpEdgeVisits(
       return false;
     // numToAdd = std::min((childVisits - edgeVisits + 3) / 4, maxNumToAdd);
   } while(!childPointer.compexweakEdgeVisits(edgeVisits, edgeVisits + numToAdd));
+
+  if(persistentMCTSEnabled) {
+    {
+      std::lock_guard<std::mutex> lock(mutexPool->getMutex(node.mutexIdx));
+      childPointer.addPersistentEdgeVisits(persistentCurrentRootKey,numToAdd);
+    }
+    mirrorPersistentEdgeVisitsToRootCopy(node,childPointer,numToAdd);
+  }
 
   return true;
 }

@@ -324,6 +324,7 @@ double Search::getFpuValueForChildrenAssumeVisited(
 void Search::selectBestChildToDescend(
   SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
   int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc, bool& countEdgeVisit,
+  bool& bestChildIsNew,
   bool isRoot) const
 {
   assert(thread.pla == node.nextPla);
@@ -332,6 +333,7 @@ void Search::selectBestChildToDescend(
   bestChildIdx = -1;
   bestChildMoveLoc = Board::NULL_LOC;
   countEdgeVisit = true;
+  bestChildIsNew = false;
 
   ConstSearchNodeChildrenReference children = node.getChildren(nodeState);
   int childrenCapacity = children.getCapacity();
@@ -348,6 +350,9 @@ void Search::selectBestChildToDescend(
     const SearchNode* child = childPointer.getIfAllocated();
     if(child == NULL)
       break;
+    int64_t edgeVisits = childPointer.getEdgeVisits();
+    if(persistentMCTSEnabled && edgeVisits <= 0)
+      continue;
     Loc moveLoc = childPointer.getMoveLocRelaxed();
     int movePos = getPos(moveLoc);
     float nnPolicyProb = policyProbs[movePos];
@@ -355,7 +360,6 @@ void Search::selectBestChildToDescend(
       continue;
     policyProbMassVisited += nnPolicyProb;
 
-    int64_t edgeVisits = childPointer.getEdgeVisits();
     double childWeight = child->stats.getChildWeight(edgeVisits);
 
     totalChildWeight += childWeight;
@@ -409,6 +413,9 @@ void Search::selectBestChildToDescend(
         const SearchNode* child = childPointer.getIfAllocated();
         if(child == NULL)
           break;
+        int64_t edgeVisits = childPointer.getEdgeVisits();
+        if(persistentMCTSEnabled && edgeVisits <= 0)
+          continue;
         Loc moveLoc = childPointer.getMoveLocRelaxed();
         int movePos = getPos(moveLoc);
         float nnPolicyProb = policyProbs[movePos];
@@ -432,6 +439,8 @@ void Search::selectBestChildToDescend(
       const SearchNode* child = childPointer.getIfAllocated();
       if(child == NULL)
         break;
+      if(persistentMCTSEnabled && childPointer.getEdgeVisits() <= 0)
+        continue;
       double childWeight = child->stats.weightSum.load(std::memory_order_acquire);
       totalChildWeight += childWeight;
       if(childWeight > maxChildWeight)
@@ -467,8 +476,38 @@ void Search::selectBestChildToDescend(
       break;
     numChildrenFound++;
     int64_t childEdgeVisits = childPointer.getEdgeVisits();
-
     Loc moveLoc = childPointer.getMoveLocRelaxed();
+    posesWithChildBuf[getPos(moveLoc)] = true;
+    if(persistentMCTSEnabled && childEdgeVisits <= 0) {
+      int movePos = getPos(moveLoc);
+      float nnPolicyProb = policyProbs[movePos];
+      if(nnPolicyProb < 0)
+        continue;
+      if(isRoot) {
+        assert(thread.board.pos_hash == rootBoard.pos_hash);
+        assert(thread.pla == rootPla);
+        if(!isAllowedRootMove(moveLoc))
+          continue;
+      }
+      if(antiMirror)
+        maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, policyProbs, node.nextPla, &thread);
+      double selectionValue = getNewExploreSelectionValue(
+        node,
+        exploreScaling,
+        nnPolicyProb,fpuValue,
+        parentWeightPerVisit,
+        maxChildWeight,
+        countEdgeVisit,
+        &thread
+      );
+      if(selectionValue > maxSelectionValue) {
+        maxSelectionValue = selectionValue;
+        bestChildIdx = i;
+        bestChildMoveLoc = moveLoc;
+      }
+      continue;
+    }
+
     bool isDuringSearch = true;
     double selectionValue = getExploreSelectionValueOfChild(
       node,policyProbs,child,
@@ -491,8 +530,6 @@ void Search::selectBestChildToDescend(
       bestChildIdx = i;
       bestChildMoveLoc = moveLoc;
     }
-
-    posesWithChildBuf[getPos(moveLoc)] = true;
   }
 
   const std::vector<int>& avoidMoveUntilByLoc = thread.pla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
@@ -545,6 +582,7 @@ void Search::selectBestChildToDescend(
         maxSelectionValue = selectionValue;
         bestChildIdx = numChildrenFound;
         bestChildMoveLoc = moveLoc;
+        bestChildIsNew = true;
       }
     }
   }
@@ -603,6 +641,7 @@ void Search::selectBestChildToDescend(
       maxSelectionValue = selectionValue;
       bestChildIdx = numChildrenFound;
       bestChildMoveLoc = bestNewMoveLoc;
+      bestChildIsNew = true;
     }
   }
 
@@ -623,11 +662,14 @@ void Search::selectBestChildToDescend(
         hasPassMove = true;
       else
         hasNonPassMove = true;
+      if(persistentMCTSEnabled && childPointer.getEdgeVisits() <= 0)
+        continue;
     }
     if(!hasPassMove && bestChildMoveLoc != Board::PASS_LOC && bestChildMoveLoc != Board::NULL_LOC) {
       bestChildIdx = numChildrenFound;
       bestChildMoveLoc = Board::PASS_LOC;
       countEdgeVisit = false;
+      bestChildIsNew = true;
       // Specifically for these special extra-pass search playouts, we don't count them for the purpose of visit/playout limits.
       thread.shouldCountPlayout = false;
     }
@@ -635,6 +677,7 @@ void Search::selectBestChildToDescend(
       bestChildIdx = numChildrenFound;
       bestChildMoveLoc = bestNewMoveLoc;
       countEdgeVisit = false;
+      bestChildIsNew = true;
       // Specifically for these special extra-pass search playouts, we don't count them for the purpose of visit/playout limits.
       thread.shouldCountPlayout = false;
     }
