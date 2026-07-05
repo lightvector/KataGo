@@ -303,6 +303,9 @@ struct CudaHandles {
   // Set once we have logged that cudaDisableGraphSDPA actually suppressed an otherwise-usable SDPA path,
   // so the message is emitted only a single time per handle rather than on every attention block.
   bool loggedGraphSDPADisabled;
+  // Controls whether 1x1 NHWC convs run as a cuBLAS GEMM (vs cuDNN). Auto = matmul iff FP16.
+  // True/False force the choice regardless of precision.
+  enabled_t use1x1MatmulMode;
 
   CudaHandles(int major, int minor)
     : majorComputeCapability(major),
@@ -311,7 +314,8 @@ struct CudaHandles {
       logger(NULL),
       isWarmup(false),
       cudaDisableGraphSDPA(false),
-      loggedGraphSDPADisabled(false)
+      loggedGraphSDPADisabled(false),
+      use1x1MatmulMode(enabled_t::Auto)
   {
     CUBLAS_ERR("CudaHandles",cublasCreate(&cublas));
     CUDNN_ERR("CudaHandles",cudnnCreate(&cudnn));
@@ -531,6 +535,13 @@ struct ConvLayer {
   ByBatchSize<cudnnConvolutionFwdAlgo_t>* convolutionAlgorithms; //array of one for each batch size
 #endif
   void* filterBuf;
+  // A 1x1 conv is equivalent to a matmul. When use1x1Matmul is set we run it as a cuBLAS GEMM over
+  // batch*spatial tokens and build NO cuDNN objects. This is the default for 1x1 NHWC FP16 convs.
+  // matmulWeightBuf is [inC, outC] column-major (cuBLAS order); matmulSpatialSize is the spatial length.
+  bool use1x1Matmul;
+  int matmulSpatialSize;
+  void* matmulWeightBuf;
+  bool usingFP16;
 
   ConvLayer() = delete;
   ConvLayer(const ConvLayer&) = delete;
@@ -566,6 +577,36 @@ struct ConvLayer {
 
     testAssert(convXSize % 2 == 1);
     testAssert(convYSize % 2 == 1);
+
+    usingFP16 = useFP16;
+    filterBuf = NULL;
+    matmulWeightBuf = NULL;
+    filterDescriptor = NULL;
+    convolutionDescriptor = NULL;
+    convolutionAlgorithms = NULL;
+
+    // A 1x1 conv is a matmul, and cuBLAS is faster than cuDNN's conv in FP16 (tensor cores).
+    // Benchmarked as slightly faster on convnets and neutral on transformers.
+    // In FP32 there wasn't an improvement, so the default (cudaUse1x1Matmul=Auto) only uses GEMM in FP16.
+    // The config flag can force it either way regardless of precision. Supports NHWC only (the GEMM assumes
+    // channel-contiguous-per-position layout).
+    use1x1Matmul = false;
+    if(convXSize == 1 && convYSize == 1 && useNHWCIn && useNHWCOut) {
+      enabled_t mode = cudaHandles->use1x1MatmulMode;
+      use1x1Matmul = (mode == enabled_t::True) || (mode == enabled_t::Auto && useFP16);
+    }
+    matmulSpatialSize = use1x1Matmul ? (manager->nnYLen * manager->nnXLen) : 0;
+
+    if(use1x1Matmul) {
+      // 1x1 conv weights are [outC, inC]. cuBLAS GEMM wants column-major, i.e. [inC, outC] in row-major notation.
+      // So transpose. No cuDNN objects are built.
+      vector<float> wT((size_t)inChannels * outChannels);
+      for(int oc = 0; oc < outChannels; oc++)
+        for(int ic = 0; ic < inChannels; ic++)
+          wT[(size_t)oc + (size_t)ic * outChannels] = desc->weights[(size_t)oc * inChannels + ic];
+      CudaUtils::mallocAndCopyToDevice(name + ":matmulW", wT, matmulWeightBuf, useFP16);
+      return;
+    }
 
     inputDescriptors = manager->getTensorDesc4DByBatchSize(inChannels,useFP16,useNHWCIn);
     outputDescriptors = manager->getTensorDesc4DByBatchSize(outChannels,useFP16,useNHWCOut);
@@ -679,16 +720,22 @@ struct ConvLayer {
   }
 
   ~ConvLayer() {
-    cudaFree(filterBuf);
-    cudnnDestroyFilterDescriptor(filterDescriptor);
-    cudnnDestroyConvolutionDescriptor(convolutionDescriptor);
-    delete convolutionAlgorithms;
+    if(matmulWeightBuf != NULL)
+      cudaFree(matmulWeightBuf);
+    if(!use1x1Matmul) {
+      cudaFree(filterBuf);
+      cudnnDestroyFilterDescriptor(filterDescriptor);
+      cudnnDestroyConvolutionDescriptor(convolutionDescriptor);
+      delete convolutionAlgorithms;
+    }
   }
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
     int batchSize
   ) const {
+    if(use1x1Matmul)
+      return 0;
     size_t workspaceBytes = 0;
 #if CUDNN_MAJOR >= 8
     CUDNN_ERR(name.c_str(),cudnnGetConvolutionForwardWorkspaceSize(
@@ -723,6 +770,33 @@ struct ConvLayer {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
+    if(use1x1Matmul) {
+      // out[outC, tokens] = W[outC, inC] x in[inC, tokens]
+      // where tokens = batchSize * spatial. NHWC buffers are [tokens, C] row-major = [C, tokens] column-major
+      // matching cuBLAS's expectation. Same as MatMulLayer.
+      int tokens = batchSize * matmulSpatialSize;
+      if(!usingFP16) {
+        const float alpha = 1.0f;
+        const float beta = accumulate ? 1.0f : 0.0f;
+        CUBLAS_ERR(name.c_str(),cublasSgemm(
+          cudaHandles->cublas, CUBLAS_OP_N, CUBLAS_OP_N,
+          outChannels, tokens, inChannels,
+          &alpha, (const float*)matmulWeightBuf, outChannels,
+          (const float*)inputBuf, inChannels,
+          &beta, (float*)outputBuf, outChannels));
+      }
+      else {
+        const half alpha = __float2half(1.0f);
+        const half beta = __float2half(accumulate ? 1.0f : 0.0f);
+        CUBLAS_ERR(name.c_str(),cublasHgemm(
+          cudaHandles->cublas, CUBLAS_OP_N, CUBLAS_OP_N,
+          outChannels, tokens, inChannels,
+          &alpha, (const half*)matmulWeightBuf, outChannels,
+          (const half*)inputBuf, inChannels,
+          &beta, (half*)outputBuf, outChannels));
+      }
+      return;
+    }
     const float alpha = 1.0f;
     const float beta = accumulate ? 1.0f : 0.0f;
 #if CUDNN_MAJOR >= 8
@@ -3231,6 +3305,8 @@ struct ComputeContext {
   enabled_t useNHWCMode;
   // If true, skip the cudnn graph SDPA path entirely and always use the custom attention kernel.
   bool cudaDisableGraphSDPA;
+  // Whether 1x1 NHWC convs use the cuBLAS GEMM path. Auto = matmul iff FP16.
+  enabled_t use1x1MatmulMode;
 };
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -3258,6 +3334,8 @@ ComputeContext* NeuralNet::createComputeContext(
     cfg.contains("cudaUseNHWC") ? cfg.getEnabled("cudaUseNHWC") : enabled_t::Auto;
   context->cudaDisableGraphSDPA =
     cfg.contains("cudaDisableGraphSDPA") ? cfg.getBool("cudaDisableGraphSDPA") : false;
+  context->use1x1MatmulMode =
+    cfg.contains("cudaUse1x1Matmul") ? cfg.getEnabled("cudaUse1x1Matmul") : enabled_t::Auto;
   return context;
 }
 
@@ -3298,6 +3376,8 @@ struct ComputeHandle {
     usingNHWC(useNHWC)
   {
     cudaHandles = std::make_unique<CudaHandles>(majorComputeCapability,minorComputeCapability);
+    // Must be set before building the model: ConvLayer reads it at construction to pick the 1x1 conv path.
+    cudaHandles->use1x1MatmulMode = context->use1x1MatmulMode;
     model = std::make_unique<Model>(
       cudaHandles.get(), &(loadedModel->modelDesc), maxBatchSize,
       nnXLen, nnYLen, inputsUseNHWC, useFP16, useNHWC
