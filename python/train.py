@@ -119,6 +119,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
     optional_args.add_argument('-stop-when-train-bucket-limited', help='Terminate due to train bucket rather than waiting for more', required=False, action='store_true')
     optional_args.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
+    optional_args.add_argument('-data-prefetch-depth', help='Number of training data files to prefetch ahead of the one being consumed, to hide disk+decompress latency at file boundaries. Memory scales linearly with this (each in-flight file holds its full expanded arrays in RAM, per rank).', type=int, default=1, required=False)
     optional_args.add_argument('-randomize-val', help='Randomize order of validation files', required=False, action='store_true')
     optional_args.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
     optional_args.add_argument('-no-repeat-files', help='Track what shuffled data was used and do not repeat, even when killed and resumed', required=False, action='store_true')
@@ -345,6 +346,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
     stop_when_train_bucket_limited = args["stop_when_train_bucket_limited"]
     max_val_samples = args["max_val_samples"]
     randomize_val = args["randomize_val"]
+    data_prefetch_depth = args["data_prefetch_depth"]
     no_export = args["no_export"]
     no_repeat_files = args["no_repeat_files"]
     quit_if_no_data = args["quit_if_no_data"]
@@ -1437,7 +1439,8 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 device=device,
                 randomize_symmetries=True,
                 include_meta=raw_model.get_has_metadata_encoder(),
-                model_config=model_config
+                model_config=model_config,
+                prefetch_depth=data_prefetch_depth,
             ):
                 optimizer.zero_grad(set_to_none=True)
                 extra_outputs = None
