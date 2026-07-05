@@ -505,10 +505,23 @@ TrunkDesc KataGoParser::parseTrunk(int model_version, int meta_encoder_version) 
                                  std::to_string(trunk.gpool_num_channels) + ")");
     }
 
-    // Version >= 15 has 6 unused int parameters
+    // Version >= 15 writes the trunk norm kind followed by 5 unused int parameters.
+    // This CoreML parser only supports the standard trunk norm kind (0 = BatchNorm/BiasMask);
+    // RMSNorm (used by transformer/rmsnorm models, kind != 0) is not implemented here, so reject it
+    // defensively rather than silently parsing it as standard norm and producing wrong outputs.
     if (model_version >= 15) {
-        for (int i = 0; i < 6; i++) {
-            readInt();
+        int trunk_norm_kind = readInt();
+        if (trunk_norm_kind != 0) {
+            throw std::runtime_error(trunk.name + ": unsupported trunk norm kind " +
+                                     std::to_string(trunk_norm_kind) +
+                                     " (this CoreML parser only supports standard trunk norm, not RMSNorm)");
+        }
+        for (int i = 0; i < 5; i++) {
+            int unused = readInt();
+            if (unused != 0) {
+                throw std::runtime_error(trunk.name + ": unknown/unsupported trunk option " +
+                                         std::to_string(unused));
+            }
         }
     }
 
@@ -565,6 +578,25 @@ PolicyHeadDesc KataGoParser::parsePolicyHead(int model_version) {
     head.name = readString();
     head.model_version = model_version;
 
+    // Version >= 17 writes policyOutChannels (2 or 4) explicitly, followed by 3 unused int parameters.
+    // For version < 17 the channel count is implied by the version (handled below).
+    int policy_out_channels_v17 = 0;
+    if (model_version >= 17) {
+        policy_out_channels_v17 = readInt();
+        if (policy_out_channels_v17 != 2 && policy_out_channels_v17 != 4) {
+            throw std::runtime_error(head.name + ": invalid policyOutChannels " +
+                                     std::to_string(policy_out_channels_v17) +
+                                     " (expected 2 or 4)");
+        }
+        for (int i = 0; i < 3; i++) {
+            int unused = readInt();
+            if (unused != 0) {
+                throw std::runtime_error(head.name + ": unknown/unsupported policy option " +
+                                         std::to_string(unused));
+            }
+        }
+    }
+
     head.p1_conv = parseConvLayer();
     head.g1_conv = parseConvLayer();
     head.g1_bn = parseBatchNormLayer();
@@ -583,7 +615,9 @@ PolicyHeadDesc KataGoParser::parsePolicyHead(int model_version) {
     }
 
     // Determine policy output channels based on version
-    if (model_version >= 16) {
+    if (model_version >= 17) {
+        head.policy_out_channels = policy_out_channels_v17;  // read explicitly above
+    } else if (model_version >= 16) {
         head.policy_out_channels = 4;
     } else if (model_version >= 12) {
         head.policy_out_channels = 2;
@@ -598,6 +632,17 @@ ValueHeadDesc KataGoParser::parseValueHead(int model_version) {
     ValueHeadDesc head;
     head.name = readString();
     head.model_version = model_version;
+
+    // Version >= 17 writes 3 unused int parameters reserved for future features.
+    if (model_version >= 17) {
+        for (int i = 0; i < 3; i++) {
+            int unused = readInt();
+            if (unused != 0) {
+                throw std::runtime_error(head.name + ": unknown/unsupported value option " +
+                                         std::to_string(unused));
+            }
+        }
+    }
 
     head.v1_conv = parseConvLayer();
     head.v1_bn = parseBatchNormLayer();
@@ -627,7 +672,7 @@ KataGoModelDesc KataGoParser::parseModel() {
 
     if (!isVersionSupported(model.model_version)) {
         throw std::runtime_error(
-            "Only KataGo model versions 8-16 are supported, got version " +
+            "Only KataGo model versions 8-17 are supported, got version " +
             std::to_string(model.model_version));
     }
 

@@ -2427,8 +2427,15 @@ class PolicyHead(torch.nn.Module):
             self.num_policy_outputs = 4
         elif config["version"] <= 15:
             self.num_policy_outputs = 6
+        elif config["version"] <= 16:
+            self.num_policy_outputs = 8  # version 16 has predict_q_values implied
+        elif config["version"] <= 17:
+            if config.get("predict_q_values"):
+                self.num_policy_outputs = 8
+            else:
+                self.num_policy_outputs = 6
         else:
-            self.num_policy_outputs = 8
+            raise Exception("Unexpected version: " + str(config["version"]))
         # Output 0: policy prediction
         # Output 1: opponent reply policy prediction
         # Output 2: soft policy prediction
@@ -2774,6 +2781,7 @@ _BLOCK_KIND_FLAGS = {
     "ffng":                                 (False, False),
     "bottlenest2transformerrope":           (False, False),
     "bottlenest2transformerropesg":         (False, False),
+    "bottlenest3transformerropesg":         (False, False),
     "bottlenest2transformergabsg":          (True,  False),
     "bottlenest2transformerropegabsg":      (True,  False),
     "bottlenest2transformertabsg":         (False, True),
@@ -3049,6 +3057,18 @@ class Model(torch.nn.Module):
                 self.blocks.append(NestedBottleneckTransformerBlock(
                     name=block_name,
                     internal_length=2,
+                    c_main=self.c_trunk,
+                    c_mid=self.c_mid,
+                    config=self.config,
+                    activation=self.activation,
+                    pos_len=pos_len,
+                    use_swiglu=True,
+                    use_rope=True,
+                ))
+            elif block_kind == "bottlenest3transformerropesg":
+                self.blocks.append(NestedBottleneckTransformerBlock(
+                    name=block_name,
+                    internal_length=3,
                     c_main=self.c_trunk,
                     c_mid=self.c_mid,
                     config=self.config,

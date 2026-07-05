@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <variant>
 #include <vector>
@@ -280,8 +281,16 @@ struct KataGoModelDesc {
     PolicyHeadDesc policy_head;
     ValueHeadDesc value_head;
 
-    /// Get number of policy channels based on model version
+    /// Get number of policy channels based on model version.
+    /// Note: for version >= 17 the policy channel count (2 or 4) is not implied by the version
+    /// and must be read from the model's policy head (policy_out_channels / num_policy_channels);
+    /// this helper cannot determine it and throws to avoid returning a silently-wrong value.
     static int getPolicyChannels(int version) {
+        if (version >= 17) {
+            throw std::runtime_error(
+                "getPolicyChannels: policy channel count for version >= 17 is not implied by the "
+                "version; use the parsed policy head's policy_out_channels instead");
+        }
         if (version >= 16) return 4;
         if (version >= 12) return 2;
         return 1;

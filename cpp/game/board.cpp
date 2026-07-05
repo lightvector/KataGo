@@ -739,6 +739,67 @@ bool Board::setStonesFailIfNoLibs(const std::vector<Move>& placements) {
   return true;
 }
 
+void Board::regenChainsFromColors() {
+  //Recompute the position hash from scratch and mark every stone's head as invalid (NULL_LOC) so
+  //that rebuildChain, which requires unbuilt heads to point at an invalid location, can floodfill them.
+  pos_hash = ZOBRIST_SIZE_X_HASH[x_size] ^ ZOBRIST_SIZE_Y_HASH[y_size];
+  for(int y = 0; y<y_size; y++) {
+    for(int x = 0; x<x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      Color c = colors[loc];
+      if(c == C_BLACK || c == C_WHITE) {
+        pos_hash ^= ZOBRIST_BOARD_HASH[loc][c];
+        chain_head[loc] = NULL_LOC;
+      }
+    }
+  }
+  //Rebuild each chain's links and liberties by floodfilling from any not-yet-rebuilt stone.
+  for(int y = 0; y<y_size; y++) {
+    for(int x = 0; x<x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      Color c = colors[loc];
+      if((c == C_BLACK || c == C_WHITE) && chain_head[loc] == NULL_LOC)
+        rebuildChain(loc, c);
+    }
+  }
+}
+
+int Board::setStonesTolerant(const std::vector<Move>& placements) {
+  //Faithfully overlay the placements onto the raw colors array, ignoring anything off-board or on a wall.
+  //This may temporarily create groups with zero liberties.
+  for(const Move& placement: placements) {
+    Loc loc = placement.loc;
+    Color color = placement.pla;
+    if(loc < 0 || loc >= MAX_ARR_SIZE || colors[loc] == C_WALL)
+      continue;
+    if(color != C_EMPTY && color != C_BLACK && color != C_WHITE)
+      continue;
+    colors[loc] = color;
+  }
+  //Rebuild chains so that liberty counts reflect the full faithful configuration.
+  regenChainsFromColors();
+
+  //Find every stone whose group has zero liberties, basing the determination on the full configuration so
+  //that removal is simultaneous (e.g. two touching opposing zero-liberty groups are both removed).
+  int numRemoved = 0;
+  for(int y = 0; y<y_size; y++) {
+    for(int x = 0; x<x_size; x++) {
+      Loc loc = Location::getLoc(x,y,x_size);
+      Color c = colors[loc];
+      if((c == C_BLACK || c == C_WHITE) && chain_data[chain_head[loc]].num_liberties == 0) {
+        colors[loc] = C_EMPTY;
+        numRemoved += 1;
+      }
+    }
+  }
+  //Rebuild once more to restore valid chain bookkeeping and hash after the simultaneous removal.
+  if(numRemoved > 0)
+    regenChainsFromColors();
+
+  ko_loc = NULL_LOC;
+  return numRemoved;
+}
+
 //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
 bool Board::playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal)
 {

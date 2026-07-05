@@ -11,11 +11,11 @@
 namespace katagocoreml {
 
 /// Parser for KataGo neural network model files.
-/// Supports versions 8-16 models in binary format (.bin, .bin.gz).
+/// Supports versions 8-17 models in binary format (.bin, .bin.gz).
 class KataGoParser {
 public:
     /// Supported KataGo model versions
-    static constexpr std::array<int, 9> SUPPORTED_VERSIONS = {8, 9, 10, 11, 12, 13, 14, 15, 16};
+    static constexpr std::array<int, 10> SUPPORTED_VERSIONS = {8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
 
     /// Constructor
     /// @param model_path Path to the KataGo model file (.bin or .bin.gz)

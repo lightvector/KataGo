@@ -21,6 +21,7 @@ import atexit
 from collections import defaultdict
 from typing import Dict, List
 
+import threading
 from threading import BrokenBarrierError
 
 import torch
@@ -39,7 +40,7 @@ from muon.muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 from katago.train import modelconfigs
 from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder
 from katago.train.metrics_pytorch import Metrics
-from katago.utils.push_back_generator import PushBackGenerator
+from katago.utils.training_data_generator import TrainingDataGenerator
 from katago.train import load_model
 from katago.train import data_processing_pytorch
 from katago.train.metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
@@ -97,8 +98,11 @@ if __name__ == "__main__":
     optional_args.add_argument('-use-adamw', help='Use adamw optimizer', required=False, action='store_true')
     optional_args.add_argument('-use-muon', help='Use muon optimizer', required=False, action='store_true')
     optional_args.add_argument('-use-normuon', help='Use normuon optimizer (muon with neuron-wise normalization)', required=False, action='store_true')
-    optional_args.add_argument('-ns-steps', help='Number of Newton-Schulz iterations for muon/normuon', type=int, required=False, default=5)
-    optional_args.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon/normuon', required=False, action='store_true')
+    optional_args.add_argument('-use-aurora', help='Use aurora optimizer (leverage-aware muon variant)', required=False, action='store_true')
+    optional_args.add_argument('-aurora-pp-iterations', help='Number of preconditioning-polar iterations for aurora', type=int, required=False, default=2)
+    optional_args.add_argument('-aurora-pp-beta', help='Damping parameter for aurora diagonal preconditioner', type=float, required=False, default=0.5)
+    optional_args.add_argument('-ns-steps', help='Number of Newton-Schulz iterations for muon/normuon/aurora', type=int, required=False, default=5)
+    optional_args.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon/normuon/aurora', required=False, action='store_true')
 
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
     optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
@@ -145,6 +149,52 @@ if __name__ == "__main__":
 def get_longterm_checkpoints_dir(traindir):
     return os.path.join(traindir,"longterm_checkpoints")
 
+def load_npz_dir_num_rows_index(npz_dir):
+    """
+    Look for a consolidated "index.json" in npz_dir listing the row counts of the .npz files in that directory,
+    so the row count can be read without a per-file .json next to every .npz.
+    Expected format (tolerant of additional top-level or per-file fields):
+
+        {
+          "files": [
+            {"name": "data0.npz", "num_rows": 262144},
+            {"name": "data1.npz", "num_rows": 262144},
+            ...
+          ]
+        }
+
+    Returns a dict mapping npz basename -> num_rows if an index.json exists, or None if there is no index.json
+    in the directory (in which case callers fall back to the per-file <basename>.json convention).
+    """
+    indexpath = os.path.join(npz_dir, "index.json")
+    if not os.path.exists(indexpath):
+        return None
+    with open(indexpath) as f:
+        indexinfo = json.load(f)
+    num_rows_by_name = {}
+    for fileinfo in indexinfo["files"]:
+        num_rows_by_name[fileinfo["name"]] = fileinfo["num_rows"]
+    return num_rows_by_name
+
+def get_npz_num_rows(npz_path, index_cache):
+    """
+    Return the number of rows in the .npz file at npz_path.
+
+    Prefers a consolidated index.json in the same directory (see load_npz_dir_num_rows_index).
+    Falls back to a per-file <basename>.json containing {"num_rows": n} when no index.json is present.
+    index_cache is a dict mapping npz_dir -> index dict or None.
+    """
+    npz_dir = os.path.dirname(npz_path)
+    if npz_dir not in index_cache:
+        index_cache[npz_dir] = load_npz_dir_num_rows_index(npz_dir)
+    num_rows_by_name = index_cache[npz_dir]
+    if num_rows_by_name is not None:
+        return num_rows_by_name[os.path.basename(npz_path)]
+    jsonpath = os.path.splitext(npz_path)[0] + ".json"
+    with open(jsonpath) as f:
+        fileinfo = json.load(f)
+    return fileinfo["num_rows"]
+
 def make_dirs(args):
     traindir = args["traindir"]
     exportdir = args["exportdir"]
@@ -168,15 +218,34 @@ def multiprocessing_setup(rank: int, world_size: int):
 
 def multiprocessing_cleanup():
     logging.info("Multiprocessing cleanup")
-    torch.distributed.destroy_process_group()
+    # destroy_process_group() does an NCCL barrier internally and can block forever
+    # if a peer has already died. Run it in a daemon thread and give it a short grace period
+    # If it doesn't return, we abandon it rather than hang the interpreter.
+    if not torch.distributed.is_initialized():
+        return
+    cleanup_thread = threading.Thread(target=torch.distributed.destroy_process_group, daemon=True)
+    cleanup_thread.start()
+    cleanup_thread.join(timeout=10.0)
+    if cleanup_thread.is_alive():
+        logging.warning("destroy_process_group did not return within 10s, abandoning it")
 
 def safe_barrier(barrier, rank):
     if barrier is not None:
         try:
             barrier.wait()
         except BrokenBarrierError:
-            logging.info("Barrier was broken, so we are exiting {rank=}")
-            safe_exit(barrier,0)
+            # A broken barrier means a peer aborted it, typically because that peer
+            # died (cleanly via safe_exit, or abnormally via the uncaught-exception
+            # handler in main). Either way this process should stop now. Hard-exit
+            # to avoid blocking in the NCCL destroy_process_group atexit handler,
+            # whose peer may already be gone.
+            logging.info(f"Barrier was broken, so we are exiting {rank=}")
+            for handler in logging.getLogger().handlers:
+                try:
+                    handler.flush()
+                except BaseException:
+                    pass
+            os._exit(0)
 
 def safe_exit(barrier, exit_code):
     if barrier is not None:
@@ -187,6 +256,37 @@ def safe_exit(barrier, exit_code):
 
 
 def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
+    try:
+        _main_impl(rank, world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)
+    except SystemExit:
+        # safe_exit() and normal clean shutdown raise SystemExit. Let it propagate.
+        raise
+    except BaseException as e:
+        # An uncaught exception in one rank must not silently hang the whole job.
+        # torch.multiprocessing.spawn's parent-side traceback re-raise is unreliable
+        # here because the NCCL destroy_process_group atexit handler can block
+        # forever waiting on the (now-stuck) peer. So we: (1) log the traceback
+        # ourselves, (2) abort the barrier to wake the other rank(s), and
+        # (3) os._exit() to bypass atexit (the hanging destroy_process_group).
+        logging.error(f"Uncaught exception in rank {rank}, aborting all processes:")
+        logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+        try:
+            if barrier is not None:
+                logging.error("Aborting barrier so other ddp processes also exit")
+                barrier.abort()
+        except BaseException:
+            logging.error("Failed to abort barrier:\n" + traceback.format_exc())
+        # Flush logs before the hard exit, since os._exit skips normal flushing.
+        for handler in logging.getLogger().handlers:
+            try:
+                handler.flush()
+            except BaseException:
+                pass
+        sys.stderr.flush()
+        os._exit(1)
+
+
+def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
     traindir = args["traindir"]
     datadir = args["datadir"]
     latestdatadir = args["latestdatadir"]
@@ -218,15 +318,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     lookahead_print = args["lookahead_print"]
     use_adamw = args["use_adamw"]
     use_normuon = args["use_normuon"]
-    use_muon = args["use_muon"] or use_normuon
+    use_aurora = args["use_aurora"]
+    aurora_pp_iterations = args["aurora_pp_iterations"]
+    aurora_pp_beta = args["aurora_pp_beta"]
+    use_muon = args["use_muon"] or use_normuon or use_aurora
     ns_steps = args["ns_steps"]
     use_polar_express = args["use_polar_express"]
     if not use_muon:
         if ns_steps != 5:
-            raise ValueError("-ns-steps can only be used with muon or normuon optimizer")
+            raise ValueError("-ns-steps can only be used with muon or normuon or aurora optimizer")
         if use_polar_express:
-            raise ValueError("-use-polar-express can only be used with muon or normuon optimizer")
-    optimizer_name = "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
+            raise ValueError("-use-polar-express can only be used with muon or normuon or aurora optimizer")
+    optimizer_name = "Aurora" if use_aurora else "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
     use_fp16 = args["use_fp16"]
     no_compile = args["no_compile"]
     use_tf32_matmul = args["use_tf32_matmul"]
@@ -658,9 +761,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
             elif use_muon:
                 if world_size > 1:
-                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
                 else:
-                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
             else:
                 optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
 
@@ -755,9 +858,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
             elif use_muon:
                 if world_size > 1:
-                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
                 else:
-                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
             else:
                 optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
             if "optimizer" in state_dict:
@@ -774,6 +877,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             else:
                 logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
+                train_state["optimizer_name"] = optimizer_name
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
@@ -795,10 +899,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_state["window_start_data_row_idx"] = 0
     if "total_num_data_rows" not in train_state:
         train_state["total_num_data_rows"] = 0
-    if "old_train_data_dirs" not in train_state:
-        train_state["old_train_data_dirs"] = []
-    if "data_files_used" not in train_state:
-        train_state["data_files_used"] = set()
     if "swa_sample_accum" not in train_state:
         train_state["swa_sample_accum"] = 0.0
 
@@ -840,6 +940,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     if use_muon:
         logging.info(f"ns_steps {ns_steps}")
         logging.info(f"use_polar_express {use_polar_express}")
+    if use_aurora:
+        logging.info(f"aurora_pp_iterations {aurora_pp_iterations}")
+        logging.info(f"aurora_pp_beta {aurora_pp_beta}")
 
     logging.info(f"Model norm normal baseline: " + str(train_state["modelnorm_normal_baseline"]))
     logging.info(f"Model norm input baseline: " + str(train_state["modelnorm_input_baseline"]))
@@ -871,7 +974,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     # EPOCHS AND LR ---------------------------------------------------------------------
 
-    def update_and_return_lr_and_wd():
+    def update_and_return_lr_and_wd(log_if="changed"):
+        assert log_if in ("always", "changed", "never")
         # Warmup for initial training
         warmup_scale = 1.0
         if no_lr_warmup:
@@ -975,7 +1079,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
 
-            if changed:
+            if log_if == "always" or (log_if == "changed" and changed):
                 logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
@@ -1001,13 +1105,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # DATA RELOADING GENERATOR ------------------------------------------------------------
 
     # Some globals
+    # Note: last_curdatadir is a plain local, NOT part of train_state, so it is reset to None on every
+    # process start and is not checkpointed. Consequently the first maybe_reload_training_data() call after
+    # a restart always sees curdatadir != last_curdatadir and re-enters the "new shuffle" block below, even
+    # when resuming on the same data dir, which is what lets a resumed run finish the remainder of an
+    # in-progress epoch before repeating files.
     last_curdatadir = None
-    trainfilegenerator = None
     vdatadir = None
+    # Owns all "which training files have been used" logic.
+    trainingdatagenerator = TrainingDataGenerator(train_state, no_repeat_files)
 
     def maybe_reload_training_data():
         nonlocal last_curdatadir
-        nonlocal trainfilegenerator
         nonlocal vdatadir
 
         assert rank == 0, "Helper ddp training processes should not call maybe_reload_training_data"
@@ -1081,16 +1190,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 logging.info("Train steps since last reload: %.0f -> 0" % train_state["train_steps_since_last_reload"])
                 train_state["train_steps_since_last_reload"] = 0
 
-                # Load training data files
+                # Load training data files. The generator handles all "which files have been used" and no_repeat_files semantics.
                 tdatadir = os.path.join(curdatadir,"train")
-                train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".npz")]
-                epoch0_train_files = [path for path in train_files if path not in train_state["data_files_used"]]
-                if no_repeat_files:
-                    logging.info(f"Dropping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used")
-                else:
-                    logging.info(f"Skipping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used first pass")
-
-                if len(train_files) <= 0 or (no_repeat_files and len(epoch0_train_files) <= 0):
+                loaded_any_data = trainingdatagenerator.set_data_dir_if_has_remaining_files(tdatadir)
+                if not loaded_any_data:
                     if quit_if_no_data:
                         logging.info(f"No new training files found in: {tdatadir}, quitting")
                         safe_exit(barrier,0)
@@ -1098,32 +1201,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     time.sleep(30)
                     continue
 
-                # Update history of what training data we used
-                if tdatadir not in train_state["old_train_data_dirs"]:
-                    train_state["old_train_data_dirs"].append(tdatadir)
-                # Clear out tracking of sufficiently old files
-                while len(train_state["old_train_data_dirs"]) > 20:
-                    old_dir = train_state["old_train_data_dirs"][0]
-                    train_state["old_train_data_dirs"] = train_state["old_train_data_dirs"][1:]
-                    for filename in list(train_state["data_files_used"]):
-                        if filename.startswith(old_dir):
-                            train_state["data_files_used"].remove(filename)
-
-                def train_files_gen():
-                    train_files_shuffled = epoch0_train_files.copy()
-                    while True:
-                        random.shuffle(train_files_shuffled)
-                        for filename in train_files_shuffled:
-                            logging.info("Yielding training file for dataset: " + filename)
-                            train_state["data_files_used"].add(filename)
-                            yield filename
-                        if no_repeat_files:
-                            break
-                        else:
-                            train_files_shuffled = train_files.copy()
-                            train_state["data_files_used"] = set()
-
-                trainfilegenerator = PushBackGenerator(train_files_gen())
                 vdatadir = os.path.join(curdatadir,"val")
 
             # Same directory as before, no new shuffle
@@ -1139,10 +1216,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             break
 
+    # Holds per-directory index.json lookups (npz_dir -> {name: num_rows} or None)
+    # So a consolidated index.json is parsed at most once per directory rather than once per subepoch.
+    npz_num_rows_index_cache = {}
+
     # Load all the files we should train on during a subepoch
     def get_files_for_subepoch():
-        nonlocal trainfilegenerator
-
         assert rank == 0, "Helper ddp training processes should not call get_files_for_subepoch"
 
         num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
@@ -1152,27 +1231,33 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_files_to_use = []
         batches_to_use_so_far = 0
         found_enough = False
-        for filename in trainfilegenerator:
-            jsonfilename = os.path.splitext(filename)[0] + ".json"
-            with open(jsonfilename) as f:
-                trainfileinfo = json.load(f)
+        while True:
+            # peek (rather than pop) so that a file we decide not to take this subepoch is left in the generator
+            # un-consumed and unmarked, to be served at the start of the next subepoch.
+            filename = trainingdatagenerator.peek()
+            if filename is None:
+                break
+            num_rows_this_file = get_npz_num_rows(filename, npz_num_rows_index_cache)
 
-            num_batches_this_file = trainfileinfo["num_rows"] // batch_size
+            num_batches_this_file = num_rows_this_file // batch_size
             if num_batches_this_file <= 0:
+                # Useless file: consume and discard it (it counts as used), then look at the next one.
+                trainingdatagenerator.pop()
                 continue
 
             if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
                 # If we're going over the desired amount, randomly skip the file with probability equal to the
                 # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
                 if batches_to_use_so_far > 0 and random.random() <= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
-                    trainfilegenerator.push_back(filename)
+                    # Leave it un-popped for the next subepoch (do not mark it used).
                     found_enough = True
                     break
 
+            trainingdatagenerator.pop()
             train_files_to_use.append(filename)
             batches_to_use_so_far += num_batches_this_file
 
-            #Sanity check - load a max of 100000 files.
+            # Sanity check - load a max of 100000 files.
             if batches_to_use_so_far >= num_batches_per_subepoch or len(train_files_to_use) > 100000:
                 found_enough = True
                 break
@@ -1306,7 +1391,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         if use_fp16:
             logging.info(f"Current grad scale: {scaler.get_scale()}")
 
-        lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+        lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="always")
         maybe_update_brenorm_params()
 
         # SUB EPOCH LOOP -----------
@@ -1532,10 +1617,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
-                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 20 == 0:
-                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
-                if train_state["global_step_samples"] <= 500000000 and batch_count_this_epoch % 200 == 0:
-                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+                if train_state["global_step_samples"] <= 200000000 and batch_count_this_epoch % 5 == 0:
+                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if=("changed" if batch_count_this_epoch % 50 == 0 else "never"))
+                elif batch_count_this_epoch % 50 == 0:
+                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="never")
 
                 # Update batch renorm parameters
                 if batch_count_this_epoch % 500 == 0:

@@ -1578,13 +1578,18 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats, int metaEncVersio
 
   trunkNormKind = TRUNK_NORM_KIND_STANDARD;
   if(modelVersion >= 15) {
-    int unused;
+    int unused = 0;
     in >> trunkNormKind;
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option B: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option C: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option D: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option E: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option F: " + Global::intToString(unused));
     if(in.fail())
       throw StringError(name + ": trunk failed to parse trunk norm kind / unused params");
     if(trunkNormKind != TRUNK_NORM_KIND_STANDARD && trunkNormKind != TRUNK_NORM_KIND_RMSNORM)
@@ -1910,15 +1915,35 @@ PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn, bool binaryFloats) {
   in >> name;
   modelVersion = vrsn;
 
-  if(modelVersion >= 16)
-    policyOutChannels = 4;
+  if(in.fail())
+    throw StringError(name + ": policy head failed to parse name");
+
+  if(modelVersion >= 17) {
+    in >> policyOutChannels;
+    if(in.fail())
+      throw StringError(name + ": policy head failed to parse policyOutChannels");
+    // version 17 supports q value predictions based on whether channels are 2 (optimistic policy only) or 4 (optimistic policy + q winloss and score)
+    if(policyOutChannels != 2 && policyOutChannels != 4)
+      throw StringError(name + ": policy head got invalid policyOutChannels " + Global::intToString(policyOutChannels));
+  }
+  else if(modelVersion == 16)
+    policyOutChannels = 4; // added q value predictions
   else if(modelVersion >= 12)
     policyOutChannels = 2;
   else
     policyOutChannels = 1;
 
-  if(in.fail())
-    throw StringError(name + ": policy head failed to parse name");
+  if(modelVersion >= 17) {
+    int unused = 0;
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported policy option A: " + Global::intToString(unused));
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported policy option B: " + Global::intToString(unused));
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported policy option C: " + Global::intToString(unused));
+    if(in.fail())
+      throw StringError(name + ": model failed to parse unused params");
+  }
 
   p1Conv = ConvLayerDesc(in,binaryFloats);
   g1Conv = ConvLayerDesc(in,binaryFloats);
@@ -2071,6 +2096,18 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn, bool binaryFloats) {
 
   if(in.fail())
     throw StringError(name + ": value head failed to parse name");
+
+  if(modelVersion >= 17) {
+    int unused = 0;
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported value option A: " + Global::intToString(unused));
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported value option B: " + Global::intToString(unused));
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported value option C: " + Global::intToString(unused));
+    if(in.fail())
+      throw StringError(name + ": model failed to parse unused params");
+  }
 
   v1Conv = ConvLayerDesc(in,binaryFloats);
   v1BN = BatchNormLayerDesc(in,binaryFloats);
@@ -2337,14 +2374,21 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
           SGFMetadata::METADATA_INPUT_NUM_CHANNELS));
     }
 
-    int unused;
+    int unused = 0;
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option B: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option C: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option D: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option E: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option F: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option G: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option H: " + Global::intToString(unused));
     if(in.fail())
       throw StringError(name + ": model failed to parse unused params");
   }

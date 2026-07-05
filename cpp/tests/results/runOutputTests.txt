@@ -21543,6 +21543,17 @@ humanSLChosenMoveIgnorePass: 0
 humanSLChosenMovePiklLambda: 1e+09
 
 ===================================================================
+Eval cache keys depend on search params
+===================================================================
+: Initializing neural net buffer to be size 7 * 7 allowing smaller boards
+Equal params hash equal: 1
+Differing params hash differ: 1
+After search A: A-slot populated, B-slot empty: 1
+After search B: B-slot populated, A-slot unchanged, distinct slots: 1
+After search A2 (identical to A): reuses A's slot: 1
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
 Board size distribution
 ===================================================================
 2x2 7328
