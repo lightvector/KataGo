@@ -38,6 +38,24 @@ struct NNRawStats {
   double policyEntropy;
 };
 
+//Info about the post-game reanalysis (full re-search) of a position that originally got only a cheap search.
+struct ReanalysisData {
+  bool wasReanalyzed = false;
+  //If false, the targets derived from the final board and the actual game continuation (ownership, final
+  //score, future board positions, and the next-move policy target) are not recorded for this row. The value
+  //targets always come from the game's value target array, whose entry at this turn is the reanalysis
+  //search's values but whose later entries and final outcome still reflect the actual game.
+  bool usedOutcomeTargets = true;
+  //The policy surprise and value surprise of the original cheap search on this turn, which are the stats
+  //that drove the probability of this position being selected for reanalysis.
+  float selectionPolicySurprise = 0.0f;
+  float selectionValueSurprise = 0.0f;
+  //The number of visits of the original cheap search, whose recorded targets were replaced.
+  int64_t originalNumVisits = 0;
+  //Number of neural net changes this game before this reanalysis search was performed.
+  int numNeuralNetChangesSoFar = 0;
+};
+
 //A side position that was searched off the main line of the game, to give some data about an alternative move.
 struct SidePosition {
   Board board;
@@ -103,6 +121,8 @@ struct FinishedGameData {
   std::vector<ValueTargets> whiteValueTargetsByTurn; //Except this one, we may have some of
   std::vector<QValueTargets> whiteQValueTargetsByTurn;
   std::vector<NNRawStats> nnRawStatsByTurn;
+  std::vector<ReanalysisData> reanalysisByTurn; //May be empty if no reanalysis was configured
+
   Color* finalFullArea;
   Color* finalOwnership;
   bool* finalSekiAreas;
@@ -222,8 +242,16 @@ struct TrainingWriteBuffers {
   //C59: Policy prior entropy
   //C60: Number of visits in the search generating this row, prior to any reduction.
   //C61: Number of bonus points the player to move will get onward from this point in the game. Reliable only if C27 and/or C62 (V2 and later), otherwise may make no sense.
-  //C62: V1: unused. V2: 1 if the game was finished and not a side position.
-  //C63: Data format version, currently always equals 2.
+  //C62: V1: unused. V2 and later: 1 if the game was finished and not a side position.
+  //C63: Data format version, currently always equals 3. Version 2 data had only 64 channels, ending here.
+
+  //C64: 1 if this position originally got only a cheap search during the game and was reanalyzed with a full search
+  //after the game ended, generating this row. 0 for ordinary full-search rows and side position rows.
+  //C65: If C64, the policy surprise of the original cheap search (the reanalysis search's own policy surprise is in C30).
+  //C66: If C64, the value surprise of the original cheap search. Both C65 and C66 are the stats that drove the
+  //probability of this position being selected for reanalysis, recorded for statistical purposes.
+  //C67: If C64, the number of visits of the original cheap search (the reanalysis search's visits are in C60).
+  //C68-79: Unused, zero-filled.
 
   NumpyBuffer<float> globalTargetsNC;
 
@@ -301,7 +329,8 @@ struct TrainingWriteBuffers {
     int numExtraBlack,
     int mode,
     SGFMetadata* sgfMeta,
-    Rand& rand
+    Rand& rand,
+    const ReanalysisData& reanalysisData = ReanalysisData()
   );
 
   void writeToZipFile(const std::string& fileName);

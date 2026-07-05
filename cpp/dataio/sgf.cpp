@@ -2171,12 +2171,26 @@ void WriteSgf::writeSgf(
         comment += scoreBuf;
       }
       if(turnAfterStart < gameData->policyTargetsByTurn.size()) {
+        bool wasReanalyzed =
+          turnAfterStart < gameData->reanalysisByTurn.size() && gameData->reanalysisByTurn[turnAfterStart].wasReanalyzed;
         char visitsBuf[32];
-        sprintf(visitsBuf,"%d",(int)(gameData->policyTargetsByTurn[turnAfterStart].unreducedNumVisits));
         if(comment.length() > 0)
           comment += " ";
-        comment += "v=";
-        comment += visitsBuf;
+        if(wasReanalyzed) {
+          //The move was chosen by the original cheap search, whose visits we report as v=, but the recorded
+          //targets and stats come from the post-game reanalysis search, whose visits we report as rv=.
+          sprintf(visitsBuf,"%d",(int)(gameData->reanalysisByTurn[turnAfterStart].originalNumVisits));
+          comment += "v=";
+          comment += visitsBuf;
+          sprintf(visitsBuf,"%d",(int)(gameData->policyTargetsByTurn[turnAfterStart].unreducedNumVisits));
+          comment += " rv=";
+          comment += visitsBuf;
+        }
+        else {
+          sprintf(visitsBuf,"%d",(int)(gameData->policyTargetsByTurn[turnAfterStart].unreducedNumVisits));
+          comment += "v=";
+          comment += visitsBuf;
+        }
       }
       if(turnAfterStart < gameData->targetWeightByTurnUnrounded.size()) {
         char weightBuf[32];

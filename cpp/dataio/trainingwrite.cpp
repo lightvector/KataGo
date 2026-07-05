@@ -90,6 +90,7 @@ FinishedGameData::FinishedGameData()
    whiteValueTargetsByTurn(),
    whiteQValueTargetsByTurn(),
    nnRawStatsByTurn(),
+   reanalysisByTurn(),
    finalFullArea(NULL),
    finalOwnership(NULL),
    finalSekiAreas(NULL),
@@ -186,6 +187,17 @@ void FinishedGameData::printDebug(ostream& out) const {
   for(int i = 0; i<nnRawStatsByTurn.size(); i++) {
     out << "Raw Stats " << nnRawStatsByTurn[i].whiteWinLoss << " " << nnRawStatsByTurn[i].whiteScoreMean << " " << nnRawStatsByTurn[i].policyEntropy << endl;
   }
+
+  for(int i = 0; i<reanalysisByTurn.size(); i++) {
+    if(reanalysisByTurn[i].wasReanalyzed) {
+      out << "reanalysisByTurn " << i << " ";
+      out << "usedOutcomeTargets " << reanalysisByTurn[i].usedOutcomeTargets << " ";
+      out << "selectionPolicySurprise " << reanalysisByTurn[i].selectionPolicySurprise << " ";
+      out << "selectionValueSurprise " << reanalysisByTurn[i].selectionValueSurprise << " ";
+      out << "originalNumVisits " << reanalysisByTurn[i].originalNumVisits << " ";
+      out << endl;
+    }
+  }
   if(finalFullArea != NULL) {
     for(int y = 0; y<startBoard.y_size; y++) {
       for(int x = 0; x<startBoard.x_size; x++) {
@@ -262,7 +274,7 @@ void FinishedGameData::printDebug(ostream& out) const {
 //Don't forget to update everything else in the header file and the code below too if changing any of these
 //And update the python code
 static const int POLICY_TARGET_NUM_CHANNELS = 2;
-static const int GLOBAL_TARGET_NUM_CHANNELS = 64;
+static const int GLOBAL_TARGET_NUM_CHANNELS = 80;
 static const int VALUE_SPATIAL_TARGET_NUM_CHANNELS = 5;
 static const int QVALUE_SPATIAL_TARGET_NUM_CHANNELS = 3;
 
@@ -468,7 +480,8 @@ void TrainingWriteBuffers::addRow(
   int numExtraBlack,
   int mode,
   SGFMetadata* sgfMeta,
-  Rand& rand
+  Rand& rand,
+  const ReanalysisData& reanalysisData
 ) {
   static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
   if(inputsVersion < 3 || inputsVersion > 7)
@@ -674,9 +687,21 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[62] = (!isSidePosition && actualGameEndHist.isGameFinished && !hitTurnLimit) ? 1.0f : 0.0f;
 
   //Version
-  rowGlobal[63] = 2.0f;
+  rowGlobal[63] = 3.0f;
 
-  testAssert(64 == GLOBAL_TARGET_NUM_CHANNELS);
+  //Reanalysis info - whether this position originally got only a cheap search and was redone with a full
+  //search after the game, and if so, the original cheap search's surprise stats that drove its selection
+  //and its visit count.
+  rowGlobal[64] = reanalysisData.wasReanalyzed ? 1.0f : 0.0f;
+  rowGlobal[65] = reanalysisData.wasReanalyzed ? reanalysisData.selectionPolicySurprise : 0.0f;
+  rowGlobal[66] = reanalysisData.wasReanalyzed ? reanalysisData.selectionValueSurprise : 0.0f;
+  rowGlobal[67] = reanalysisData.wasReanalyzed ? (float)reanalysisData.originalNumVisits : 0.0f;
+
+  //Unused
+  for(int i = 68; i<80; i++)
+    rowGlobal[i] = 0.0f;
+
+  testAssert(80 == GLOBAL_TARGET_NUM_CHANNELS);
 
   int scoreDistrLen = posArea*2 + NNPos::EXTRA_SCORE_DISTR_RADIUS*2;
   int scoreDistrMid = posArea + NNPos::EXTRA_SCORE_DISTR_RADIUS;
@@ -1076,6 +1101,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
   testAssert(data.whiteValueTargetsByTurn.size() == numMoves+1);
   testAssert(data.whiteQValueTargetsByTurn.size() == numMoves);
   testAssert(data.nnRawStatsByTurn.size() == numMoves);
+  testAssert(data.reanalysisByTurn.size() == numMoves || data.reanalysisByTurn.size() == 0);
 
   //Some sanity checks
   {
@@ -1140,13 +1166,31 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     float tdValueTargetWeight = 1.0f;
     float leadTargetWeightFactor = 1.0f;
 
+    ReanalysisData reanalysisData;
+    if(turnAfterStart < data.reanalysisByTurn.size())
+      reanalysisData = data.reanalysisByTurn[turnAfterStart];
+
     int numNeuralNetsBehindLatest = 0;
-    for(int i = 0; i<data.changedNeuralNets.size(); i++) {
-      if(data.changedNeuralNets[i]->turnIdx > turnIdx) {
-        numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size()-i;
-        break;
+    if(reanalysisData.wasReanalyzed) {
+      //Reanalysis searches happen after the game ends, so they use the net as of their creation rather than the net at this turn.
+      numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size() - reanalysisData.numNeuralNetChangesSoFar;
+    }
+    else {
+      for(int i = 0; i<data.changedNeuralNets.size(); i++) {
+        if(data.changedNeuralNets[i]->turnIdx > turnIdx) {
+          numNeuralNetsBehindLatest = (int)data.changedNeuralNets.size()-i;
+          break;
+        }
       }
     }
+
+    //If this position was reanalyzed and we're not using outcome targets for reanalyzed positions, then skip
+    //the targets derived from the final board and the actual game continuation (ownership, final score,
+    //future board positions, and the next-move policy target, which comes from the next turn's search along
+    //the continuation the reanalysis search may not prefer). The value targets are still computed from the
+    //game's value target array as normal - the entry at this turn is the reanalysis search's values, and
+    //later turns and past positions read that array too.
+    bool skipOutcomeDerivedTargets = reanalysisData.wasReanalyzed && !reanalysisData.usedOutcomeTargets;
 
     while(targetWeight > 0.0) {
       if(targetWeight >= 1.0 || rand.nextBool(targetWeight)) {
@@ -1159,7 +1203,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             (float)data.trainingWeight,
             unreducedNumVisits,
             policyTarget0,
-            policyTarget1,
+            skipOutcomeDerivedTargets ? NULL : policyTarget1,
             data.policySurpriseByTurn[turnAfterStart],
             data.policyEntropyByTurn[turnAfterStart],
             data.searchEntropyByTurn[turnAfterStart],
@@ -1170,11 +1214,11 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             tdValueTargetWeight,
             leadTargetWeightFactor,
             data.nnRawStatsByTurn[turnAfterStart],
-            &(data.endHist.getRecentBoard(0)),
-            data.finalFullArea,
-            data.finalOwnership,
-            data.finalWhiteScoring,
-            &posHistForFutureBoards,
+            skipOutcomeDerivedTargets ? NULL : &(data.endHist.getRecentBoard(0)),
+            skipOutcomeDerivedTargets ? NULL : data.finalFullArea,
+            skipOutcomeDerivedTargets ? NULL : data.finalOwnership,
+            skipOutcomeDerivedTargets ? NULL : data.finalWhiteScoring,
+            skipOutcomeDerivedTargets ? NULL : &posHistForFutureBoards,
             isSidePosition,
             numNeuralNetsBehindLatest,
             data.drawEquivalentWinsForWhite,
@@ -1186,7 +1230,8 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
             data.numExtraBlack,
             data.mode,
             NULL,
-            rand
+            rand,
+            reanalysisData
           );
           writeAndClearIfFull();
         }

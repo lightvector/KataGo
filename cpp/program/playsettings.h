@@ -59,6 +59,27 @@ struct PlaySettings {
   //Scale frequency weights for writing data by this
   double scaleDataWeight;
 
+  //After the game ends, select some cheap-search positions and redo them with a full search to record
+  //as training data, favoring positions whose cheap search was surprising. Replaces the behavior where
+  //sufficiently policy-surprising cheap searches would be recorded (at reduced weight) based on the cheap
+  //search itself - note that this replaced behavior is disabled for cheap searches whenever useReanalyze is
+  //true, even if reanalyzeProp is 0. It remains active for reduced-weight rows that are not cheap searches,
+  //i.e. rows whose visits were reduced due to extreme winrates, including reanalyzed rows reduced that way.
+  bool useReanalyze;
+  //Number of positions reanalyzed is binomial with this probability on the number of cheap-search positions.
+  double reanalyzeProp;
+  //Positions are drawn without replacement with probability proportional to
+  //(reanalyzePolicySurpriseWeight * policySurprise + reanalyzeValueSurpriseWeight * valueSurprise) ** reanalyzeSurpriseExponent
+  //where policySurprise and valueSurprise are those of the original cheap search.
+  double reanalyzePolicySurpriseWeight;
+  double reanalyzeValueSurpriseWeight;
+  double reanalyzeSurpriseExponent;
+  //If true, reanalyzed positions are recorded exactly like normal full-search positions. If false, they omit the
+  //targets derived from the final board and the actual game continuation (ownership, final score, future board
+  //positions), but still record policy, lead, and value targets (which as usual blend the searched values of this
+  //and later turns with the game outcome).
+  bool reanalyzeUseOutcomeTargets;
+
   //Record positions from within the search tree that had at least this many visits, recording only with this weight.
   bool recordTreePositions;
   int recordTreeThreshold;

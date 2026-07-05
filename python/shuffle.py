@@ -24,13 +24,18 @@ from typing import Sequence
 # Needs to be kept in sync with QVALUE_SPATIAL_TARGET_NUM_CHANNELS in trainingwrite.cpp C++ code among other places.
 EXPECTED_Q_VALUE_TARGETS_NCMOVE_CHANNELS = 3
 
+# Needs to be kept in sync with GLOBAL_TARGET_NUM_CHANNELS in trainingwrite.cpp C++ code among other places.
+# Data format version 2 files (recorded in channel 63 of each row) had only 64 channels; they are zero-padded
+# up to this width when shuffling, which correctly encodes "not reanalyzed" for the version 3 channels.
+GLOBAL_TARGETS_NC_CHANNELS = 80
+
 # Empirically measured per-row sizes for 19x19 data, used only for the rough resource-cost
 # estimates printed by -dry-run-print-resource-cost (and informationally on normal runs).
 
 # binaryInputNCHWPacked 1012, globalInputNC 76, policyTargetsNCMove 1448,
-# globalTargetsNC 256, scoreDistrN 842, valueTargetsNCHW 1805  (sum = 5439, "required")
+# globalTargetsNC 320, scoreDistrN 842, valueTargetsNCHW 1805  (sum = 5503, "required")
 # + qValueTargetsNCMove 2172, + metadataInputNC 768 when those are included.
-UNCOMPRESSED_BYTES_PER_ROW_REQUIRED_19 = 5439
+UNCOMPRESSED_BYTES_PER_ROW_REQUIRED_19 = 5503
 UNCOMPRESSED_BYTES_PER_ROW_QVALUES_19 = 2172
 UNCOMPRESSED_BYTES_PER_ROW_META_19 = 768
 # Whole-file (large npz) compressed size as a fraction of uncompressed, measured on
@@ -142,6 +147,16 @@ def save_output_npz(
         **save_dict
     )
 
+def pad_global_targets_nc(globalTargetsNC: np.ndarray) -> np.ndarray:
+    """Zero-pad older-format globalTargetsNC rows up to the current channel count."""
+    num_channels = globalTargetsNC.shape[1]
+    if num_channels == GLOBAL_TARGETS_NC_CHANNELS:
+        return globalTargetsNC
+    assert num_channels < GLOBAL_TARGETS_NC_CHANNELS, f"globalTargetsNC has {num_channels} channels, more than the expected {GLOBAL_TARGETS_NC_CHANNELS}"
+    padded = np.zeros((globalTargetsNC.shape[0], GLOBAL_TARGETS_NC_CHANNELS), dtype=globalTargetsNC.dtype)
+    padded[:, :num_channels] = globalTargetsNC
+    return padded
+
 def load_and_accumulate_input_contents(
     input_file: str,
     binaryInputNCHWPackedList: list[np.ndarray],
@@ -161,7 +176,7 @@ def load_and_accumulate_input_contents(
         binaryInputNCHWPackedList.append(npz["binaryInputNCHWPacked"])
         globalInputNCList.append(npz["globalInputNC"])
         policyTargetsNCMoveList.append(npz["policyTargetsNCMove"])
-        globalTargetsNCList.append(npz["globalTargetsNC"])
+        globalTargetsNCList.append(pad_global_targets_nc(npz["globalTargetsNC"]))
         scoreDistrNList.append(npz["scoreDistrN"])
         valueTargetsNCHWList.append(npz["valueTargetsNCHW"])
         if metadataInputNCList is not None:
