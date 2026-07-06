@@ -122,6 +122,12 @@ struct FinishedGameData {
   std::vector<QValueTargets> whiteQValueTargetsByTurn;
   std::vector<NNRawStats> nnRawStatsByTurn;
   std::vector<ReanalysisData> reanalysisByTurn; //May be empty if no reanalysis was configured
+  //Statistical info, not used for training targets. The value surprise of each turn as used for surprise-based
+  //data weighting (if reanalysis happened, recomputed afterward, so reanalyzed turns reflect the reanalysis
+  //search rather than the value surprise that drove their selection), and whether each turn's search during
+  //the game was a cheap search.
+  std::vector<double> valueSurpriseByTurn;
+  std::vector<bool> wasCheapSearchByTurn;
 
   Color* finalFullArea;
   Color* finalOwnership;

@@ -2028,6 +2028,10 @@ FinishedGameData* Play::runGame(
       }
     }
 
+    //Record for statistical purposes (e.g. the selfplaysurprisedump command)
+    gameData->valueSurpriseByTurn = valueSurpriseByTurn;
+    gameData->wasCheapSearchByTurn = wasCheapSearchByTurn;
+
     //Compute desired expectation with which to write main game rows
     if(playSettings.policySurpriseDataWeight > 0 || playSettings.valueSurpriseDataWeight > 0) {
       size_t numWeights = gameData->targetWeightByTurn.size();
