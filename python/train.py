@@ -2,6 +2,7 @@
 import sys
 import os
 import argparse
+import re
 import traceback
 import random
 import math
@@ -81,6 +82,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
     optional_args.add_argument('-lr-scale-auto', help='LR auto scaling', required=False, action='store_true')
     optional_args.add_argument('-lr-scale-auto2', help='LR auto scaling 2', required=False, type=float)
+    optional_args.add_argument('-lr-schedule', help="Explicit piecewise-constant LR scale schedule as (global_step_samples,lr_scale) points, e.g. '(0,12.0),(20M,9.0),(40M,6.0)'. Must start at (0,...); each point sets the LR scale from that sample count onward. Counts accept K/M/B suffixes. Mutually exclusive with -lr-scale/-lr-scale-auto/-lr-scale-auto2.", required=False, type=str)
     optional_args.add_argument('-head-lr-factor', help='LR factor for output head weights', type=float, required=False, default=0.5)
     optional_args.add_argument('-noreg-lr-factor', help='LR factor for noreg params (biases, norms)', type=float, required=False, default=1.0)
     optional_args.add_argument('-muon-adam-lr-factor', help='LR factor for muon-ineligible (adam) params when using muon', type=float, required=False, default=1.0)
@@ -146,6 +148,39 @@ if __name__ == "__main__":
 
     args = vars(parser.parse_args())
 
+
+def parse_sample_count(s):
+    """Parse a sample-count token like '0', '20M', '1.5B', '250K' into an int."""
+    s = s.strip()
+    mult = 1.0
+    if s and s[-1] in "kK":
+        mult = 1e3; s = s[:-1]
+    elif s and s[-1] in "mM":
+        mult = 1e6; s = s[:-1]
+    elif s and s[-1] in "bBgG":
+        mult = 1e9; s = s[:-1]
+    return int(round(float(s) * mult))
+
+def parse_lr_schedule(schedule_str):
+    """Parse an explicit LR schedule string into a sorted list of (samples, lr_scale) points.
+
+    Format: a sequence of '(samples,lr_scale)' points separated by ',' or ';', e.g.
+    '(0,12.0),(20M,9.0),(40M,6.0)'. Sample counts accept K/M/B suffixes. The schedule is
+    piecewise-constant: at global_step_samples >= a point's sample count, the LR scale becomes
+    that point's value, until the next point. Must start at samples == 0 and have strictly
+    increasing sample thresholds.
+    """
+    points = []
+    for m in re.finditer(r"\(\s*([0-9.eE+\-kKmMbBgG]+)\s*,\s*([0-9.eE+\-]+)\s*\)", schedule_str):
+        points.append((parse_sample_count(m.group(1)), float(m.group(2))))
+    if not points:
+        raise ValueError(f"Could not parse any (samples,lr_scale) points from -lr-schedule: {schedule_str!r}")
+    if points[0][0] != 0:
+        raise ValueError(f"-lr-schedule must start at samples 0, got first point at {points[0][0]}")
+    for i in range(1, len(points)):
+        if points[i][0] <= points[i-1][0]:
+            raise ValueError(f"-lr-schedule sample thresholds must be strictly increasing: {points}")
+    return points
 
 def get_longterm_checkpoints_dir(traindir):
     return os.path.join(traindir,"longterm_checkpoints")
@@ -304,6 +339,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
     lr_scale = args["lr_scale"]
     lr_scale_auto = args["lr_scale_auto"]
     lr_scale_auto2 = args["lr_scale_auto2"]
+    lr_schedule = parse_lr_schedule(args["lr_schedule"]) if args["lr_schedule"] is not None else None
     head_lr_factor = args["head_lr_factor"]
     noreg_lr_factor = args["noreg_lr_factor"]
     muon_adam_lr_factor = args["muon_adam_lr_factor"]
@@ -374,6 +410,10 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         lr_scale = 1.0
     if lr_scale_auto or lr_scale_auto2 is not None:
         assert lr_scale == 1.0, "Cannot specify both lr_scale and lr_scale_auto"
+    if lr_schedule is not None:
+        assert lr_scale == 1.0, "Cannot specify both -lr-scale and -lr-schedule"
+        assert not lr_scale_auto and lr_scale_auto2 is None, "Cannot specify -lr-schedule together with -lr-scale-auto/-lr-scale-auto2"
+        logging.info("Using explicit -lr-schedule: " + ", ".join(f"(samples>={s}: scale {v})" for s, v in lr_schedule))
 
     assert not (not datadir and not latestdatadir), "Must specify one of -datadir and -latestdatadir"
     assert not (datadir and latestdatadir), "Must specify only one of -datadir and -latestdatadir"
@@ -499,6 +539,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             if train_state["global_step_samples"] < 600000000:
                 return 0.08 * lr_scale_auto2
             return 0.05 * lr_scale_auto2
+        elif lr_schedule is not None:
+            # Piecewise-constant: use the value of the last point whose threshold <= current samples.
+            samples = train_state["global_step_samples"]
+            scale = lr_schedule[0][1]
+            for (thresh, val) in lr_schedule:
+                if samples >= thresh:
+                    scale = val
+                else:
+                    break
+            return scale
         else:
             return 1.0
 
