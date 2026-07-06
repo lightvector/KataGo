@@ -147,6 +147,22 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     # Linux: Use hipcc
     set(CMAKE_C_COMPILER  /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
     set(CMAKE_CXX_COMPILER /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
+    # ---------- HIP architectures (must be set before project()/enable_language(HIP)) ----------
+    # project(... HIP) below triggers CMake's own HIP language detection, which auto-populates
+    # CMAKE_HIP_ARCHITECTURES with just the native/current GPU's arch if it isn't already set by
+    # then. That makes the broad-default-arch logic further down (before enable_language(HIP))
+    # a no-op, since by that point CMAKE_HIP_ARCHITECTURES already looks "user-specified". Set the
+    # broad default here instead, before project(), mirroring the Windows pre-project block above.
+    if(NOT CMAKE_HIP_COMPILER AND EXISTS "/opt/rocm/bin/hipcc")
+      set(CMAKE_HIP_COMPILER "/opt/rocm/bin/hipcc" CACHE FILEPATH "" FORCE)
+    endif()
+    if(NOT DEFINED CMAKE_HIP_ARCHITECTURES)
+      katago_default_hip_archs(_default_archs)
+      set(CMAKE_HIP_ARCHITECTURES "${_default_archs}" CACHE STRING "Default broad set of AMD GPU targets")
+      message(STATUS "Pre-project default CMAKE_HIP_ARCHITECTURES=${CMAKE_HIP_ARCHITECTURES}")
+    else()
+      message(STATUS "Pre-project user-specified CMAKE_HIP_ARCHITECTURES=${CMAKE_HIP_ARCHITECTURES}")
+    endif()
   endif()
   project(katago LANGUAGES C CXX HIP)
 else()
