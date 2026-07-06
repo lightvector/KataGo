@@ -66,6 +66,18 @@ jobs:
       - name: Install dependencies
         run: |
           brew install zlib libzip opencl-headers
+
+      # CMake resolves find_package(ZLIB) to the SDK's libz.tbd and bakes its
+      # absolute path (e.g. .../Xcode_16.4.app/.../MacOSX.sdk/usr/lib/libz.tbd)
+      # into the cached build.ninja/CMakeCache.txt. When GitHub bumps the
+      # runner's default Xcode that path disappears and the cached ninja build
+      # fails. Fold the Xcode version into the cache key so a bump forces a
+      # fresh configure.
+      - name: Capture toolchain version for cache key
+        id: xcode-version
+        run: |
+          echo "xcode=$(xcodebuild -version | tr '\n' '-')" >> "$GITHUB_OUTPUT"
+
       - name: Cache CMake build
         uses: actions/cache@v4
         with:
@@ -75,9 +87,9 @@ jobs:
             cpp/build.ninja
             cpp/.ninja_deps
             cpp/.ninja_log
-          key: ${{ runner.os }}-cmake-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-cmake-${{ steps.xcode-version.outputs.xcode }}-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-cmake-
+            ${{ runner.os }}-cmake-${{ steps.xcode-version.outputs.xcode }}-
       - name: Configure CMake
         working-directory: cpp
         run: |
@@ -110,6 +122,20 @@ jobs:
         run: |
           brew install ninja zlib libzip protobuf abseil
 
+      # The CMake build (build.ninja, CMakeCache.txt) bakes in version-pinned
+      # Homebrew Cellar paths for protobuf/abseil (e.g.
+      # -L/opt/homebrew/Cellar/protobuf/34.1/lib). When Homebrew bumps those
+      # the cached paths go stale and the link fails.
+      # Capture the installed versions into the cache key so
+      # a formula bump invalidates the cache and forces a fresh configure.
+      # Also fold in the Xcode version: CMake bakes the SDK's absolute
+      # libz.tbd path into the cached build, so an Xcode bump on the runner
+      # leaves a stale path and breaks the cached ninja build.
+      - name: Capture dependency versions for cache key
+        id: dep-versions
+        run: |
+          echo "versions=$(brew list --versions protobuf abseil | tr '\n' '-')$(xcodebuild -version | tr '\n' '-')" >> "$GITHUB_OUTPUT"
+
       - name: Cache CMake build
         uses: actions/cache@v4
         with:
@@ -119,9 +145,9 @@ jobs:
             cpp/build.ninja
             cpp/.ninja_deps
             cpp/.ninja_log
-          key: ${{ runner.os }}-cmake-metal-${{ hashFiles('**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-cmake-metal-${{ steps.dep-versions.outputs.versions }}-${{ hashFiles('**/CMakeLists.txt') }}
           restore-keys: |
-            ${{ runner.os }}-cmake-metal-
+            ${{ runner.os }}-cmake-metal-${{ steps.dep-versions.outputs.versions }}-
 
       - name: Configure CMake
         working-directory: cpp
@@ -174,7 +200,7 @@ jobs:
     - name: Configure CMake
       working-directory: cpp
       run: |
-        cmake . -G "Visual Studio 17 2022" -A x64 `
+        cmake . -A x64 `
           -DUSE_BACKEND=OPENCL `
           -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
 

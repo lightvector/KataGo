@@ -232,6 +232,18 @@ struct Board
   //If it does contain a zero liberty group, fails and returns false and leaves the board in an arbitrarily changed but valid state.
   //Also returns false if any location is specified more than once.
   bool setStonesFailIfNoLibs(const std::vector<Move>& placements);
+  //Faithfully overlays the given placements (loc -> color, where C_EMPTY clears a location) onto the current board,
+  //even if doing so temporarily produces groups with zero liberties. Then SIMULTANEOUSLY removes every black or white
+  //stone belonging to a group that has zero liberties (so if two touching groups of opposing colors both have zero
+  //liberties, both groups are removed). Placements on walls or off-board locations are ignored, as are placements with
+  //a color other than C_EMPTY/C_BLACK/C_WHITE. Clears the simple ko location. Returns the number of stones removed by
+  //the zero-liberty cleanup.
+  int setStonesTolerant(const std::vector<Move>& placements);
+
+  //Recompute pos_hash and all chain bookkeeping (chain_head, next_in_chain, chain_data) from scratch
+  //based purely on the current colors[] array. Does not modify colors[] or ko_loc. Requires that colors[]
+  //already be a valid configuration (walls intact); any stone group is allowed, including zero-liberty groups.
+  void regenChainsFromColors();
 
   //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
   bool playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal);

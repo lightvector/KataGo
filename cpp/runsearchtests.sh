@@ -55,9 +55,9 @@ set -o pipefail
 ./katago runnnbatchingtest tests/models/g170-b6c96-s175395328-d26788732.bin.gz true true false | tee tests/results/runNNBatchingTestNHWC.txt
 ./katago runnnbatchingtest models/kata1-b28c512nbt-s8326494464-d4628051565.bin.gz true true false | tee tests/results/runNNBatchingTestNHWCB28.txt
 
-./katago runnnevalcanarytests configs/gtp_example.cfg tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz 0 | grep -v ': nnRandSeed0 = ' | tee tests/results/runNNCanaryTests.txt
-./katago runnnevalcanarytests configs/gtp_example.cfg tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz 3 | grep -v ': nnRandSeed0 = ' | tee -a tests/results/runNNCanaryTests.txt
-./katago runnnevalcanarytests configs/gtp_example.cfg tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz 6 | grep -v ': nnRandSeed0 = ' | tee -a tests/results/runNNCanaryTests.txt
+./katago runnnevalcanarytests -config configs/gtp_example.cfg -model tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz -symmetry 0 | grep -v ': nnRandSeed0 = ' | tee tests/results/runNNCanaryTests.txt
+./katago runnnevalcanarytests -config configs/gtp_example.cfg -model tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz -symmetry 3 | grep -v ': nnRandSeed0 = ' | tee -a tests/results/runNNCanaryTests.txt
+./katago runnnevalcanarytests -config configs/gtp_example.cfg -model tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz -symmetry 6 | grep -v ': nnRandSeed0 = ' | tee -a tests/results/runNNCanaryTests.txt
 
 mkdir -p tests/scratch
 ./katago runtinynntests tests/scratch 1.0 | grep -v ': nnRandSeed0 = ' | grep -v 'finishing, processed' | tee tests/results/runTinyNNTests.txt

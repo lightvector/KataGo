@@ -10,6 +10,7 @@ namespace OpenCLKernels {
   extern std::string actReluDefine;
   extern std::string actMishDefine;
   extern std::string actMishScale8Define;
+  extern std::string actSiluDefine;
 
   extern std::string common;
   extern std::string conv2dNCHW;
@@ -31,6 +32,16 @@ namespace OpenCLKernels {
   extern std::string xgemm;
   extern std::string hgemmWmma;
   extern std::string hgemmWmmaNCHW;
+
+  // Transformer kernels
+  extern std::string transformerRMSNorm;
+  extern std::string transformerSpatialRMSNormSumSq;
+  extern std::string transformerSpatialRMSNormReduce;
+  extern std::string transformerSpatialRMSNormApply;
+  extern std::string transformerApplyRoPE;
+  extern std::string transformerScaledDotProductAttention;
+  extern std::string transformerScaledDotProductAttentionNaive;
+  extern std::string transformerSwiGLU;
 }
 
 

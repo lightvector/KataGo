@@ -753,7 +753,8 @@ void Sgf::loadAllUniquePositions(
   bool flipIfPassOrWFirst,
   bool allowGameOver,
   Rand* rand,
-  vector<PositionSample>& samples
+  vector<PositionSample>& samples,
+  bool tolerateIllegalMoves
 ) const {
   std::function<void(PositionSample&, const BoardHistory&, const string&)> f = [&samples](const PositionSample& sample, const BoardHistory& hist, const string& comments) {
     (void)hist;
@@ -761,7 +762,7 @@ void Sgf::loadAllUniquePositions(
     samples.push_back(sample);
   };
 
-  iterAllUniquePositions(uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,rand,f);
+  iterAllUniquePositions(uniqueHashes,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,rand,f,tolerateIllegalMoves);
 }
 
 void Sgf::iterAllUniquePositions(
@@ -771,7 +772,8 @@ void Sgf::iterAllUniquePositions(
   bool flipIfPassOrWFirst,
   bool allowGameOver,
   Rand* rand,
-  const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
+  const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f,
+  bool tolerateIllegalMoves
 ) const {
   XYSize size = getXYSize();
   int xSize = size.x;
@@ -791,14 +793,15 @@ void Sgf::iterAllUniquePositions(
   bool isRoot = true;
   bool requireUnique = true;
   iterAllPositionsHelper(
-    board,hist,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,isRoot,rand,variationTraceNodesBranch,f
+    board,hist,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,tolerateIllegalMoves,isRoot,rand,variationTraceNodesBranch,f
   );
 }
 void Sgf::iterAllPositions(
   bool flipIfPassOrWFirst,
   bool allowGameOver,
   Rand* rand,
-  const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
+  const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f,
+  bool tolerateIllegalMoves
 ) const {
   XYSize size = getXYSize();
   int xSize = size.x;
@@ -821,7 +824,7 @@ void Sgf::iterAllPositions(
   bool hashComments = false;
   bool hashParent = false;
   iterAllPositionsHelper(
-    board,hist,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,isRoot,rand,variationTraceNodesBranch,f
+    board,hist,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,tolerateIllegalMoves,isRoot,rand,variationTraceNodesBranch,f
   );
 }
 
@@ -835,11 +838,34 @@ void Sgf::iterAllPositionsHelper(
   bool hashParent,
   bool flipIfPassOrWFirst,
   bool allowGameOver,
+  bool tolerateIllegalMoves,
   bool isRoot,
   Rand* rand,
   std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
   const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
 ) const {
+  // Build a human-readable trace describing how to navigate to the given node, for error/warning messages.
+  auto buildTrace = [&](size_t nodeIdx) {
+    ostringstream trace;
+    for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
+      trace << "forward " << variationTraceNodesBranch[s].first << " ";
+      trace << "branch " << variationTraceNodesBranch[s].second << " ";
+    }
+    trace << "forward " << nodeIdx;
+    return trace.str();
+  };
+
+  // Interrupt and reset the board history, treating the current board as a fresh setup position, exactly the way
+  // a setup (placement/player-change) node does. Keeps an approximate initial turn number for downstream uses.
+  auto interruptHistoryLikeSetup = [&]() {
+    board.clearSimpleKoLoc();
+    int64_t initialTurnNumber = hist.initialTurnNumber + (int64_t)hist.moveHistory.size();
+    if(board.numStonesOnBoard() > initialTurnNumber)
+      initialTurnNumber = board.numStonesOnBoard();
+    hist.clear(board,nextPla,rules,0);
+    hist.setInitialTurnNumber(initialTurnNumber);
+  };
+
   vector<Move> buf;
   for(size_t i = 0; i<nodes.size(); i++) {
     string comments;
@@ -865,18 +891,21 @@ void Sgf::iterAllPositionsHelper(
           if(board.colors[buf[j].loc] == C_EMPTY && buf[j].pla != C_EMPTY)
             netStonesAdded++;
         }
-        bool suc = board.setStonesFailIfNoLibs(buf);
-        if(!suc) {
-          ostringstream trace;
-          for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
-            trace << "forward " << variationTraceNodesBranch[s].first << " ";
-            trace << "branch " << variationTraceNodesBranch[s].second << " ";
+        if(tolerateIllegalMoves) {
+          // Apply the setup faithfully, then simultaneously remove any zero-liberty stones, warning if any were removed.
+          int numRemoved = board.setStonesTolerant(buf);
+          if(numRemoved > 0) {
+            cerr << "WARNING: Removed " << numRemoved << " zero-liberty stone(s) from illegal setup in " << fileName
+                 << " SGF trace (branches 0-indexed): " << buildTrace(i) << endl;
           }
-          trace << "forward " << i;
-
-          throw StringError(
-            "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + trace.str()
-          );
+        }
+        else {
+          bool suc = board.setStonesFailIfNoLibs(buf);
+          if(!suc) {
+            throw StringError(
+              "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + buildTrace(i)
+            );
+          }
         }
       }
 
@@ -910,28 +939,78 @@ void Sgf::iterAllPositionsHelper(
     nodes[i]->accumMoves(buf,xSize,ySize);
 
     for(size_t j = 0; j<buf.size(); j++) {
-      // For this we disallow simple ko violations because those will lead to weird positional histories
-      bool suc = !board.isKoBanned(buf[j].loc) && hist.makeBoardMoveTolerant(board,buf[j].loc,buf[j].pla);
-      if(!suc) {
-        ostringstream trace;
-        for(size_t s = 0; s < variationTraceNodesBranch.size(); s++) {
-          trace << "forward " << variationTraceNodesBranch[s].first << " ";
-          trace << "branch " << variationTraceNodesBranch[s].second << " ";
-        }
-        trace << "forward " << i;
+      Loc moveLoc = buf[j].loc;
+      Player movePla = buf[j].pla;
 
-        // hist.printBasicInfo(trace, board);
-        // hist.printDebugInfo(trace, board);
-        // trace << Location::toString(buf[j].loc,board) << endl;
+      // Classify the move's legality at several levels:
+      // tolerantLegal - playable at all under tolerant rules
+      //   * Rejects single-stone suicide, occupied/oob, requires the player is actually one of the two players
+      //   * Tolerates violations of simple ko, superko, and multi-stone suicide, and whose turn is supposed to be next
+      // simpleKoBanned - violates the simple ko
+      // superKoIllegal - violates superko (if the rules in force do have superko)
+      // ruleSuicideIllegal - a multi-stone self-capture that the rules in force forbid
+      bool tolerantLegal = hist.isLegalTolerant(board,moveLoc,movePla);
+      bool simpleKoBanned = board.isKoBanned(moveLoc);
+      bool superKoIllegal = hist.superKoBanned[moveLoc];
+      bool ruleSuicideIllegal = moveLoc != Board::PASS_LOC && board.isIllegalSuicide(moveLoc,movePla,rules.multiStoneSuicideLegal);
 
+      // Ko/superko/out-of-turn are history-or-turn-order violations of an otherwise-normal board transition, so we
+      // play the move but reset history first, recording it as the sole move of fresh history (interrupt BEFORE).
+      // A self-capture is a degenerate transition (the played group vanishes), so we play it and then reset, folding
+      // the result into a setup position with no recorded move (interrupt AFTER).
+      // NOTE: interruptHistoryAfterMove is currently unreachable via iterAllPositions/iterAllUniquePositions, which
+      // hardcode multiStoneSuicideLegal=true: under that flag the only isIllegalSuicide is single-stone suicide,
+      // which is already !tolerantLegal and thus skipped above. It would fire only if these were ever run with
+      // multiStoneSuicideLegal=false (a multi-stone self-capture). Kept for that case and as defensive logic.
+      bool interruptHistoryBeforeMove = simpleKoBanned || superKoIllegal || movePla != hist.presumedNextMovePla;
+      bool interruptHistoryAfterMove = ruleSuicideIllegal;
+
+      // Strict mode: throw on any move that is illegal under tolerance or that violates simple ko
+      if(!tolerateIllegalMoves && (!tolerantLegal || simpleKoBanned)) {
         throw StringError(
           "Illegal move in " + fileName + " effective turn " + Global::int64ToString((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) + " move " +
-          Location::toString(buf[j].loc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + trace.str()
+          Location::toString(moveLoc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + buildTrace(i)
         );
       }
+
+      // Tolerant mode, but illegal even under tolerance: skip the move entirely, treating the node like a setup node
+      // that did nothing - leave the board unchanged but interrupt/reset history. Warn, and do not sample (the
+      // position is unchanged from the prior node).
+      if(tolerateIllegalMoves && !tolerantLegal) {
+        cerr << "WARNING: Skipping illegal move in " << fileName << " effective turn "
+             << ((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) << " move "
+             << Location::toString(moveLoc, board.x_size, board.y_size)
+             << " SGF trace (branches 0-indexed): " << buildTrace(i) << endl;
+        interruptHistoryLikeSetup();
+        continue;
+      }
+
+      // We will play the move (it is at least tolerant-legal). In tolerant mode, warn for simple ko violations only;
+      // tolerated superko or multi-stone-suicide violations are played silently.
+      if(tolerateIllegalMoves && simpleKoBanned) {
+        cerr << "WARNING: Tolerating simple ko violation in " << fileName << " effective turn "
+             << ((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) << " move "
+             << Location::toString(moveLoc, board.x_size, board.y_size)
+             << " SGF trace (branches 0-indexed): " << buildTrace(i) << endl;
+      }
+
+      // Any move that isn't fully legal under the rules in force interrupts history like a setup node would,
+      // even though we played it. Some cases interrupt before, some interrupt after.
+      if(interruptHistoryBeforeMove)
+        interruptHistoryLikeSetup();
+
+      bool suc = hist.makeBoardMoveTolerant(board,moveLoc,movePla);
+      testAssert(suc);
+      (void)suc;
       if(hist.moveHistory.size() > 0x3FFFFFFF)
         throw StringError("too many moves in sgf");
-      nextPla = getOpp(buf[j].pla);
+      nextPla = getOpp(movePla);
+
+      // Any move that isn't fully legal under the rules in force interrupts history like a setup node would,
+      // even though we played it.
+      if(interruptHistoryAfterMove)
+        interruptHistoryLikeSetup();
+
       samplePositionHelper(board,hist,nextPla,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,comments,f);
     }
   }
@@ -950,7 +1029,7 @@ void Sgf::iterAllPositionsHelper(
     std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
     variationTraceNodesBranch.emplace_back((int64_t)nodes.size(),(int64_t)i);
     children[i]->iterAllPositionsHelper(
-      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,false,rand,variationTraceNodesBranch,f
+      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,tolerateIllegalMoves,false,rand,variationTraceNodesBranch,f
     );
     testAssert(variationTraceNodesBranch.size() > 0);
     variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));

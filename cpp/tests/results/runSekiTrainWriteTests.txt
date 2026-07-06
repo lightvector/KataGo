@@ -2,7 +2,7 @@ Running test for how a seki gets recorded
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 5 useFP16 = false useNHWC = false
-: Cuda backend thread 0: Model name: b6c96-s103408384-d26419149
+: Cuda backend thread 0: Model name: b6c96-s103408384-d26419149 (convnet, 1025157 params)
 seedBase: abc
 HASH: 2AE066C40DF5CAE139EFE3E7240C5D23
    A B C D E F G H J K L M N

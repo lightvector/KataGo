@@ -178,6 +178,10 @@ double ConvLayerDesc::getSpatialConvDepth() const {
   return (convYSize + convXSize - 2) / 4.0;
 }
 
+int64_t ConvLayerDesc::getNumParameters() const {
+  return (int64_t)weights.size();
+}
+
 void ConvLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
   testAssert(weights.size() == convYSize * convXSize * inChannels * outChannels);
   testAssert(scaling.size() == outChannels);
@@ -264,6 +268,12 @@ BatchNormLayerDesc& BatchNormLayerDesc::operator=(BatchNormLayerDesc&& other) {
   return *this;
 }
 
+
+int64_t BatchNormLayerDesc::getNumParameters() const {
+  // Count the learnable scale and bias (gamma/beta); mean and variance are running
+  // statistics rather than learned parameters.
+  return (int64_t)(hasScale ? numChannels : 0) + (int64_t)(hasBias ? numChannels : 0);
+}
 
 void BatchNormLayerDesc::computeMerged() {
   mergedScale.resize(numChannels);
@@ -367,6 +377,8 @@ ActivationLayerDesc::ActivationLayerDesc(istream& in, int modelVersion) {
       activation = ACTIVATION_RELU;
     else if(kind == "ACTIVATION_MISH")
       activation = ACTIVATION_MISH;
+    else if(kind == "ACTIVATION_SILU")
+      activation = ACTIVATION_SILU;
     else
       throw StringError(
         name + ": unknown activation " + kind
@@ -387,15 +399,29 @@ ActivationLayerDesc& ActivationLayerDesc::operator=(ActivationLayerDesc&& other)
   return *this;
 }
 
+// Scale 8 means that all activations in the relevant part of the net are divided by 8
+// and we adapt all functions so that the computations we do are equivalent in this space.
+// In particular, since we are transforming any input activation x => x/8, if the output
+// of a layer was f(x) before, it now needs to be f(x)/8.
+// Therefore, we need an activation function g s.t. g(x/8) => f(x)/8, or equivalently
+// g(x) = f(8x)/8
 void ActivationLayerDesc::applyScale8ToReduceActivations() {
   if(activation == ACTIVATION_IDENTITY) {
-    // pass
+    // pass. If f(x) = x, then g(x) = f(8x)/8 = 8x/8 = x = f(x)
   }
   else if(activation == ACTIVATION_RELU) {
-    // pass
+    // pass. If f(x) = max(x,0), then g(x) = f(8x)/8 = max(8x,0)/8 = max(x,0) = f(x)
   }
   else if(activation == ACTIVATION_MISH) {
+    // If f(x) = x * tanh(softplus(x)) then g(x) = f(8x)/8 = 8x * tanh(softplus(8x)) / 8 = x * tanh(softplus(8x))
+    // So we need a new activation function "mish_scale8" which we define as mish_scale8(x) = x * tanh(softplus(8x))
     activation = ACTIVATION_MISH_SCALE8;
+  }
+  else if(activation == ACTIVATION_SILU) {
+    // Not implemented right now, but if we wanted to, it would be:
+    // If f(x) = x / (1+exp(-x)) then g(x) = f(8x)/8 = 8x / (1+exp(-8x)) / 8 = x / (1+exp(-8x))
+    // So we need a new activation function "silu_scale8" which we define as silu_scale8(x) = x / (1+exp(-8x))
+    throw StringError("applyScale8ToReduceActivations not supported for ACTIVATION_SILU");
   }
   else if(activation == ACTIVATION_MISH_SCALE8) {
     throw StringError("Cannot applyScale8ToReduceActivations twice, already applied");
@@ -452,6 +478,10 @@ MatMulLayerDesc& MatMulLayerDesc::operator=(MatMulLayerDesc&& other) {
 }
 
 
+int64_t MatMulLayerDesc::getNumParameters() const {
+  return (int64_t)weights.size();
+}
+
 void MatMulLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
   testAssert(weights.size() == inChannels * outChannels);
   testAssert(scaling.size() == outChannels);
@@ -496,6 +526,10 @@ MatBiasLayerDesc& MatBiasLayerDesc::operator=(MatBiasLayerDesc&& other) {
   numChannels = other.numChannels;
   weights = std::move(other.weights);
   return *this;
+}
+
+int64_t MatBiasLayerDesc::getNumParameters() const {
+  return (int64_t)weights.size();
 }
 
 void MatBiasLayerDesc::applyScale8ToReduceActivations() {
@@ -559,6 +593,14 @@ void ResidualBlockDesc::iterConvLayers(const std::function<void(const ConvLayerD
 
 double ResidualBlockDesc::getSpatialConvDepth() const {
   return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
+}
+
+int64_t ResidualBlockDesc::getNumParameters() const {
+  return
+    preBN.getNumParameters() +
+    regularConv.getNumParameters() +
+    midBN.getNumParameters() +
+    finalConv.getNumParameters();
 }
 
 void ResidualBlockDesc::transformToReduceActivations() {
@@ -660,6 +702,17 @@ double GlobalPoolingResidualBlockDesc::getSpatialConvDepth() const {
   return regularConv.getSpatialConvDepth() + finalConv.getSpatialConvDepth();
 }
 
+int64_t GlobalPoolingResidualBlockDesc::getNumParameters() const {
+  return
+    preBN.getNumParameters() +
+    regularConv.getNumParameters() +
+    gpoolConv.getNumParameters() +
+    gpoolBN.getNumParameters() +
+    gpoolToBiasMul.getNumParameters() +
+    midBN.getNumParameters() +
+    finalConv.getNumParameters();
+}
+
 
 void GlobalPoolingResidualBlockDesc::transformToReduceActivations() {
   // Merge in any multiplications by values less than 1.0 to happen earlier.
@@ -758,6 +811,12 @@ void NestedBottleneckResidualBlockDesc::iterConvLayers(const std::function<void(
       const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
     }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      // No conv layers in transformer attention blocks
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      // No conv layers in transformer FFN blocks
+    }
     else {
       ASSERT_UNREACHABLE;
     }
@@ -782,6 +841,16 @@ double NestedBottleneckResidualBlockDesc::getSpatialConvDepth() const {
       const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       depth += desc->getSpatialConvDepth();
     }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      // Transformer blocks don't technically contribute spatial conv depth but in practice
+      // we count it as 2 for things that want to get a crude idea of model size.
+      depth += 2;
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      // Transformer blocks don't technically contribute spatial conv depth but in practice
+      // we count it as 2 for things that want to get a crude idea of model size.
+      depth += 2;
+    }
     else {
       ASSERT_UNREACHABLE;
     }
@@ -790,31 +859,102 @@ double NestedBottleneckResidualBlockDesc::getSpatialConvDepth() const {
   return depth;
 }
 
-void NestedBottleneckResidualBlockDesc::transformToReduceActivations() {
-  // Merge in any multiplications by values less than 1.0 to happen earlier.
-  std::vector<float> channelFactors;
-  std::vector<float> invChannelFactors;
-  postBN.extractChannelFactorsAbsLtOneWithInverses(channelFactors,invChannelFactors);
-  preConv.scaleOutputChannels(channelFactors);
+int64_t NestedBottleneckResidualBlockDesc::getNumParameters() const {
+  int64_t numParameters = 0;
+  numParameters += preBN.getNumParameters();
+  numParameters += preConv.getNumParameters();
 
   for(int i = 0; i < blocks.size(); i++) {
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      const TransformerAttentionDesc* desc = (const TransformerAttentionDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      const TransformerFFNDesc* desc = (const TransformerFFNDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  numParameters += postBN.getNumParameters();
+  numParameters += postConv.getNumParameters();
+  return numParameters;
+}
+
+static bool blocksContainTransformer(const std::vector<std::pair<int, unique_ptr_void>>& blocks) {
+  for(size_t i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+       blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND)
+      return true;
+  }
+  return false;
+}
+
+void NestedBottleneckResidualBlockDesc::transformToReduceActivations() {
+  // Extract per-channel scale factors from postBN and push into adjacent layers.
+  // Skip the per-channel scaling if any immediate child is a transformer block
+  // (RMSNorm is not invariant to per-channel scaling). But still recurse into
+  // child blocks for their own internal optimizations.
+  bool hasTransformerChild = blocksContainTransformer(blocks);
+
+  if(!hasTransformerChild) {
+    std::vector<float> channelFactors;
+    std::vector<float> invChannelFactors;
+    postBN.extractChannelFactorsAbsLtOneWithInverses(channelFactors,invChannelFactors);
+    preConv.scaleOutputChannels(channelFactors);
+
+    for(size_t i = 0; i < blocks.size(); i++) {
+      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+        desc->preBN.scaleInputChannels(invChannelFactors);
+        desc->finalConv.scaleOutputChannels(channelFactors);
+      }
+      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+        GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+        desc->preBN.scaleInputChannels(invChannelFactors);
+        desc->finalConv.scaleOutputChannels(channelFactors);
+      }
+      else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+        NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+        desc->preBN.scaleInputChannels(invChannelFactors);
+        desc->postConv.scaleOutputChannels(channelFactors);
+      }
+      else {
+        ASSERT_UNREACHABLE;
+      }
+    }
+  }
+
+  // Recurse into child blocks for their own internal optimizations
+  for(size_t i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
       ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
-      desc->preBN.scaleInputChannels(invChannelFactors);
-      desc->finalConv.scaleOutputChannels(channelFactors);
       desc->transformToReduceActivations();
     }
     else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
       GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
-      desc->preBN.scaleInputChannels(invChannelFactors);
-      desc->finalConv.scaleOutputChannels(channelFactors);
       desc->transformToReduceActivations();
     }
     else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
-      desc->preBN.scaleInputChannels(invChannelFactors);
-      desc->postConv.scaleOutputChannels(channelFactors);
       desc->transformToReduceActivations();
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      // No internal optimization needed for transformer blocks
     }
     else {
       ASSERT_UNREACHABLE;
@@ -826,7 +966,7 @@ void NestedBottleneckResidualBlockDesc::applyScale8ToReduceActivations() {
   preBN.applyScale8ToReduceActivations();
   preActivation.applyScale8ToReduceActivations();
 
-  for(int i = 0; i < blocks.size(); i++) {
+  for(size_t i = 0; i < blocks.size(); i++) {
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
       ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
       desc->applyScale8ToReduceActivations();
@@ -839,12 +979,369 @@ void NestedBottleneckResidualBlockDesc::applyScale8ToReduceActivations() {
       NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->applyScale8ToReduceActivations();
     }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      // Should not be reached - ModelDesc::applyScale8 guards against models with transformers
+      throw StringError("applyScale8ToReduceActivations called on block stack containing transformer blocks");
+    }
     else {
       ASSERT_UNREACHABLE;
     }
   }
   postBN.applyScale8ToReduceActivations();
   postActivation.applyScale8ToReduceActivations();
+}
+
+//-----------------------------------------------------------------------------
+
+RMSNormLayerDesc::RMSNormLayerDesc() : numChannels(0), epsilon(0), spatial(false), cgroupSize(0) {}
+
+RMSNormLayerDesc::RMSNormLayerDesc(istream& in, bool binaryFloats) {
+  in >> name;
+  in >> numChannels;
+  in >> epsilon;
+  int spatialInt;
+  in >> spatialInt;
+  spatial = (spatialInt != 0);
+  in >> cgroupSize;
+
+  if(in.fail())
+    throw StringError(name + ": rmsnorm layer failed to parse parameters");
+  if(epsilon <= 0 || epsilon > 1.0f)
+    throw StringError(name + ": rmsnorm epsilon (" + Global::doubleToString(epsilon) + ") is not positive or is too large");
+  if(numChannels < 1)
+    throw StringError(name + ": rmsnorm numChannels (" + Global::intToString(numChannels) + ") < 1");
+  if(cgroupSize != 0)
+    throw StringError(name + ": rmsnorm cgroupSize (" + Global::intToString(cgroupSize) + ") != 0, grouped spatial RMSNorm is not supported");
+
+  vector<float> floats;
+  readFloats(in, (size_t)numChannels, binaryFloats, name, floats);
+  gamma = floats;
+  readFloats(in, (size_t)numChannels, binaryFloats, name, floats);
+  beta = floats;
+
+  if(in.fail())
+    throw StringError(name + ": rmsnorm layer failed to parse gamma/beta weights");
+}
+
+RMSNormLayerDesc::RMSNormLayerDesc(RMSNormLayerDesc&& other) {
+  *this = std::move(other);
+}
+
+RMSNormLayerDesc& RMSNormLayerDesc::operator=(RMSNormLayerDesc&& other) {
+  name = std::move(other.name);
+  numChannels = other.numChannels;
+  epsilon = other.epsilon;
+  spatial = other.spatial;
+  cgroupSize = other.cgroupSize;
+  gamma = std::move(other.gamma);
+  beta = std::move(other.beta);
+  return *this;
+}
+
+int64_t RMSNormLayerDesc::getNumParameters() const {
+  return (int64_t)gamma.size() + (int64_t)beta.size();
+}
+
+//-----------------------------------------------------------------------------
+
+TransformerRMSNormDesc::TransformerRMSNormDesc() : numChannels(0), epsilon(0) {}
+
+TransformerRMSNormDesc::TransformerRMSNormDesc(istream& in, bool binaryFloats) {
+  in >> name;
+  in >> numChannels;
+  in >> epsilon;
+
+  if(in.fail())
+    throw StringError(name + ": transformer rmsnorm failed to parse parameters");
+  if(numChannels < 1)
+    throw StringError(name + ": transformer rmsnorm numChannels (" + Global::intToString(numChannels) + ") < 1");
+  if(epsilon <= 0 || epsilon > 1.0f)
+    throw StringError(name + ": transformer rmsnorm epsilon (" + Global::doubleToString(epsilon) + ") is not positive or is too large");
+
+  vector<float> floats;
+  readFloats(in, (size_t)numChannels, binaryFloats, name, floats);
+  weight = floats;
+
+  if(in.fail())
+    throw StringError(name + ": transformer rmsnorm failed to parse weights");
+}
+
+TransformerRMSNormDesc::TransformerRMSNormDesc(TransformerRMSNormDesc&& other) {
+  *this = std::move(other);
+}
+
+TransformerRMSNormDesc& TransformerRMSNormDesc::operator=(TransformerRMSNormDesc&& other) {
+  name = std::move(other.name);
+  numChannels = other.numChannels;
+  epsilon = other.epsilon;
+  weight = std::move(other.weight);
+  return *this;
+}
+
+int64_t TransformerRMSNormDesc::getNumParameters() const {
+  return (int64_t)weight.size();
+}
+
+//-----------------------------------------------------------------------------
+
+TransformerAttentionDesc::TransformerAttentionDesc()
+  : numHeads(0), numKVHeads(0), qHeadDim(0), vHeadDim(0),
+    useRope(false), learnableRope(false),
+    ropeNumKVHeads(0), ropeNumPairs(0), ropeTheta(0.0f)
+{}
+
+TransformerAttentionDesc::TransformerAttentionDesc(istream& in, bool binaryFloats) {
+  in >> name;
+  if(in.fail())
+    throw StringError(name + ": transformer attention block failed to parse name");
+
+  in >> numHeads;
+  in >> numKVHeads;
+  in >> qHeadDim;
+  in >> vHeadDim;
+  int useRopeInt, learnableRopeInt;
+  in >> useRopeInt;
+  in >> learnableRopeInt;
+  useRope = (useRopeInt != 0);
+  learnableRope = (learnableRopeInt != 0);
+
+  if(in.fail())
+    throw StringError(name + ": transformer attention block failed to parse header");
+  if(numHeads < 1 || numKVHeads < 1)
+    throw StringError(name + ": transformer attention numHeads and numKVHeads must be positive");
+  if(numHeads % numKVHeads != 0)
+    throw StringError(name + ": numHeads must be divisible by numKVHeads");
+  if(qHeadDim < 1 || vHeadDim < 1)
+    throw StringError(name + ": head dims must be positive");
+  // RoPE rotates interleaved channel pairs (2p, 2p+1), so qHeadDim must be even when rope is used.
+  // All backends assume this (qHeadDim/2 pairs); guard here so an odd qHeadDim fails loudly at load
+  // rather than silently dropping the last channel.
+  if(useRope && qHeadDim % 2 != 0)
+    throw StringError(name + Global::strprintf(": qHeadDim (%d) must be even when RoPE is used", qHeadDim));
+
+  preLN = TransformerRMSNormDesc(in, binaryFloats);
+  qProj = MatMulLayerDesc(in, binaryFloats);
+  kProj = MatMulLayerDesc(in, binaryFloats);
+  vProj = MatMulLayerDesc(in, binaryFloats);
+  outProj = MatMulLayerDesc(in, binaryFloats);
+
+  if(qProj.outChannels != numHeads * qHeadDim)
+    throw StringError(name + Global::strprintf(": qProj.outChannels (%d) != numHeads*qHeadDim (%d)", qProj.outChannels, numHeads * qHeadDim));
+  if(kProj.outChannels != numKVHeads * qHeadDim)
+    throw StringError(name + Global::strprintf(": kProj.outChannels (%d) != numKVHeads*qHeadDim (%d)", kProj.outChannels, numKVHeads * qHeadDim));
+  if(vProj.outChannels != numKVHeads * vHeadDim)
+    throw StringError(name + Global::strprintf(": vProj.outChannels (%d) != numKVHeads*vHeadDim (%d)", vProj.outChannels, numKVHeads * vHeadDim));
+  if(outProj.inChannels != numHeads * vHeadDim)
+    throw StringError(name + Global::strprintf(": outProj.inChannels (%d) != numHeads*vHeadDim (%d)", outProj.inChannels, numHeads * vHeadDim));
+
+  ropeNumKVHeads = 0;
+  ropeNumPairs = 0;
+  ropeTheta = 0.0f;
+
+  if(useRope) {
+    if(learnableRope) {
+      string ropeFreqsName;
+      in >> ropeFreqsName;
+      in >> ropeNumKVHeads;
+      in >> ropeNumPairs;
+      int ropeDim2;
+      in >> ropeDim2;
+      if(in.fail())
+        throw StringError(name + ": failed to parse learnable rope freq header");
+      if(ropeNumKVHeads != numKVHeads)
+        throw StringError(name + Global::strprintf(": ropeNumKVHeads (%d) != numKVHeads (%d)", ropeNumKVHeads, numKVHeads));
+      if(ropeNumPairs != qHeadDim / 2)
+        throw StringError(name + Global::strprintf(": ropeNumPairs (%d) != qHeadDim/2 (%d)", ropeNumPairs, qHeadDim / 2));
+      if(ropeDim2 != 2)
+        throw StringError(name + ": rope freq dim2 must be 2");
+
+      vector<float> floats;
+      readFloats(in, (size_t)ropeNumKVHeads * ropeNumPairs * 2, binaryFloats, name, floats);
+      ropeFreqs = floats;
+    }
+    else {
+      string ropeThetaName;
+      in >> ropeThetaName;
+      in >> ropeTheta;
+      if(in.fail())
+        throw StringError(name + ": failed to parse rope theta");
+      if(ropeTheta <= 0.0f)
+        throw StringError(name + ": rope theta must be positive");
+    }
+  }
+
+  if(in.fail())
+    throw StringError(name + ": transformer attention block parse failure (istream fail() return true)");
+}
+
+TransformerAttentionDesc::TransformerAttentionDesc(TransformerAttentionDesc&& other) {
+  *this = std::move(other);
+}
+
+TransformerAttentionDesc& TransformerAttentionDesc::operator=(TransformerAttentionDesc&& other) {
+  name = std::move(other.name);
+  numHeads = other.numHeads;
+  numKVHeads = other.numKVHeads;
+  qHeadDim = other.qHeadDim;
+  vHeadDim = other.vHeadDim;
+  useRope = other.useRope;
+  learnableRope = other.learnableRope;
+  preLN = std::move(other.preLN);
+  qProj = std::move(other.qProj);
+  kProj = std::move(other.kProj);
+  vProj = std::move(other.vProj);
+  outProj = std::move(other.outProj);
+  ropeNumKVHeads = other.ropeNumKVHeads;
+  ropeNumPairs = other.ropeNumPairs;
+  ropeFreqs = std::move(other.ropeFreqs);
+  ropeTheta = other.ropeTheta;
+  return *this;
+}
+
+int64_t TransformerAttentionDesc::getNumParameters() const {
+  return
+    preLN.getNumParameters() +
+    qProj.getNumParameters() +
+    kProj.getNumParameters() +
+    vProj.getNumParameters() +
+    outProj.getNumParameters() +
+    (int64_t)ropeFreqs.size();  // learnable RoPE frequencies, empty for fixed/no RoPE
+}
+
+void TransformerAttentionDesc::computeRopeCosSin(int nnXLen, int nnYLen, int paddedNNXYLen, std::vector<float>& cosTable, std::vector<float>& sinTable) const {
+  if(!useRope)
+    throw StringError("TransformerAttentionDesc::computeRopeCosSin called but useRope is false");
+
+  int numPairs = qHeadDim / 2;
+
+  if(learnableRope) {
+    // Precompute from learnable frequencies: ropeFreqs is (numKVHeads, numPairs, 2) flattened
+    // For each KV head, pair, and position, angle = x*freq_x + y*freq_y
+    testAssert(ropeNumKVHeads == numKVHeads);
+    testAssert(ropeNumPairs == numPairs);
+    testAssert(ropeFreqs.size() == (size_t)(numKVHeads * numPairs * 2));
+
+    cosTable.resize(numKVHeads * numPairs * paddedNNXYLen, 0.0f);
+    sinTable.resize(numKVHeads * numPairs * paddedNNXYLen, 0.0f);
+
+    for(int h = 0; h < numKVHeads; h++) {
+      for(int p = 0; p < numPairs; p++) {
+        float freqX = ropeFreqs[(h * numPairs + p) * 2 + 0];
+        float freqY = ropeFreqs[(h * numPairs + p) * 2 + 1];
+        for(int y = 0; y < nnYLen; y++) {
+          for(int x = 0; x < nnXLen; x++) {
+            int xy = y * nnXLen + x;
+            float angle = (float)x * freqX + (float)y * freqY;
+            int idx = (h * numPairs + p) * paddedNNXYLen + xy;
+            cosTable[idx] = cosf(angle);
+            sinTable[idx] = sinf(angle);
+          }
+        }
+      }
+    }
+  }
+  else {
+    // Fixed RoPE from theta.
+    // Python: freqs = 1/(theta^(arange(0, dimHalf, 2) / dimHalf)) where dimHalf = headDim/2
+    // emb = cat([y*freqs, x*freqs]).repeat_interleave(2)
+    // First numPairsPerDim pairs are height, next numPairsPerDim are width.
+    int numPairsPerDim = numPairs / 2;
+    int dimHalf = qHeadDim / 2;
+
+    cosTable.resize(numPairs * paddedNNXYLen, 0.0f);
+    sinTable.resize(numPairs * paddedNNXYLen, 0.0f);
+
+    for(int p = 0; p < numPairs; p++) {
+      for(int y = 0; y < nnYLen; y++) {
+        for(int x = 0; x < nnXLen; x++) {
+          int xy = y * nnXLen + x;
+          float angle;
+          if(p < numPairsPerDim) {
+            float freq = 1.0f / powf(ropeTheta, (float)(2 * p) / (float)dimHalf);
+            angle = (float)y * freq;
+          } else {
+            int pAdj = p - numPairsPerDim;
+            float freq = 1.0f / powf(ropeTheta, (float)(2 * pAdj) / (float)dimHalf);
+            angle = (float)x * freq;
+          }
+          int idx = p * paddedNNXYLen + xy;
+          cosTable[idx] = cosf(angle);
+          sinTable[idx] = sinf(angle);
+        }
+      }
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+TransformerFFNDesc::TransformerFFNDesc()
+  : numChannels(0), ffnChannels(0), useSwiGLU(false)
+{}
+
+TransformerFFNDesc::TransformerFFNDesc(istream& in, bool binaryFloats) {
+  in >> name;
+  if(in.fail())
+    throw StringError(name + ": transformer ffn block failed to parse name");
+
+  in >> numChannels;
+  in >> ffnChannels;
+  int useSwiGLUInt;
+  in >> useSwiGLUInt;
+  useSwiGLU = (useSwiGLUInt != 0);
+
+  if(in.fail())
+    throw StringError(name + ": transformer ffn block failed to parse header");
+  if(numChannels < 1 || ffnChannels < 1)
+    throw StringError(name + ": transformer ffn channels must be positive");
+
+  preLN = TransformerRMSNormDesc(in, binaryFloats);
+  linear1 = MatMulLayerDesc(in, binaryFloats);
+  if(useSwiGLU) {
+    linearGate = MatMulLayerDesc(in, binaryFloats);
+  }
+  linear2 = MatMulLayerDesc(in, binaryFloats);
+
+  if(linear1.inChannels != numChannels)
+    throw StringError(name + Global::strprintf(": linear1.inChannels (%d) != numChannels (%d)", linear1.inChannels, numChannels));
+  if(linear1.outChannels != ffnChannels)
+    throw StringError(name + Global::strprintf(": linear1.outChannels (%d) != ffnChannels (%d)", linear1.outChannels, ffnChannels));
+  if(useSwiGLU && linearGate.inChannels != numChannels)
+    throw StringError(name + Global::strprintf(": linearGate.inChannels (%d) != numChannels (%d)", linearGate.inChannels, numChannels));
+  if(useSwiGLU && linearGate.outChannels != ffnChannels)
+    throw StringError(name + Global::strprintf(": linearGate.outChannels (%d) != ffnChannels (%d)", linearGate.outChannels, ffnChannels));
+  if(linear2.inChannels != ffnChannels)
+    throw StringError(name + Global::strprintf(": linear2.inChannels (%d) != ffnChannels (%d)", linear2.inChannels, ffnChannels));
+  if(linear2.outChannels != numChannels)
+    throw StringError(name + Global::strprintf(": linear2.outChannels (%d) != numChannels (%d)", linear2.outChannels, numChannels));
+
+  if(in.fail())
+    throw StringError(name + ": transformer ffn block parse failure (istream fail() return true)");
+}
+
+TransformerFFNDesc::TransformerFFNDesc(TransformerFFNDesc&& other) {
+  *this = std::move(other);
+}
+
+TransformerFFNDesc& TransformerFFNDesc::operator=(TransformerFFNDesc&& other) {
+  name = std::move(other.name);
+  numChannels = other.numChannels;
+  ffnChannels = other.ffnChannels;
+  useSwiGLU = other.useSwiGLU;
+  preLN = std::move(other.preLN);
+  linear1 = std::move(other.linear1);
+  linearGate = std::move(other.linearGate);
+  linear2 = std::move(other.linear2);
+  return *this;
+}
+
+int64_t TransformerFFNDesc::getNumParameters() const {
+  return
+    preLN.getNumParameters() +
+    linear1.getNumParameters() +
+    linearGate.getNumParameters() +  // empty when not using SwiGLU
+    linear2.getNumParameters();
 }
 
 //-----------------------------------------------------------------------------
@@ -925,6 +1422,41 @@ static void parseResidualBlockStack(
                    trunkNumChannels));
 
       blocks.emplace_back(NESTED_BOTTLENECK_BLOCK_KIND, std::move(descPtr));
+    }
+    else if(kind == "transformer_attention_block") {
+      unique_ptr_void descPtr = make_unique_void(new TransformerAttentionDesc(in, binaryFloats));
+      TransformerAttentionDesc& desc = *((TransformerAttentionDesc*)descPtr.get());
+
+      if(desc.qProj.inChannels != trunkNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s qProj.inChannels (%d) != trunkNumChannels (%d)",
+                   desc.name.c_str(),
+                   desc.qProj.inChannels,
+                   trunkNumChannels));
+      if(desc.outProj.outChannels != trunkNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s outProj.outChannels (%d) != trunkNumChannels (%d)",
+                   desc.name.c_str(),
+                   desc.outProj.outChannels,
+                   trunkNumChannels));
+
+      blocks.emplace_back(TRANSFORMER_ATTENTION_BLOCK_KIND, std::move(descPtr));
+    }
+    else if(kind == "transformer_ffn_block") {
+      unique_ptr_void descPtr = make_unique_void(new TransformerFFNDesc(in, binaryFloats));
+      TransformerFFNDesc& desc = *((TransformerFFNDesc*)descPtr.get());
+
+      if(desc.numChannels != trunkNumChannels)
+        throw StringError(
+          name + Global::strprintf(
+                   ": %s numChannels (%d) != trunkNumChannels (%d)",
+                   desc.name.c_str(),
+                   desc.numChannels,
+                   trunkNumChannels));
+
+      blocks.emplace_back(TRANSFORMER_FFN_BLOCK_KIND, std::move(descPtr));
     }
     else
       throw StringError(name + ": found unknown block kind: " + kind);
@@ -1009,6 +1541,15 @@ SGFMetadataEncoderDesc& SGFMetadataEncoderDesc::operator=(SGFMetadataEncoderDesc
   return *this;
 }
 
+int64_t SGFMetadataEncoderDesc::getNumParameters() const {
+  return
+    mul1.getNumParameters() +
+    bias1.getNumParameters() +
+    mul2.getNumParameters() +
+    bias2.getNumParameters() +
+    mul3.getNumParameters();
+}
+
 //-----------------------------------------------------------------------------
 
 TrunkDesc::TrunkDesc()
@@ -1018,7 +1559,8 @@ TrunkDesc::TrunkDesc()
     midNumChannels(0),
     regularNumChannels(0),
     gpoolNumChannels(0),
-    metaEncoderVersion(0)
+    metaEncoderVersion(0),
+    trunkNormKind(TRUNK_NORM_KIND_STANDARD)
 {}
 
 TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats, int metaEncVersion) {
@@ -1034,16 +1576,24 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats, int metaEncVersio
 
   metaEncoderVersion = metaEncVersion;
 
+  trunkNormKind = TRUNK_NORM_KIND_STANDARD;
   if(modelVersion >= 15) {
-    int unused;
+    int unused = 0;
+    in >> trunkNormKind;
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option B: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option C: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option D: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option E: " + Global::intToString(unused));
     in >> unused;
-    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported trunk option F: " + Global::intToString(unused));
     if(in.fail())
-      throw StringError(name + ": trunk failed to parse unused params");
+      throw StringError(name + ": trunk failed to parse trunk norm kind / unused params");
+    if(trunkNormKind != TRUNK_NORM_KIND_STANDARD && trunkNormKind != TRUNK_NORM_KIND_RMSNORM)
+      throw StringError(name + ": unknown or unsupported trunk norm kind: " + Global::intToString(trunkNormKind));
   }
 
   if(in.fail())
@@ -1094,13 +1644,21 @@ TrunkDesc::TrunkDesc(istream& in, int vrsn, bool binaryFloats, int metaEncVersio
 
   parseResidualBlockStack(in, modelVersion, binaryFloats, name, numBlocks, trunkNumChannels, blocks);
 
-  trunkTipBN = BatchNormLayerDesc(in,binaryFloats);
+  if(trunkNormKind == TRUNK_NORM_KIND_STANDARD) {
+    trunkTipBN = BatchNormLayerDesc(in,binaryFloats);
+    if(trunkTipBN.numChannels != trunkNumChannels)
+      throw StringError(
+        name + Global::strprintf(
+                 ": trunkTipBN.numChannels (%d) != trunkNumChannels (%d)", trunkTipBN.numChannels, trunkNumChannels));
+  }
+  else {
+    trunkTipRMSNorm = RMSNormLayerDesc(in,binaryFloats);
+    if(trunkTipRMSNorm.numChannels != trunkNumChannels)
+      throw StringError(
+        name + Global::strprintf(
+                 ": trunkTipRMSNorm.numChannels (%d) != trunkNumChannels (%d)", trunkTipRMSNorm.numChannels, trunkNumChannels));
+  }
   trunkTipActivation = ActivationLayerDesc(in,modelVersion);
-
-  if(trunkTipBN.numChannels != trunkNumChannels)
-    throw StringError(
-      name + Global::strprintf(
-               ": trunkTipBN.numChannels (%d) != trunkNumChannels (%d)", trunkTipBN.numChannels, trunkNumChannels));
 
   if(in.fail())
     throw StringError(name + ": trunk istream fail after parsing tip");
@@ -1118,11 +1676,13 @@ TrunkDesc::TrunkDesc(TrunkDesc&& other) {
   regularNumChannels = other.regularNumChannels;
   gpoolNumChannels = other.gpoolNumChannels;
   metaEncoderVersion = other.metaEncoderVersion;
+  trunkNormKind = other.trunkNormKind;
   initialConv = std::move(other.initialConv);
   initialMatMul = std::move(other.initialMatMul);
   sgfMetadataEncoder = std::move(other.sgfMetadataEncoder);
   blocks = std::move(other.blocks);
   trunkTipBN = std::move(other.trunkTipBN);
+  trunkTipRMSNorm = std::move(other.trunkTipRMSNorm);
   trunkTipActivation = std::move(other.trunkTipActivation);
 }
 
@@ -1135,11 +1695,13 @@ TrunkDesc& TrunkDesc::operator=(TrunkDesc&& other) {
   regularNumChannels = other.regularNumChannels;
   gpoolNumChannels = other.gpoolNumChannels;
   metaEncoderVersion = other.metaEncoderVersion;
+  trunkNormKind = other.trunkNormKind;
   initialConv = std::move(other.initialConv);
   initialMatMul = std::move(other.initialMatMul);
   sgfMetadataEncoder = std::move(other.sgfMetadataEncoder);
   blocks = std::move(other.blocks);
   trunkTipBN = std::move(other.trunkTipBN);
+  trunkTipRMSNorm = std::move(other.trunkTipRMSNorm);
   trunkTipActivation = std::move(other.trunkTipActivation);
   return *this;
 }
@@ -1158,6 +1720,12 @@ void TrunkDesc::iterConvLayers(const std::function<void(const ConvLayerDesc& des
     else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->iterConvLayers(f);
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      // No conv layers in transformer attention blocks
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      // No conv layers in transformer FFN blocks
     }
     else {
       ASSERT_UNREACHABLE;
@@ -1182,6 +1750,16 @@ double TrunkDesc::getSpatialConvDepth() const {
       const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       depth += desc->getSpatialConvDepth();
     }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      // Transformer blocks don't technically contribute spatial conv depth but in practice
+      // we count it as 2 for things that want to get a crude idea of model size.
+      depth += 2;
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      // Transformer blocks don't technically contribute spatial conv depth but in practice
+      // we count it as 2 for things that want to get a crude idea of model size.
+      depth += 2;
+    }
     else {
       ASSERT_UNREACHABLE;
     }
@@ -1189,36 +1767,100 @@ double TrunkDesc::getSpatialConvDepth() const {
   return depth;
 }
 
-void TrunkDesc::transformToReduceActivations() {
-  // Merge in any multiplications by values less than 1.0 to happen earlier.
-  std::vector<float> channelFactors;
-  std::vector<float> invChannelFactors;
-  trunkTipBN.extractChannelFactorsAbsLtOneWithInverses(channelFactors,invChannelFactors);
-
-  initialConv.scaleOutputChannels(channelFactors);
-  initialMatMul.scaleOutputChannels(channelFactors);
-  if(metaEncoderVersion > 0) {
-    sgfMetadataEncoder.mul3.scaleOutputChannels(channelFactors);
-  }
+int64_t TrunkDesc::getNumParameters() const {
+  int64_t numParameters = 0;
+  numParameters += initialConv.getNumParameters();
+  numParameters += initialMatMul.getNumParameters();
+  if(metaEncoderVersion > 0)
+    numParameters += sgfMetadataEncoder.getNumParameters();
 
   for(int i = 0; i < blocks.size(); i++) {
     if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+      const ResidualBlockDesc* desc = (const ResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+      const GlobalPoolingResidualBlockDesc* desc = (const GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      const TransformerAttentionDesc* desc = (const TransformerAttentionDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      const TransformerFFNDesc* desc = (const TransformerFFNDesc*)blocks[i].second.get();
+      numParameters += desc->getNumParameters();
+    }
+    else {
+      ASSERT_UNREACHABLE;
+    }
+  }
+  // Whichever trunk tip norm is unused has empty parameter vectors, so summing both is safe.
+  numParameters += trunkTipBN.getNumParameters();
+  numParameters += trunkTipRMSNorm.getNumParameters();
+  return numParameters;
+}
+
+void TrunkDesc::transformToReduceActivations() {
+  // Top-level per-channel scaling: extract factors from trunk tip BN and push into
+  // adjacent layers. This requires a standard BatchNorm trunk tip and no immediate-child
+  // transformer blocks (RMSNorm is not invariant to per-channel scaling).
+  bool canDoTopLevelScaling = (trunkNormKind == TRUNK_NORM_KIND_STANDARD) && !blocksContainTransformer(blocks);
+
+  if(canDoTopLevelScaling) {
+    std::vector<float> channelFactors;
+    std::vector<float> invChannelFactors;
+    trunkTipBN.extractChannelFactorsAbsLtOneWithInverses(channelFactors,invChannelFactors);
+
+    initialConv.scaleOutputChannels(channelFactors);
+    initialMatMul.scaleOutputChannels(channelFactors);
+    if(metaEncoderVersion > 0) {
+      sgfMetadataEncoder.mul3.scaleOutputChannels(channelFactors);
+    }
+
+    for(size_t i = 0; i < blocks.size(); i++) {
+      if(blocks[i].first == ORDINARY_BLOCK_KIND) {
+        ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
+        desc->preBN.scaleInputChannels(invChannelFactors);
+        desc->finalConv.scaleOutputChannels(channelFactors);
+      }
+      else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
+        GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
+        desc->preBN.scaleInputChannels(invChannelFactors);
+        desc->finalConv.scaleOutputChannels(channelFactors);
+      }
+      else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+        NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+        desc->preBN.scaleInputChannels(invChannelFactors);
+        desc->postConv.scaleOutputChannels(channelFactors);
+      }
+      else {
+        ASSERT_UNREACHABLE;
+      }
+    }
+  }
+
+  // Always recurse into child blocks for their own internal optimizations
+  for(size_t i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == ORDINARY_BLOCK_KIND) {
       ResidualBlockDesc* desc = (ResidualBlockDesc*)blocks[i].second.get();
-      desc->preBN.scaleInputChannels(invChannelFactors);
-      desc->finalConv.scaleOutputChannels(channelFactors);
       desc->transformToReduceActivations();
     }
     else if(blocks[i].first == GLOBAL_POOLING_BLOCK_KIND) {
       GlobalPoolingResidualBlockDesc* desc = (GlobalPoolingResidualBlockDesc*)blocks[i].second.get();
-      desc->preBN.scaleInputChannels(invChannelFactors);
-      desc->finalConv.scaleOutputChannels(channelFactors);
       desc->transformToReduceActivations();
     }
     else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
-      desc->preBN.scaleInputChannels(invChannelFactors);
-      desc->postConv.scaleOutputChannels(channelFactors);
       desc->transformToReduceActivations();
+    }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      // No internal optimization needed for transformer blocks
     }
     else {
       ASSERT_UNREACHABLE;
@@ -1253,6 +1895,11 @@ void TrunkDesc::applyScale8ToReduceActivations() {
       NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
       desc->applyScale8ToReduceActivations();
     }
+    else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      // Should not be reached - ModelDesc::applyScale8 guards against models with transformers
+      throw StringError("applyScale8ToReduceActivations called on trunk containing transformer blocks");
+    }
     else {
       ASSERT_UNREACHABLE;
     }
@@ -1268,15 +1915,35 @@ PolicyHeadDesc::PolicyHeadDesc(istream& in, int vrsn, bool binaryFloats) {
   in >> name;
   modelVersion = vrsn;
 
-  if(modelVersion >= 16)
-    policyOutChannels = 4;
+  if(in.fail())
+    throw StringError(name + ": policy head failed to parse name");
+
+  if(modelVersion >= 17) {
+    in >> policyOutChannels;
+    if(in.fail())
+      throw StringError(name + ": policy head failed to parse policyOutChannels");
+    // version 17 supports q value predictions based on whether channels are 2 (optimistic policy only) or 4 (optimistic policy + q winloss and score)
+    if(policyOutChannels != 2 && policyOutChannels != 4)
+      throw StringError(name + ": policy head got invalid policyOutChannels " + Global::intToString(policyOutChannels));
+  }
+  else if(modelVersion == 16)
+    policyOutChannels = 4; // added q value predictions
   else if(modelVersion >= 12)
     policyOutChannels = 2;
   else
     policyOutChannels = 1;
 
-  if(in.fail())
-    throw StringError(name + ": policy head failed to parse name");
+  if(modelVersion >= 17) {
+    int unused = 0;
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported policy option A: " + Global::intToString(unused));
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported policy option B: " + Global::intToString(unused));
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported policy option C: " + Global::intToString(unused));
+    if(in.fail())
+      throw StringError(name + ": model failed to parse unused params");
+  }
 
   p1Conv = ConvLayerDesc(in,binaryFloats);
   g1Conv = ConvLayerDesc(in,binaryFloats);
@@ -1381,6 +2048,19 @@ void PolicyHeadDesc::iterConvLayers(const std::function<void(const ConvLayerDesc
   f(p2Conv);
 }
 
+int64_t PolicyHeadDesc::getNumParameters() const {
+  return
+    p1Conv.getNumParameters() +
+    g1Conv.getNumParameters() +
+    g1BN.getNumParameters() +
+    gpoolToBiasMul.getNumParameters() +
+    p1BN.getNumParameters() +
+    p2Conv.getNumParameters() +
+    gpoolToPassMul.getNumParameters() +
+    gpoolToPassBias.getNumParameters() +
+    gpoolToPassMul2.getNumParameters();  // empty for older model versions
+}
+
 
 void PolicyHeadDesc::transformToReduceActivations() {
   // Merge in any multiplications by values less than 1.0 to happen earlier.
@@ -1416,6 +2096,18 @@ ValueHeadDesc::ValueHeadDesc(istream& in, int vrsn, bool binaryFloats) {
 
   if(in.fail())
     throw StringError(name + ": value head failed to parse name");
+
+  if(modelVersion >= 17) {
+    int unused = 0;
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported value option A: " + Global::intToString(unused));
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported value option B: " + Global::intToString(unused));
+    in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported value option C: " + Global::intToString(unused));
+    if(in.fail())
+      throw StringError(name + ": model failed to parse unused params");
+  }
 
   v1Conv = ConvLayerDesc(in,binaryFloats);
   v1BN = BatchNormLayerDesc(in,binaryFloats);
@@ -1524,6 +2216,19 @@ void ValueHeadDesc::iterConvLayers(const std::function<void(const ConvLayerDesc&
   f(vOwnershipConv);
 }
 
+int64_t ValueHeadDesc::getNumParameters() const {
+  return
+    v1Conv.getNumParameters() +
+    v1BN.getNumParameters() +
+    v2Mul.getNumParameters() +
+    v2Bias.getNumParameters() +
+    v3Mul.getNumParameters() +
+    v3Bias.getNumParameters() +
+    sv3Mul.getNumParameters() +
+    sv3Bias.getNumParameters() +
+    vOwnershipConv.getNumParameters();
+}
+
 void ValueHeadDesc::transformToReduceActivations() {
   // Merge in any multiplications by values less than 1.0 to happen earlier.
   std::vector<float> channelFactors;
@@ -1578,6 +2283,16 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
   in >> modelVersion;
   if(in.fail())
     throw StringError("Model failed to parse name or version. Is this a valid model file? You probably specified the wrong file.");
+
+  // The model name is embedded into on-disk cache filenames (e.g. the TensorRT plan cache), so keep
+  // it short and restricted to filesystem-safe characters: at most 96 chars of [A-Za-z0-9_-].
+  if(name.size() > 96)
+    throw StringError("Model name is too long (" + Global::intToString((int)name.size()) + " chars, max 96): " + name);
+  for(char c : name) {
+    bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+    if(!ok)
+      throw StringError("Model name must contain only alphanumeric characters, underscores, and hyphens: " + name);
+  }
 
   if(modelVersion < 0)
     throw StringError("This neural net has an invalid version, you probably specified the wrong file. Supposed model version: " + Global::intToString(modelVersion));
@@ -1659,14 +2374,21 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
           SGFMetadata::METADATA_INPUT_NUM_CHANNELS));
     }
 
-    int unused;
+    int unused = 0;
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option B: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option C: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option D: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option E: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option F: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option G: " + Global::intToString(unused));
     in >> unused;
+    if(unused != 0) throw StringError(name + ": unknown/unsupported model option H: " + Global::intToString(unused));
     if(in.fail())
       throw StringError(name + ": model failed to parse unused params");
   }
@@ -1769,13 +2491,70 @@ double ModelDesc::getTrunkSpatialConvDepth() const {
   return trunk.getSpatialConvDepth();
 }
 
+int64_t ModelDesc::getNumParameters() const {
+  return trunk.getNumParameters() + policyHead.getNumParameters() + valueHead.getNumParameters();
+}
+
+string ModelDesc::getShortInfoString() const {
+  bool isTransformer = hasAnyTransformerBlocks();
+  bool isNbt = false;
+  for(size_t i = 0; i < trunk.blocks.size(); i++) {
+    if(trunk.blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      isNbt = true;
+      break;
+    }
+  }
+  string kind;
+  if(isNbt)
+    kind = isTransformer ? "nbt transformer" : "nbt convnet";
+  else
+    kind = isTransformer ? "transformer" : "convnet";
+  return kind + ", " + Global::int64ToString(getNumParameters()) + " params";
+}
+
 void ModelDesc::transformToReduceActivations() {
   trunk.transformToReduceActivations();
   policyHead.transformToReduceActivations();
   valueHead.transformToReduceActivations();
 }
 
+static bool blocksContainTransformerRecursive(const std::vector<std::pair<int, unique_ptr_void>>& blocks) {
+  for(size_t i = 0; i < blocks.size(); i++) {
+    if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+       blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND)
+      return true;
+    if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      NestedBottleneckResidualBlockDesc* desc = (NestedBottleneckResidualBlockDesc*)blocks[i].second.get();
+      if(blocksContainTransformerRecursive(desc->blocks))
+        return true;
+    }
+  }
+  return false;
+}
+
+bool NestedBottleneckResidualBlockDesc::hasAnyTransformerBlocks() const {
+  return blocksContainTransformerRecursive(blocks);
+}
+bool TrunkDesc::hasAnyTransformerBlocks() const {
+  return blocksContainTransformerRecursive(blocks);
+}
+bool ModelDesc::hasAnyTransformerBlocks() const {
+  return trunk.hasAnyTransformerBlocks();
+}
+
 void ModelDesc::applyScale8ToReduceActivations() {
+  // Scale8 scales the entire net's activations by 1/8 and compensates with MISH_SCALE8.
+  // This is unsafe when:
+  // - Non-standard trunk norm (RMSNorm is scale-invariant, so it would undo the 1/8 scaling)
+  // - SiLU activation anywhere (no SiLU_SCALE8 variant exists)
+  // - Any transformer blocks (their internal RMSNorm would undo the scaling)
+  if(trunk.trunkNormKind != TRUNK_NORM_KIND_STANDARD)
+    return;
+  if(trunk.trunkTipActivation.activation == ACTIVATION_SILU)
+    return;
+  if(blocksContainTransformerRecursive(trunk.blocks))
+    return;
+
   trunk.applyScale8ToReduceActivations();
   policyHead.applyScale8ToReduceActivations();
   valueHead.applyScale8ToReduceActivations();

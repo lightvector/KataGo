@@ -90,7 +90,7 @@ cp -r "$GITROOTDIR"/python/selfplay "$DATED_ARCHIVE"
             sleep 10
 
             echo "BEGINNING SHUFFLE------------------------------"
-            ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$BATCHSIZE" -summary-file "$basedir"/selfplay.summary.json "$@"
+            ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" -summary-file "$basedir"/selfplay.summary.json "$@"
             sleep "$SHUFFLEPERIOD"
         done
     fi

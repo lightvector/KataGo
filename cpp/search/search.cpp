@@ -715,13 +715,20 @@ void Search::beginSearch(bool pondering) {
   else
     rootGraphHash = Hash128();
 
+  //Precompute the params hash once per search (params are constant during a search) so it can be cheaply
+  //folded into every eval cache lookup, keeping cached search results from leaking across different params.
+  if(searchParams.useEvalCache && searchParams.useGraphSearch)
+    evalCacheParamsHash = searchParams.getHash();
+  else
+    evalCacheParamsHash = Hash128();
+
   if(rootNode == NULL) {
     //Avoid storing the root node in the nodeTable, guarantee that it never is part of a cycle, allocate it directly.
     //Also force that it is non-terminal.
     const bool forceNonTerminal = rootHistory.isGameFinished; // Make sure the root isn't considered terminal if game would be finished.
     rootNode = new SearchNode(rootPla, forceNonTerminal, createMutexIdxForNode(dummyThread), rootGraphHash);
     if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != nullptr && mirroringPla == C_EMPTY)
-      rootNode->evalCacheEntry = evalCache->find(rootNode->graphHash);
+      rootNode->evalCacheEntry = evalCache->find(getEvalCacheKey(rootNode->graphHash));
   }
   else {
     //If the root node has any existing children, then prune things down if there are moves that should not be allowed at the root.
@@ -882,7 +889,7 @@ SearchNode* Search::allocateOrFindNode(SearchThread& thread, Player nextPla, Loc
       }
 
       if(searchParams.useEvalCache && searchParams.useGraphSearch && evalCache != nullptr && mirroringPla == C_EMPTY)
-        child->evalCacheEntry = evalCache->find(child->graphHash);
+        child->evalCacheEntry = evalCache->find(getEvalCacheKey(child->graphHash));
 
       if(patternBonusTable != NULL)
         child->patternBonusHash = patternBonusTable->getHash(getOpp(thread.pla), bestChildMoveLoc, thread.history.getRecentBoard(1));
@@ -1059,7 +1066,7 @@ void Search::recursivelyRecordEvalCache(SearchNode& n) {
     int64_t numVisits = node->stats.visits.load(std::memory_order_acquire);
     if(numVisits >= searchParams.evalCacheMinVisits && !node->forceNonTerminal) {
       bool isRootNode = (node==rootNode);
-      evalCache->update(node->graphHash, node, searchParams.evalCacheMinVisits, isRootNode);
+      evalCache->update(getEvalCacheKey(node->graphHash), node, searchParams.evalCacheMinVisits, isRootNode);
     }
   };
   vector<SearchNode*> nodes;

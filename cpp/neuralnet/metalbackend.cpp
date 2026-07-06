@@ -230,6 +230,9 @@ swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, uniqu
     } else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       BlockDescriptor descriptor = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
+    } else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+              blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      throw StringError("Transformer blocks are not yet supported by the Metal backend");
     } else {
       BlockDescriptor descriptor = residualBlockDescToSwift((ResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
@@ -267,6 +270,8 @@ SWTrunkDesc trunkDescToSwift(const TrunkDesc* trunk) {
   SWMatMulLayerDesc initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
   auto sgfMetadataEncoder = sGFMetadataEncoderDescToSwift(&trunk->sgfMetadataEncoder);
   auto swBlocks = residualBlocksToSwift(trunk->blocks);
+  if(trunk->trunkNormKind != TRUNK_NORM_KIND_STANDARD)
+    throw StringError("Trunk RMSNorm is not yet supported by the Metal backend");
   SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
   ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
 
@@ -401,13 +406,11 @@ const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
 // ComputeContext implementation
 //------------------------------------------------------------------------------
 
-ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode, enabled_t useNHWCMode):
+ComputeContext::ComputeContext(int nnX, int nnY, enabled_t useFP16Mode):
 metalContext(createMetalComputeContext(nnX, nnY, useFP16Mode != enabled_t::False)) {
   this->useFP16Mode = useFP16Mode;
   this->nnXLen = nnX;
   this->nnYLen = nnY;
-  // Metal backend only supports NCHW layout (MPSGraph native format)
-  (void)useNHWCMode;
 }
 
 ComputeContext::~ComputeContext() {
@@ -418,21 +421,18 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel) {
+  const LoadedModel* loadedModel,
+  ConfigParser& cfg) {
 
   (void)gpuIdxs;
   (void)logger;
-  (void)openCLTunerFile;
   (void)homeDataDirOverride;
-  (void)openCLReTunePerBoardSize;
   (void)loadedModel;
+  (void)cfg;
 
-  return new ComputeContext(nnXLen, nnYLen, useFP16Mode, useNHWCMode);
+  return new ComputeContext(nnXLen, nnYLen, useFP16Mode);
 }
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
@@ -613,6 +613,12 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   return handle->useFP16;
 }
 
+bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
+  (void)handle;
+  (void)isWarmup;
+  return false;
+}
+
 //------------------------------------------------------------------------------
 // Device information
 //------------------------------------------------------------------------------
@@ -631,9 +637,14 @@ InputBuffers::InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int n
   maxBatchSize = maxBatchSz;
   policyResultChannels = m.policyHead.p2Conv.outChannels;
 
-  testAssert(((m.modelVersion < 16) || (policyResultChannels == 4)) &&
-         ((m.modelVersion >= 16) || (m.modelVersion < 12) || (policyResultChannels == 2)) &&
-         ((m.modelVersion >= 12) || (policyResultChannels == 1)));
+  if(m.modelVersion >= 17)
+    testAssert(policyResultChannels == 2 || policyResultChannels == 4);
+  else if(m.modelVersion >= 16)
+    testAssert(policyResultChannels == 4);
+  else if(m.modelVersion >= 12)
+    testAssert(policyResultChannels == 2);
+  else
+    testAssert(policyResultChannels == 1);
 
   singleSpatialElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
   singleInputElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
