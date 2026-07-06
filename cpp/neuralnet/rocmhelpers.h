@@ -98,6 +98,13 @@ void customCudaFlashAttention(
 void customCudaSwiGLU(const float* a, const float* b, float* out, int size);
 void customCudaSwiGLU(const half* a, const half* b, half* out, int size);
 
+//Convert mask [batchSize, seqLen] (0/1) into a fully-materialized additive attention bias of shape
+//[batchSize, seqLen, seqLen]: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -1e4). Used to feed KataGo's mask
+//into the CK FMHA fused attention path, which (unlike the plain kernel) needs the bias
+//pre-materialized rather than taking the raw per-position mask directly.
+void customCudaMaskToAttnBiasFull(const float* mask, float* outBias, int batchSize, int seqLen);
+void customCudaMaskToAttnBiasFull(const half* mask, half* outBias, int batchSize, int seqLen);
+
 //Masked residual add: trunk[i] += residual[i] * mask[spatial_idx]. mask can be null (treated as all ones).
 //NCHW: trunk/residual [n,c,xy], mask [n,xy]. NHWC: trunk/residual [n,xy,c], mask [n,xy].
 void customCudaMaskedResidualAddNCHW(float* trunk, const float* residual, const float* mask, int nSize, int cSize, int xySize);

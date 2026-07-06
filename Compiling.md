@@ -64,8 +64,26 @@ As also mentioned in the instructions below but repeated here for visibility, if
         cmake .. -DUSE_BACKEND=ROCM -DCMAKE_BUILD_TYPE=Release
         make -j$(nproc)
         ```
-      * GPU architecture is auto-detected via `amdgpu-arch`. If auto-detection fails, specify manually: `-DCMAKE_HIP_ARCHITECTURES=gfx1100` (replace with your GPU's gfx target).
+        No `-DCMAKE_PREFIX_PATH` is needed in the common case: the build auto-detects the ROCm
+        install location, preferring the newer `/opt/rocm/core-<version>/` layout used since
+        ROCm ~7.9 (picking the highest version present) and falling back to the older flat
+        `/opt/rocm/` layout. Pass `-DCMAKE_PREFIX_PATH=...` explicitly to override.
+      * GPU architecture: by default the build targets a broad set of AMD GPU architectures
+        (CDNA + all RDNA generations) in a single "fat" binary, probing the installed compiler for
+        which ones it actually supports, so the resulting `katago` runs on more than just the
+        machine it was built on. Pass `-DCMAKE_HIP_ARCHITECTURES=gfx1100` (replace with your GPU's
+        gfx target) to build for only your own GPU instead, which is faster to compile.
+      * The build bakes the resolved ROCm lib directory into the binary's RPATH, so the built
+        `katago` doesn't depend on `/opt/rocm` still pointing at the same install later (e.g. after
+        installing a different ROCm version) or on `LD_LIBRARY_PATH` being set when run.
       * On first run, MIOpen will search for optimal convolution algorithms for your specific GPU and network size. This may take up to a minute and results are cached in `~/.config/miopen/` for subsequent runs.
+      * **Transformer/attention models (model version 17+):** supported on all architectures via a
+        built-in kernel. If a matching version of AMD's Composable Kernel (`composablekernel-dev` /
+        `amdrocm-ck*`) is also installed, the build additionally enables a fused-attention fast path
+        (measured ~2x faster on a gfx1100/RX 7900 XTX) for CDNA and RDNA3/RDNA3.5/RDNA4 GPUs -
+        RDNA1/RDNA2 always use the built-in kernel, as does any GPU if the fused path isn't
+        available or is explicitly disabled with `rocmDisableFusedAttention = true` in the config.
+        See `cpp/external/composable_kernel_fmha/README.md` for details.
 
 ## Windows
    * TLDR:

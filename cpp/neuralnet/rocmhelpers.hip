@@ -2565,6 +2565,49 @@ void customCudaFlashAttention(
 #undef FA_LAUNCH_HALF
 
 //--------------------------------------------------------------------------------------------------------------
+// Convert mask [batchSize, seqLen] (0/1) into a fully-materialized additive attention bias of shape
+// [batchSize, seqLen, seqLen]: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -1e4).
+
+__global__
+void maskToAttnBiasFullKernel(const float* mask, float* outBias, int seqLen) {
+  int k = blockIdx.x * blockDim.x + threadIdx.x;
+  int q = blockIdx.y;
+  int b = blockIdx.z;
+  if(k >= seqLen)
+    return;
+  float m = mask[b * seqLen + k];
+  outBias[((size_t)b * seqLen + q) * seqLen + k] = (m != 0.0f) ? 0.0f : -1e4f;
+}
+
+__global__
+void maskToAttnBiasFullHalfKernel(const half* mask, half* outBias, int seqLen) {
+#ifdef HIP_SUPPORTS_FP16
+  int k = blockIdx.x * blockDim.x + threadIdx.x;
+  int q = blockIdx.y;
+  int b = blockIdx.z;
+  if(k >= seqLen)
+    return;
+  float m = __half2float(mask[b * seqLen + k]);
+  outBias[((size_t)b * seqLen + q) * seqLen + k] = __float2half((m != 0.0f) ? 0.0f : -1e4f);
+#endif
+}
+
+void customCudaMaskToAttnBiasFull(const float* mask, float* outBias, int batchSize, int seqLen) {
+  if(batchSize <= 0 || seqLen <= 0)
+    return;
+  int threads = 128;
+  dim3 blocks((seqLen + threads - 1) / threads, seqLen, batchSize);
+  maskToAttnBiasFullKernel<<<blocks, threads>>>(mask, outBias, seqLen);
+}
+void customCudaMaskToAttnBiasFull(const half* mask, half* outBias, int batchSize, int seqLen) {
+  if(batchSize <= 0 || seqLen <= 0)
+    return;
+  int threads = 128;
+  dim3 blocks((seqLen + threads - 1) / threads, seqLen, batchSize);
+  maskToAttnBiasFullHalfKernel<<<blocks, threads>>>(mask, outBias, seqLen);
+}
+
+//--------------------------------------------------------------------------------------------------------------
 // SwiGLU: out[i] = SiLU(a[i]) * b[i]
 
 __global__

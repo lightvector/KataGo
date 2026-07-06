@@ -2,14 +2,22 @@ cmake_minimum_required(VERSION 3.18.2)
 
 # Helper: produce the default broad list of AMD GPU architectures the ROCm
 # backend should target when the user has not passed -DCMAKE_HIP_ARCHITECTURES=...
-# Required archs are always included; optional archs are probed and only
-# included if the HIP compiler accepts them (e.g. older toolchains may not
-# support gfx1031/gfx1032).
+# Required archs are always included (well-established across many ROCm releases); optional archs
+# are probed via an actual compile test and only included if the installed toolchain accepts them -
+# this covers newer/rarer archs (RDNA1, RDNA2 sub-variants, RDNA3.5, RDNA4, ...) without hard-failing
+# the whole build on an older toolchain that doesn't know about them yet. Keep this list in sync with
+# whatever `apt-cache search '^amdrocm-core-sdk<ver>-gfx'` (or the CK codegen's own supported archs,
+# see cpp/external/composable_kernel_fmha/README.md) shows as AMD adds new chips.
 function(katago_default_hip_archs out_var)
   set(_required_archs
       gfx906 gfx908 gfx90a gfx942 gfx950
-      gfx1030 gfx1100 gfx1101 gfx1151 gfx1201)
-  set(_optional_archs gfx1031 gfx1032)
+      gfx1030 gfx1100 gfx1101)
+  set(_optional_archs
+      gfx1010 gfx1011 gfx1012
+      gfx1031 gfx1032 gfx1033 gfx1034 gfx1035 gfx1036
+      gfx1102 gfx1103
+      gfx1150 gfx1151 gfx1152 gfx1153
+      gfx1200 gfx1201)
   set(_result "${_required_archs}")
 
   if(CMAKE_HIP_COMPILER)
@@ -33,9 +41,39 @@ function(katago_default_hip_archs out_var)
       endif()
     endforeach()
   else()
-    message(STATUS "CMAKE_HIP_COMPILER not yet known; optional archs (gfx1031/gfx1032) not probed")
+    message(STATUS "CMAKE_HIP_COMPILER not yet known; optional archs not probed")
   endif()
 
+  set(${out_var} "${_result}" PARENT_SCOPE)
+endfunction()
+
+# Helper: resolve the actual ROCm install prefix on Linux. Since ROCm ~7.9, AMD's packaging puts
+# real per-version installs under /opt/rocm/core-<version>/ (e.g. /opt/rocm/core-7.13), with
+# /opt/rocm itself just a distro-managed symlink/alternatives entry that can point anywhere (or get
+# silently repointed by installing another package) - relying on it directly is what caused this
+# project to intermittently pick up a stale/mismatched ROCm install. Prefer the highest-versioned
+# /opt/rocm/core-* directory if any exist; otherwise fall back to the old flat /opt/rocm layout.
+function(katago_find_rocm_prefix out_var)
+  set(_result "")
+  if(EXISTS "/opt/rocm")
+    file(GLOB _core_dirs "/opt/rocm/core-*")
+    set(_versioned "")
+    foreach(_dir ${_core_dirs})
+      if(IS_DIRECTORY "${_dir}")
+        get_filename_component(_name "${_dir}" NAME)
+        string(REGEX REPLACE "^core-" "" _ver "${_name}")
+        list(APPEND _versioned "${_ver}|${_dir}")
+      endif()
+    endforeach()
+    if(_versioned)
+      list(SORT _versioned COMPARE NATURAL ORDER DESCENDING)
+      list(GET _versioned 0 _best)
+      string(REGEX REPLACE "^[^|]*\\|" "" _result "${_best}")
+    endif()
+  endif()
+  if(_result STREQUAL "" AND EXISTS "/opt/rocm")
+    set(_result "/opt/rocm")
+  endif()
   set(${out_var} "${_result}" PARENT_SCOPE)
 endfunction()
 
@@ -144,17 +182,53 @@ elseif(USE_BACKEND STREQUAL "ROCM")
       endif()
     endif()
   else()
-    # Linux: Use hipcc
-    set(CMAKE_C_COMPILER  /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
-    set(CMAKE_CXX_COMPILER /opt/rocm/bin/hipcc CACHE FILEPATH "" FORCE)
+    # Linux: resolve the real ROCm install prefix first (see katago_find_rocm_prefix - handles the
+    # /opt/rocm/core-<version> layout used since ROCm ~7.9, preferring the highest version found,
+    # falling back to the old flat /opt/rocm layout). Respect a user-provided CMAKE_PREFIX_PATH.
+    if(NOT DEFINED CMAKE_PREFIX_PATH OR CMAKE_PREFIX_PATH STREQUAL "")
+      katago_find_rocm_prefix(KATAGO_ROCM_PREFIX)
+      if(KATAGO_ROCM_PREFIX)
+        list(APPEND CMAKE_PREFIX_PATH "${KATAGO_ROCM_PREFIX}")
+        message(STATUS "Pre-project: resolved ROCm install prefix to ${KATAGO_ROCM_PREFIX}")
+      endif()
+    endif()
+
+    # Use hipcc. Its location varies across ROCm packaging generations (a classic apt "hipcc"
+    # package at /usr/bin, one bundled under the ROCm prefix's bin/, or newer installs that only
+    # ship amdclang++ with no hipcc wrapper at all) - probe candidates instead of hardcoding one
+    # path, since a missing hardcoded path fails project() below with a confusing compiler-not-
+    # found error rather than falling back.
+    find_program(KATAGO_HIPCC_EXECUTABLE NAMES hipcc
+      HINTS ${CMAKE_PREFIX_PATH}
+      PATH_SUFFIXES bin)
+    if(NOT KATAGO_HIPCC_EXECUTABLE AND EXISTS "/usr/bin/hipcc")
+      set(KATAGO_HIPCC_EXECUTABLE "/usr/bin/hipcc")
+    endif()
+    # Search for clang++ unconditionally (not just as a hipcc-missing fallback): CMAKE_HIP_COMPILER
+    # always needs the clang++ binary directly below, even when hipcc is used for C/CXX, since CMake
+    # rejects the hipcc wrapper script for CMAKE_HIP_COMPILER ("...not supported").
+    find_program(KATAGO_CLANGXX_EXECUTABLE NAMES clang++
+      HINTS ${CMAKE_PREFIX_PATH}
+      PATH_SUFFIXES lib/llvm/bin bin)
+    if(KATAGO_HIPCC_EXECUTABLE)
+      set(CMAKE_C_COMPILER  "${KATAGO_HIPCC_EXECUTABLE}" CACHE FILEPATH "" FORCE)
+      set(CMAKE_CXX_COMPILER "${KATAGO_HIPCC_EXECUTABLE}" CACHE FILEPATH "" FORCE)
+    elseif(KATAGO_CLANGXX_EXECUTABLE)
+      message(STATUS "hipcc not found; falling back to ${KATAGO_CLANGXX_EXECUTABLE}")
+      get_filename_component(_clang_dir "${KATAGO_CLANGXX_EXECUTABLE}" DIRECTORY)
+      set(CMAKE_CXX_COMPILER "${KATAGO_CLANGXX_EXECUTABLE}" CACHE FILEPATH "" FORCE)
+      set(CMAKE_C_COMPILER  "${_clang_dir}/clang" CACHE FILEPATH "" FORCE)
+    endif()
     # ---------- HIP architectures (must be set before project()/enable_language(HIP)) ----------
     # project(... HIP) below triggers CMake's own HIP language detection, which auto-populates
     # CMAKE_HIP_ARCHITECTURES with just the native/current GPU's arch if it isn't already set by
     # then. That makes the broad-default-arch logic further down (before enable_language(HIP))
     # a no-op, since by that point CMAKE_HIP_ARCHITECTURES already looks "user-specified". Set the
     # broad default here instead, before project(), mirroring the Windows pre-project block above.
-    if(NOT CMAKE_HIP_COMPILER AND EXISTS "/opt/rocm/bin/hipcc")
-      set(CMAKE_HIP_COMPILER "/opt/rocm/bin/hipcc" CACHE FILEPATH "" FORCE)
+    # Note: CMAKE_HIP_COMPILER must be the clang++ binary directly - CMake rejects the hipcc
+    # wrapper script here ("CMAKE_HIP_COMPILER is set to the hipcc wrapper... not supported").
+    if(NOT CMAKE_HIP_COMPILER AND KATAGO_CLANGXX_EXECUTABLE)
+      set(CMAKE_HIP_COMPILER "${KATAGO_CLANGXX_EXECUTABLE}" CACHE FILEPATH "" FORCE)
     endif()
     if(NOT DEFINED CMAKE_HIP_ARCHITECTURES)
       katago_default_hip_archs(_default_archs)
@@ -345,20 +419,27 @@ elseif(USE_BACKEND STREQUAL "ROCM")
         message(FATAL_ERROR "ROCM backend on Windows requires HIP_PATH or ROCM_PATH environment variable (or -DCMAKE_PREFIX_PATH=<HIP SDK path>). Please install the HIP SDK for Windows.")
       endif()
     else()
-      # Linux: Standard ROCm installation path
-      if(EXISTS "/opt/rocm")
-        list(APPEND CMAKE_PREFIX_PATH "/opt/rocm")
-        message(STATUS "CMAKE_PREFIX_PATH not given; defaulting to /opt/rocm")
+      # Linux: resolve the real ROCm install prefix (same core-<version> vs flat /opt/rocm
+      # resolution as the pre-project block above; this block re-runs it standalone in case
+      # USE_BACKEND wasn't ROCM early enough for that block to have fired).
+      katago_find_rocm_prefix(KATAGO_ROCM_PREFIX)
+      if(KATAGO_ROCM_PREFIX)
+        list(APPEND CMAKE_PREFIX_PATH "${KATAGO_ROCM_PREFIX}")
+        message(STATUS "CMAKE_PREFIX_PATH not given; defaulting to ${KATAGO_ROCM_PREFIX}")
       endif()
     endif()
   endif()
 
-  # Ensure CMAKE_HIP_COMPILER is set BEFORE we run the optional-arch probe and
-  # before enable_language(HIP). On Windows the pre-project block already sets
-  # it; on Linux fall back to hipcc under /opt/rocm.
+  # Ensure CMAKE_HIP_COMPILER is set BEFORE we run the optional-arch probe and before
+  # enable_language(HIP). On Windows the pre-project block already sets it; on Linux it should
+  # already be set by the pre-project block too - this is just a safety net. Must be the clang++
+  # binary directly, not the hipcc wrapper (CMake rejects hipcc for CMAKE_HIP_COMPILER).
   if(NOT WIN32 AND NOT CMAKE_HIP_COMPILER)
-    if(EXISTS "/opt/rocm/bin/hipcc")
-      set(CMAKE_HIP_COMPILER "/opt/rocm/bin/hipcc" CACHE FILEPATH "" FORCE)
+    if(NOT KATAGO_CLANGXX_EXECUTABLE)
+      find_program(KATAGO_CLANGXX_EXECUTABLE NAMES clang++ HINTS ${CMAKE_PREFIX_PATH} PATH_SUFFIXES lib/llvm/bin bin)
+    endif()
+    if(KATAGO_CLANGXX_EXECUTABLE)
+      set(CMAKE_HIP_COMPILER "${KATAGO_CLANGXX_EXECUTABLE}" CACHE FILEPATH "" FORCE)
     endif()
   endif()
 
@@ -730,10 +811,10 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   target_compile_definitions(katago PRIVATE HIP_TARGET_VERSION=${CMAKE_HIP_COMPILER_VERSION})
 
   string(TOLOWER "${CMAKE_HIP_ARCHITECTURES}" _gfxlist)  # e.g. "90a;942"
-  # All architectures in our default broad list (gfx906/908/90a/942/950 and
-  # gfx1030/1031/1032/1100/1101/1151/1201) support packed FP16 ops. The regex
-  # below matches each of them so user-specified subset lists still work.
-  if(_gfxlist MATCHES "(gfx)?(90[06a]|908|94[02]|950|103[012]|110[01]|1151|1201)")
+  # Every architecture in katago_default_hip_archs()'s full candidate list (CDNA gfx906/908/90a/942/
+  # 950, RDNA1 gfx101x, RDNA2 gfx103x, RDNA3 gfx110x, RDNA3.5 gfx115x, RDNA4 gfx120x) supports packed
+  # FP16 ops. The regex below matches each of them so user-specified subset lists still work.
+  if(_gfxlist MATCHES "(gfx)?(90[06a]|908|94[02]|950|101[012]|103[0-6]|110[0-3]|115[0-3]|120[01])")
     target_compile_definitions(katago PRIVATE HIP_SUPPORTS_FP16)
     message(STATUS "Detected FP16‑capable GFX arch (${CMAKE_HIP_ARCHITECTURES}); defining HIP_SUPPORTS_FP16")
   endif()
@@ -742,7 +823,22 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   find_package(hip        QUIET CONFIG)   # Export hip::device / hip::host
   find_package(hipblas    QUIET CONFIG)   # Export roc::hipblas
   find_package(miopen     QUIET CONFIG)   # Export roc::miopen or MIOpen
-  
+
+  # Explicitly (re-)add the resolved HIP include dir via a raw -isystem compile option (not
+  # target_include_directories(... SYSTEM ...)): hip::device's own INTERFACE_INCLUDE_DIRECTORIES
+  # already carries this same path as a plain -I, and CMake's include-directory de-duplication
+  # drops our SYSTEM entry as "already covered" rather than upgrading it - so the plain -I from
+  # hip::device wins, which matters here because some systems have a stale hip_runtime.h under
+  # /usr/include (e.g. from an old standalone "hipcc"/"libamdhip64-dev" apt package) that's
+  # incompatible with a newer compiler's builtins (__AMDGCN_WAVEFRONT_SIZE etc). A plain -I loses to
+  # that stale /usr/include; a raw -isystem (bypassing the dedup) wins.
+  find_path(KATAGO_HIP_SYSTEM_INCLUDE_DIR hip/hip_runtime.h
+    HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
+    PATH_SUFFIXES include)
+  if(KATAGO_HIP_SYSTEM_INCLUDE_DIR)
+    target_compile_options(katago PRIVATE "-isystem${KATAGO_HIP_SYSTEM_INCLUDE_DIR}")
+  endif()
+
   # ---------- fallback：HIP Runtime ----------
   if(NOT hip_FOUND)
     if(WIN32)
@@ -830,6 +926,58 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     roc::hipblas         # BLAS
     ${_miopen_target}    # DNN primitives
   )
+
+  # KATAGO_ROCM_PREFIX may not be set if the user passed an explicit -DCMAKE_PREFIX_PATH (which
+  # skips the auto-detect branches that populate it) - fall back to CMAKE_PREFIX_PATH's first entry
+  # in that case, so RPATH still gets set below regardless of how the prefix was determined.
+  if(NOT KATAGO_ROCM_PREFIX)
+    if(CMAKE_PREFIX_PATH)
+      list(GET CMAKE_PREFIX_PATH 0 KATAGO_ROCM_PREFIX)
+    else()
+      katago_find_rocm_prefix(KATAGO_ROCM_PREFIX)
+    endif()
+  endif()
+
+  # Bake the resolved ROCm lib dir into the binary's RPATH. Without this, the built katago relies
+  # on /opt/rocm (a distro-managed symlink that can get silently repointed by installing another
+  # ROCm package, or a subsequent /opt/rocm/core-<newer-version> release) resolving to the same
+  # install this was actually built and tested against - which is not guaranteed, especially for a
+  # binary meant to be copied to another machine. CMAKE_SKIP_BUILD_RPATH/INSTALL_RPATH aren't set by
+  # this project, so this also takes effect for the build-tree binary, not just `make install`.
+  if(KATAGO_ROCM_PREFIX)
+    set_target_properties(katago PROPERTIES
+      BUILD_RPATH "${KATAGO_ROCM_PREFIX}/lib"
+      INSTALL_RPATH "${KATAGO_ROCM_PREFIX}/lib"
+    )
+    message(STATUS "Set katago RPATH to ${KATAGO_ROCM_PREFIX}/lib")
+  endif()
+
+  # ---------- Optional: Composable Kernel FMHA (fused attention) ----------
+  # Mirrors the CUDA backend's optional cudnn-frontend SDPA path: KataGo vendors a small set of
+  # glue headers + pre-generated ck_tile FMHA kernel instantiations under
+  # external/composable_kernel_fmha, but these only compile against a matching version of CK's own
+  # core ck_tile headers (system dependency, not vendored - part of a "composablekernel-dev" /
+  # "amdrocm-ck*" package). If a compatible version isn't installed, we just skip this and the
+  # backend always uses its own plain (non-fused) attention kernel - this is a pure performance
+  # optimization, not required for correctness.
+  find_path(KATAGO_CK_TILE_INCLUDE_DIR
+    NAMES ck_tile/ops/fmha_fwd.hpp
+    HINTS ${CMAKE_PREFIX_PATH} ENV ROCM_PATH
+    PATH_SUFFIXES include
+  )
+  if(KATAGO_CK_TILE_INCLUDE_DIR)
+    message(STATUS "Found ck_tile headers at ${KATAGO_CK_TILE_INCLUDE_DIR}; enabling optional CK FMHA fused attention path")
+    file(GLOB KATAGO_CK_FMHA_GENERATED_SOURCES external/composable_kernel_fmha/generated/*.cpp)
+    target_sources(katago PRIVATE ${KATAGO_CK_FMHA_GENERATED_SOURCES})
+    # SYSTEM/-isystem is required, not just for warning suppression: ck_tile's own headers
+    # #include <hip/hip_runtime.h>, and on systems with a stale libamdhip64-dev under /usr/include,
+    # a plain -I here still loses to /usr/include for angle-bracket resolution. -isystem does not.
+    target_include_directories(katago SYSTEM PRIVATE ${KATAGO_CK_TILE_INCLUDE_DIR} external/composable_kernel_fmha)
+    target_compile_definitions(katago PRIVATE KATAGO_ROCM_HAS_CK_FMHA=1)
+  else()
+    message(STATUS "ck_tile headers not found; ROCm backend will only use its built-in (non-fused) attention kernel")
+    target_compile_definitions(katago PRIVATE KATAGO_ROCM_HAS_CK_FMHA=0)
+  endif()
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
   # Allow EIGEN3_INCLUDE_DIRS as a manual override (for users who downloaded

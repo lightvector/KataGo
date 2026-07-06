@@ -3,6 +3,17 @@
 #include "../neuralnet/rocmerrorcheck.h"
 #include "../neuralnet/rocmincludes.h"
 
+// Composable Kernel FMHA fused attention support (optional; see cpp/external/composable_kernel_fmha
+// and KATAGO_ROCM_HAS_CK_FMHA in CMakeLists.txt). Mirrors the CUDA backend's optional cudnn-frontend
+// SDPA path, but CK's fmha_fwd() has no expensive one-time "build plan" step to cache - each call
+// directly checks traits/shape compatibility and either executes or returns a negative "unsupported"
+// sentinel, so there is no warmup-only tolerance needed the way cudnn_frontend graph building has.
+#if KATAGO_ROCM_HAS_CK_FMHA
+  #include <cstring>
+  #include <utility>
+  #include "fmha_fwd.hpp"
+#endif
+
 #include "../neuralnet/rocmhelpers.h"
 #include "../neuralnet/rocmutils.h"
 #include "../neuralnet/modelversion.h"
@@ -39,10 +50,14 @@ struct CudaHandles {
   miopenHandle_t cudnn;
   const int majorComputeCapability;
   const int minorComputeCapability;
+  // Disables the optional CK FMHA fused attention path (see KATAGO_ROCM_HAS_CK_FMHA), falling back
+  // to the plain attention kernel unconditionally. Off by default.
+  const bool disableFusedAttention;
 
-  CudaHandles(int major, int minor)
+  CudaHandles(int major, int minor, bool disableFusedAttention_ = false)
     : majorComputeCapability(major),
-      minorComputeCapability(minor)
+      minorComputeCapability(minor),
+      disableFusedAttention(disableFusedAttention_)
   {
     CUBLAS_ERR("CudaHandles",hipblasCreate(&cublas));
     CUDNN_ERR("CudaHandles",miopenCreate(&cudnn));
@@ -1334,24 +1349,104 @@ struct TransformerAttentionBlock {
       CUDA_ERR(name.c_str(), hipPeekAtLastError());
     }
 
-    // Step 4: Scaled dot-product attention via a plain (non-fused) online-softmax kernel. Unlike the
-    // CUDA backend, there is no cudnn-frontend-style fused SDPA graph path here: at KataGo's sequence
-    // lengths (<= board size) a plain kernel is fully adequate, so we always take this path.
+    // Step 4: Scaled dot-product attention. When enabled and available, try the CK FMHA fused path
+    // first (only supports FP16, matching the CUDA backend's cudnn-frontend SDPA path, which is
+    // also FP16-only); otherwise, or if CK reports the shape/traits as unsupported at runtime, fall
+    // back to the plain online-softmax kernel, which is fully adequate at KataGo's sequence lengths.
     SizedBuf<void*> attnOutBuf(scratch->allocator, scratch->getBufSizeXY(numHeads * vHeadDim));
 
-    if(!usingFP16) {
-      customCudaFlashAttention(
-        (const float*)qBuf.buf, (const float*)kBuf.buf, (const float*)vBuf.buf,
-        (const float*)maskBuf, (float*)attnOutBuf.buf,
-        batchSize, seqLen, numHeads, numKVHeads, qHeadDim, vHeadDim);
+    bool usedFusedAttention = false;
+#if KATAGO_ROCM_HAS_CK_FMHA
+    if(usingFP16 && !cudaHandles->disableFusedAttention) {
+      bool hasMask = (maskBuf != NULL);
+
+      // CK's fused path takes a pre-materialized additive bias rather than a raw per-position
+      // mask; build a [B, S, S] bias broadcast over heads (matches the CUDA backend's approach for
+      // its cudnn-frontend graph SDPA path).
+      SizedBuf<void*> biasBuf(scratch->allocator, hasMask ? (size_t)batchSize * seqLen * seqLen * sizeof(half) : 1);
+      if(hasMask) {
+        customCudaMaskToAttnBiasFull((const half*)maskBuf, (half*)biasBuf.buf, batchSize, seqLen);
+      }
+
+      fmha_fwd_traits traits;
+      traits.hdim_q = qHeadDim;
+      traits.hdim_v = vHeadDim;
+      traits.data_type = "fp16";
+      traits.is_group_mode = false;
+      traits.is_v_rowmajor = true;
+      traits.has_logits_soft_cap = false;
+      traits.mask_type = mask_enum::no_mask;
+      traits.bias_type = hasMask ? bias_enum::elementwise_bias : bias_enum::no_bias;
+      traits.has_lse = false;
+      traits.has_dropout = false;
+      traits.qscale_type = quant_scale_enum::no_scale;
+      traits.skip_min_seqlen_q = false;
+      traits.has_sink = false;
+
+      // Physical layout for Q/K/V/O is [N, S, H, D] (i_perm=false, o_perm=false), V is row-major
+      // ([N, S, H, Dv], is_v_rowmajor=true) - all matching the BSHD buffers MatMulLayer produces.
+      fmha_fwd_args args;
+      memset(&args, 0, sizeof(args));
+      args.q_ptr = qBuf.buf;
+      args.k_ptr = kBuf.buf;
+      args.v_ptr = vBuf.buf;
+      args.bias_ptr = hasMask ? biasBuf.buf : nullptr;
+      args.o_ptr = attnOutBuf.buf;
+      args.seqlen_q = seqLen;
+      args.seqlen_k = seqLen;
+      args.batch = batchSize;
+      args.max_seqlen_q = seqLen;
+      args.hdim_q = qHeadDim;
+      args.hdim_v = vHeadDim;
+      args.nhead_q = numHeads;
+      args.nhead_k = numKVHeads;
+      args.scale_s = 1.0f / sqrtf((float)qHeadDim);
+      args.logits_soft_cap = 0.0f;
+      args.stride_q = (ck_tile::index_t)numHeads * qHeadDim;
+      args.stride_k = (ck_tile::index_t)numKVHeads * qHeadDim;
+      args.stride_v = (ck_tile::index_t)numKVHeads * vHeadDim;
+      args.stride_bias = hasMask ? seqLen : 0;
+      args.stride_o = (ck_tile::index_t)numHeads * vHeadDim;
+      args.nhead_stride_q = qHeadDim;
+      args.nhead_stride_k = qHeadDim;
+      args.nhead_stride_v = vHeadDim;
+      args.nhead_stride_bias = 0; // broadcast the bias over heads
+      args.nhead_stride_o = vHeadDim;
+      args.batch_stride_q = (ck_tile::index_t)numHeads * seqLen * qHeadDim;
+      args.batch_stride_k = (ck_tile::index_t)numKVHeads * seqLen * qHeadDim;
+      args.batch_stride_v = (ck_tile::index_t)numKVHeads * seqLen * vHeadDim;
+      args.batch_stride_bias = hasMask ? (ck_tile::index_t)seqLen * seqLen : 0;
+      args.batch_stride_o = (ck_tile::index_t)numHeads * seqLen * vHeadDim;
+      args.window_size_left = -1;
+      args.window_size_right = -1;
+      args.mask_type = static_cast<ck_tile::index_t>(mask_enum::no_mask);
+      args.min_seqlen_q = 0;
+      args.p_drop = 0.0f;
+      args.s_randval = false;
+      args.drop_seed_offset = std::pair<uint64_t, uint64_t>{0, 0};
+
+      float ckResult = fmha_fwd(traits, args, ck_tile::stream_config{});
+      if(ckResult >= 0.0f) {
+        usedFusedAttention = true;
+      }
     }
-    else {
-      customCudaFlashAttention(
-        (const half*)qBuf.buf, (const half*)kBuf.buf, (const half*)vBuf.buf,
-        (const half*)maskBuf, (half*)attnOutBuf.buf,
-        batchSize, seqLen, numHeads, numKVHeads, qHeadDim, vHeadDim);
+#endif
+
+    if(!usedFusedAttention) {
+      if(!usingFP16) {
+        customCudaFlashAttention(
+          (const float*)qBuf.buf, (const float*)kBuf.buf, (const float*)vBuf.buf,
+          (const float*)maskBuf, (float*)attnOutBuf.buf,
+          batchSize, seqLen, numHeads, numKVHeads, qHeadDim, vHeadDim);
+      }
+      else {
+        customCudaFlashAttention(
+          (const half*)qBuf.buf, (const half*)kBuf.buf, (const half*)vBuf.buf,
+          (const half*)maskBuf, (half*)attnOutBuf.buf,
+          batchSize, seqLen, numHeads, numKVHeads, qHeadDim, vHeadDim);
+      }
+      CUDA_ERR(name.c_str(), hipPeekAtLastError());
     }
-    CUDA_ERR(name.c_str(), hipPeekAtLastError());
 
     // Step 5: Output projection.
     outProj.apply(cudaHandles, scratch, matBatchSize, attnOutBuf.buf, trunkScratchBuf, workspaceBuf, workspaceBytes);
@@ -2833,6 +2928,7 @@ struct ComputeContext {
   int nnYLen;
   enabled_t useFP16Mode;
   enabled_t useNHWCMode;
+  bool disableFusedAttention;
 };
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -2853,12 +2949,17 @@ ComputeContext* NeuralNet::createComputeContext(
   // ROCm-specific NHWC override, read directly off cfg (mirrors cudaUseNHWC in the CUDA backend).
   enabled_t useNHWCMode =
     cfg.contains("rocmUseNHWC") ? cfg.getEnabled("rocmUseNHWC") : enabled_t::Auto;
+  // Disables the optional CK FMHA fused attention path (see KATAGO_ROCM_HAS_CK_FMHA); mirrors the
+  // CUDA backend's cudaDisableGraphSDPA. Only meaningful for transformer models.
+  bool disableFusedAttention =
+    cfg.contains("rocmDisableFusedAttention") ? cfg.getBool("rocmDisableFusedAttention") : false;
 
   ComputeContext* context = new ComputeContext();
   context->nnXLen = nnXLen;
   context->nnYLen = nnYLen;
   context->useFP16Mode = useFP16Mode;
   context->useNHWCMode = useNHWCMode;
+  context->disableFusedAttention = disableFusedAttention;
   return context;
 }
 
@@ -2898,7 +2999,7 @@ struct ComputeHandle {
     inputsUseNHWC(inputsUseNHWC_),
     usingNHWC(useNHWC)
   {
-    cudaHandles = std::make_unique<CudaHandles>(majorComputeCapability,minorComputeCapability);
+    cudaHandles = std::make_unique<CudaHandles>(majorComputeCapability,minorComputeCapability,context->disableFusedAttention);
     model = std::make_unique<Model>(
       cudaHandles.get(), &(loadedModel->modelDesc), maxBatchSize,
       nnXLen, nnYLen, inputsUseNHWC, useFP16, useNHWC
