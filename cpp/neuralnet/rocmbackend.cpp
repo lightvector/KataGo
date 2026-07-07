@@ -8,7 +8,20 @@
 // SDPA path, but CK's fmha_fwd() has no expensive one-time "build plan" step to cache - each call
 // directly checks traits/shape compatibility and either executes or returns a negative "unsupported"
 // sentinel, so there is no warmup-only tolerance needed the way cudnn_frontend graph building has.
-#if KATAGO_ROCM_HAS_CK_FMHA
+// ck_tile's own arch.hpp has no get_compiler_target() branch for gfx906 or RDNA1 (gfx1010/1011/
+// 1012) - its FMHA kernels were never ported to these architectures (no MFMA/WMMA). Merely
+// including its headers while compiling a device pass for one of these archs (as happens in a
+// multi-arch fat binary that targets them) hard-fails with "member reference base type 'void' is
+// not a structure or union", since get_compiler_target() falls through without a return. Skip CK
+// entirely for just these archs' device-compile passes; the plain (non-fused) attention kernel
+// still covers them.
+#if defined(__gfx906__) || defined(__gfx1010__) || defined(__gfx1011__) || defined(__gfx1012__)
+  #define KATAGO_ROCM_CK_FMHA_ARCH_OK 0
+#else
+  #define KATAGO_ROCM_CK_FMHA_ARCH_OK 1
+#endif
+
+#if KATAGO_ROCM_HAS_CK_FMHA && KATAGO_ROCM_CK_FMHA_ARCH_OK
   #include <cstring>
   #include <utility>
   #include "fmha_fwd.hpp"
@@ -1356,7 +1369,7 @@ struct TransformerAttentionBlock {
     SizedBuf<void*> attnOutBuf(scratch->allocator, scratch->getBufSizeXY(numHeads * vHeadDim));
 
     bool usedFusedAttention = false;
-#if KATAGO_ROCM_HAS_CK_FMHA
+#if KATAGO_ROCM_HAS_CK_FMHA && KATAGO_ROCM_CK_FMHA_ARCH_OK
     if(usingFP16 && !cudaHandles->disableFusedAttention) {
       bool hasMask = (maskBuf != NULL);
 

@@ -77,6 +77,215 @@ function(katago_find_rocm_prefix out_var)
   set(${out_var} "${_result}" PARENT_SCOPE)
 endfunction()
 
+# Helper: locate vswhere.exe via the well-known Program Files env vars (Microsoft's own documented,
+# stable install location for it: "<Program Files(x86)>/Microsoft Visual Studio/Installer/"), so we
+# never hardcode a user- or edition-specific path.
+function(katago_win_find_vswhere out_var)
+  foreach(_pf_var "ProgramFiles(x86)" "ProgramFiles")
+    if(DEFINED ENV{${_pf_var}})
+      file(TO_CMAKE_PATH "$ENV{${_pf_var}}" _pf)
+      set(_candidate "${_pf}/Microsoft Visual Studio/Installer/vswhere.exe")
+      if(EXISTS "${_candidate}")
+        set(${out_var} "${_candidate}" PARENT_SCOPE)
+        return()
+      endif()
+    endif()
+  endforeach()
+  set(${out_var} "" PARENT_SCOPE)
+endfunction()
+
+# Helper: fallback Windows Kits (SDK) install root candidates, used only when the registry lookup
+# ("Installed Roots" key) doesn't resolve. Built from the ProgramFiles env vars rather than a
+# hardcoded drive letter, so this still works on a system with Windows installed to a non-C: drive.
+function(katago_win_winsdk_fallback_dirs out_var)
+  set(_dirs)
+  foreach(_pf_var "ProgramFiles(x86)" "ProgramFiles")
+    if(DEFINED ENV{${_pf_var}})
+      file(TO_CMAKE_PATH "$ENV{${_pf_var}}" _pf)
+      list(APPEND _dirs "${_pf}/Windows Kits/10")
+    endif()
+  endforeach()
+  list(REMOVE_DUPLICATES _dirs)
+  set(${out_var} "${_dirs}" PARENT_SCOPE)
+endfunction()
+
+# Helper: apply the environment vcvarsall.bat would set for a given MSVC toolset version into the
+# CURRENT cmake process's environment (equivalent to the user running vcvarsall.bat before invoking
+# cmake, but automatic). This is enough for every check that happens during THIS SAME configure run
+# (probing below, and the actual project()-triggered HIP compiler ABI test), since execute_process
+# children inherit it - but it does NOT persist into a later, separate `ninja` invocation (a sibling
+# process, not a child of cmake.exe), which is why katago_win_autoselect_msvc_toolset (below) also
+# bakes the resulting INCLUDE/LIB paths into cached compiler/linker flags for that to keep working.
+function(katago_win_apply_vcvarsall vcvarsall_bat vcvars_ver)
+  # Generate a tiny .bat wrapper instead of trying to pass the whole "call ... && set" pipeline as
+  # one execute_process COMMAND argument - CMake's own argument quoting mangles a string that
+  # complex (embedded quotes plus '&&'), even though the identical command works fine typed
+  # directly into a shell.
+  set(_bat_file "${CMAKE_BINARY_DIR}/_katago_vcvars_dump.bat")
+  set(_out_file "${CMAKE_BINARY_DIR}/_katago_vcvars_env.txt")
+  file(WRITE "${_bat_file}" "@echo off\r\ncall \"${vcvarsall_bat}\" x64 -vcvars_ver=${vcvars_ver} >NUL 2>NUL\r\nset\r\n")
+  execute_process(
+    COMMAND cmd /c "${_bat_file}"
+    OUTPUT_FILE "${_out_file}"
+    RESULT_VARIABLE _rc)
+  if(NOT _rc EQUAL 0 OR NOT EXISTS "${_out_file}")
+    return()
+  endif()
+  # Read line-by-line via file(STRINGS) rather than splitting the raw output ourselves - INCLUDE/
+  # LIB/PATH are themselves semicolon-separated, which would corrupt a naive string(REPLACE "\n" ";"
+  # ...) split; file(STRINGS) keeps each real line (with its embedded semicolons) as one list entry.
+  file(STRINGS "${_out_file}" _env_lines)
+  foreach(_line IN LISTS _env_lines)
+    if(_line MATCHES "^([A-Za-z_][A-Za-z0-9_().]*)=(.*)$")
+      set(ENV{${CMAKE_MATCH_1}} "${CMAKE_MATCH_2}")
+    endif()
+  endforeach()
+endfunction()
+
+# Helper: with the given HIP compiler and whatever environment is currently active, try compiling a
+# tiny HIP program that includes <cmath>, to check whether the active MSVC toolset's STL conflicts
+# with clang's own CUDA/HIP math forward declarations (see katago_win_autoselect_msvc_toolset below).
+function(katago_win_probe_hip_cmath hip_compiler out_var)
+  set(_probe_dir "${CMAKE_BINARY_DIR}/_katago_msvc_toolset_probe")
+  file(MAKE_DIRECTORY "${_probe_dir}")
+  set(_probe_src "${_probe_dir}/probe.cpp")
+  if(NOT EXISTS "${_probe_src}")
+    file(WRITE "${_probe_src}" "#include <cmath>\nint main(){ return 0; }\n")
+  endif()
+  # gfx900 (the oldest/most universally-recognized ROCm target ID, not tied to any GPU actually
+  # installed on this machine) is used here only to give --offload-arch a valid value so the HIP
+  # compile path (and its host-side <cmath> resolution, which is what's actually being tested) runs
+  # at all - this probe is unrelated to katago_default_hip_archs()'s real per-arch compatibility
+  # probing for the final build's architecture list.
+  execute_process(
+    COMMAND "${hip_compiler}" --offload-arch=gfx900 -x hip -c "${_probe_src}" -o "${_probe_dir}/probe.o"
+    RESULT_VARIABLE _rc
+    OUTPUT_QUIET ERROR_QUIET)
+  set(${out_var} ${_rc} PARENT_SCOPE)
+endfunction()
+
+# Helper: turn a semicolon-separated path list (like the env var INCLUDE or LIB) into a single
+# string of "-Iflagprefix<dir>" (or "-Lflagprefix<dir>") tokens, skipping empty entries.
+function(katago_win_pathlist_to_flags pathlist flagprefix out_var)
+  set(_flags "")
+  # CMake's own ';' list-splitting would fight with the semicolons already in the pathlist - split
+  # it as a plain string via regex instead of list(...).
+  string(REGEX MATCHALL "[^;]+" _dirs "${pathlist}")
+  foreach(_dir IN LISTS _dirs)
+    if(NOT _dir STREQUAL "")
+      set(_flags "${_flags} ${flagprefix}\"${_dir}\"")
+    endif()
+  endforeach()
+  set(${out_var} "${_flags}" PARENT_SCOPE)
+endfunction()
+
+# Helper: find an MSVC "v143" toolset (possibly one of several 14.3x/14.4x versions installed
+# side-by-side under one or more VS installs) whose STL doesn't conflict with the HIP compiler's
+# own CUDA/HIP math forward-declare headers, apply the vcvarsall.bat environment for it (so the
+# rest of THIS configure run - the HIP arch probing below, and project()'s own HIP compiler ABI
+# test - see it), and also bake the resulting INCLUDE/LIB paths into cached compiler/linker flags
+# so a later, separate `ninja` invocation (which does NOT inherit this configure run's environment
+# - see katago_win_apply_vcvarsall's comment) keeps working too.
+#
+# Deliberately pinned to the v143 toolset family (MSVC 14.3x/14.4x) rather than probing every
+# installed toolset regardless of version: a newer MSVC STL (seen with a VS "18" preview-channel
+# toolset, MSVC 14.51+, i.e. the next "v144" family) declares math functions like isgreater/isless
+# in a way that conflicts with clang's forward declarations for CUDA/HIP device overloads ("device
+# function cannot overload host device function"), because that clang version predates the STL's
+# newly-added declarations. v143 is the toolset actually verified to work with TheRock's clang;
+# still probing within the v143 family (oldest first) rather than hardcoding one exact version,
+# since multiple v143 point releases can be installed side by side and this needs one that's
+# actually present.
+function(katago_win_autoselect_msvc_toolset hip_compiler)
+  katago_win_find_vswhere(_vswhere)
+  if(NOT _vswhere)
+    message(FATAL_ERROR "vswhere.exe not found (expected under \"<Program Files(x86)>/Microsoft Visual Studio/Installer/\") - install Visual Studio Build Tools or Community with the \"Desktop development with C++\" workload.")
+  endif()
+  execute_process(
+    COMMAND "${_vswhere}" -all -products * -property installationPath
+    OUTPUT_VARIABLE _install_paths_raw
+    RESULT_VARIABLE _rc
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+  if(NOT _rc EQUAL 0 OR _install_paths_raw STREQUAL "")
+    message(FATAL_ERROR "vswhere found no Visual Studio installation - install Visual Studio Build Tools or Community with the \"Desktop development with C++\" workload.")
+  endif()
+  string(REPLACE "\r\n" "\n" _install_paths_raw "${_install_paths_raw}")
+  string(REPLACE "\n" ";" _install_paths "${_install_paths_raw}")
+
+  set(_toolsets)
+  foreach(_install_path IN LISTS _install_paths)
+    if(_install_path STREQUAL "")
+      continue()
+    endif()
+    file(TO_CMAKE_PATH "${_install_path}" _install_path)
+    file(GLOB _tool_dirs "${_install_path}/VC/Tools/MSVC/*")
+    foreach(_t IN LISTS _tool_dirs)
+      if(IS_DIRECTORY "${_t}" AND EXISTS "${_t}/include/cmath")
+        get_filename_component(_ver "${_t}" NAME)
+        # v143 toolset versions are 14.3x/14.4x (the next-generation "v144" toolset, seen with
+        # VS 18 preview builds, starts at 14.5x and is the one known to conflict - see above).
+        if(NOT _ver MATCHES "^14\\.[34][0-9]\\.")
+          continue()
+        endif()
+        set(_vcvarsall "${_install_path}/VC/Auxiliary/Build/vcvarsall.bat")
+        if(EXISTS "${_vcvarsall}")
+          list(APPEND _toolsets "${_ver}|${_vcvarsall}")
+        endif()
+      endif()
+    endforeach()
+  endforeach()
+
+  if(NOT _toolsets)
+    message(FATAL_ERROR "No installed MSVC v143 toolset (14.3x/14.4x) found. Open the Visual Studio Installer, choose \"Modify\" on your VS installation, go to \"Individual Components\", and install \"MSVC v143 - VS 2022 C++ x64/x86 build tools\" (a newer toolset alone, e.g. a VS 18 preview's v144, is not compatible with TheRock's bundled clang).")
+  endif()
+  list(REMOVE_DUPLICATES _toolsets)
+  list(SORT _toolsets COMPARE NATURAL ORDER ASCENDING)
+
+  foreach(_entry IN LISTS _toolsets)
+    string(REPLACE "|" ";" _entry_list "${_entry}")
+    list(GET _entry_list 0 _ver)
+    list(GET _entry_list 1 _vcvarsall)
+    message(STATUS "Trying MSVC toolset ${_ver} for HIP compiler compatibility...")
+    katago_win_apply_vcvarsall("${_vcvarsall}" "${_ver}")
+    katago_win_probe_hip_cmath("${hip_compiler}" _probe_rc)
+    if(_probe_rc EQUAL 0)
+      message(STATUS "MSVC toolset ${_ver} is compatible with the HIP compiler; using it")
+      # Bake this toolset's resolved INCLUDE/LIB (now sitting in ENV{} courtesy of
+      # katago_win_apply_vcvarsall) into cached flags, so a later separate `ninja` invocation -
+      # which won't have this environment - still finds the same headers/libs.
+      #
+      # Clang's own resource-dir/include (containing its clang-compatible emmintrin.h/immintrin.h
+      # etc) must come FIRST, ahead of the MSVC toolset's own include dir: <cwchar> pulls in
+      # <intrin.h>, and MSVC's own <intrin.h>/<immintrin.h> declare SSE/AVX intrinsics using
+      # __declspec(intrin_type), a cl.exe-only mechanism clang doesn't understand - it just sees an
+      # ordinary extern function declaration with no body, so any code that ends up calling one
+      # (e.g. the MSVC STL's wmemcmp) links with an "undefined symbol: _mm_loadu_si128"-style error.
+      # Explicitly preferring clang's own compatible headers for those specific filenames avoids
+      # this, while still falling through to the MSVC/SDK -I entries below for headers clang has no
+      # equivalent for (the actual MSVC STL, ucrt, etc). This needs a plain -I (not -isystem/
+      # -idirafter): the earlier __clang_hip_runtime_wrapper.h force-included in every HIP
+      # compilation uses #include_next to reach the "real" <cmath> starting from wherever clang's
+      # own cuda_wrappers/cmath shim was found, and that continuation only walks through the same
+      # -I search list, not -isystem/-idirafter entries.
+      execute_process(COMMAND "${hip_compiler}" -print-resource-dir
+        OUTPUT_VARIABLE _clang_resource_dir OUTPUT_STRIP_TRAILING_WHITESPACE)
+      file(TO_CMAKE_PATH "${_clang_resource_dir}" _clang_resource_dir)
+      set(_inc_flags "-I\"${_clang_resource_dir}/include\"")
+      katago_win_pathlist_to_flags("$ENV{INCLUDE}" "-I" _msvc_inc_flags)
+      katago_win_pathlist_to_flags("$ENV{LIB}" "-L" _lib_flags)
+      set(_inc_flags "${_inc_flags} ${_msvc_inc_flags}")
+      set(CMAKE_HIP_FLAGS "${CMAKE_HIP_FLAGS} ${_inc_flags}" CACHE STRING "" FORCE)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${_inc_flags}" CACHE STRING "" FORCE)
+      set(CMAKE_C_FLAGS   "${CMAKE_C_FLAGS} ${_inc_flags}"   CACHE STRING "" FORCE)
+      set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${_lib_flags}" CACHE STRING "" FORCE)
+      return()
+    else()
+      message(STATUS "MSVC toolset ${_ver} conflicts with the HIP compiler's CUDA/HIP math headers; trying another")
+    endif()
+  endforeach()
+  message(FATAL_ERROR "None of the installed MSVC v143 toolset(s) (14.3x/14.4x) compiled cleanly against TheRock's HIP compiler. This indicates a problem beyond the usual v143-vs-newer-toolset conflict this check is meant to catch - please report this along with the MSVC/TheRock versions involved.")
+endfunction()
+
 if(USE_BACKEND STREQUAL "METAL")
   project(katago LANGUAGES CXX Swift)
 elseif(USE_BACKEND STREQUAL "ROCM")
@@ -96,6 +305,12 @@ elseif(USE_BACKEND STREQUAL "ROCM")
       endif()
     endif()
     # ---------- C/C++ compiler (clang++ from HIP SDK) ----------
+    # hipcc.exe was tried here (to mirror the Linux code path, where CMAKE_CXX_COMPILER=hipcc
+    # transparently treats every .cpp as HIP source) but it mis-tokenizes quoted paths containing
+    # spaces (e.g. "C:/Program Files (x86)/Windows Kits/..."), breaking the compiler-detection step
+    # entirely - not usable as CMAKE_CXX_COMPILER on Windows. Use clang++ directly instead; the
+    # rocmbackend.cpp / CK generated sources that need real HIP compilation get it via an explicit
+    # LANGUAGE HIP source property instead (see below and the CK FMHA section further down).
     if(NOT CMAKE_CXX_COMPILER)
       if(DEFINED ENV{HIP_PATH})
         if(EXISTS "$ENV{HIP_PATH}/lib/llvm/bin/clang++.exe")
@@ -110,6 +325,15 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     # HIP compiler = same binary as C++ compiler
     if(NOT CMAKE_HIP_COMPILER AND CMAKE_CXX_COMPILER)
       set(CMAKE_HIP_COMPILER "${CMAKE_CXX_COMPILER}" CACHE FILEPATH "" FORCE)
+    endif()
+    # ---------- MSVC toolset auto-selection (avoid newer-STL / clang HIP header conflicts) ----------
+    # Automatically finds and applies (via vcvarsall.bat) a locally-installed MSVC toolset that's
+    # compatible with this HIP compiler - see katago_win_autoselect_msvc_toolset()'s comment above
+    # for why this is needed. Runs once per fresh CMakeCache (cached so a plain re-run of cmake
+    # doesn't redo the probing every time).
+    if(CMAKE_HIP_COMPILER AND NOT KATAGO_WIN_MSVC_TOOLSET_CHECKED)
+      katago_win_autoselect_msvc_toolset("${CMAKE_HIP_COMPILER}")
+      set(KATAGO_WIN_MSVC_TOOLSET_CHECKED TRUE CACHE INTERNAL "")
     endif()
     # ---------- HIP architectures (must be set before project() / enable_language(HIP)) ----------
     # Default to the broad set of AMD GPU architectures KataGo supports unless
@@ -129,8 +353,8 @@ elseif(USE_BACKEND STREQUAL "ROCM")
         "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;KitsRoot10]"
         ABSOLUTE)
       if(NOT EXISTS "${_pre_winsdk_root}")
-        foreach(_p "C:/Program Files (x86)/Windows Kits/10"
-                   "C:/Program Files/Windows Kits/10")
+        katago_win_winsdk_fallback_dirs(_pre_winsdk_candidates)
+        foreach(_p IN LISTS _pre_winsdk_candidates)
           if(EXISTS "${_p}")
             set(_pre_winsdk_root "${_p}")
             break()
@@ -162,8 +386,8 @@ elseif(USE_BACKEND STREQUAL "ROCM")
         "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;KitsRoot10]"
         ABSOLUTE)
       if(NOT EXISTS "${_winsdk_root}")
-        foreach(_p "C:/Program Files (x86)/Windows Kits/10"
-                   "C:/Program Files/Windows Kits/10")
+        katago_win_winsdk_fallback_dirs(_winsdk_candidates)
+        foreach(_p IN LISTS _winsdk_candidates)
           if(EXISTS "${_p}")
             set(_winsdk_root "${_p}")
             break()
@@ -291,6 +515,111 @@ set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 50. Compil
 
 set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache. May use a lot of disk space. Only applies when USE_BACKEND is TENSORRT.")
 mark_as_advanced(USE_CACHE_TENSORRT_PLAN)
+
+# ---------- Auto-fetch missing third-party deps (e.g. zlib on a Windows ROCm/TheRock install that
+# doesn't ship a linkable zlib) via a local vcpkg clone in the build tree. Mirrors the same
+# KATAGO_AUTO_FETCH_DEPS / vcpkg-in-build-tree pattern used on the Intel_NPU branch, so this stays
+# consistent across branches instead of reinventing a different fetch mechanism here.
+if(WIN32 OR (UNIX AND NOT APPLE))
+  set(_katago_auto_fetch_default ON)
+else()
+  set(_katago_auto_fetch_default OFF)
+endif()
+option(KATAGO_AUTO_FETCH_DEPS "Automatically fetch missing dependencies into build/deps (Windows/Linux use vcpkg)." ${_katago_auto_fetch_default})
+set(KATAGO_DEPS_DIR "${CMAKE_SOURCE_DIR}/build/deps" CACHE PATH "Directory for auto-fetched third-party dependencies")
+if(WIN32)
+  set(_katago_vcpkg_triplet_default "x64-windows")
+elseif(UNIX AND NOT APPLE)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
+    set(_katago_vcpkg_triplet_default "arm64-linux")
+  else()
+    set(_katago_vcpkg_triplet_default "x64-linux")
+  endif()
+else()
+  set(_katago_vcpkg_triplet_default "x64-windows")
+endif()
+set(KATAGO_VCPKG_TRIPLET "${_katago_vcpkg_triplet_default}" CACHE STRING "vcpkg triplet used by KATAGO_AUTO_FETCH_DEPS")
+set(KATAGO_VCPKG_ROOT "${KATAGO_DEPS_DIR}/vcpkg" CACHE PATH "Path to local vcpkg clone used by KATAGO_AUTO_FETCH_DEPS")
+mark_as_advanced(KATAGO_VCPKG_TRIPLET KATAGO_VCPKG_ROOT)
+
+function(katago_vcpkg_bootstrap_if_needed)
+  if(NOT WIN32 AND NOT (UNIX AND NOT APPLE))
+    message(FATAL_ERROR "katago_vcpkg_bootstrap_if_needed is only supported on Windows and Linux")
+  endif()
+
+  if(NOT KATAGO_AUTO_FETCH_DEPS)
+    message(FATAL_ERROR "KATAGO_AUTO_FETCH_DEPS is OFF, cannot auto-fetch missing dependency")
+  endif()
+
+  file(MAKE_DIRECTORY "${KATAGO_DEPS_DIR}")
+
+  if(WIN32)
+    set(_katago_vcpkg_exe "${KATAGO_VCPKG_ROOT}/vcpkg.exe")
+  else()
+    set(_katago_vcpkg_exe "${KATAGO_VCPKG_ROOT}/vcpkg")
+  endif()
+
+  if(NOT EXISTS "${_katago_vcpkg_exe}")
+    if(NOT EXISTS "${KATAGO_VCPKG_ROOT}/.git")
+      find_package(Git QUIET)
+      if(NOT GIT_FOUND)
+        message(FATAL_ERROR "KATAGO_AUTO_FETCH_DEPS requires git to clone vcpkg")
+      endif()
+      message(STATUS "Auto-fetch deps: cloning vcpkg into ${KATAGO_VCPKG_ROOT}")
+      execute_process(
+        COMMAND "${GIT_EXECUTABLE}" clone --depth=1 https://github.com/microsoft/vcpkg.git "${KATAGO_VCPKG_ROOT}"
+        RESULT_VARIABLE _clone_result
+        OUTPUT_VARIABLE _clone_out
+        ERROR_VARIABLE _clone_err
+      )
+      if(NOT _clone_result EQUAL 0)
+        message(FATAL_ERROR "Failed to clone vcpkg.\n${_clone_out}\n${_clone_err}")
+      endif()
+    endif()
+
+    message(STATUS "Auto-fetch deps: bootstrapping vcpkg")
+    if(WIN32)
+      execute_process(
+        COMMAND "${KATAGO_VCPKG_ROOT}/bootstrap-vcpkg.bat" -disableMetrics
+        WORKING_DIRECTORY "${KATAGO_VCPKG_ROOT}"
+        RESULT_VARIABLE _bootstrap_result
+      )
+    else()
+      execute_process(
+        COMMAND sh "${KATAGO_VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics
+        WORKING_DIRECTORY "${KATAGO_VCPKG_ROOT}"
+        RESULT_VARIABLE _bootstrap_result
+      )
+    endif()
+    if(NOT _bootstrap_result EQUAL 0)
+      message(FATAL_ERROR "Failed to bootstrap vcpkg")
+    endif()
+  endif()
+endfunction()
+
+function(katago_vcpkg_install_if_needed package_name)
+  katago_vcpkg_bootstrap_if_needed()
+
+  if(WIN32)
+    set(_katago_vcpkg_exe "${KATAGO_VCPKG_ROOT}/vcpkg.exe")
+  else()
+    set(_katago_vcpkg_exe "${KATAGO_VCPKG_ROOT}/vcpkg")
+  endif()
+  if(NOT EXISTS "${_katago_vcpkg_exe}")
+    message(FATAL_ERROR "vcpkg executable not found after bootstrap: ${_katago_vcpkg_exe}")
+  endif()
+
+  set(_spec "${package_name}:${KATAGO_VCPKG_TRIPLET}")
+  message(STATUS "Auto-fetch deps: ensuring ${_spec} via vcpkg")
+  execute_process(
+    COMMAND "${_katago_vcpkg_exe}" install "${_spec}" --disable-metrics
+    WORKING_DIRECTORY "${KATAGO_VCPKG_ROOT}"
+    RESULT_VARIABLE _install_result
+  )
+  if(NOT _install_result EQUAL 0)
+    message(FATAL_ERROR "Failed to install ${_spec} via vcpkg")
+  endif()
+endfunction()
 
 #--------------------------- NEURAL NET BACKEND ------------------------------------------------------------------------
 
@@ -927,6 +1256,13 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     ${_miopen_target}    # DNN primitives
   )
 
+  # See the comment in core/win_rocm_sse_shim.cpp: on Windows, ucrt's own <wchar.h> ends up calling
+  # SSE2 intrinsics that resolve to bodyless declarations under this toolchain, causing "undefined
+  # symbol" link errors. This file is a no-op everywhere except Windows (guarded internally).
+  if(WIN32)
+    target_sources(katago PRIVATE core/win_rocm_sse_shim.cpp)
+  endif()
+
   # KATAGO_ROCM_PREFIX may not be set if the user passed an explicit -DCMAKE_PREFIX_PATH (which
   # skips the auto-detect branches that populate it) - fall back to CMAKE_PREFIX_PATH's first entry
   # in that case, so RPATH still gets set below regardless of how the prefix was determined.
@@ -968,12 +1304,32 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   if(KATAGO_CK_TILE_INCLUDE_DIR)
     message(STATUS "Found ck_tile headers at ${KATAGO_CK_TILE_INCLUDE_DIR}; enabling optional CK FMHA fused attention path")
     file(GLOB KATAGO_CK_FMHA_GENERATED_SOURCES external/composable_kernel_fmha/generated/*.cpp)
-    target_sources(katago PRIVATE ${KATAGO_CK_FMHA_GENERATED_SOURCES})
+    # ck_tile's own arch.hpp (get_compiler_target()) has no case at all for gfx906 or RDNA1
+    # (gfx1010/1011/1012) - its FMHA kernels were never ported to these (no MFMA/WMMA), so its
+    # constexpr dispatch function silently falls through to nothing on a device-compile pass for
+    # them, and merely including ck_tile headers then hard-fails ("member reference base type
+    # 'void' is not a structure or union"). These generated files exist solely to provide CK kernel
+    # instantiations, so simply exclude them from those particular archs' compilation entirely via
+    # a dedicated object library with a narrowed HIP_ARCHITECTURES - the plain (non-fused) attention
+    # kernel already covers those archs regardless.
+    set(KATAGO_CK_FMHA_SUPPORTED_ARCHS ${CMAKE_HIP_ARCHITECTURES})
+    list(REMOVE_ITEM KATAGO_CK_FMHA_SUPPORTED_ARCHS gfx906 gfx1010 gfx1011 gfx1012)
+    set_source_files_properties(${KATAGO_CK_FMHA_GENERATED_SOURCES} PROPERTIES LANGUAGE HIP)
+    add_library(katago_ck_fmha_kernels OBJECT ${KATAGO_CK_FMHA_GENERATED_SOURCES})
+    set_target_properties(katago_ck_fmha_kernels PROPERTIES HIP_ARCHITECTURES "${KATAGO_CK_FMHA_SUPPORTED_ARCHS}")
     # SYSTEM/-isystem is required, not just for warning suppression: ck_tile's own headers
     # #include <hip/hip_runtime.h>, and on systems with a stale libamdhip64-dev under /usr/include,
     # a plain -I here still loses to /usr/include for angle-bracket resolution. -isystem does not.
+    target_include_directories(katago_ck_fmha_kernels SYSTEM PRIVATE ${KATAGO_CK_TILE_INCLUDE_DIR} external/composable_kernel_fmha)
+    target_link_libraries(katago katago_ck_fmha_kernels)
     target_include_directories(katago SYSTEM PRIVATE ${KATAGO_CK_TILE_INCLUDE_DIR} external/composable_kernel_fmha)
     target_compile_definitions(katago PRIVATE KATAGO_ROCM_HAS_CK_FMHA=1)
+    # rocmbackend.cpp itself (unlike the generated files above) still needs to compile for every
+    # arch, since it also holds the non-CK ROCm backend logic - it guards its own CK usage per-arch
+    # internally (see KATAGO_ROCM_CK_FMHA_ARCH_OK in rocmbackend.cpp) rather than being excluded here.
+    if(WIN32)
+      set_source_files_properties(neuralnet/rocmbackend.cpp PROPERTIES LANGUAGE HIP)
+    endif()
   else()
     message(STATUS "ck_tile headers not found; ROCm backend will only use its built-in (non-fused) attention kernel")
     target_compile_definitions(katago PRIVATE KATAGO_ROCM_HAS_CK_FMHA=0)
@@ -1020,7 +1376,7 @@ if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
   target_compile_definitions(katago PRIVATE NO_GIT_REVISION)
 endif()
 
-# On Windows ROCm builds, zlib is bundled inside the HIP SDK (TheRock layout)
+# On Windows ROCm builds, zlib is bundled inside the HIP SDK (TheRock layout) - try that first.
 if(WIN32 AND USE_BACKEND STREQUAL "ROCM" AND DEFINED ENV{HIP_PATH})
   if(NOT ZLIB_INCLUDE_DIR AND EXISTS "$ENV{HIP_PATH}/lib/rocm_sysdeps/include/zlib.h")
     set(ZLIB_INCLUDE_DIR "$ENV{HIP_PATH}/lib/rocm_sysdeps/include" CACHE PATH "" FORCE)
@@ -1035,6 +1391,30 @@ if(WIN32 AND USE_BACKEND STREQUAL "ROCM" AND DEFINED ENV{HIP_PATH})
   endif()
 endif()
 
+# TheRock's Windows package (as of ~7.13) ships zlib.h under rocm_sysdeps/include but no linkable
+# .lib anymore (the block above then leaves ZLIB_LIBRARY unset) - auto-fetch zlib via vcpkg instead
+# of requiring the user to separately install a package manager (see KATAGO_AUTO_FETCH_DEPS above).
+set(KATAGO_ZLIB_IS_VCPKG_DLL FALSE)
+if(KATAGO_AUTO_FETCH_DEPS AND (NOT ZLIB_INCLUDE_DIR OR NOT ZLIB_LIBRARY))
+  katago_vcpkg_install_if_needed("zlib")
+  set(_katago_vcpkg_installed_root "${KATAGO_VCPKG_ROOT}/installed/${KATAGO_VCPKG_TRIPLET}")
+  if(NOT ZLIB_INCLUDE_DIR AND EXISTS "${_katago_vcpkg_installed_root}/include/zlib.h")
+    set(ZLIB_INCLUDE_DIR "${_katago_vcpkg_installed_root}/include" CACHE PATH "Path to directory with zlib.h and other header files" FORCE)
+  endif()
+  if(NOT ZLIB_LIBRARY)
+    find_library(_katago_zlib_lib NAMES zlib z zlibstatic HINTS "${_katago_vcpkg_installed_root}/lib" NO_DEFAULT_PATH)
+    if(_katago_zlib_lib)
+      set(ZLIB_LIBRARY "${_katago_zlib_lib}" CACHE FILEPATH "Path to 'libz.so' on Linux or 'libz.lib' on Windows" FORCE)
+      # vcpkg's default triplets (e.g. x64-windows) build zlib as a DLL, not a static lib - the
+      # .lib found above is just an import lib, so the matching runtime DLL needs to be copied
+      # next to katago.exe at build time (see the POST_BUILD step further below).
+      if(WIN32)
+        set(KATAGO_ZLIB_IS_VCPKG_DLL TRUE)
+      endif()
+    endif()
+  endif()
+endif()
+
 find_package(ZLIB)
 if(ZLIB_FOUND)
   include_directories(${ZLIB_INCLUDE_DIRS})
@@ -1045,6 +1425,50 @@ else()
   mark_as_advanced(CLEAR ZLIB_INCLUDE_DIR ZLIB_LIBRARY)
   message(SEND_ERROR "${ColorBoldRed}zlib was not found, if zlib is actually installed but not being found you can set ZLIB_INCLUDE_DIR to the directory with zlib.h and other headers, and ZLIB_LIBRARY to the compiled library 'libz.so' on Linux or 'libz.lib' on Windows. On the command line, this is -DZLIB_INCLUDE_DIR=... and -DZLIB_LIBRARY=... ${ColorReset}")
 endif(ZLIB_FOUND)
+
+if(KATAGO_ZLIB_IS_VCPKG_DLL)
+  get_filename_component(_katago_zlib_lib_dir "${ZLIB_LIBRARY}" DIRECTORY)
+  get_filename_component(_katago_vcpkg_pkg_root "${_katago_zlib_lib_dir}" DIRECTORY)
+  file(GLOB _katago_zlib_dlls "${_katago_vcpkg_pkg_root}/bin/*.dll")
+  foreach(_katago_zlib_dll IN LISTS _katago_zlib_dlls)
+    add_custom_command(TARGET katago POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_katago_zlib_dll}" "$<TARGET_FILE_DIR:katago>"
+      VERBATIM)
+  endforeach()
+endif()
+
+# On Windows ROCm builds, copy the HIP/MIOpen/rocBLAS runtime DLLs next to katago.exe so it runs
+# without the user needing to manually copy anything or add HIP_PATH/bin to PATH themselves.
+# amdhip64_*.dll in particular must be copied (not just PATH-resolved): AMD's GPU driver installs
+# its own, potentially older/incompatible copy into System32, which would otherwise take priority.
+if(WIN32 AND USE_BACKEND STREQUAL "ROCM" AND DEFINED ENV{HIP_PATH})
+  file(TO_CMAKE_PATH "$ENV{HIP_PATH}" _katago_hip_path)
+  file(GLOB _katago_rocm_runtime_dlls
+    "${_katago_hip_path}/bin/amdhip64_*.dll"
+    "${_katago_hip_path}/bin/hipblas.dll"
+    "${_katago_hip_path}/bin/MIOpen.dll"
+    "${_katago_hip_path}/bin/rocblas.dll"
+    "${_katago_hip_path}/bin/libhipblaslt.dll"
+    "${_katago_hip_path}/bin/amdocl64.dll"
+    "${_katago_hip_path}/bin/hiprtc*.dll"
+    "${_katago_hip_path}/bin/amd_comgr*.dll"
+  )
+  foreach(_katago_rocm_dll IN LISTS _katago_rocm_runtime_dlls)
+    add_custom_command(TARGET katago POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${_katago_rocm_dll}" "$<TARGET_FILE_DIR:katago>"
+      VERBATIM)
+  endforeach()
+  # rocBLAS/hipBLASLt look for their kernel library files relative to their own DLL's location.
+  foreach(_katago_rocm_lib_subdir IN ITEMS rocblas hipblaslt)
+    if(IS_DIRECTORY "${_katago_hip_path}/bin/${_katago_rocm_lib_subdir}/library")
+      add_custom_command(TARGET katago POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+          "${_katago_hip_path}/bin/${_katago_rocm_lib_subdir}/library"
+          "$<TARGET_FILE_DIR:katago>/${_katago_rocm_lib_subdir}/library"
+        VERBATIM)
+    endif()
+  endforeach()
+endif()
 
 find_library(LIBZIP_LIBRARY NAMES zip)
 find_path(LIBZIP_INCLUDE_DIR_ZIP NAMES zip.h)
@@ -1194,8 +1618,8 @@ if(WIN32 AND USE_BACKEND STREQUAL "ROCM")
     if(EXISTS "${_winsdk_root2}")
       set(KATAGO_WINSDK_ROOT "${_winsdk_root2}" CACHE INTERNAL "")
     else()
-      foreach(_p "C:/Program Files (x86)/Windows Kits/10"
-                 "C:/Program Files/Windows Kits/10")
+      katago_win_winsdk_fallback_dirs(_winsdk_candidates2)
+      foreach(_p IN LISTS _winsdk_candidates2)
         if(EXISTS "${_p}")
           set(KATAGO_WINSDK_ROOT "${_p}" CACHE INTERNAL "")
           break()
