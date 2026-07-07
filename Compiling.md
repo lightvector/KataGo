@@ -33,6 +33,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
       * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
+      * If using the ROCm backend, ROCm 6.4 or later and a GPU capable of supporting them. More information about installation(https://rocm.docs.amd.com/projects/install-on-linux/en/latest/) and please install all possible ROCm developer packages, instead of just ROCm runtime packages.
       * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
       * zlib, libzip. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`.
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
@@ -41,7 +42,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * `git clone https://github.com/lightvector/KataGo.git`
    * Compile using CMake and make in the cpp directory:
       * `cd KataGo/cpp`
-      * `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=CUDA` or `cmake . -DUSE_BACKEND=TENSORRT` or `cmake . -DUSE_BACKEND=EIGEN` depending on which backend you want.
+      * `cmake . -DUSE_BACKEND=OPENCL` or `cmake . -DUSE_BACKEND=CUDA` or `cmake . -DUSE_BACKEND=TENSORRT` or `cmake . -DUSE_BACKEND=EIGEN` or `cmake . -DUSE_BACKEND=ROCM` depending on which backend you want.
          * Specify also `-DUSE_TCMALLOC=1` if using TCMalloc.
          * Compiling will also call git commands to embed the git hash into the compiled executable, specify also `-DNO_GIT_REVISION=1` to disable it if this is causing issues for you.
          * Specify `-DUSE_AVX2=1` to also compile Eigen with AVX2 and FMA support, which will make it incompatible with old CPUs but much faster. (If you want to go further, you can also add `-DCMAKE_CXX_FLAGS='-march=native'` which will specialize to precisely your machine's CPU, but the exe might not run on other machines at all).
@@ -53,6 +54,36 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+
+   * **ROCm backend (Linux) — additional notes:**
+      * Install ROCm following the [official guide](https://rocm.docs.amd.com/en/7.12.0-preview/install/rocm.html). Install the full developer stack (not just runtime): `sudo apt install rocm-dev miopen-hip rocblas hipblas`.
+      * Build:
+        ```
+        cd KataGo/cpp
+        mkdir build && cd build
+        cmake .. -DUSE_BACKEND=ROCM -DCMAKE_BUILD_TYPE=Release
+        make -j$(nproc)
+        ```
+        No `-DCMAKE_PREFIX_PATH` is needed in the common case: the build auto-detects the ROCm
+        install location, preferring the newer `/opt/rocm/core-<version>/` layout used since
+        ROCm ~7.9 (picking the highest version present) and falling back to the older flat
+        `/opt/rocm/` layout. Pass `-DCMAKE_PREFIX_PATH=...` explicitly to override.
+      * GPU architecture: by default the build targets a broad set of AMD GPU architectures
+        (CDNA + all RDNA generations) in a single "fat" binary, probing the installed compiler for
+        which ones it actually supports, so the resulting `katago` runs on more than just the
+        machine it was built on. Pass `-DCMAKE_HIP_ARCHITECTURES=gfx1100` (replace with your GPU's
+        gfx target) to build for only your own GPU instead, which is faster to compile.
+      * The build bakes the resolved ROCm lib directory into the binary's RPATH, so the built
+        `katago` doesn't depend on `/opt/rocm` still pointing at the same install later (e.g. after
+        installing a different ROCm version) or on `LD_LIBRARY_PATH` being set when run.
+      * On first run, MIOpen will search for optimal convolution algorithms for your specific GPU and network size. This may take up to a minute and results are cached in `~/.config/miopen/` for subsequent runs.
+      * **Transformer/attention models (model version 17+):** supported on all architectures via a
+        built-in kernel. If a matching version of AMD's Composable Kernel (`composablekernel-dev` /
+        `amdrocm-ck*`) is also installed, the build additionally enables a fused-attention fast path
+        (measured ~2x faster on a gfx1100/RX 7900 XTX) for CDNA and RDNA3/RDNA3.5/RDNA4 GPUs -
+        RDNA1/RDNA2 always use the built-in kernel, as does any GPU if the fused path isn't
+        available or is explicitly disabled with `rocmDisableFusedAttention = true` in the config.
+        See `cpp/external/composable_kernel_fmha/README.md` for details.
 
 ## Windows
    * TLDR:
@@ -116,6 +147,58 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+
+   * **ROCm backend (Windows) — building via AMD TheRock:**
+      * The ROCm (MIOpen) backend supports Windows via [AMD TheRock](https://github.com/ROCm/TheRock) (tested with TheRock 7.13 / ROCm 7.13, RX 7900 XTX / gfx1100), including transformer/attention models (model version 17+) and the optional CK fused-attention fast path.
+      * **Prerequisites:**
+         * Install ROCm following the [official guide](https://rocm.docs.amd.com/en/7.13.0-preview/install/rocm.html?fam=all&os=windows). For Windows, download [AMD TheRock](https://github.com/ROCm/TheRock) and extract to e.g. `C:\TheRock\build`.
+         * Install **Visual Studio Build Tools or Community** with the "Desktop development with C++" workload, for the MSVC toolchain and Windows SDK the HIP compiler needs. Any MSVC toolset version is fine to install - if more than one ends up installed side by side, `CMakeLists.txt` automatically probes them at configure time and picks a compatible one itself (see "Fully automatic" below), no manual toolset selection needed.
+         * Install [Ninja](https://ninja-build.org) build tool: `winget install Ninja-build.Ninja`.
+         * Set the following **system environment variables** (via System Properties → Advanced → Environment Variables):
+           ```
+           HIP_PATH=C:/TheRock/build
+           HIP_PLATFORM=amd
+           HIP_DEVICE_LIB_PATH=C:/TheRock/build/lib/llvm/amdgcn/bitcode
+           LLVM_PATH=C:/TheRock/build/lib/llvm
+           ```
+         * Add to system `PATH`:
+           ```
+           C:\TheRock\build\bin
+           C:\TheRock\build\lib\llvm\bin
+           ```
+         * Reboot after setting environment variables so they take effect system-wide.
+      * **Build - fully automatic**, just like Linux:
+        ```
+        cd KataGo/cpp
+        mkdir build
+        cd build
+        cmake .. -G Ninja -DUSE_BACKEND=ROCM -DCMAKE_BUILD_TYPE=Release
+        ninja -j $env:NUMBER_OF_PROCESSORS
+        ```
+        No manual environment setup, no `-D` flags, no `vcvarsall`, and no external package manager
+        install are needed beyond the prerequisites above. `CMakeLists.txt` handles the rest of the
+        Windows-specific setup automatically at configure/build time:
+         * **MSVC toolset selection:** if more than one MSVC toolset is installed side by side, a
+           newer one can conflict with TheRock's bundled clang (a brand-new MSVC STL declaring math
+           functions in a way clang's CUDA/HIP compatibility headers don't yet handle, or a
+           different SSE2-intrinsics-resolution conflict). `CMakeLists.txt` finds all installed
+           toolsets via `vswhere` and probes each with a real compile until it finds one that works,
+           with no user action needed.
+         * **zlib:** TheRock's Windows package ships `zlib.h` but (as of 7.13) no longer ships a
+           linkable `.lib`. `CMakeLists.txt` automatically bootstraps a local
+           [vcpkg](https://github.com/microsoft/vcpkg) clone under `cpp/build/deps/vcpkg` (this
+           needs internet access and `git` on `PATH` the first time; subsequent reconfigures reuse
+           the same local install) and builds zlib through it - this is the same
+           `KATAGO_AUTO_FETCH_DEPS`/vcpkg-in-build-tree mechanism the ONNX backend uses, so it stays
+           consistent across backends rather than using a different fetch method here.
+         * **Runtime DLLs:** all the ROCm/HIP DLLs (`amdhip64_7.dll`, `MIOpen.dll`, `hipblas.dll`,
+           `rocblas.dll` + its `library/` subfolder, `libhipblaslt.dll` + its `library/` subfolder,
+           `amdocl64.dll`, `hiprtc*.dll`, `amd_comgr*.dll`) and the vcpkg zlib runtime DLL are
+           automatically copied next to `katago.exe` as a post-build step - nothing to copy by hand.
+        `ck_tile` headers for the optional fused-attention path are still auto-detected from
+        `HIP_PATH` the same way as on Linux.
+      * **First-run note:** MIOpen will search for optimal convolution algorithms on the first run. This may take 45+ seconds per network configuration and results are cached in `%USERPROFILE%\.miopen\` for subsequent runs. Do not terminate the process during this initial tuning.
+      * **Performance note:** GPU utilization on Windows may be somewhat lower than on Linux due to the Windows Driver Model (WDDM) adding overhead to GPU kernel submissions. This is a known limitation of ROCm on Windows. For example, the CK fused-attention path measured ~2x faster than the built-in kernel on Linux (gfx1100), but only ~1.3x faster on Windows on the same GPU — still a real win, just smaller due to WDDM overhead.
 
 ## MacOS
    * TLDR (Metal backend - recommended for most users, hybrid CPU+GPU+Neural Engine for maximum throughput):
