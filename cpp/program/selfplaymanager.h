@@ -1,6 +1,8 @@
 #ifndef PROGRAM_SELFPLAYMANAGER_H_
 #define PROGRAM_SELFPLAYMANAGER_H_
 
+#include <atomic>
+
 #include "../core/threadsafequeue.h"
 #include "../core/timer.h"
 #include "../dataio/sgf.h"
@@ -85,6 +87,9 @@ class SelfplayManager {
     std::string modelName;
     NNEvaluator* nnEval;
     int64_t gameStartedCount;
+    // Counted at game-finish in the data write loop (lock-free), read cross-thread for logging.
+    std::atomic<int64_t> gamesFinishedCount;
+    std::atomic<int64_t> movesPlayedCount;
     double lastReleaseTime;
     bool hasDataWriteLoop;
 

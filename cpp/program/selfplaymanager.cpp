@@ -13,6 +13,8 @@ SelfplayManager::ModelData::ModelData(
   modelName(name),
   nnEval(neval),
   gameStartedCount(0),
+  gamesFinishedCount(0),
+  movesPlayedCount(0),
   lastReleaseTime(initialTime),
   hasDataWriteLoop(hasDataLoop),
   finishedGameQueue(maxDQueueSize),
@@ -291,9 +293,14 @@ void SelfplayManager::countOneGameStarted(NNEvaluator* nnEval) {
   int64_t logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
   if(logger != NULL && gameStartedCount % logNNEvery == 0) {
     logger->write(nnEval->getModelFileName());
+    logger->write("Games finished: " + Global::int64ToString(foundData->gamesFinishedCount.load(std::memory_order_relaxed)));
+    logger->write("Moves played: " + Global::int64ToString(foundData->movesPlayedCount.load(std::memory_order_relaxed)));
+    if(foundData->tdataWriter != NULL)
+      logger->write("Data rows: " + Global::int64ToString(foundData->tdataWriter->numRowsWritten()));
     logger->write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
     logger->write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
     logger->write("NN avg batch size: " + Global::doubleToString(nnEval->averageProcessedBatchSize()));
+    logger->write("NN cache hits: " + Global::int64ToString((int64_t)nnEval->numCacheHits()));
   }
 }
 
@@ -357,6 +364,14 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
 
     modelData->tdataWriter->writeGame(*gameData);
 
+    modelData->gamesFinishedCount.fetch_add(1, std::memory_order_relaxed);
+    // Moves actually played by search this game (excludes any pre-placed opening/start-position moves).
+    testAssert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());
+    modelData->movesPlayedCount.fetch_add(
+      (int64_t)(gameData->endHist.moveHistory.size() - gameData->startHist.moveHistory.size()),
+      std::memory_order_relaxed
+    );
+
     if(modelData->sgfOut != NULL) {
       testAssert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());
       WriteSgf::writeSgf(*modelData->sgfOut,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
@@ -392,9 +407,13 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
   //block anyone else
   if(logger != NULL) {
     logger->write("Final cleanup of net: " + modelData->nnEval->getModelFileName());
+    logger->write("Final games finished: " + Global::int64ToString(modelData->gamesFinishedCount.load(std::memory_order_relaxed)));
+    logger->write("Final moves played: " + Global::int64ToString(modelData->movesPlayedCount.load(std::memory_order_relaxed)));
+    logger->write("Final data rows: " + Global::int64ToString(modelData->tdataWriter->numRowsWritten()));
     logger->write("Final NN rows: " + Global::int64ToString(modelData->nnEval->numRowsProcessed()));
     logger->write("Final NN batches: " + Global::int64ToString(modelData->nnEval->numBatchesProcessed()));
     logger->write("Final NN avg batch size: " + Global::doubleToString(modelData->nnEval->averageProcessedBatchSize()));
+    logger->write("Final NN cache hits: " + Global::int64ToString((int64_t)modelData->nnEval->numCacheHits()));
   }
 
   delete modelData;

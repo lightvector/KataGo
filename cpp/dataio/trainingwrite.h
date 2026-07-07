@@ -357,6 +357,7 @@ class TrainingDataWriter {
 
   bool isEmpty() const;
   int64_t numRowsInBuffer() const;
+  int64_t numRowsWritten() const;  // Cumulative training rows written across all files by this writer.
 
  private:
   std::string outputDir;

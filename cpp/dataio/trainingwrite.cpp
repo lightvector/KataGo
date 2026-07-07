@@ -1052,6 +1052,9 @@ bool TrainingDataWriter::isEmpty() const {
 int64_t TrainingDataWriter::numRowsInBuffer() const {
   return writeBuffers->curRows;
 }
+int64_t TrainingDataWriter::numRowsWritten() const {
+  return rowCount;
+}
 
 void TrainingDataWriter::writeAndClearIfFull() {
   if(writeBuffers->curRows >= writeBuffers->maxRows || (isFirstFile && writeBuffers->curRows >= firstFileMaxRows)) {
