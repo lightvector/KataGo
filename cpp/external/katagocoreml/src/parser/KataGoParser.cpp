@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <fstream>
 #include <stdexcept>
 #include <zlib.h>
 
@@ -30,54 +29,41 @@ bool KataGoParser::isVersionSupported(int version) {
 }
 
 // ============================================================================
-// File Loading
+// Stream Primitives
 // ============================================================================
 
-void KataGoParser::loadFile() {
-    // Check if gzip compressed
-    bool is_gzip = false;
-    if (m_model_path.size() >= 3) {
-        std::string ext = m_model_path.substr(m_model_path.size() - 3);
-        is_gzip = (ext == ".gz");
+bool KataGoParser::refill() {
+    if(!m_gz) return false;
+    int n = gzread(m_gz.get(), m_refill.data(), (unsigned)m_refill.size());
+    if(n < 0) {
+        int errnum;
+        const char* errmsg = gzerror(m_gz.get(), &errnum);
+        throw std::runtime_error("Error reading gzip stream: " + std::string(errmsg));
     }
+    m_refillPos = 0;
+    m_refillLen = (size_t)n;
+    return n > 0;
+}
 
-    if (is_gzip) {
-        // Read gzipped file
-        gzFile gz = gzopen(m_model_path.c_str(), "rb");
-        if (!gz) {
-            throw std::runtime_error("Cannot open gzip file: " + m_model_path);
+int KataGoParser::peekByte() {
+    if(m_refillPos >= m_refillLen) {
+        if(!refill()) return -1;
+    }
+    return (int)m_refill[m_refillPos];
+}
+
+void KataGoParser::readExact(uint8_t* dst, size_t n, const std::string& name) {
+    size_t got = 0;
+    while(got < n) {
+        if(m_refillPos >= m_refillLen) {
+            if(!refill())
+                throw std::runtime_error(name + ": unexpected EOF in binary block");
         }
-
-        // Read in chunks
-        m_buffer.clear();
-        std::vector<uint8_t> chunk(1024 * 1024);  // 1MB chunks
-        int bytes_read;
-        while ((bytes_read = gzread(gz, chunk.data(), static_cast<unsigned>(chunk.size()))) > 0) {
-            m_buffer.insert(m_buffer.end(), chunk.begin(), chunk.begin() + bytes_read);
-        }
-
-        if (bytes_read < 0) {
-            int errnum;
-            const char* errmsg = gzerror(gz, &errnum);
-            gzclose(gz);
-            throw std::runtime_error("Error reading gzip file: " + std::string(errmsg));
-        }
-
-        gzclose(gz);
-    } else {
-        // Read regular file
-        std::ifstream file(m_model_path, std::ios::binary | std::ios::ate);
-        if (!file) {
-            throw std::runtime_error("Cannot open file: " + m_model_path);
-        }
-
-        std::streamsize size = file.tellg();
-        file.seekg(0, std::ios::beg);
-
-        m_buffer.resize(static_cast<size_t>(size));
-        if (!file.read(reinterpret_cast<char*>(m_buffer.data()), size)) {
-            throw std::runtime_error("Error reading file: " + m_model_path);
-        }
+        size_t avail = m_refillLen - m_refillPos;
+        size_t take = std::min(avail, n - got);
+        std::memcpy(dst + got, m_refill.data() + m_refillPos, take);
+        m_refillPos += take;
+        got += take;
     }
 }
 
@@ -86,15 +72,16 @@ void KataGoParser::loadFile() {
 // ============================================================================
 
 KataGoModelDesc KataGoParser::parse() {
-    loadFile();
-    m_pos = 0;
-
-    // Detect if binary format (check for @BIN@ marker)
-    const std::string bin_marker = "@BIN@";
-    auto it = std::search(m_buffer.begin(), m_buffer.end(),
-                          bin_marker.begin(), bin_marker.end());
-    m_binary_floats = (it != m_buffer.end());
-
+    // Allocate the refill buffer first; if this throws, no handle has been opened.
+    m_refill.resize(1024 * 1024);
+    m_gz.reset(gzopen(m_model_path.c_str(), "rb"));
+    if(!m_gz)
+        throw std::runtime_error("Cannot open file: " + m_model_path);
+    m_refillPos = 0;
+    m_refillLen = 0;
+    m_formatDetected = false;   // decided at first readFloats
+    m_binary_floats = true;
+    // ~GzHandle closes the file on normal return OR exception — no try/catch needed.
     return parseModel();
 }
 
@@ -103,24 +90,20 @@ KataGoModelDesc KataGoParser::parse() {
 // ============================================================================
 
 void KataGoParser::skipWhitespace() {
-    while (m_pos < m_buffer.size()) {
-        char c = static_cast<char>(m_buffer[m_pos]);
-        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-            break;
-        }
-        m_pos++;
+    int c;
+    while((c = peekByte()) >= 0) {
+        if(c != ' ' && c != '\t' && c != '\n' && c != '\r') break;
+        m_refillPos++;
     }
 }
 
 void KataGoParser::readUntilWhitespace(std::string& out) {
     out.clear();
-    while (m_pos < m_buffer.size()) {
-        char c = static_cast<char>(m_buffer[m_pos]);
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-            break;
-        }
-        out += c;
-        m_pos++;
+    int c;
+    while((c = peekByte()) >= 0) {
+        if(c == ' ' || c == '\t' || c == '\n' || c == '\r') break;
+        out += (char)c;
+        m_refillPos++;
     }
 }
 
@@ -147,37 +130,28 @@ bool KataGoParser::readBool() {
 
 std::vector<float> KataGoParser::readFloats(size_t count, const std::string& name) {
     std::vector<float> floats(count);
+    skipWhitespace();
 
-    if (!m_binary_floats) {
+    // KataGo model files are uniformly text OR uniformly binary, so detecting the
+    // format once at the first weight block (binary blocks start with '@BIN@')
+    // is valid for all subsequent blocks.
+    if(!m_formatDetected) {
+        m_binary_floats = (peekByte() == '@');
+        m_formatDetected = true;
+    }
+
+    if(!m_binary_floats) {
         // Text format
-        for (size_t i = 0; i < count; i++) {
+        for(size_t i = 0; i < count; i++)
             floats[i] = readFloat();
-        }
     } else {
-        // Binary format - find @BIN@ marker
-        while (m_pos < m_buffer.size()) {
-            if (m_buffer[m_pos] == '@') {
-                break;
-            }
-            m_pos++;
-        }
-
-        // Check for @BIN@ header
-        if (m_pos + 5 > m_buffer.size() ||
-            std::memcmp(&m_buffer[m_pos], "@BIN@", 5) != 0) {
+        // Binary: consume the "@BIN@" marker, then read count*4 raw bytes.
+        char marker[5];
+        readExact(reinterpret_cast<uint8_t*>(marker), 5, name);
+        if(std::memcmp(marker, "@BIN@", 5) != 0)
             throw std::runtime_error(name + ": expected @BIN@ marker for binary float block");
-        }
-        m_pos += 5;
 
-        // Read binary floats (little-endian)
-        size_t num_bytes = count * 4;
-        if (m_pos + num_bytes > m_buffer.size()) {
-            throw std::runtime_error(name + ": not enough bytes for " + std::to_string(count) + " floats");
-        }
-
-        // Copy as little-endian float32
-        std::memcpy(floats.data(), &m_buffer[m_pos], num_bytes);
-        m_pos += num_bytes;
+        readExact(reinterpret_cast<uint8_t*>(floats.data()), count * 4, name);
     }
 
     // Reject NaN/Inf weights: corrupted or otherwise invalid models would
@@ -315,6 +289,8 @@ ActivationLayerDesc KataGoParser::parseActivationLayer(int model_version) {
             layer.activation_type = ActivationType::ReLU;
         } else if (activation_str == "ACTIVATION_MISH") {
             layer.activation_type = ActivationType::Mish;
+        } else if (activation_str == "ACTIVATION_SILU") {
+            layer.activation_type = ActivationType::Silu;
         } else {
             throw std::runtime_error("Unknown activation type: " + activation_str);
         }
@@ -332,6 +308,14 @@ MatMulLayerDesc KataGoParser::parseMatMulLayer() {
     layer.in_channels = readInt();
     layer.out_channels = readInt();
 
+    // Match master desc.cpp's MatMulLayerDesc validation (inChannels/outChannels
+    // <= 0): reject non-positive dims so a malformed model fails loudly here
+    // rather than building a degenerate matmul or, on a negative value,
+    // computing a huge size_t allocation below.
+    if (layer.in_channels <= 0 || layer.out_channels <= 0) {
+        throw std::runtime_error(layer.name + ": invalid matmul in/out channels");
+    }
+
     // Weights in [ic, oc] order
     size_t num_weights = static_cast<size_t>(layer.in_channels) * layer.out_channels;
     layer.weights = readFloats(num_weights, layer.name);
@@ -343,6 +327,12 @@ MatBiasLayerDesc KataGoParser::parseMatBiasLayer() {
     MatBiasLayerDesc layer;
     layer.name = readString();
     layer.num_channels = readInt();
+    // Match master desc.cpp (matbias numChannels <= 0): fail loud before
+    // readFloats turns a negative into a huge size_t allocation.
+    if (layer.num_channels <= 0) {
+        throw std::runtime_error(layer.name + ": matbias numChannels must be >= 1, got " +
+                                 std::to_string(layer.num_channels));
+    }
     layer.weights = readFloats(layer.num_channels, layer.name);
 
     return layer;
@@ -387,6 +377,13 @@ NestedBottleneckResidualBlockDesc KataGoParser::parseNestedBottleneckBlock(int m
     NestedBottleneckResidualBlockDesc block;
     block.name = readString();
     block.num_blocks = readInt();
+    // Match master desc.cpp (nested numBlocks < 1): validate before parseBlockStack
+    // reserves on this count, so a crafted/corrupt model can't force a huge
+    // allocation (or a confusing length_error on a negative) from a tiny file.
+    if (block.num_blocks < 1) {
+        throw std::runtime_error(block.name + ": nested numBlocks must be >= 1, got " +
+                                 std::to_string(block.num_blocks));
+    }
 
     block.pre_bn = parseBatchNormLayer();
     block.pre_activation = parseActivationLayer(model_version);
@@ -420,6 +417,167 @@ static void checkBlockChannels(const std::string& block_name, const std::string&
     }
 }
 
+// Validate one transformer-attention projection matmul dimension against the head
+// geometry / trunk width. The CoreML graph builder reshapes each projection's flat
+// output into a [seq, heads, headDim] grid and reshapes the out-projection result
+// back into the trunk, so a declared dimension that disagrees either reads past the
+// weight buffer or builds a graph that compiles but computes nonsense.
+// Match master desc.cpp's transformer attention consistency checks.
+static void checkAttentionProjDim(const std::string& block_name, const std::string& dim_name,
+                                  int actual, const std::string& expected_name, int expected) {
+    if (actual != expected) {
+        throw std::runtime_error(block_name + ": " + dim_name + " (" + std::to_string(actual) +
+                                 ") != " + expected_name + " (" + std::to_string(expected) + ")");
+    }
+}
+
+TransformerRMSNormDesc KataGoParser::parseTransformerRMSNorm() {
+    TransformerRMSNormDesc layer;
+    layer.name = readString();
+    layer.num_channels = readInt();
+    layer.epsilon = readFloat();
+    if (layer.num_channels < 1) {
+        throw std::runtime_error(layer.name + ": transformer rmsnorm numChannels must be >= 1");
+    }
+    // Match master desc.cpp (rmsnorm epsilon <= 0 || > 1.0f): reject a non-positive
+    // or too-large epsilon so a malformed model fails loudly here instead of
+    // producing a structurally-valid model that computes garbage via rsqrt(x+eps).
+    if (layer.epsilon <= 0.0f || layer.epsilon > 1.0f) {
+        throw std::runtime_error(layer.name + ": transformer rmsnorm epsilon must be in (0, 1]");
+    }
+    layer.weight = readFloats(layer.num_channels, layer.name + "/weight");
+    return layer;
+}
+
+RMSNormLayerDesc KataGoParser::parseRMSNormLayer() {
+    RMSNormLayerDesc layer;
+    layer.name = readString();
+    layer.num_channels = readInt();
+    layer.epsilon = readFloat();
+    layer.spatial = (readInt() != 0);
+    layer.cgroup_size = readInt();
+    if (layer.num_channels < 1) {
+        throw std::runtime_error(layer.name + ": rmsnorm numChannels must be >= 1");
+    }
+    if (layer.cgroup_size != 0) {
+        throw std::runtime_error(layer.name + ": grouped spatial RMSNorm is not supported");
+    }
+    // Match master desc.cpp (rmsnorm epsilon <= 0 || > 1.0f).
+    if (layer.epsilon <= 0.0f || layer.epsilon > 1.0f) {
+        throw std::runtime_error(layer.name + ": rmsnorm epsilon must be in (0, 1]");
+    }
+    layer.gamma = readFloats(layer.num_channels, layer.name + "/gamma");
+    layer.beta = readFloats(layer.num_channels, layer.name + "/beta");
+    return layer;
+}
+
+TransformerAttentionBlockDesc KataGoParser::parseTransformerAttentionBlock(int model_version, int trunk_num_channels) {
+    TransformerAttentionBlockDesc block;
+    block.name = readString();
+    block.num_heads = readInt();
+    block.num_kv_heads = readInt();
+    block.q_head_dim = readInt();
+    block.v_head_dim = readInt();
+    block.use_rope = (readInt() != 0);
+    block.learnable_rope = (readInt() != 0);
+
+    if (block.num_heads < 1 || block.num_kv_heads < 1 || (block.num_heads % block.num_kv_heads != 0)) {
+        throw std::runtime_error(block.name + ": invalid numHeads/numKVHeads");
+    }
+    // Match master desc.cpp (qHeadDim < 1 || vHeadDim < 1): a degenerate head dim
+    // makes scale = 1/sqrt(0) = inf and reshape dims degenerate. The projection
+    // cross-checks below only catch *inconsistent* dims, not a consistently-zero one.
+    if (block.q_head_dim < 1 || block.v_head_dim < 1) {
+        throw std::runtime_error(block.name + ": qHeadDim and vHeadDim must be >= 1");
+    }
+    if (block.use_rope && (block.q_head_dim % 2 != 0)) {
+        throw std::runtime_error(block.name + ": qHeadDim must be even when RoPE is used");
+    }
+
+    block.pre_ln = parseTransformerRMSNorm();
+    block.q_proj = parseMatMulLayer();
+    block.k_proj = parseMatMulLayer();
+    block.v_proj = parseMatMulLayer();
+    block.out_proj = parseMatMulLayer();
+
+    // Validate the four projection matmul dimensions against the head geometry and
+    // trunk width. Six mirror master desc.cpp's transformer attention checks
+    // (desc.cpp:1129-1136, 1430-1443); the k/v inChannels checks additionally close
+    // a gap master leaves implicit to the backend - all three QKV projections
+    // consume the same normed-trunk input, so their inChannels must equal the trunk
+    // width. K pairs with Q in the QK^T dot product, so kProj uses qHeadDim; only V
+    // carries vHeadDim.
+    checkAttentionProjDim(block.name, "qProj.inChannels",    block.q_proj.in_channels,    "trunkNumChannels",    trunk_num_channels);
+    checkAttentionProjDim(block.name, "qProj.outChannels",   block.q_proj.out_channels,   "numHeads*qHeadDim",   block.num_heads    * block.q_head_dim);
+    checkAttentionProjDim(block.name, "kProj.inChannels",    block.k_proj.in_channels,    "trunkNumChannels",    trunk_num_channels);
+    checkAttentionProjDim(block.name, "kProj.outChannels",   block.k_proj.out_channels,   "numKVHeads*qHeadDim", block.num_kv_heads * block.q_head_dim);
+    checkAttentionProjDim(block.name, "vProj.inChannels",    block.v_proj.in_channels,    "trunkNumChannels",    trunk_num_channels);
+    checkAttentionProjDim(block.name, "vProj.outChannels",   block.v_proj.out_channels,   "numKVHeads*vHeadDim", block.num_kv_heads * block.v_head_dim);
+    checkAttentionProjDim(block.name, "outProj.inChannels",  block.out_proj.in_channels,  "numHeads*vHeadDim",   block.num_heads    * block.v_head_dim);
+    checkAttentionProjDim(block.name, "outProj.outChannels", block.out_proj.out_channels, "trunkNumChannels",    trunk_num_channels);
+
+    if (block.use_rope) {
+        if (block.learnable_rope) {
+            readString();  // ropeFreqs name
+            block.rope_num_kv_heads = readInt();
+            block.rope_num_pairs = readInt();
+            int rope_dim2 = readInt();
+            if (block.rope_num_kv_heads != block.num_kv_heads ||
+                block.rope_num_pairs != block.q_head_dim / 2 || rope_dim2 != 2) {
+                throw std::runtime_error(block.name + ": invalid learnable rope header");
+            }
+            block.rope_freqs = readFloats(
+                static_cast<size_t>(block.rope_num_kv_heads) * block.rope_num_pairs * 2,
+                block.name + "/rope_freqs");
+        } else {
+            readString();  // ropeTheta name
+            block.rope_theta = readFloat();
+            // Match master desc.cpp (ropeTheta <= 0). Without this, a non-positive
+            // theta makes pow(theta, frac) NaN/Inf, which flows into the derived
+            // cos/sin RoPE tables. Those are builder-derived (not parsed) weights,
+            // so they bypass the readFloats NaN/Inf gate and would otherwise yield
+            // a structurally-valid model that silently computes garbage.
+            if (block.rope_theta <= 0.0f) {
+                throw std::runtime_error(block.name + ": ropeTheta must be > 0");
+            }
+        }
+    }
+    return block;
+}
+
+TransformerFFNBlockDesc KataGoParser::parseTransformerFFNBlock(int model_version, int trunk_num_channels) {
+    TransformerFFNBlockDesc block;
+    block.name = readString();
+    block.num_channels = readInt();
+    block.ffn_channels = readInt();
+    block.use_swiglu = (readInt() != 0);
+    if (block.num_channels < 1 || block.ffn_channels < 1) {
+        throw std::runtime_error(block.name + ": transformer ffn channels must be positive");
+    }
+    block.pre_ln = parseTransformerRMSNorm();
+    block.linear1 = parseMatMulLayer();
+    if (block.use_swiglu) {
+        block.linear_gate = parseMatMulLayer();
+    }
+    block.linear2 = parseMatMulLayer();
+
+    // Validate the FFN matmul dimensions, mirroring the attention block's projection checks above.
+    // The block adds its output back into the trunk residually, so numChannels must equal the trunk
+    // width; the linear layers chain numChannels -> ffnChannels -> numChannels (with the SwiGLU gate
+    // also projecting numChannels -> ffnChannels). A declared dimension that disagrees builds a graph
+    // that either fails to compile or computes nonsense, so reject it at parse time.
+    checkAttentionProjDim(block.name, "ffn.numChannels",       block.num_channels,         "trunkNumChannels", trunk_num_channels);
+    checkAttentionProjDim(block.name, "linear1.inChannels",    block.linear1.in_channels,  "numChannels",      block.num_channels);
+    checkAttentionProjDim(block.name, "linear1.outChannels",   block.linear1.out_channels, "ffnChannels",      block.ffn_channels);
+    if (block.use_swiglu) {
+        checkAttentionProjDim(block.name, "linearGate.inChannels",  block.linear_gate.in_channels,  "numChannels", block.num_channels);
+        checkAttentionProjDim(block.name, "linearGate.outChannels", block.linear_gate.out_channels, "ffnChannels", block.ffn_channels);
+    }
+    checkAttentionProjDim(block.name, "linear2.inChannels",    block.linear2.in_channels,  "ffnChannels",      block.ffn_channels);
+    checkAttentionProjDim(block.name, "linear2.outChannels",   block.linear2.out_channels, "numChannels",      block.num_channels);
+    return block;
+}
+
 std::vector<BlockEntry> KataGoParser::parseBlockStack(int model_version, int num_blocks, int trunk_num_channels) {
     std::vector<BlockEntry> blocks;
     blocks.reserve(num_blocks);
@@ -448,6 +606,14 @@ std::vector<BlockEntry> KataGoParser::parseBlockStack(int model_version, int num
             checkBlockChannels(desc.name, "nested_bottleneck_block",
                                desc.pre_bn.num_channels,
                                desc.post_conv.out_channels, trunk_num_channels);
+            entry.block = std::make_shared<BlockDesc>(std::move(desc));
+        } else if (block_kind_name == "transformer_attention_block") {
+            entry.block_kind = TRANSFORMER_ATTENTION_BLOCK_KIND;
+            auto desc = parseTransformerAttentionBlock(model_version, trunk_num_channels);
+            entry.block = std::make_shared<BlockDesc>(std::move(desc));
+        } else if (block_kind_name == "transformer_ffn_block") {
+            entry.block_kind = TRANSFORMER_FFN_BLOCK_KIND;
+            auto desc = parseTransformerFFNBlock(model_version, trunk_num_channels);
             entry.block = std::make_shared<BlockDesc>(std::move(desc));
         } else {
             throw std::runtime_error("Unknown block kind: " + block_kind_name);
@@ -506,15 +672,15 @@ TrunkDesc KataGoParser::parseTrunk(int model_version, int meta_encoder_version) 
     }
 
     // Version >= 15 writes the trunk norm kind followed by 5 unused int parameters.
-    // This CoreML parser only supports the standard trunk norm kind (0 = BatchNorm/BiasMask);
-    // RMSNorm (used by transformer/rmsnorm models, kind != 0) is not implemented here, so reject it
-    // defensively rather than silently parsing it as standard norm and producing wrong outputs.
+    // Unlike upstream's CoreML parser (which rejects any non-standard norm), this fork
+    // implements RMSNorm, so we capture the kind here instead of throwing. The 5 trailing
+    // ints are reserved and still expected to be zero.
     if (model_version >= 15) {
-        int trunk_norm_kind = readInt();
-        if (trunk_norm_kind != 0) {
-            throw std::runtime_error(trunk.name + ": unsupported trunk norm kind " +
-                                     std::to_string(trunk_norm_kind) +
-                                     " (this CoreML parser only supports standard trunk norm, not RMSNorm)");
+        trunk.trunk_norm_kind = readInt();
+        if (trunk.trunk_norm_kind != TRUNK_NORM_KIND_STANDARD &&
+            trunk.trunk_norm_kind != TRUNK_NORM_KIND_RMSNORM) {
+            throw std::runtime_error(trunk.name + ": unknown/unsupported trunk norm kind " +
+                                     std::to_string(trunk.trunk_norm_kind));
         }
         for (int i = 0; i < 5; i++) {
             int unused = readInt();
@@ -561,14 +727,24 @@ TrunkDesc KataGoParser::parseTrunk(int model_version, int meta_encoder_version) 
     // Parse residual blocks
     trunk.blocks = parseBlockStack(model_version, trunk.num_blocks, trunk.trunk_num_channels);
 
-    trunk.trunk_tip_bn = parseBatchNormLayer();
-    trunk.trunk_tip_activation = parseActivationLayer(model_version);
-    if (trunk.trunk_tip_bn.num_channels != trunk.trunk_num_channels) {
-        throw std::runtime_error(trunk.name + ": trunkTipBN.numChannels (" +
-                                 std::to_string(trunk.trunk_tip_bn.num_channels) +
-                                 ") != trunkNumChannels (" +
-                                 std::to_string(trunk.trunk_num_channels) + ")");
+    if (trunk.trunk_norm_kind == TRUNK_NORM_KIND_STANDARD) {
+        trunk.trunk_tip_bn = parseBatchNormLayer();
+        if (trunk.trunk_tip_bn.num_channels != trunk.trunk_num_channels) {
+            throw std::runtime_error(trunk.name + ": trunkTipBN.numChannels (" +
+                                     std::to_string(trunk.trunk_tip_bn.num_channels) +
+                                     ") != trunkNumChannels (" +
+                                     std::to_string(trunk.trunk_num_channels) + ")");
+        }
+    } else {
+        trunk.trunk_tip_rms_norm = parseRMSNormLayer();
+        if (trunk.trunk_tip_rms_norm.num_channels != trunk.trunk_num_channels) {
+            throw std::runtime_error(trunk.name + ": trunkTipRMSNorm.numChannels (" +
+                                     std::to_string(trunk.trunk_tip_rms_norm.num_channels) +
+                                     ") != trunkNumChannels (" +
+                                     std::to_string(trunk.trunk_num_channels) + ")");
+        }
     }
+    trunk.trunk_tip_activation = parseActivationLayer(model_version);
 
     return trunk;
 }

@@ -12,6 +12,8 @@
 #include <stdexcept>
 #include <filesystem>
 #include <unordered_map>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/io/coded_stream.h>
 
 namespace katagocoreml {
 
@@ -230,8 +232,13 @@ void CoreMLSerializer::createPackage(const std::string& output_path,
         if (!out) {
             throw std::runtime_error("Failed to create temp model file");
         }
-        if (!model->SerializeToOstream(&out)) {
-            throw std::runtime_error("Failed to serialize model spec");
+        {
+            google::protobuf::io::OstreamOutputStream zos(&out);
+            google::protobuf::io::CodedOutputStream cos(&zos);
+            cos.SetSerializationDeterministic(true);
+            if (!model->SerializeToCodedStream(&cos)) {
+                throw std::runtime_error("Failed to serialize model spec");
+            }
         }
     }
 
