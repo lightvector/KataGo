@@ -1321,6 +1321,16 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     # #include <hip/hip_runtime.h>, and on systems with a stale libamdhip64-dev under /usr/include,
     # a plain -I here still loses to /usr/include for angle-bracket resolution. -isystem does not.
     target_include_directories(katago_ck_fmha_kernels SYSTEM PRIVATE ${KATAGO_CK_TILE_INCLUDE_DIR} external/composable_kernel_fmha)
+    # As above (see the KATAGO_HIP_SYSTEM_INCLUDE_DIR block for `katago` itself): the SYSTEM
+    # keyword alone isn't enough here either - CMake's include-directory de-duplication drops it as
+    # "already covered" against hip::device's own plain -I of the same path, so the stale
+    # /usr/include/hip still wins for this target too unless we force a raw -isystem. This is a
+    # separate target from `katago`, so it needs its own copy of the same compile option - compile
+    # options aren't inherited across targets, only via target_link_libraries propagating usage
+    # requirements, which compile options set via target_compile_options(PRIVATE) are not.
+    if(KATAGO_HIP_SYSTEM_INCLUDE_DIR)
+      target_compile_options(katago_ck_fmha_kernels PRIVATE "-isystem${KATAGO_HIP_SYSTEM_INCLUDE_DIR}")
+    endif()
     target_link_libraries(katago katago_ck_fmha_kernels)
     target_include_directories(katago SYSTEM PRIVATE ${KATAGO_CK_TILE_INCLUDE_DIR} external/composable_kernel_fmha)
     target_compile_definitions(katago PRIVATE KATAGO_ROCM_HAS_CK_FMHA=1)
@@ -1394,6 +1404,20 @@ endif()
 # TheRock's Windows package (as of ~7.13) ships zlib.h under rocm_sysdeps/include but no linkable
 # .lib anymore (the block above then leaves ZLIB_LIBRARY unset) - auto-fetch zlib via vcpkg instead
 # of requiring the user to separately install a package manager (see KATAGO_AUTO_FETCH_DEPS above).
+#
+# Probe for a normal system zlib first (quiet - the "real", error-emitting find_package(ZLIB) call
+# is further below): on a fresh Linux configure, ZLIB_INCLUDE_DIR/ZLIB_LIBRARY are never set by
+# anything above this point regardless of whether the system already has zlib1g-dev installed (as
+# Compiling.md's Linux instructions require), so without this probe the check below would always
+# be true and vcpkg would fire unconditionally on every Linux build - needlessly cloning vcpkg,
+# downloading its own CMake, and building zlib from source even when the system package is right
+# there. This probe costs nothing extra when it does find the system zlib (the later find_package
+# call just reuses the cached result), and Windows is unaffected since a bundled TheRock/system
+# zlib usually still won't satisfy this either way, falling through to vcpkg as before.
+if(KATAGO_AUTO_FETCH_DEPS AND (NOT ZLIB_INCLUDE_DIR OR NOT ZLIB_LIBRARY))
+  find_package(ZLIB QUIET)
+endif()
+
 set(KATAGO_ZLIB_IS_VCPKG_DLL FALSE)
 if(KATAGO_AUTO_FETCH_DEPS AND (NOT ZLIB_INCLUDE_DIR OR NOT ZLIB_LIBRARY))
   katago_vcpkg_install_if_needed("zlib")
