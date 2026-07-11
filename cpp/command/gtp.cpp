@@ -387,8 +387,8 @@ struct GTPEngine {
 
   GTPEngine(
     const string& modelFile, const string& hModelFile,
-    SearchParams initialGenmoveParams, SearchParams initialAnalysisParams,
-    Rules initialRules,
+    const SearchParams& initialGenmoveParams, const SearchParams& initialAnalysisParams,
+    const Rules& initialRules,
     bool assumeMultiBlackHandicap, bool prevtEncore, bool autoPattern,
     double dynamicPDACapPerOppLead, bool staticPDAPrecedence,
     double normAvoidRepeatedPatternUtility, double hcapAvoidRepeatedPatternUtility,
@@ -569,7 +569,7 @@ struct GTPEngine {
       bot->setCopyOfExternalPatternBonusTable(patternBonusTable);
   }
 
-  void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move> newMoveHistory) {
+  void setPositionAndRules(Player pla, const Board& board, const BoardHistory& h, const Board& newInitialBoard, Player newInitialPla, const vector<Move>& newMoveHistory) {
     BoardHistory hist(h);
     //Ensure we always have this value correct
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
@@ -584,7 +584,7 @@ struct GTPEngine {
   }
 
   void clearBoard() {
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
     int newXSize = bot->getRootBoard().x_size;
     int newYSize = bot->getRootBoard().y_size;
     Board board(newXSize,newYSize);
@@ -596,7 +596,7 @@ struct GTPEngine {
   }
 
   bool setPosition(const vector<Move>& initialStones) {
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
     int newXSize = bot->getRootBoard().x_size;
     int newYSize = bot->getRootBoard().y_size;
     Board board(newXSize,newYSize);
@@ -607,7 +607,6 @@ struct GTPEngine {
     //Sanity check
     for(int i = 0; i<initialStones.size(); i++) {
       if(board.colors[initialStones[i].loc] != initialStones[i].pla) {
-        assert(false);
         return false;
       }
     }
@@ -635,7 +634,7 @@ struct GTPEngine {
   }
 
   bool play(Loc loc, Player pla) {
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
     bool suc = bot->makeMove(loc,pla,preventEncore);
     if(suc)
       moveHistory.emplace_back(loc,pla);
@@ -645,7 +644,7 @@ struct GTPEngine {
   bool undo() {
     if(moveHistory.size() <= 0)
       return false;
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
 
     vector<Move> moveHistoryCopy = moveHistory;
 
@@ -659,15 +658,14 @@ struct GTPEngine {
       Loc moveLoc = moveHistoryCopy[i].loc;
       Player movePla = moveHistoryCopy[i].pla;
       bool suc = play(moveLoc,movePla);
-      assert(suc);
-      (void)suc; //Avoid warning when asserts are off
+      testAssert(suc);
     }
     return true;
   }
 
   bool setRulesNotIncludingKomi(Rules newRules, string& error) {
-    assert(nnEval != NULL);
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(nnEval != NULL);
+    testAssert(bot->getRootHist().rules == currentRules);
     newRules.komi = currentRules.komi;
 
     bool rulesWereSupported;
@@ -751,7 +749,7 @@ struct GTPEngine {
     buf.resize(keptMoves);
   }
 
-  std::function<void(const Search* search)> getAnalyzeCallback(Player pla, AnalyzeArgs args) {
+  std::function<void(const Search* search)> getAnalyzeCallback(Player pla, const AnalyzeArgs& args) {
     std::function<void(const Search* search)> callback;
     //lz-analyze
     if(args.lz && !args.kata) {
@@ -1012,12 +1010,12 @@ struct GTPEngine {
     const GenmoveArgs& gargs,
     const AnalyzeArgs& args,
     bool playChosenMove,
-    std::function<void(const string&, bool)> printGTPResponse,
+    const std::function<void(const string&, bool)>& printGTPResponse,
     bool& maybeStartPondering
   ) {
     bool onMoveWasCalled = false;
     Loc genmoveMoveLoc = Board::NULL_LOC;
-    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled,this](Loc moveLoc, int searchId, Search* search) noexcept {
+    auto onMove = [&genmoveMoveLoc,&onMoveWasCalled](Loc moveLoc, int searchId, Search* search) noexcept {
       (void)searchId;
       (void)search;
       onMoveWasCalled = true;
@@ -1035,8 +1033,15 @@ struct GTPEngine {
       bool suc = bot->makeMove(moveLocToPlay,pla,preventEncore);
       if(suc)
         moveHistory.emplace_back(moveLocToPlay,pla);
-      assert(suc);
-      (void)suc; //Avoid warning when asserts are off
+      if(!suc) {
+        ostringstream sout;
+        sout << "Engine chose move but makeMove failed" << "\n";
+        sout << bot->getRootBoard() << "\n";
+        sout << "Pla: " << PlayerIO::playerToString(pla) << "\n";
+        sout << "MoveLoc: " << Location::toString(moveLocToPlay,bot->getRootBoard()) << "\n";
+        logger.write(sout.str());
+        Global::fatalError(sout.str());
+      }
 
       maybeStartPondering = true;
     }
@@ -1047,7 +1052,7 @@ struct GTPEngine {
     Logger& logger,
     const GenmoveArgs& gargs,
     const AnalyzeArgs& args,
-    std::function<void(const string&, bool)> printGTPResponse
+    const std::function<void(const string&, bool)>& printGTPResponse
   ) {
     // Make sure to capture things by value unless they're long-lived, since the callback needs to survive past the current scope.
     auto onMove = [pla,&logger,gargs,args,printGTPResponse,this](Loc moveLoc, int searchId, Search* search) {
@@ -1072,9 +1077,9 @@ struct GTPEngine {
 
   void launchGenMove(
     Player pla,
-    GenmoveArgs gargs,
-    AnalyzeArgs args,
-    std::function<void(Loc, int, Search*)> onMove
+    const GenmoveArgs& gargs,
+    const AnalyzeArgs& args,
+    const std::function<void(Loc, int, Search*)>& onMove
   ) {
     genmoveTimer.reset();
 
@@ -1099,7 +1104,8 @@ struct GTPEngine {
         (paramsToUse.playoutDoublingAdvantagePla == P_BLACK) ? -desiredDynamicPDAForWhite :
         (paramsToUse.playoutDoublingAdvantagePla == C_EMPTY && pla == P_WHITE) ? desiredDynamicPDAForWhite :
         (paramsToUse.playoutDoublingAdvantagePla == C_EMPTY && pla == P_BLACK) ? -desiredDynamicPDAForWhite :
-        (assert(false),0.0);
+        NAN;
+      testAssert(!std::isnan(desiredDynamicPDA));
 
       paramsToUse.playoutDoublingAdvantage = desiredDynamicPDA;
     }
@@ -1316,7 +1322,7 @@ struct GTPEngine {
       response = string(e.what()) + ", try place_free_handicap";
       return;
     }
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
 
     Player pla = P_BLACK;
     BoardHistory hist(board,pla,currentRules,0);
@@ -1356,7 +1362,7 @@ struct GTPEngine {
     if(n > maxHandicap)
       n = maxHandicap;
 
-    assert(bot->getRootHist().rules == currentRules);
+    testAssert(bot->getRootHist().rules == currentRules);
 
     Board board(xSize,ySize);
     Player pla = P_BLACK;
@@ -1386,8 +1392,8 @@ struct GTPEngine {
     clearStatsForNewGame();
   }
 
-  void analyze(Player pla, AnalyzeArgs args) {
-    assert(args.analyzing);
+  void analyze(Player pla, const AnalyzeArgs& args) {
+    testAssert(args.analyzing);
     if(isGenmoveParams) {
       bot->setParams(analysisParams);
       isGenmoveParams = false;
@@ -1519,7 +1525,7 @@ struct GTPEngine {
     return isAlive;
   }
 
-  string rawNNBrief(std::vector<Loc> branch, int whichSymmetry) {
+  string rawNNBrief(const std::vector<Loc>& branch, int whichSymmetry) {
     if(nnEval == NULL)
       return "";
     ostringstream out;
@@ -1961,7 +1967,7 @@ int MainCmds::gtp(const vector<string>& args) {
 
     const double analysisWideRootNoise =
       config.contains("analysisWideRootNoise") ? config.getDouble("analysisWideRootNoise",0.0,5.0) : Setup::DEFAULT_ANALYSIS_WIDE_ROOT_NOISE;
-    const double analysisIgnorePreRootHistory =
+    const bool analysisIgnorePreRootHistory =
       config.contains("analysisIgnorePreRootHistory") ? config.getBool("analysisIgnorePreRootHistory") : Setup::DEFAULT_ANALYSIS_IGNORE_PRE_ROOT_HISTORY;
     const bool genmoveAntiMirror =
       config.contains("genmoveAntiMirror") ? config.getBool("genmoveAntiMirror") : config.contains("antiMirror") ? config.getBool("antiMirror") : true;
@@ -2023,7 +2029,7 @@ int MainCmds::gtp(const vector<string>& args) {
   std::unique_ptr<PatternBonusTable> patternBonusTable = nullptr;
   {
     std::vector<std::unique_ptr<PatternBonusTable>> tables = Setup::loadAvoidSgfPatternBonusTables(cfg,logger);
-    assert(tables.size() == 1);
+    testAssert(tables.size() == 1);
     patternBonusTable = std::move(tables[0]);
   }
 
@@ -2169,7 +2175,7 @@ int MainCmds::gtp(const vector<string>& args) {
       pieces = Global::split(line,' ');
       for(size_t i = 0; i<pieces.size(); i++)
         pieces[i] = Global::trim(pieces[i]);
-      assert(pieces.size() > 0);
+      testAssert(pieces.size() > 0);
 
       command = pieces[0];
       pieces.erase(pieces.begin());
@@ -2207,7 +2213,7 @@ int MainCmds::gtp(const vector<string>& args) {
       }
     };
 
-    auto printGTPResponseNoHeader = [hasId,id,&logger,logAllGTPCommunication](const string& response, bool responseIsError) {
+    auto printGTPResponseNoHeader = [&logger,logAllGTPCommunication](const string& response, bool responseIsError) {
       //Postprocessing of response in the case where we already printed the "=" and a newline ahead of time via printGTPResponseHeader.
       if(!responseIsError) {
         cout << response << endl;

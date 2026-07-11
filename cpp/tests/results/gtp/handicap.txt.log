@@ -30,15 +30,15 @@ searchRandSeed = forTesting
 trtUseFP16 = false
 
 : GTP Engine starting...
-: KataGo v1.16.4
+: KataGo v1.16.5
 : Using TrompTaylor rules initially, unless GTP/GUI overrides this
 : Using 1 CPU thread(s) for search
 : nnRandSeed0 = forTesting
-: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false
 : Initializing neural net buffer to be size 19 * 19 exactly
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
-: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : Loaded neural net with nnXLen 19 nnYLen 19
 : Initializing board with boardXSize 19 boardYSize 19
 : Loaded config configs/gtp_example.cfg and/or command-line and query overrides
@@ -418,11 +418,11 @@ R3  : T  40.99c W  42.55c S   2.71c (+12.6 L +12.8) LCB -108.86c P  6.96% WF   2
 : GPU -1 finishing, processed 577 rows 577 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
-: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false
 : Initializing neural net buffer to be size 13 * 13 exactly
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
-: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : Loaded neural net with nnXLen 13 nnYLen 13
 : Initializing board with boardXSize 13 boardYSize 13
 : = 
@@ -572,11 +572,11 @@ C11 : T  58.46c W  56.58c S   1.89c ( +8.0 L  +8.4) LCB -291.54c P  2.36% WF   1
 : GPU -1 finishing, processed 218 rows 218 batches
 : Cleaned up old neural net and bot
 : nnRandSeed0 = forTesting
-: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false
 : Initializing neural net buffer to be size 2 * 2 exactly
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
-: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : Loaded neural net with nnXLen 2 nnYLen 2
 : Initializing board with boardXSize 2 boardYSize 2
 : = 

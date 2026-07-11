@@ -12,6 +12,7 @@
 #include "../program/play.h"
 #include "../program/selfplaymanager.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include <chrono>
@@ -260,7 +261,7 @@ int MainCmds::selfplay(const vector<string>& args) {
       if(shouldStop.load())
         break;
       NNEvaluator* nnEval = manager->acquireLatest();
-      assert(nnEval != NULL);
+      testAssert(nnEval != NULL);
 
       if(prevModelName != nnEval->getModelName()) {
         prevModelName = nnEval->getModelName();
@@ -270,7 +271,7 @@ int MainCmds::selfplay(const vector<string>& args) {
       //Callback that runGame will call periodically to ask us if we have a new neural net
       std::function<NNEvaluator*()> checkForNewNNEval = [&manager,&nnEval,&prevModelName,&logger,&threadIdx]() -> NNEvaluator* {
         NNEvaluator* newNNEval = manager->acquireLatest();
-        assert(newNNEval != NULL);
+        testAssert(newNNEval != NULL);
         if(newNNEval == nnEval) {
           manager->release(newNNEval);
           return NULL;

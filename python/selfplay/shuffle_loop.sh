@@ -60,7 +60,7 @@ cp -r "$GITROOTDIR"/python/muon "$DATED_ARCHIVE"
 
         for i in {1..10}
         do
-            ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$BATCHSIZE" -summary-file "$basedir"/selfplay.summary.json "$@"
+            ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" -summary-file "$basedir"/selfplay.summary.json "$@"
             sleep 600
         done
     done

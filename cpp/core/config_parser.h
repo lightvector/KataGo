@@ -114,7 +114,7 @@ private:
   std::string lineAndFileInfo() const;
   std::string extractBaseDir(const std::string &fname);
 
-  bool parseKeyValue(const std::string& trimmedLine, std::string& key, std::string& value);
+  bool parseKeyValue(const std::string& trimmedLine, std::string& key, std::string& value) const;
 };
 
 

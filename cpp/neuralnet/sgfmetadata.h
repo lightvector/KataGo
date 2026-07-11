@@ -22,7 +22,7 @@ struct SGFMetadata {
   bool gameIsUnrated = false;
   bool gameRatednessIsUnknown = false;
 
-  //One-hot for all things with metadata
+  // One-hot for all things with metadata
   bool tcIsUnknown = false;
   bool tcIsNone = false;
   bool tcIsAbsolute = false;
@@ -56,6 +56,10 @@ struct SGFMetadata {
   static void fillMetadataRow(const SGFMetadata* sgfMeta, float* rowMetadata, Player nextPlayer, int boardArea);
 
   static SGFMetadata getProfile(const std::string& humanSLProfileName);
+
+  // An arbitrary valid, initialized profile usable for things like neural net warmup, where the
+  // metadata content is irrelevant (outputs are discarded) but the model still requires a profile.
+  static SGFMetadata makeDummyWarmupProfile();
 };
 
 #endif  // NEURALNET_SGFMETADATA_H_

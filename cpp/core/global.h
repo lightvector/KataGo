@@ -32,20 +32,7 @@
 
 #endif
 
-#ifdef NDEBUG
-//This is so that we can "assert false" in unreachable code branches even in the
-//presence of NDEBUG without the compiler complaining about uniniitalized values.
-//Ideally sparingly, since the point of NDEBUG presumably is to avoid unnecessary
-//runtime checks, but often this is still convenient.
-class asserted_unreachable: public std::exception {
-  const char* what() const throw() final {
-    return "BUG? Reached asserted-unreachable point of the code!";
-  }
-};
-#define ASSERT_UNREACHABLE (throw asserted_unreachable())
-#else
-#define ASSERT_UNREACHABLE (assert(false))
-#endif
+#define ASSERT_UNREACHABLE (Global::fatalError(std::string("BUG? Reached asserted-unreachable point of the code: ") + std::string(__FILE__) + std::string(" ") + Global::intToString(__LINE__)))
 
 //GLOBAL FUNCTIONS------------------------------------------------------------
 namespace Global

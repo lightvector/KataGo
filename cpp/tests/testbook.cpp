@@ -91,7 +91,7 @@ void Tests::runBookTests() {
       int branchLen = rand.nextUInt(10);
 
       for(int turnIdx = 0; turnIdx<branchLen; turnIdx++) {
-        assert(!node.isNull());
+        testAssert(!node.isNull());
         if(hist.isGameFinished || hist.encorePhase != 0)
           break;
 

@@ -168,7 +168,7 @@ void ThreadTest::runTests() {
           bool suc = queue->waitPopUpToN(buf,n);
           if(!suc)
             break;
-          assert(buf.size() > 0 && buf.size() <= n);
+          testAssert(buf.size() > 0 && buf.size() <= n);
           for(int x: buf) {
             sum += x;
             sumSq += x * x;

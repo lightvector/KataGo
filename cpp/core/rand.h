@@ -25,6 +25,7 @@
 #include <vector>
 #include <stdint.h>
 
+#include "../core/global.h"
 #include "../core/rand_helpers.h"
 
 class Rand
@@ -214,7 +215,7 @@ inline uint32_t Rand::nextUInt(const int* freq, size_t n)
     {return i;}
   }
   //Should not get to here
-  assert(false);
+  ASSERT_UNREACHABLE;
   return 0;
 }
 

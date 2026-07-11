@@ -2,7 +2,7 @@ Running test for selfplay initialization with NN
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 4 useFP16 = false useNHWC = false
-: Cuda backend thread 0: Model name: b6c96-s156348160-d118286860
+: Cuda backend thread 0: Model name: b6c96-s156348160-d118286860 (convnet, 1025157 params)
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================
@@ -6433,7 +6433,7 @@ Running more tests for selfplay
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 4 useFP16 = false useNHWC = false
-: Cuda backend thread 0: Model name: b6c96-s156348160-d118286860
+: Cuda backend thread 0: Model name: b6c96-s156348160-d118286860 (convnet, 1025157 params)
 ====================================================================================================
 ====================================================================================================
 ====================================================================================================

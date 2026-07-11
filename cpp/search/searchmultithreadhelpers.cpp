@@ -81,7 +81,7 @@ void Search::performTaskWithThreads(std::function<void(int)>* task, int capThrea
     (*task)(0);
   }
   else {
-    assert(numAdditionalThreadsToUse <= numThreadsSpawned);
+    testAssert(numAdditionalThreadsToUse <= numThreadsSpawned);
     threadTasksRemaining->add(numAdditionalThreadsToUse);
     for(int i = 0; i<numAdditionalThreadsToUse; i++)
       threadTasks[i].forcePush(task);

@@ -1,7 +1,7 @@
 : Initializing neural net buffer to be size 6 * 6 allowing smaller boards
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 15 useFP16 = false useNHWC = false
-: Cuda backend thread 0: Model name: kata1-b28c512nbt-s8326494464-d4628051565
+: Cuda backend thread 0: Model name: kata1-b28c512nbt-s8326494464-d4628051565 (nbt convnet, 72830569 params)
 HASH: 53602E4395E2B2B556BA45566880843F
    A B C D E
  5 . . . . .

@@ -508,6 +508,11 @@ void Search::selectBestChildToDescend(
       if(alreadyTried)
         continue;
 
+      //Quit immediately for illegal moves
+      float nnPolicyProb = policyProbs[movePos];
+      if(nnPolicyProb < 0)
+        continue;
+
       //Special logic for the root
       if(isRoot) {
         assert(thread.board.pos_hash == rootBoard.pos_hash);
@@ -521,11 +526,6 @@ void Search::selectBestChildToDescend(
         if(thread.history.moveHistory.size() - rootHistory.moveHistory.size() < untilDepth)
           continue;
       }
-
-      //Quit immediately for illegal moves
-      float nnPolicyProb = policyProbs[movePos];
-      if(nnPolicyProb < 0)
-        continue;
 
       FirstExploreEval eval = pair.second;
       double cacheAvgUtility =
@@ -557,6 +557,11 @@ void Search::selectBestChildToDescend(
     if(alreadyTried)
       continue;
 
+    //Quit immediately for illegal moves
+    float nnPolicyProb = policyProbs[movePos];
+    if(nnPolicyProb < 0)
+      continue;
+
     Loc moveLoc = NNPos::posToLoc(movePos,thread.board.x_size,thread.board.y_size,nnXLen,nnYLen);
     if(moveLoc == Board::NULL_LOC)
       continue;
@@ -574,11 +579,6 @@ void Search::selectBestChildToDescend(
       if(thread.history.moveHistory.size() - rootHistory.moveHistory.size() < untilDepth)
         continue;
     }
-
-    //Quit immediately for illegal moves
-    float nnPolicyProb = policyProbs[movePos];
-    if(nnPolicyProb < 0)
-      continue;
 
     if(antiMirror) {
       maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, policyProbs, node.nextPla, &thread);

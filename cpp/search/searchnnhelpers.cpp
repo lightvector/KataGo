@@ -180,7 +180,7 @@ bool Search::maybeRecomputeExistingNNOutput(
     if(oldAge < searchNodeAge) {
       NNOutput* nnOutput = node.getNNOutput();
       NNOutput* humanOutput = node.getHumanOutput();
-      assert(nnOutput != NULL);
+      testAssert(nnOutput != NULL);
 
       //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
       //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game

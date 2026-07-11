@@ -2,7 +2,7 @@
 
 using namespace std;
 
-DistributionTable::DistributionTable(function<double(double)> pdf, function<double(double)> cdf, double minz, double maxz, int sz) {
+DistributionTable::DistributionTable(const function<double(double)>& pdf, const function<double(double)>& cdf, double minz, double maxz, int sz) {
   size = sz;
   minZ = minz;
   maxZ = maxz;

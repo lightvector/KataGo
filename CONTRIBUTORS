@@ -48,9 +48,12 @@ Chin-Chang Yang - For maintaining and implementing the Metal backend for MacOS a
 "tterava" - For improvements to build instructions.
 "Stanley" - Minor typo fixes.
 "Traveler" - Minor readme edits.
-Ivan Kochurkin ("kvanttt") - for work and testing for Mingw and Metal backends.
+Ivan Kochurkin ("kvanttt") - for work and testing for Mingw and Metal backends, GitHub CI, various bugfixes and performance improvements.
 loker404 - One-line bugfix for python script.
 "HarangPanul" - minor code style improvement
+awei-mj - CUDA 13.0 support.
+Cheng Chang ("changcheng967") - Python script bugfix.
+Evgeny Kurnevsky ("kurnevsky") - Out-of-bounds write fix.
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support

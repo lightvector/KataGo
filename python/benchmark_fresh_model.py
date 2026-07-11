@@ -10,6 +10,7 @@ import torch
 import torch._dynamo
 torch._dynamo.config.recompile_limit = 32
 import torch.nn
+from torch.amp import autocast, GradScaler
 
 from katago.train import modelconfigs
 from katago.train.model_pytorch import Model
@@ -25,7 +26,9 @@ def main():
 
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-model-kind', help='Model config name, e.g. b8c192nbt-fson-mish-rvglr-bnh', required=True)
-    parser.add_argument('-optimizer', help='Optimizer to use', choices=['sgd', 'adam', 'muon'], default='sgd')
+    parser.add_argument('-optimizer', help='Optimizer to use', choices=['sgd', 'adam', 'muon', 'aurora'], default='sgd')
+    parser.add_argument('-ns-steps', help='Number of Newton-Schulz iterations for muon', type=int, default=5)
+    parser.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon', action='store_true')
     parser.add_argument('-batch-size', help='Batch size', type=int, required=True)
     parser.add_argument('-data', help='Path to npz data file (e.g. ../python/testdata/benchmark_data_1024.npz)', required=True)
     parser.add_argument('-gpu', help='GPU device index', type=int, default=0)
@@ -35,6 +38,9 @@ def main():
     parser.add_argument('-print-per-tensor-counts', help='Print parameter counts per tensor', action='store_true')
     parser.add_argument('-no-compile', help='Do not torch.compile', action='store_true')
     parser.add_argument('-use-tf32-matmul', help='Reduce float32 precision for speed on some gpus', action='store_true')
+    parser.add_argument('-use-amp', help='Use automatic mixed precision (fp16 autocast + GradScaler) for training benchmark', action='store_true')
+    parser.add_argument('-use-fp16', help='Cast model to fp16 for forward-only benchmark (inference only, no training)', action='store_true')
+    parser.add_argument('-forward-only', help='Only benchmark the forward pass, skip training benchmarks', action='store_true')
     parser.add_argument('-override-config', help='Override model config params, e.g. "gab_d1=16,tab_num_freqs=8"', type=str, default=None)
     args = vars(parser.parse_args())
 
@@ -49,7 +55,21 @@ def main():
     print_per_tensor = args["print_per_tensor_counts"]
     no_compile = args["no_compile"]
     use_tf32_matmul = args["use_tf32_matmul"]
+    use_amp = args["use_amp"]
+    use_fp16 = args["use_fp16"]
+    forward_only = args["forward_only"]
     override_config_str = args["override_config"]
+    ns_steps = args["ns_steps"]
+    use_polar_express = args["use_polar_express"]
+
+    if use_amp and use_fp16:
+        raise ValueError("-use-amp and -use-fp16 are mutually exclusive")
+
+    if optimizer_kind not in ("muon", "aurora"):
+        if ns_steps != 5:
+            raise ValueError("-ns-steps can only be used with muon or aurora optimizer")
+        if use_polar_express:
+            raise ValueError("-use-polar-express can only be used with muon or aurora optimizer")
 
     device = torch.device(f"cuda:{gpu_idx}")
 
@@ -105,6 +125,12 @@ def main():
     print(f"Optimizer: {optimizer_kind}")
     print(f"Batch size: {batch_size}")
     print(f"Device: {device}")
+    if use_amp:
+        print(f"Precision: AMP (fp16 autocast + GradScaler)")
+    elif use_fp16:
+        print(f"Precision: fp16 (model in half, output heads in fp32, forward-only)")
+    else:
+        print(f"Precision: fp32")
     print()
 
     raw_model = Model(model_config, pos_len)
@@ -161,11 +187,14 @@ def main():
         optimizer = torch.optim.AdamW(param_groups, lr=1e-5)
     elif optimizer_kind == "muon":
         from muon.muon import SingleDeviceMuonWithAuxAdam
-        optimizer = SingleDeviceMuonWithAuxAdam(param_groups, adjust_lr_fn="match_rms_adamw")
+        optimizer = SingleDeviceMuonWithAuxAdam(param_groups, adjust_lr_fn="match_rms_adamw", ns_steps=ns_steps, use_polar_express=use_polar_express)
+    elif optimizer_kind == "aurora":
+        from muon.muon import SingleDeviceMuonWithAuxAdam
+        optimizer = SingleDeviceMuonWithAuxAdam(param_groups, adjust_lr_fn="match_rms_adamw", use_aurora=True, ns_steps=ns_steps, use_polar_express=use_polar_express)
     else:
         optimizer = torch.optim.SGD(param_groups, lr=1e-5, momentum=0.9)
 
-    metrics_obj = Metrics(batch_size, 1, raw_model)
+    metrics_obj = Metrics(1, raw_model)
 
     # Load data
     print(f"Loading data from {data_path} ...")
@@ -176,14 +205,39 @@ def main():
     # Set model to training mode
     raw_model.train()
 
+    if use_fp16:
+        # Cast entire model to fp16, then restore output heads to fp32.
+        # The model's autocast(enabled=False) + .float() guards will convert
+        # fp16 trunk outputs to fp32 inputs for the fp32 head weights.
+        raw_model.half()
+        raw_model.policy_head.float()
+        raw_model.value_head.float()
+        if hasattr(raw_model, 'intermediate_policy_head'):
+            raw_model.intermediate_policy_head.float()
+        if hasattr(raw_model, 'intermediate_value_head'):
+            raw_model.intermediate_value_head.float()
+        # Cast input data to fp16
+        batch["binaryInputNCHW"] = batch["binaryInputNCHW"].half()
+        batch["globalInputNC"] = batch["globalInputNC"].half()
+
     # Benchmark forward only
     print("=" * 80)
     print("FORWARD PASS BENCHMARK")
     print("=" * 80)
-    forward_times = benchmark_forward(model, batch, num_iters, warmup_iters)
+    forward_times = benchmark_forward(model, batch, num_iters, warmup_iters, use_autocast=use_amp)
     print_timing_stats("Forward", forward_times)
     print()
     torch.cuda.empty_cache()
+
+    if use_fp16 or forward_only:
+        if use_fp16:
+            print("Skipping training benchmarks (fp16 is forward-only)")
+        else:
+            print("Skipping training benchmarks (-forward-only)")
+        print()
+        return
+
+    scaler = GradScaler("cuda") if use_amp else None
 
     # Benchmark forward + backward + optimizer step with attribution
     print("=" * 80)
@@ -191,6 +245,7 @@ def main():
     print("=" * 80)
     fwd_times, bwd_times, opt_times = benchmark_full_step(
         model, raw_model, optimizer, metrics_obj, batch, model_config, num_iters, warmup_iters,
+        use_amp=use_amp, scaler=scaler,
     )
     print_timing_stats("Forward ", fwd_times)
     print_timing_stats("Backward", bwd_times)
@@ -218,6 +273,7 @@ def main():
     print("=" * 80)
     throughput_times = benchmark_full_step_throughput(
         model, raw_model, optimizer, metrics_obj, batch, model_config, num_iters, warmup_iters,
+        use_amp=use_amp, scaler=scaler,
     )
     print_timing_stats("Total   ", throughput_times)
     print()
@@ -227,7 +283,10 @@ def load_batch(data_path, batch_size, pos_len, model_config, device):
     """Load a single batch from an npz file."""
     num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
     num_global_features = modelconfigs.get_num_global_input_features(model_config)
-    include_qvalues = model_config["version"] >= 16
+    # Version 16 always predicts q values; version 17+ does so only when configured.
+    include_qvalues = model_config["version"] == 16 or (
+        model_config["version"] >= 17 and bool(model_config.get("predict_q_values"))
+    )
 
     with np.load(data_path) as npz:
         binaryInputNCHWPacked = npz["binaryInputNCHWPacked"][:batch_size]
@@ -274,7 +333,7 @@ def load_batch(data_path, batch_size, pos_len, model_config, device):
     return batch
 
 
-def benchmark_forward(model, batch, num_iters, warmup_iters):
+def benchmark_forward(model, batch, num_iters, warmup_iters, use_autocast=False):
     """Benchmark forward pass only."""
     times = []
     for i in range(warmup_iters + num_iters):
@@ -282,10 +341,11 @@ def benchmark_forward(model, batch, num_iters, warmup_iters):
         t0 = time.perf_counter()
 
         with torch.no_grad():
-            model_outputs = model(
-                batch["binaryInputNCHW"],
-                batch["globalInputNC"],
-            )
+            with autocast("cuda", enabled=use_autocast):
+                model_outputs = model(
+                    batch["binaryInputNCHW"],
+                    batch["globalInputNC"],
+                )
 
         torch.cuda.synchronize()
         t1 = time.perf_counter()
@@ -296,7 +356,7 @@ def benchmark_forward(model, batch, num_iters, warmup_iters):
     return times
 
 
-def benchmark_full_step(model, raw_model, optimizer, metrics_obj, batch, model_config, num_iters, warmup_iters):
+def benchmark_full_step(model, raw_model, optimizer, metrics_obj, batch, model_config, num_iters, warmup_iters, use_amp=False, scaler=None):
     """Benchmark forward + backward + optimizer step, returning separate timings."""
     fwd_times = []
     bwd_times = []
@@ -309,40 +369,48 @@ def benchmark_full_step(model, raw_model, optimizer, metrics_obj, batch, model_c
         torch.cuda.synchronize()
         t_fwd_start = time.perf_counter()
 
-        model_outputs = model(
-            batch["binaryInputNCHW"],
-            batch["globalInputNC"],
-        )
-        postprocessed = raw_model.postprocess_output(model_outputs)
-        metrics = metrics_obj.metrics_dict_batchwise(
-            raw_model,
-            postprocessed,
-            extra_outputs=None,
-            batch=batch,
-            is_training=True,
-            soft_policy_weight_scale=1.0,
-            disable_optimistic_policy=False,
-            meta_kata_only_soft_policy=False,
-            value_loss_scale=1.0,
-            td_value_loss_scales=[0.4, 1.0, 1.0],
-            seki_loss_scale=0.35,
-            variance_time_loss_scale=0.5,
-            main_loss_scale=1.0,
-            intermediate_loss_scale=0.5 if raw_model.get_has_intermediate_head() else None,
-        )
+        with autocast("cuda", enabled=use_amp):
+            model_outputs = model(
+                batch["binaryInputNCHW"],
+                batch["globalInputNC"],
+            )
+            postprocessed = raw_model.postprocess_output(model_outputs)
+            metrics = metrics_obj.metrics_dict_batchwise(
+                raw_model,
+                postprocessed,
+                extra_outputs=None,
+                batch=batch,
+                is_training=True,
+                soft_policy_weight_scale=1.0,
+                disable_optimistic_policy=False,
+                meta_kata_only_soft_policy=False,
+                value_loss_scale=1.0,
+                td_value_loss_scales=[0.4, 1.0, 1.0],
+                seki_loss_scale=0.35,
+                variance_time_loss_scale=0.5,
+                main_loss_scale=1.0,
+                intermediate_loss_scale=0.5 if raw_model.get_has_intermediate_head() else None,
+            )
         loss = metrics["loss_sum"]
 
         torch.cuda.synchronize()
         t_bwd_start = time.perf_counter()
 
         # Backward
-        loss.backward()
+        if scaler is not None:
+            scaler.scale(loss).backward()
+        else:
+            loss.backward()
 
         torch.cuda.synchronize()
         t_opt_start = time.perf_counter()
 
         # Optimizer step
-        optimizer.step()
+        if scaler is not None:
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            optimizer.step()
 
         torch.cuda.synchronize()
         t_opt_end = time.perf_counter()
@@ -356,7 +424,7 @@ def benchmark_full_step(model, raw_model, optimizer, metrics_obj, batch, model_c
     return fwd_times, bwd_times, opt_times
 
 
-def benchmark_full_step_throughput(model, raw_model, optimizer, metrics_obj, batch, model_config, num_iters, warmup_iters):
+def benchmark_full_step_throughput(model, raw_model, optimizer, metrics_obj, batch, model_config, num_iters, warmup_iters, use_amp=False, scaler=None):
     """Benchmark full training step without intermediate syncs, for true throughput measurement."""
     times = []
 
@@ -365,30 +433,36 @@ def benchmark_full_step_throughput(model, raw_model, optimizer, metrics_obj, bat
         t0 = time.perf_counter()
 
         optimizer.zero_grad(set_to_none=True)
-        model_outputs = model(
-            batch["binaryInputNCHW"],
-            batch["globalInputNC"],
-        )
-        postprocessed = raw_model.postprocess_output(model_outputs)
-        metrics = metrics_obj.metrics_dict_batchwise(
-            raw_model,
-            postprocessed,
-            extra_outputs=None,
-            batch=batch,
-            is_training=True,
-            soft_policy_weight_scale=1.0,
-            disable_optimistic_policy=False,
-            meta_kata_only_soft_policy=False,
-            value_loss_scale=1.0,
-            td_value_loss_scales=[0.4, 1.0, 1.0],
-            seki_loss_scale=0.35,
-            variance_time_loss_scale=0.5,
-            main_loss_scale=1.0,
-            intermediate_loss_scale=0.5 if raw_model.get_has_intermediate_head() else None,
-        )
+        with autocast("cuda", enabled=use_amp):
+            model_outputs = model(
+                batch["binaryInputNCHW"],
+                batch["globalInputNC"],
+            )
+            postprocessed = raw_model.postprocess_output(model_outputs)
+            metrics = metrics_obj.metrics_dict_batchwise(
+                raw_model,
+                postprocessed,
+                extra_outputs=None,
+                batch=batch,
+                is_training=True,
+                soft_policy_weight_scale=1.0,
+                disable_optimistic_policy=False,
+                meta_kata_only_soft_policy=False,
+                value_loss_scale=1.0,
+                td_value_loss_scales=[0.4, 1.0, 1.0],
+                seki_loss_scale=0.35,
+                variance_time_loss_scale=0.5,
+                main_loss_scale=1.0,
+                intermediate_loss_scale=0.5 if raw_model.get_has_intermediate_head() else None,
+            )
         loss = metrics["loss_sum"]
-        loss.backward()
-        optimizer.step()
+        if scaler is not None:
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            optimizer.step()
 
         torch.cuda.synchronize()
         t1 = time.perf_counter()

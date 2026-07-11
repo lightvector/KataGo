@@ -136,6 +136,31 @@ OPP_POLICY_LABEL = "[Opponent Reply Policy]"
 POLICY_LABELS = [POLICY_LABEL, OPP_POLICY_LABEL]
 
 
+def get_register_positions(model, board_size):
+    """Compute approximate board positions for RW registers from model parameters.
+    Returns list of (row, col) float tuples in board coordinates, or empty list if no registers."""
+    num_rw = model.config.get("attention_num_rw_registers", 0)
+    if num_rw == 0:
+        return []
+
+    # Register positions are: center + 2*radius * tanh(rel_pos)
+    # For visualization, approximate center/radius from a standard square board.
+    with torch.no_grad():
+        rel_x = model.rw_register_rel_pos_x.cpu().numpy()
+        rel_y = model.rw_register_rel_pos_y.cpu().numpy()
+
+    # For a standard board, center = (board_size-1)/2, radius = (board_size-1)/2
+    center = (board_size - 1) / 2.0
+    radius = (board_size - 1) / 2.0
+
+    positions = []
+    for i in range(num_rw):
+        col = center + 2.0 * radius * np.tanh(rel_x[i])
+        row = center + 2.0 * radius * np.tanh(rel_y[i])
+        positions.append((row, col))
+    return positions
+
+
 def run_inference(model, game_state, attn_block_names, suppress_history=False):
     """Run model forward pass requesting attention weights for all transformer blocks.
     Returns (attn_dict, policy_probs, model_predictions) where attn_dict maps
@@ -204,9 +229,15 @@ class AttentionVisualizer:
         self.num_heads = model.config.get("transformer_heads", 6)
         self.num_kv_heads = model.config.get("transformer_kv_heads", self.num_heads)
 
+        # Register info
+        self.num_rw_registers = model.config.get("attention_num_rw_registers", 0)
+        self.inline_registers = model.config.get("inline_registers", False)
+        self.register_positions = get_register_positions(model, self.board_size)  # list of (row, col) floats
+
         self.current_move = 0
         self.total_moves = len(all_moves)
         self.selected_pos = None  # (row, col) on the board (0-indexed from top)
+        self.selected_register = None  # register index (0-based), or None
 
         # Cache: attention_cache[(move_number, suppress_history)] = (attn_dict, policy_probs, predictions)
         # where attn_dict maps block_name -> (H, S_q, S_k), policy_probs is (num_policy_outputs, move),
@@ -287,6 +318,34 @@ class AttentionVisualizer:
 
         tk.Label(ctrl, text="", font=("TkDefaultFont", 2)).pack()  # spacer
 
+        # Register buttons (if model has registers)
+        self.register_buttons = []
+        if self.num_rw_registers > 0:
+            reg_type = "ireg" if self.inline_registers else "rwreg"
+            tk.Label(ctrl, text=f"Registers ({reg_type}, {self.num_rw_registers}):",
+                     font=("TkDefaultFont", 11)).pack(anchor=tk.W)
+
+            self.show_register_markers_var = tk.BooleanVar(value=True)
+            tk.Checkbutton(
+                ctrl, text="Show register markers on board",
+                variable=self.show_register_markers_var,
+                command=self.draw_board, font=("TkDefaultFont", 10),
+            ).pack(anchor=tk.W)
+
+            reg_frame = tk.Frame(ctrl)
+            reg_frame.pack(anchor=tk.W, fill=tk.X, pady=(0, 4))
+            # Layout register buttons in rows of 8
+            for i in range(self.num_rw_registers):
+                if i % 8 == 0:
+                    row_frame = tk.Frame(reg_frame)
+                    row_frame.pack(anchor=tk.W)
+                btn = tk.Button(row_frame, text=str(i), width=2,
+                                command=lambda idx=i: self.on_register_click(idx))
+                btn.pack(side=tk.LEFT, padx=1, pady=1)
+                self.register_buttons.append(btn)
+
+            tk.Label(ctrl, text="", font=("TkDefaultFont", 2)).pack()  # spacer
+
         # Info display
         self.info_label = tk.Label(ctrl, text="Click a board position\n(after changing moves, click to compute)",
                                    font=("TkDefaultFont", 10), justify=tk.LEFT, anchor=tk.NW)
@@ -300,16 +359,6 @@ class AttentionVisualizer:
         self.predictions_label = tk.Label(ctrl, text="", font=("TkFixedFont", 9),
                                           justify=tk.LEFT, anchor=tk.NW)
         self.predictions_label.pack(anchor=tk.W, pady=(8, 0))
-
-        # Config info
-        config_text = (
-            f"board_size={self.board_size}\n"
-            f"pos_len={self.pos_len}\n"
-            f"heads={self.num_heads}, kv_heads={self.num_kv_heads}\n"
-            f"attn_layers={len(self.attn_block_names)}"
-        )
-        tk.Label(ctrl, text=config_text, font=("TkFixedFont", 9),
-                 justify=tk.LEFT, anchor=tk.NW, fg="#555555").pack(anchor=tk.W, pady=(16, 0))
 
         # Key bindings
         self.root.bind("<Left>", lambda e: self.change_move(-1))
@@ -350,6 +399,7 @@ class AttentionVisualizer:
         self.move_label.config(text=str(self.current_move))
         # Clear selection and overlay (cache may be stale for new position)
         self.selected_pos = None
+        self.selected_register = None
         self.stats_label.config(text="")
         self.predictions_label.config(text="")
         self.info_label.config(text="Click a board position to compute")
@@ -358,6 +408,7 @@ class AttentionVisualizer:
     def _on_escape(self, event):
         # Clear the overlay display but keep the cache
         self.selected_pos = None
+        self.selected_register = None
         self.stats_label.config(text="")
         self.info_label.config(text="Click a board position")
         self.draw_board()
@@ -365,12 +416,15 @@ class AttentionVisualizer:
     def _cache_key(self):
         return (self.current_move, self.suppress_history_var.get())
 
+    def _has_selection(self):
+        return self.selected_pos is not None or self.selected_register is not None
+
     def _on_layer_change(self, event):
-        if self.selected_pos is not None and self._cache_key() in self.attention_cache:
+        if self._has_selection() and self._cache_key() in self.attention_cache:
             self.draw_board()
 
     def _on_head_change(self, _val):
-        if self.selected_pos is not None and self._cache_key() in self.attention_cache:
+        if self._has_selection() and self._cache_key() in self.attention_cache:
             self.draw_board()
 
     def _on_suppress_history_change(self):
@@ -378,10 +432,11 @@ class AttentionVisualizer:
         if self._cache_key() in self.attention_cache:
             _, _, predictions = self.attention_cache[self._cache_key()]
             self._update_predictions_label(predictions)
-            if self.selected_pos is not None:
+            if self._has_selection():
                 self.draw_board()
         else:
             self.selected_pos = None
+            self.selected_register = None
             self.stats_label.config(text="")
             self.predictions_label.config(text="")
             self.info_label.config(text="Click a board position to compute")
@@ -394,11 +449,8 @@ class AttentionVisualizer:
         scoremean = predictions["scoremean"]
         lead = predictions["lead"]
         self.predictions_label.config(text=(
-            f"Win:   {win:.1f}%\n"
-            f"Loss:  {loss:.1f}%\n"
-            f"NoRes: {noresult:.1f}%\n"
-            f"Score: {scoremean:+.1f}\n"
-            f"Lead:  {lead:+.1f}"
+            f"W:{win:.1f}% L:{loss:.1f}% NR:{noresult:.1f}%\n"
+            f"Score:{scoremean:+.1f}  Lead:{lead:+.1f}"
         ))
 
     def _ensure_attention_computed(self):
@@ -442,24 +494,30 @@ class AttentionVisualizer:
 
         # Coordinate labels
         col_labels = "ABCDEFGHJKLMNOPQRSTUVWXYZ"
+        bottom_y = self.py_of_row(n - 1) + cs // 2 + self.margin // 2
+        right_x = self.px_of_col(n - 1) + cs // 2 + self.margin // 2
         for c in range(n):
             lbl = col_labels[c]
             self.canvas.create_text(self.px_of_col(c), self.margin // 2, text=lbl, font=("TkDefaultFont", 8))
-            self.canvas.create_text(self.px_of_col(c), self.py_of_row(n - 1) + self.margin // 2, text=lbl, font=("TkDefaultFont", 8))
+            self.canvas.create_text(self.px_of_col(c), bottom_y, text=lbl, font=("TkDefaultFont", 8))
         for r in range(n):
             lbl = str(n - r)
             self.canvas.create_text(self.margin // 2, self.py_of_row(r), text=lbl, font=("TkDefaultFont", 8))
-            self.canvas.create_text(self.px_of_col(n - 1) + self.margin // 2, self.py_of_row(r), text=lbl, font=("TkDefaultFont", 8))
+            self.canvas.create_text(right_x, self.py_of_row(r), text=lbl, font=("TkDefaultFont", 8))
 
         # Draw attention overlay rectangles (under stones)
-        if self.selected_pos is not None and self._cache_key() in self.attention_cache:
+        if self._has_selection() and self._cache_key() in self.attention_cache:
             self._draw_overlay_rects()
 
         # Draw stones on top of overlay rectangles
         self._draw_stones()
 
+        # Draw register markers on the board at their learned positions
+        if self.num_rw_registers > 0 and self.show_register_markers_var.get():
+            self._draw_register_markers()
+
         # Draw attention overlay labels and selection marker on top of stones
-        if self.selected_pos is not None and self._cache_key() in self.attention_cache:
+        if self._has_selection() and self._cache_key() in self.attention_cache:
             self._draw_overlay_labels()
 
     def _draw_stones(self):
@@ -481,14 +539,33 @@ class AttentionVisualizer:
                         fill=fill, outline=outline, width=1,
                     )
 
+    def _draw_register_markers(self):
+        """Draw small diamond markers at the learned positions of each register."""
+        cs = self.cell_size
+        rad = 5
+        for i, (row, col) in enumerate(self.register_positions):
+            x = self.margin + self.cell_size // 2 + col * self.cell_size
+            y = self.margin + self.cell_size // 2 + row * self.cell_size
+            is_selected = (self.selected_register == i)
+            fill = "#4040ff" if is_selected else "#8080ff"
+            outline = "blue" if is_selected else "#4040a0"
+            width = 2 if is_selected else 1
+            # Draw diamond
+            self.canvas.create_polygon(
+                x, y - rad, x + rad, y, x, y + rad, x - rad, y,
+                fill=fill, outline=outline, width=width,
+            )
+            # Draw register index label
+            self.canvas.create_text(x, y, text=str(i), font=("TkFixedFont", 6), fill="white")
+
     def _is_policy_mode(self):
         return self.layer_var.get() in POLICY_LABELS
 
     def _get_overlay_probs(self):
         """Get the overlay probs array for the current selection.
         Returns (probs, attn_weights_or_none) or None.
-        For policy modes, attn_weights_or_none is None."""
-        r_sel, c_sel = self.selected_pos
+        For policy modes, attn_weights_or_none is None.
+        probs is over board positions (length seq_len)."""
         layer_name = self.layer_var.get()
         head_idx = self.head_var.get()
 
@@ -500,11 +577,9 @@ class AttentionVisualizer:
         seq_len = self.pos_len * self.pos_len
 
         if layer_name == POLICY_LABEL:
-            # Policy output 0: main policy, shape (move,) where move = seq_len + 1 (pass)
             probs = policy_probs[0, :seq_len]
             return probs, None
         elif layer_name == OPP_POLICY_LABEL:
-            # Policy output 1: opponent reply policy
             if policy_probs.shape[0] < 2:
                 return None
             probs = policy_probs[1, :seq_len]
@@ -520,7 +595,15 @@ class AttentionVisualizer:
             head_idx = 0
             self.head_var.set(0)
 
-        src_idx = r_sel * self.pos_len + c_sel
+        if self.selected_register is not None:
+            # Register as source: index into the query axis after board positions
+            src_idx = seq_len + self.selected_register
+            if src_idx >= attn_weights.shape[1]:
+                return None
+        else:
+            r_sel, c_sel = self.selected_pos
+            src_idx = r_sel * self.pos_len + c_sel
+
         probs = attn_weights[head_idx, src_idx, :seq_len]
         return probs, attn_weights
 
@@ -553,6 +636,26 @@ class AttentionVisualizer:
                 fill=color, outline="",
             )
 
+    def _format_reg_breakdown(self, reg_probs, highlight=None):
+        """Format per-register attention as compact lines, 4 per row.
+        reg_probs: 1D array of attention probabilities for each register.
+        highlight: optional register index to mark with '<-'."""
+        num_registers = len(reg_probs)
+        reg_total = reg_probs.sum() * 100.0
+        header = f"\nRegs: {reg_total:.2f}% ({num_registers})"
+        items = []
+        for ri in range(num_registers):
+            rp = reg_probs[ri] * 100.0
+            if rp >= 0.05:
+                marker = "<-" if ri == highlight else ""
+                items.append(f"R{ri}:{rp:.1f}%{marker}")
+        if not items:
+            return header
+        lines = [header]
+        for i in range(0, len(items), 4):
+            lines.append("  " + " ".join(items[i:i+4]))
+        return "\n".join(lines)
+
     def _draw_overlay_labels(self):
         """Draw percentage labels and selection marker (called after stones)."""
         result = self._get_overlay_probs()
@@ -560,7 +663,6 @@ class AttentionVisualizer:
             return
         probs, attn_weights = result
 
-        r_sel, c_sel = self.selected_pos
         layer_name = self.layer_var.get()
         head_idx = self.head_var.get()
         n = self.board_size
@@ -569,6 +671,7 @@ class AttentionVisualizer:
         board = self.game_state.board
         max_prob = probs.max()
         is_policy = self._is_policy_mode()
+        is_register_source = self.selected_register is not None
 
         for dst_idx in range(n * n):
             dr = dst_idx // n
@@ -605,7 +708,28 @@ class AttentionVisualizer:
                 f"Top %%:   {max_prob*100:.2f}%\n"
                 f"Pass %%:  {pass_prob:.2f}%"
             ))
+        elif is_register_source:
+            reg_idx = self.selected_register
+            src_idx = seq_len + reg_idx
+            num_registers = attn_weights.shape[2] - seq_len
+
+            # Build per-register attention breakdown
+            reg_info = ""
+            if num_registers > 0:
+                reg_probs = attn_weights[head_idx, src_idx, seq_len:]
+                reg_info = self._format_reg_breakdown(reg_probs, highlight=reg_idx)
+
+            board_attn = probs.sum() * 100.0
+            entropy = -np.sum(probs * np.log(probs + 1e-30))
+            row_pos, col_pos = self.register_positions[reg_idx]
+            self.info_label.config(text=f"Source: Register {reg_idx}\nPos: ({col_pos:.1f}, {row_pos:.1f})\nLayer: {layer_name}\nHead: {head_idx}")
+            self.stats_label.config(text=(
+                f"Softmax entropy: {entropy:.2f} (max {math.log(n*n):.2f})\n"
+                f"Top attn %%:     {max_prob*100:.2f}%\n"
+                f"Attn to board:   {board_attn:.2f}%{reg_info}"
+            ))
         else:
+            r_sel, c_sel = self.selected_pos
             # Mark selected position
             x, y = self.px_of_col(c_sel), self.py_of_row(r_sel)
             rad = cs // 2 - 3
@@ -618,8 +742,7 @@ class AttentionVisualizer:
             reg_info = ""
             if num_registers > 0:
                 reg_probs = attn_weights[head_idx, src_idx, seq_len:]
-                reg_total = reg_probs.sum() * 100.0
-                reg_info = f"\nAttn to registers: {reg_total:.2f}% ({num_registers} regs)"
+                reg_info = self._format_reg_breakdown(reg_probs)
 
             # Update stats
             entropy = -np.sum(probs * np.log(probs + 1e-30))
@@ -636,7 +759,17 @@ class AttentionVisualizer:
         if coord is not None:
             self._ensure_attention_computed()
             self.selected_pos = coord
+            self.selected_register = None
             self.draw_board()
+
+    def on_register_click(self, reg_idx):
+        """Handle clicking a register button."""
+        if self._is_policy_mode():
+            return  # registers don't apply to policy display
+        self._ensure_attention_computed()
+        self.selected_register = reg_idx
+        self.selected_pos = None
+        self.draw_board()
 
     def run(self):
         self.root.mainloop()
@@ -660,6 +793,12 @@ def main():
         print("This model may not use transformer attention layers.")
         sys.exit(1)
     print(f"Found {len(attn_block_names)} attention layers: {attn_block_names}")
+
+    num_rw_reg = model.config.get("attention_num_rw_registers", 0)
+    if num_rw_reg > 0:
+        inline = model.config.get("inline_registers", False)
+        reg_type = "inline (ireg)" if inline else "non-inline (rwreg)"
+        print(f"Found {num_rw_reg} registers ({reg_type})")
 
     print(f"Loading SGF: {args.sgf}")
     game_state, all_moves = load_sgf_to_game(args.sgf)

@@ -6,16 +6,16 @@
 struct PrintTreeOptions {
   PrintTreeOptions();
 
-  PrintTreeOptions maxDepth(int);
-  PrintTreeOptions maxChildrenToShow(int);
-  PrintTreeOptions minVisitsToShow(int64_t);
-  PrintTreeOptions minVisitsToExpand(int64_t);
-  PrintTreeOptions minVisitsPropToShow(double);
-  PrintTreeOptions minVisitsPropToExpand(double);
-  PrintTreeOptions printSqs(bool);
-  PrintTreeOptions printAvgShorttermError(bool);
-  PrintTreeOptions onlyBranch(const Board& board, const std::string& moves);
-  PrintTreeOptions alsoBranch(const Board& board, const std::string& moves);
+  PrintTreeOptions maxDepth(int) const;
+  PrintTreeOptions maxChildrenToShow(int) const;
+  PrintTreeOptions minVisitsToShow(int64_t) const;
+  PrintTreeOptions minVisitsToExpand(int64_t) const;
+  PrintTreeOptions minVisitsPropToShow(double) const;
+  PrintTreeOptions minVisitsPropToExpand(double) const;
+  PrintTreeOptions printSqs(bool) const;
+  PrintTreeOptions printAvgShorttermError(bool) const;
+  PrintTreeOptions onlyBranch(const Board& board, const std::string& moves) const;
+  PrintTreeOptions alsoBranch(const Board& board, const std::string& moves) const;
 
   int maxDepth_;
   int maxChildrenToShow_;
@@ -46,19 +46,19 @@ inline PrintTreeOptions::PrintTreeOptions()
    alsoBranch_(false)
 {}
 
-inline PrintTreeOptions PrintTreeOptions::maxDepth(int d) { PrintTreeOptions other = *this; other.maxDepth_ = d; return other;}
-inline PrintTreeOptions PrintTreeOptions::maxChildrenToShow(int c) { PrintTreeOptions other = *this; other.maxChildrenToShow_ = c; return other;}
-inline PrintTreeOptions PrintTreeOptions::minVisitsToShow(int64_t v) { PrintTreeOptions other = *this; other.minVisitsToShow_ = v; return other;}
-inline PrintTreeOptions PrintTreeOptions::minVisitsToExpand(int64_t v) { PrintTreeOptions other = *this; other.minVisitsToExpand_ = v; return other;}
-inline PrintTreeOptions PrintTreeOptions::minVisitsPropToShow(double p) { PrintTreeOptions other = *this; other.minVisitsPropToShow_ = p; return other;}
-inline PrintTreeOptions PrintTreeOptions::minVisitsPropToExpand(double p) { PrintTreeOptions other = *this; other.minVisitsPropToExpand_ = p; return other;}
-inline PrintTreeOptions PrintTreeOptions::printSqs(bool b) { PrintTreeOptions other = *this; other.printSqs_ = b; return other;}
-inline PrintTreeOptions PrintTreeOptions::printAvgShorttermError(bool b) { PrintTreeOptions other = *this; other.printAvgShorttermError_ = b; return other;}
-inline PrintTreeOptions PrintTreeOptions::onlyBranch(const Board& board, const std::string& moves) {
+inline PrintTreeOptions PrintTreeOptions::maxDepth(int d) const { PrintTreeOptions other = *this; other.maxDepth_ = d; return other;}
+inline PrintTreeOptions PrintTreeOptions::maxChildrenToShow(int c) const { PrintTreeOptions other = *this; other.maxChildrenToShow_ = c; return other;}
+inline PrintTreeOptions PrintTreeOptions::minVisitsToShow(int64_t v) const { PrintTreeOptions other = *this; other.minVisitsToShow_ = v; return other;}
+inline PrintTreeOptions PrintTreeOptions::minVisitsToExpand(int64_t v) const { PrintTreeOptions other = *this; other.minVisitsToExpand_ = v; return other;}
+inline PrintTreeOptions PrintTreeOptions::minVisitsPropToShow(double p) const { PrintTreeOptions other = *this; other.minVisitsPropToShow_ = p; return other;}
+inline PrintTreeOptions PrintTreeOptions::minVisitsPropToExpand(double p) const { PrintTreeOptions other = *this; other.minVisitsPropToExpand_ = p; return other;}
+inline PrintTreeOptions PrintTreeOptions::printSqs(bool b) const { PrintTreeOptions other = *this; other.printSqs_ = b; return other;}
+inline PrintTreeOptions PrintTreeOptions::printAvgShorttermError(bool b) const { PrintTreeOptions other = *this; other.printAvgShorttermError_ = b; return other;}
+inline PrintTreeOptions PrintTreeOptions::onlyBranch(const Board& board, const std::string& moves) const {
   PrintTreeOptions other = *this; other.branch_ = Location::parseSequence(moves,board);
   return other;
 }
-inline PrintTreeOptions PrintTreeOptions::alsoBranch(const Board& board, const std::string& moves) {
+inline PrintTreeOptions PrintTreeOptions::alsoBranch(const Board& board, const std::string& moves) const {
   PrintTreeOptions other = *this; other.branch_ = Location::parseSequence(moves,board);
   other.alsoBranch_ = true;
   return other;

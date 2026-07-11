@@ -193,134 +193,131 @@ using namespace std;
 
 
 
+#ifdef USE_TENSORRT_BACKEND
+
+#include <NvInfer.h>
+#include <NvOnnxParser.h>
+#include "onnx.pb.h"
+
+namespace {
+  // Minimal TensorRT logger for the smoke test.
+  struct SmokeTRTLogger : public nvinfer1::ILogger {
+    void log(Severity severity, const char* msg) noexcept override {
+      if(severity <= Severity::kWARNING)
+        cout << "[TRT] " << msg << endl;
+    }
+  };
+}
+
+// Smoke test for the ONNX emit -> serialize -> nvonnxparser -> buildSerializedNetwork chain.
+// Goal: prove that an onnx::ModelProto built with our (protobuf 3.12.4) library is accepted by
+// TensorRT's bundled nvonnxparser and can be built into an engine, before we invest in a real
+// ModelDesc -> ONNX emitter. The graph here is intentionally trivial: a single Identity node
+// mapping one dynamic-batch input to one output.
 int MainCmds::sandbox() {
-  // Rand rand;
-  // while(true) {
-  //   uint32_t x[16];
-  //   for(int i = 0; i<16; i++)
-  //     x[i] = rand.nextUInt();
-  //   std::cout.write(reinterpret_cast<const char*>(&x),sizeof(x));
-  // }
+  GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  // int64_t sum = 0;
-  // for(int i = 0; i<100000; i++) {
-  //   string s = "akldjfoaijefiwofijeaofj" + Global::intToString(i);
-  //   Rand rand(s);
-  //   for(int j = 0; j<8; j++) {
-  //     sum += rand.nextUInt();
-  //   }
-  // }
-  // cout << sum << endl;
+  const int spatialC = 4;
+  const int posLen = 19;
 
-//   Board::initHash();
+  // ---- Build the ONNX ModelProto ----
+  onnx::ModelProto model;
+  model.set_ir_version(onnx::IR_VERSION_2023_5_5);  // IR v9, accepted by TensorRT 10.x
+  model.set_producer_name("katago-sandbox");
+  {
+    onnx::OperatorSetIdProto* opset = model.add_opset_import();
+    opset->set_domain("");      // default ONNX domain
+    opset->set_version(20);
+  }
+  {
+    onnx::StringStringEntryProto* meta = model.add_metadata_props();
+    meta->set_key("smoke_test");
+    meta->set_value("identity");
+  }
 
-//   const bool logToStdout = true;
-//   Logger logger(nullptr, logToStdout);
-//   logger.addFile("tmp.txt");
+  onnx::GraphProto* graph = model.mutable_graph();
+  graph->set_name("smoke_identity");
 
-//   NeuralNet::globalInitialize();
+  // Input value_info: [batch(dynamic), spatialC, posLen, posLen], float32.
+  auto addTensorValueInfo = [&](onnx::ValueInfoProto* vi, const string& name) {
+    vi->set_name(name);
+    onnx::TypeProto* type = vi->mutable_type();
+    onnx::TypeProto::Tensor* tensorType = type->mutable_tensor_type();
+    tensorType->set_elem_type(onnx::TensorProto::FLOAT);
+    onnx::TensorShapeProto* shape = tensorType->mutable_shape();
+    shape->add_dim()->set_dim_param("batch");  // dynamic batch dimension
+    shape->add_dim()->set_dim_value(spatialC);
+    shape->add_dim()->set_dim_value(posLen);
+    shape->add_dim()->set_dim_value(posLen);
+  };
+  addTensorValueInfo(graph->add_input(), "input_spatial");
+  addTensorValueInfo(graph->add_output(), "output_spatial");
 
-//   LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/selfplay/run0/modelstobetested//s9999360-d1178745-b8c128/model.txt.gz", 0);
-//   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/cuda/value24-140/model.txt", 0);
-//   // LoadedModel* loadedModel = NeuralNet::loadModelFile("/efs/data/GoNN/exportedmodels/tensorflow/value24-140/model.graph_optimized.pb", 0);
-//   bool useFP16 = true;
-//   bool useNHWC = true;
-//   int maxBatchSize = 128;
-//   int nnXLen = 14;
-//   int nnYLen = 14;
-//   bool requireExactNNLen = false;
-//   bool inputsUseNHWC = true;
-//   int gpuIdxForThisThread = 0;
-//   ComputeContext* context = NeuralNet::createComputeContext({gpuIdxForThisThread},&logger);
-//   ComputeHandle* gpuHandle = NeuralNet::createComputeHandle(
-//     context,loadedModel,&logger,maxBatchSize,nnXLen,nnYLen,requireExactNNLen,inputsUseNHWC,
-//     gpuIdxForThisThread,useFP16,useNHWC
-//   );
-//   InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel,maxBatchSize,nnXLen,nnYLen);
+  // Single Identity node: output_spatial = Identity(input_spatial)
+  {
+    onnx::NodeProto* node = graph->add_node();
+    node->set_op_type("Identity");
+    node->set_name("identity0");
+    node->add_input("input_spatial");
+    node->add_output("output_spatial");
+  }
 
-//   bool* syms = NeuralNet::getSymmetriesInplace(inputBuffers);
-//   syms[0] = false;
-//   syms[1] = false;
-//   syms[2] = false;
+  string serialized;
+  if(!model.SerializeToString(&serialized))
+    throw StringError("sandbox: failed to serialize ONNX ModelProto");
+  cout << "Serialized ONNX ModelProto: " << serialized.size() << " bytes" << endl;
 
-//   Rules rules;
-//   rules.koRule = Rules::KO_POSITIONAL;
-//   rules.scoringRule = Rules::SCORING_AREA;
-//   rules.multiStoneSuicideLegal = true;
-//   rules.komi = 7.5f;
+  // ---- Parse with TensorRT's nvonnxparser and build an engine ----
+  SmokeTRTLogger trtLogger;
+  auto builder = unique_ptr<nvinfer1::IBuilder>(nvinfer1::createInferBuilder(trtLogger));
+  if(!builder)
+    throw StringError("sandbox: failed to create TensorRT builder");
 
-//   Player pla = P_WHITE;
-//   Board board = Board::parseBoard(9,9,R"(
-// ...x.....
-// .........
-// .........
-// .........
-// .........
-// ..o......
-// .........
-// ....x....
-// .x.....o.
-// )");
+  const auto explicitBatch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
+  auto network = unique_ptr<nvinfer1::INetworkDefinition>(builder->createNetworkV2(explicitBatch));
+  if(!network)
+    throw StringError("sandbox: failed to create TensorRT network");
 
-//   int encorePhase = 0;
-//   BoardHistory hist(board,pla,rules,encorePhase);
-//   // BoardHistory hist2(board2,pla,rules);
-//   // BoardHistory hist3(board3,pla,rules);
+  auto parser = unique_ptr<nvonnxparser::IParser>(nvonnxparser::createParser(*network, trtLogger));
+  if(!parser)
+    throw StringError("sandbox: failed to create ONNX parser");
 
-//   int batchSize = 5;
-//   // int batchSize = maxBatchSize;
-//   // int batchSize = 32;
-//   for(int i = 0; i<batchSize; i++) {
-//     float* row = NeuralNet::getBatchEltSpatialInplace(inputBuffers,i);
-//     float* rowGlobalInput = NeuralNet::getBatchEltGlobalInplace(inputBuffers,i);
+  if(!parser->parse(serialized.data(), serialized.size())) {
+    cout << "ONNX parse FAILED with " << parser->getNbErrors() << " error(s):" << endl;
+    for(int i = 0; i < parser->getNbErrors(); i++)
+      cout << "  " << parser->getError(i)->desc() << endl;
+    throw StringError("sandbox: nvonnxparser failed to parse our ModelProto");
+  }
+  cout << "ONNX parse OK: network has " << network->getNbInputs() << " input(s), "
+       << network->getNbOutputs() << " output(s), " << network->getNbLayers() << " layer(s)" << endl;
 
-//     double drawEquivalentWinsForWhite = 0.5;
-//     NNInputs::fillRowV3(board, hist, pla, drawEquivalentWinsForWhite, nnXLen, nnYLen, inputsUseNHWC, row, rowGlobalInput);
-//     // if(i % 3 == 0)
-//       // NNInputs::fillRowV3(board, hist, pla, row);
-//     // else if(i % 3 == 1)
-//     //   NNInputs::fillRowV1(board2, hist2, pla, row);
-//     // else
-//     //   NNInputs::fillRowV1(board3, hist3, pla, row);
-//   }
+  auto config = unique_ptr<nvinfer1::IBuilderConfig>(builder->createBuilderConfig());
+  // Dynamic batch needs an optimization profile.
+  nvinfer1::IOptimizationProfile* profile = builder->createOptimizationProfile();
+  profile->setDimensions("input_spatial", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, spatialC, posLen, posLen));
+  profile->setDimensions("input_spatial", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(8, spatialC, posLen, posLen));
+  profile->setDimensions("input_spatial", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(8, spatialC, posLen, posLen));
+  config->addOptimizationProfile(profile);
 
-//   vector<NNOutput*> outputs;
-//   for(int row = 0; row<batchSize; row++) {
-//     NNOutput* emptyOutput = new NNOutput();
-//     emptyOutput->nnXLen = nnXLen;
-//     emptyOutput->nnYLen = nnYLen;
-//     outputs.push_back(emptyOutput);
-//   }
+  auto plan = unique_ptr<nvinfer1::IHostMemory>(builder->buildSerializedNetwork(*network, *config));
+  if(!plan)
+    throw StringError("sandbox: buildSerializedNetwork returned null");
+  cout << "Built serialized engine: " << plan->size() << " bytes" << endl;
 
+  cout << "Smoke test PASSED: emit -> serialize -> parse -> build chain works." << endl;
 
-//   NeuralNet::getOutput(gpuHandle,inputBuffers,batchSize,outputs);
-
-//   for(int i = 0; i<outputs.size(); i++) {
-//     NNOutput* result = outputs[i];
-//     for(int y = 0; y<nnYLen; y++) {
-//       for(int x = 0; x<nnXLen; x++) {
-//         printf("%7.4f ", result->policyProbs[x+y*nnXLen]);
-//       }
-//       cout << endl;
-//     }
-//     printf("%6.4f ", result->policyProbs[nnXLen*nnYLen]);
-//     cout << endl;
-//     cout << result->whiteWinProb << endl;
-//     cout << result->whiteLossProb << endl;
-//     cout << result->whiteNoResultProb << endl;
-//   }
-
-//   for(int i = 0; i<outputs.size(); i++)
-//     delete outputs[i];
-
-//   NeuralNet::freeInputBuffers(inputBuffers);
-//   NeuralNet::freeComputeHandle(gpuHandle);
-//   NeuralNet::freeComputeContext(context);
-//   NeuralNet::freeLoadedModel(loadedModel);
-
-  cout << "Done" << endl;
+  google::protobuf::ShutdownProtobufLibrary();
   return 0;
 }
+
+#else  // USE_TENSORRT_BACKEND
+
+int MainCmds::sandbox() {
+  cout << "sandbox: ONNX smoke test requires the TensorRT backend (build with -DUSE_BACKEND=TENSORRT)." << endl;
+  return 0;
+}
+
+#endif  // USE_TENSORRT_BACKEND
 
 
 

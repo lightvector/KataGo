@@ -49,9 +49,9 @@ namespace PlayerIO {
 typedef short Loc;
 namespace Location
 {
-  Loc getLoc(int x, int y, int x_size);
-  int getX(Loc loc, int x_size);
-  int getY(Loc loc, int x_size);
+  inline Loc getLoc(int x, int y, int x_size) { return (Loc)((x+1) + (y+1)*(x_size+1)); }
+  inline int getX(Loc loc, int x_size) { return (loc % (x_size+1)) - 1; }
+  inline int getY(Loc loc, int x_size) { return (loc / (x_size+1)) - 1; }
 
   void getAdjacentOffsets(short adj_offsets[8], int x_size);
   bool isAdjacent(Loc loc0, Loc loc1, int x_size);
@@ -202,7 +202,7 @@ struct Board
   //Check if this location is adjacent a given chain.
   bool isAdjacentToChain(Loc loc, Loc chain) const;
   //Does this connect two pla distinct groups that are not both pass-alive and not within opponent pass-alive area either?
-  bool isNonPassAliveSelfConnection(Loc loc, Player pla, Color* passAliveArea) const;
+  bool isNonPassAliveSelfConnection(Loc loc, Player pla, const Color* passAliveArea) const;
   //Is this board empty?
   bool isEmpty() const;
   //Count the number of stones on the board
@@ -231,7 +231,19 @@ struct Board
   //Same, but sets multiple stones, and only requires that the final configuration contain no zero-liberty groups.
   //If it does contain a zero liberty group, fails and returns false and leaves the board in an arbitrarily changed but valid state.
   //Also returns false if any location is specified more than once.
-  bool setStonesFailIfNoLibs(std::vector<Move> placements);
+  bool setStonesFailIfNoLibs(const std::vector<Move>& placements);
+  //Faithfully overlays the given placements (loc -> color, where C_EMPTY clears a location) onto the current board,
+  //even if doing so temporarily produces groups with zero liberties. Then SIMULTANEOUSLY removes every black or white
+  //stone belonging to a group that has zero liberties (so if two touching groups of opposing colors both have zero
+  //liberties, both groups are removed). Placements on walls or off-board locations are ignored, as are placements with
+  //a color other than C_EMPTY/C_BLACK/C_WHITE. Clears the simple ko location. Returns the number of stones removed by
+  //the zero-liberty cleanup.
+  int setStonesTolerant(const std::vector<Move>& placements);
+
+  //Recompute pos_hash and all chain bookkeeping (chain_head, next_in_chain, chain_data) from scratch
+  //based purely on the current colors[] array. Does not modify colors[] or ko_loc. Requires that colors[]
+  //already be a valid configuration (walls intact); any stone group is allowed, including zero-liberty groups.
+  void regenChainsFromColors();
 
   //Attempts to play the specified move. Returns true if successful, returns false if the move was illegal.
   bool playMove(Loc loc, Player pla, bool isMultiStoneSuicideLegal);

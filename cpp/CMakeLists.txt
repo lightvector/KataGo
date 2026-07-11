@@ -7,6 +7,14 @@ endif()
 
 set(CMAKE_CXX_STANDARD 17)
 
+if(NOT CMAKE_CONFIGURATION_TYPES)
+  # Default to RelWithDebInfo if no build type specified
+  if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type" FORCE)
+  endif()
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+endif()
+
 include_directories(external)
 include_directories(SYSTEM external/tclap-1.2.5/include) #SYSTEM suppresses warnings from external library
 include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses a few warnings
@@ -15,8 +23,12 @@ include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses
 
 if(APPLE)
   # Fix linking on 10.14+. See https://stackoverflow.com/questions/54068035
-  include_directories(/usr/local/include)
-  link_directories(/usr/local/lib)
+  if(IS_DIRECTORY /usr/local/include)
+    include_directories(/usr/local/include)
+  endif()
+  if(IS_DIRECTORY /usr/local/lib)
+    link_directories(/usr/local/lib)
+  endif()
 endif()
 
 if(NOT WIN32)
@@ -32,7 +44,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN ONNX)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL ONNX)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -157,6 +169,12 @@ if(USE_BACKEND STREQUAL "CUDA")
     neuralnet/cudautils.cpp
     neuralnet/cudahelpers.cu
   )
+  # The vendored header-only cudnn_frontend library trips GCC's -Wnull-dereference from its -O2
+  # interprocedural analysis (no source location, so an in-file #pragma can't suppress it). It's
+  # benign third-party code; silence it just for the one source that includes cudnn_frontend.h.
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set_source_files_properties(neuralnet/cudabackend.cpp PROPERTIES COMPILE_OPTIONS "-Wno-null-dereference")
+  endif()
 # https://en.wikipedia.org/wiki/CUDA#GPUs_supported
   if(CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 13.0)
     set(CMAKE_CUDA_ARCHITECTURES 75 80 86 87 88 89 90 100 110 103 120 121)
@@ -198,7 +216,7 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
     message(FATAL_ERROR "Combining USE_CACHE_TENSORRT_PLAN with BUILD_DISTRIBUTED is not supported - it would consume excessive disk space and might worsen performance every time models are updated. Use only one at a time in a given build of KataGo.")
   endif()
 elseif(USE_BACKEND STREQUAL "METAL")
-  message(STATUS "-DUSE_BACKEND=METAL, using Metal backend.")
+  message(STATUS "-DUSE_BACKEND=METAL, using Metal backend with hybrid MPSGraph + CoreML execution.")
   if(NOT "${CMAKE_GENERATOR}" STREQUAL "Ninja")
     message(FATAL_ERROR "Bidirectional C++ Interop requires Ninja generator. Have ${CMAKE_GENERATOR}")
   endif()
@@ -208,6 +226,7 @@ elseif(USE_BACKEND STREQUAL "METAL")
   if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "AppleClang")
     message(FATAL_ERROR "Project requires building with AppleClang. Have ${CMAKE_CXX_COMPILER_ID}")
   endif()
+  add_subdirectory(external/katagocoreml)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/macos/cmake/modules")
 
   if (NOT CMAKE_OSX_SYSROOT)
@@ -221,11 +240,11 @@ elseif(USE_BACKEND STREQUAL "METAL")
     neuralnet/metalbackend.cpp
     )
   add_library(KataGoSwift STATIC
-    neuralnet/metalbackend.swift)
+    neuralnet/metalbackend.swift
+    neuralnet/metallayers.swift)
   _swift_generate_cxx_header(
     KataGoSwift
-    "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h"
-    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/neuralnet/metalbackend.swift")
+    "${CMAKE_CURRENT_BINARY_DIR}/include/KataGoSwift/KataGoSwift-swift.h")
   target_include_directories(KataGoSwift PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/include")
   set_target_properties(KataGoSwift PROPERTIES Swift_MODULE_NAME "KataGoSwift")
   target_compile_options(KataGoSwift PUBLIC
@@ -302,8 +321,30 @@ else()
   set(GIT_HEADER_FILE_TEMPLATE ${CMAKE_SOURCE_DIR}/${GIT_HEADER_FILE_TEMPLATE_BARE})
   set(GIT_HEADER_FILE_ALWAYS_UPDATED ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_ALWAYS_UPDATED_BARE})
   set(GIT_HEADER_FILE ${CMAKE_BINARY_DIR}/${GIT_HEADER_FILE_BARE})
+  # Embeds the current git SHA into the binary on every build, while only
+  # triggering recompilation of dependents when the SHA actually changes.
+  #
+  # How it works:
+  #   - ALWAYS_UPDATED is the rule's OUTPUT and is removed at the end of the
+  #     commands, so it is always missing at the start of the next build,
+  #     which forces this rule to re-fire.
+  #   - copy_if_different updates GIT_HEADER_FILE only when the new SHA
+  #     differs from the previous one, leaving its mtime untouched otherwise.
+  #
+  # Both files must be listed as OUTPUTs for Ninja. Ninja's restat (set
+  # automatically for custom_commands) re-checks every declared OUTPUT's
+  # mtime after the rule runs, and only then propagates rebuilds. Listing
+  # GIT_HEADER_FILE is what lets ninja notice an actual SHA change and
+  # rebuild dependents such as main.cpp; without it, dependents stay stale
+  # across commits in incremental builds. The Make generator is more
+  # pessimistic about generated headers and doesn't need this, and adding
+  # it causes unnecessary re-linking on every build.
+  set(GIT_CUSTOM_COMMAND_OUTPUTS ${GIT_HEADER_FILE_ALWAYS_UPDATED})
+  if(CMAKE_GENERATOR MATCHES "Ninja")
+    list(APPEND GIT_CUSTOM_COMMAND_OUTPUTS ${GIT_HEADER_FILE})
+  endif()
   add_custom_command(
-    OUTPUT ${GIT_HEADER_FILE_ALWAYS_UPDATED}
+    OUTPUT ${GIT_CUSTOM_COMMAND_OUTPUTS}
     COMMAND ${CMAKE_COMMAND} -E copy ${GIT_HEADER_FILE_TEMPLATE} ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     COMMAND ${GIT_EXECUTABLE} describe --match=DummyTagNotExisting --always --abbrev=40 --dirty >> ${GIT_HEADER_FILE_ALWAYS_UPDATED}
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${GIT_HEADER_FILE_ALWAYS_UPDATED} ${GIT_HEADER_FILE}
@@ -356,6 +397,7 @@ add_executable(katago
   neuralnet/modelversion.cpp
   neuralnet/nneval.cpp
   neuralnet/desc.cpp
+  neuralnet/debugprint.cpp
   ${NEURALNET_BACKEND_SOURCES}
   book/book.cpp
   book/bookcssjs.cpp
@@ -418,7 +460,6 @@ add_executable(katago
   command/analysis.cpp
   command/benchmark.cpp
   command/contribute.cpp
-  command/demoplay.cpp
   command/evalsgf.cpp
   command/gatekeeper.cpp
   command/genbook.cpp
@@ -445,7 +486,10 @@ if(USE_BACKEND STREQUAL "CUDA")
   endif()
   find_library(CUDNN_LIBRARY cudnn HINTS ${CUDNN_ROOT_DIR} ${CUDAToolkit_LIBRARY_DIR} PATH_SUFFIXES lib64)
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
-  target_link_libraries(katago CUDA::cublas ${CUDNN_LIBRARY})
+  include_directories(SYSTEM external/cudnn-frontend/include) #SYSTEM suppresses warnings inside the vendored header-only cudnn_frontend library
+  # cudnn_frontend's experimental OSS engine headers reference NVRTC symbols at link time
+  # (we don't actually use those engines, but the references are pulled in by the header-only includes).
+  target_link_libraries(katago CUDA::cublas ${CUDNN_LIBRARY} CUDA::nvrtc)
 elseif(USE_BACKEND STREQUAL "TENSORRT")
   target_compile_definitions(katago PRIVATE USE_TENSORRT_BACKEND)
   find_package(CUDAToolkit REQUIRED)
@@ -510,11 +554,39 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   endif()
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   target_link_libraries(katago CUDA::cudart_static ${TENSORRT_LIBRARY})
+
+  # The TensorRT backend builds networks by emitting an ONNX ModelProto and handing the
+  # serialized bytes to TensorRT's nvonnxparser. We compile the vendored ONNX schema
+  # (cpp/external/onnx/onnx.proto) with protoc and link against our own protobuf; this is
+  # symbol-isolated from the protobuf that TensorRT statically links into nvonnxparser, so
+  # there is no ABI contact between the two (the handoff is serialized bytes).
+  find_package(Protobuf REQUIRED)
+  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
+  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
+  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
+  # protoc-generated code is not ours to lint; silence its warnings to keep build output readable.
+  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
+  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
+  # Generated onnx.pb.h lands in the build dir; let backend code include it.
+  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
+
+  # nvonnxparser ships alongside nvinfer in the TensorRT lib dir. Derive that dir from the
+  # already-resolved TENSORRT_LIBRARY so this works both with TENSORRT_ROOT_DIR and with a
+  # directly-specified -DTENSORRT_LIBRARY
+  get_filename_component(TENSORRT_LIBRARY_DIR "${TENSORRT_LIBRARY}" DIRECTORY)
+  find_library(TENSORRT_ONNXPARSER_LIBRARY NAMES nvonnxparser nvonnxparser_${TENSORRT_VERSION_MAJOR} HINTS ${TENSORRT_ROOT_DIR} ${TENSORRT_LIBRARY_DIR} PATH_SUFFIXES lib)
+  if(NOT TENSORRT_ONNXPARSER_LIBRARY)
+    message(FATAL_ERROR "${ColorBoldRed} libnvonnxparser was NOT found in the TensorRT lib dir. ${ColorReset}")
+  endif()
+  target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY} ${Protobuf_LIBRARIES})
 elseif(USE_BACKEND STREQUAL "METAL")
   target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
-  target_link_libraries(katago KataGoSwift)
+  target_link_libraries(katago KataGoSwift katagocoreml
+    ${KATAGOCOREML_DEP_LDFLAGS}
+    "-framework MetalPerformanceShaders"
+    "-framework MetalPerformanceShadersGraph")
   if("${CMAKE_SYSTEM_PROCESSOR}" STREQUAL "x86_64")
-    message(WARNING "You are currently running cmake on an Intel-based processor. It is known that running KataGo in this configuration may encounter performance issues. It is recommended to switch to a cmake version designed for ARM64 architecture for optimal performance.")
+    message(WARNING "Metal backend may not work optimally on Intel. ARM64 architecture is recommended.")
   endif()
 elseif(USE_BACKEND STREQUAL "OPENCL")
   target_compile_definitions(katago PRIVATE USE_OPENCL_BACKEND)
@@ -681,23 +753,33 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   endif()
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
-  if(NOT (MSVC))
-    find_package(Eigen3 REQUIRED)
+  # Allow EIGEN3_INCLUDE_DIRS as a manual override (for users who downloaded
+  # Eigen3 and just want to point at the unpacked directory).
+  if(EIGEN3_INCLUDE_DIRS)
+    message(STATUS "Using user-provided EIGEN3_INCLUDE_DIRS=${EIGEN3_INCLUDE_DIRS}")
     include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
-    message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
   else()
-    if(EIGEN3_INCLUDE_DIRS)
-      message(STATUS "EIGEN3_INCLUDE_DIRS is set to ${EIGEN3_INCLUDE_DIRS}, assuming that Eigen3 header files are here.")
-      include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
+    if(NOT (MSVC))
+      find_package(Eigen3 REQUIRED)
     else()
       find_package(Eigen3)
       if(NOT Eigen3_FOUND)
         set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIRS} CACHE PATH "Directory containing 'Eigen' and 'unsupported' subdirs with Eigen headers")
         message(FATAL_ERROR "*** KataGo: Eigen3 was not found. If you've downloaded Eigen3, you can IGNORE the whole above error from CMake and just set 'EIGEN3_INCLUDE_DIRS' to the root eigen3-3.*.* directory after unzipping it. Among other things it should contain 'Eigen' and 'unsupported' subdirs, which is all KataGo needs. Otherwise, you will need to 'build' Eigen3 even though it is header-only and install it via MSVC in order for cmake to find it via FindEigen3.cmake.")
-      else()
-        include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
-        message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
       endif()
+    endif()
+    # Modern Eigen3Config.cmake (Homebrew, apt, vcpkg, ...) only exports the
+    # imported target Eigen3::Eigen with INTERFACE_INCLUDE_DIRECTORIES set; the
+    # legacy variable EIGEN3_INCLUDE_DIRS is not always populated. Prefer the
+    # target where available, fall back to the variable for older installs.
+    if(TARGET Eigen3::Eigen)
+      # Plain (non-keyword) form to match the rest of KataGo's CMakeLists,
+      # which doesn't use PRIVATE/PUBLIC/INTERFACE on target_link_libraries.
+      target_link_libraries(katago Eigen3::Eigen)
+      message(STATUS "Found Eigen3 (using Eigen3::Eigen imported target)")
+    else()
+      include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
+      message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
     endif()
   endif()
 endif()
@@ -773,8 +855,6 @@ endif()
 
 #------------------------------------------------------------------------------------
 
-# add_compile_definitions(NDEBUG)
-
 if (WIN32) # handles both x86 and x64
   message(STATUS "Setting up build for Windows.")
   # Suppress min and max macros on windows
@@ -841,7 +921,15 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
   find_package (Threads REQUIRED)
   target_link_libraries(katago Threads::Threads)
 
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O2 -pedantic -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Wmissing-declarations -Wmissing-include-dirs -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-overflow=1 -Wswitch-default -Wfloat-conversion -Wunused")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -Wall -Wextra -Wno-sign-compare -Wcast-align -Wcast-qual -Wctor-dtor-privacy -Wdisabled-optimization -Wformat=2 -Wmissing-declarations -Wmissing-include-dirs -Woverloaded-virtual -Wredundant-decls -Wshadow -Wstrict-overflow=1 -Wswitch-default -Wfloat-conversion -Wunused")
+  set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0 -fno-omit-frame-pointer")
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -O2")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+
+  if(NOT CMAKE_CONFIGURATION_TYPES)
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" _bt)
+    message(STATUS "CXX flags from build type: ${CMAKE_CXX_FLAGS_${_bt}}")
+  endif()
 
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(STATUS "Enabling GNU-specific build options.")

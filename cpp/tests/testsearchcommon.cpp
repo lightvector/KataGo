@@ -39,7 +39,7 @@ void TestSearchCommon::printPolicyValueOwnership(const Board& board, const NNRes
   buf.result->debugPrint(cout,board);
 }
 
-void TestSearchCommon::printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, PrintTreeOptions options) {
+void TestSearchCommon::printBasicStuffAfterSearch(const Board& board, const BoardHistory& hist, const Search* search, const PrintTreeOptions& options) {
   Board::printBoard(cout, board, Board::NULL_LOC, &(hist.moveHistory));
   cout << hist.rules << " " << hist.encorePhase << "\n";
   cout << "Root visits: " << search->getRootVisits() << "\n";
@@ -177,7 +177,7 @@ void TestSearchCommon::runBotOnPosition(AsyncBot* bot, Board board, Player nextP
     bot->clearSearch();
 }
 
-void TestSearchCommon::runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, TestSearchOptions opts) {
+void TestSearchCommon::runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Rules& defaultRules, int turnIdx, float overrideKomi, const TestSearchOptions& opts) {
   std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
   Board board;
@@ -199,10 +199,12 @@ NNEvaluator* TestSearchCommon::startNNEval(
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   //bool debugSkipNeuralNet = false;
-  bool openCLReTunePerBoardSize = false;
   const string& modelName = modelFile;
-  const string openCLTunerFile = "";
   const string homeDataDirOverride = "";
+  ConfigParser cfg;
+  //NHWC layout is no longer a generic NNEvaluator option; only the CUDA backend reads it (off cfg).
+  //Route the test's useNHWC param into a cudaUseNHWC override so it still drives the CUDA layout.
+  cfg.overrideKey("cudaUseNHWC", useNHWC ? "true" : "false");
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
@@ -226,16 +228,15 @@ NNEvaluator* TestSearchCommon::startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
-    openCLTunerFile,
     homeDataDirOverride,
-    openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
-    useNHWC ? enabled_t::True : enabled_t::False,
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
     nnRandSeed,
     nnRandomize,
-    defaultSymmetry
+    defaultSymmetry,
+    false,
+    cfg
   );
 
   nnEval->spawnServerThreads();

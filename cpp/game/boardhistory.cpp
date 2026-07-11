@@ -1,6 +1,7 @@
 #include "../game/boardhistory.h"
 
 #include <algorithm>
+#include "../core/test.h"
 
 using namespace std;
 
@@ -323,9 +324,9 @@ void BoardHistory::clear(const Board& board, Player pla, const Rules& r, int ePh
 
   //Handle encore phase
   encorePhase = ePhase;
-  assert(encorePhase >= 0 && encorePhase <= 2);
+  testAssert(encorePhase >= 0 && encorePhase <= 2);
   if(encorePhase > 0)
-    assert(rules.scoringRule == Rules::SCORING_TERRITORY);
+    testAssert(rules.scoringRule == Rules::SCORING_TERRITORY);
   //Update the few parameters that depend on encore
   if(encorePhase == 2)
     std::copy(board.colors, board.colors+Board::MAX_ARR_SIZE, secondEncoreStartColors);
@@ -568,8 +569,7 @@ float BoardHistory::currentSelfKomi(Player pla, double drawEquivalentWinsForWhit
   else if(pla == P_BLACK)
     return -whiteKomiAdjusted;
   else {
-    assert(false);
-    return 0.0f;
+    ASSERT_UNREACHABLE;
   }
 }
 
@@ -1051,11 +1051,13 @@ void BoardHistory::makeBoardMoveAssumeLegal(Board& board, Loc moveLoc, Player mo
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         //Cannot be superko banned if it's not a pseudolegal move in the first place, or we would already ban the move under simple ko.
-        if(board.colors[loc] != C_EMPTY || board.isIllegalSuicide(loc,nextPla,rules.multiStoneSuicideLegal) || loc == board.ko_loc)
+        if(board.colors[loc] != C_EMPTY)
           superKoBanned[loc] = false;
         //Also cannot be superko banned if a stone was never there or played there before AND the move is not suicide, because that means
         //the move results in a new stone there and if no stone was ever there in the past the it must be a new position.
         else if(!wasEverOccupiedOrPlayed[loc] && !board.isSuicide(loc,nextPla))
+          superKoBanned[loc] = false;
+        else if(board.isIllegalSuicide(loc,nextPla,rules.multiStoneSuicideLegal) || loc == board.ko_loc)
           superKoBanned[loc] = false;
         else {
           Hash128 posHashAfterMove = board.getPosHashAfterMove(loc,nextPla);
@@ -1205,7 +1207,7 @@ Hash128 BoardHistory::getSituationRulesAndKoHash(const Board& board, const Board
   Hash128 hash = board.pos_hash;
   hash ^= Board::ZOBRIST_PLAYER_HASH[nextPlayer];
 
-  assert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
+  testAssert(hist.encorePhase >= 0 && hist.encorePhase <= 2);
   hash ^= Board::ZOBRIST_ENCORE_HASH[hist.encorePhase];
 
   if(hist.encorePhase == 0) {

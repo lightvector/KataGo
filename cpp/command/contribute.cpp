@@ -17,6 +17,7 @@
 #include "../program/selfplaymanager.h"
 #include "../tests/tinymodel.h"
 #include "../tests/tests.h"
+#include "../core/test.h"
 #include "../command/commandline.h"
 #include "../main.h"
 
@@ -334,11 +335,11 @@ static void runAndUploadSingleGame(
         bool producedFile = false;
         gameTask.blackManager->withDataWriters(
           nnEvalBlack,
-          [gameData,&gameTask,gameIdx,&sgfFile,&connection,&logger,&shouldStopFunc,&posSample,&resultingFilename,&numDataRows,&producedFile](
+          [gameData,&resultingFilename,&numDataRows,&producedFile](
             TrainingDataWriter* tdataWriter, std::ofstream* sgfOut
           ) {
             (void)sgfOut;
-            assert(tdataWriter->isEmpty());
+            testAssert(tdataWriter->isEmpty());
             tdataWriter->writeGame(*gameData);
             numDataRows = tdataWriter->numRowsInBuffer();
             producedFile = tdataWriter->flushIfNonempty(resultingFilename);
@@ -783,7 +784,7 @@ int MainCmds::contribute(const vector<string>& args) {
 
   auto runGameLoop = [
     &logger,forkData,&gameSeedBase,&gameTaskQueue,&numGamesStarted,&sgfsDir,&connection,
-    &numRatingGamesActive,&numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
+    &numMovesPlayed,&watchOngoingGameInFile,&watchOngoingGameInFileName,
     &shouldStopFunc,&shouldStopGracefullyFunc,
     &shouldPause,
     &logGamesAsJson, &alwaysIncludeOwnership, &warnTaskUnusedKeys,
@@ -908,7 +909,7 @@ int MainCmds::contribute(const vector<string>& args) {
         NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_DISTRIBUTED
       );
-      assert(!nnEval->isNeuralNetLess() || modelFile == "/dev/null");
+      testAssert(!nnEval->isNeuralNetLess() || modelFile == "/dev/null");
       logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
     }
 
@@ -965,7 +966,7 @@ int MainCmds::contribute(const vector<string>& args) {
       }
       if(!success) {
         logger.write("Warning: large FP16 errors, using FP32 instead");
-        assert(nnEval32 != nnEval);
+        testAssert(nnEval32 != nnEval);
         delete nnEval;
         nnEval = nnEval32;
       }

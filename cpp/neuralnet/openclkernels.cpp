@@ -11,6 +11,7 @@ string OpenCLKernels::actIdenDefine = " -DACTIVATION=0";
 string OpenCLKernels::actReluDefine = " -DACTIVATION=1";
 string OpenCLKernels::actMishDefine = " -DACTIVATION=2";
 string OpenCLKernels::actMishScale8Define = " -DACTIVATION=12";
+string OpenCLKernels::actSiluDefine = " -DACTIVATION=3";
 
 string OpenCLKernels::common = R"%%(
 #ifndef PRECISION
@@ -114,7 +115,8 @@ __kernel void conv2dNCHW(
   int ocSize,
   int icSize,
   int filterXRadius,
-  int filterYRadius
+  int filterYRadius,
+  int xyStride // Stride between spatial planes (may be > xSize*ySize due to padding)
 ) {
   const int xBase = get_group_id(0) * TILE_XSIZE;
   const int yBase = get_group_id(1) * TILE_YSIZE;
@@ -129,17 +131,15 @@ __kernel void conv2dNCHW(
   const int inputTileXSize = TILE_XSIZE + filterXRadius * 2;
   const int inputTileYSize = TILE_YSIZE + filterYRadius * 2;
 
-  const int xySize = xSize * ySize;
-
   const int fxSize = (2 * filterXRadius + 1);
   const int fySize = (2 * filterYRadius + 1);
 
-#define INPUT(_n,_ic,_y,_x) LOAD(input,((_n) * icSize + (_ic)) * xySize + (_y) * xSize + (_x))
+#define INPUT(_n,_ic,_y,_x) LOAD(input,((_n) * icSize + (_ic)) * xyStride + (_y) * xSize + (_x))
 #define INPUTTILE(_ic,_ity,_itx) inputTile[((_ic) * inputTileYSize + (_ity)) * inputTileXSize + (_itx)]
 
 #define FILTER(_oc,_ic,_y,_x) LOAD(filter,(((_oc) * icSize + (_ic)) * fySize + (_y)) * fxSize + (_x))
 
-#define WRITEOUTPUT(_n,_oc,_y,_x,_value) STORE(output,((_n) * ocSize + (_oc)) * xySize + (_y) * xSize + (_x),_value)
+#define WRITEOUTPUT(_n,_oc,_y,_x,_value) STORE(output,((_n) * ocSize + (_oc)) * xyStride + (_y) * xSize + (_x),_value)
 #define OUTPUTTILE(_oty,_otx) outputTile[(_oty) * TILE_XSIZE + (_otx)]
 
   for(int n = 0; n < nSize; n++) {
@@ -239,7 +239,8 @@ __kernel void transform(
   int numTilesY,
   int icSize,
   int icSizePadded,
-  int ntxtySizePadded
+  int ntxtySizePadded,
+  int xyStride // Stride between spatial planes (may be > xSize*ySize due to padding)
 ) {
   int id0 = get_global_id(0);
   const int ntxty = id0;
@@ -250,9 +251,8 @@ __kernel void transform(
   const int n = id0;
   const int ic = get_global_id(1);
   const int nic = n * icSize + ic;
-  const int xySize = xSize * ySize;
 
-#define INPUT(_nic,_xy) LOAD(input,((_nic) * xySize) + (_xy))
+#define INPUT(_nic,_xy) LOAD(input,((_nic) * xyStride) + (_xy))
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
 
   __private real wTile[INTILE_XSIZE * INTILE_YSIZE];
@@ -427,7 +427,8 @@ __kernel void bnActTransform(
   int numTilesY,
   int icSize,
   int icSizePadded,
-  int ntxtySizePadded
+  int ntxtySizePadded,
+  int xyStride // Stride between spatial planes (may be > xSize*ySize due to padding)
 ) {
   int id0 = get_global_id(0);
   const int ntxty = id0;
@@ -438,9 +439,8 @@ __kernel void bnActTransform(
   const int n = id0;
   const int ic = get_global_id(1);
   const int nic = n * icSize + ic;
-  const int xySize = xSize * ySize;
 
-#define INPUT(_nic,_xy) LOAD(input,((_nic) * xySize) + (_xy))
+#define INPUT(_nic,_xy) LOAD(input,((_nic) * xyStride) + (_xy))
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
 
   __private real wTile[INTILE_XSIZE * INTILE_YSIZE];
@@ -454,15 +454,18 @@ __kernel void bnActTransform(
       if(y >= 0 && y < ySize && x >= 0 && x < xSize && n < nSize && ic < icSize) {
         int xy = y * xSize + x;
 #if ACTIVATION == 0
-        value = (INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic)) * LOAD(mask, n * xySize + xy);
+        value = (INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic)) * LOAD(mask, n * xyStride + xy);
 #elif ACTIVATION == 1
-        value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xySize + xy);
+        value = fmax(INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic), ZERO) * LOAD(mask, n * xyStride + xy);
 #elif ACTIVATION == 2
         float a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
-        value = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a)) * LOAD(mask, n * xySize + xy);
+        value = floatToReal(a * tanh(a < LOG1PEXPTHRESHOLD ? log1p(exp(a)) : a)) * LOAD(mask, n * xyStride + xy);
 #elif ACTIVATION == 12
         float a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
-        value = floatToReal(a < (LOG1PEXPTHRESHOLD*0.125f) ? a * tanh(log1p(exp(a*8.0f))) : a) * LOAD(mask, n * xySize + xy);
+        value = floatToReal(a < (LOG1PEXPTHRESHOLD*0.125f) ? a * tanh(log1p(exp(a*8.0f))) : a) * LOAD(mask, n * xyStride + xy);
+#elif ACTIVATION == 3
+        float a = INPUT(nic,xy) * LOAD(scale,ic) + LOAD(bias,ic);
+        value = floatToReal(a / (1.0f + exp(-a))) * LOAD(mask, n * xyStride + xy);
 #endif
       }
       WTILE(subY,subX) = value;
@@ -619,7 +622,8 @@ __kernel void untransform(
   int numTilesY,
   int ocSize,
   int ocSizePadded,
-  int ntxtySizePadded
+  int ntxtySizePadded,
+  int xyStride // Stride between spatial planes (may be > xSize*ySize due to padding)
 ) {
   const int tileX = get_global_id(0);
   const int tileY = get_global_id(1);
@@ -631,7 +635,7 @@ __kernel void untransform(
 
 #define WTILE(_y,_x) wTile[(_y)*INTILE_XSIZE + (_x)]
 #define TRANS(_suby,_subx,_oc,_ntile) LOAD(transformed,(((_suby) * INTILE_XSIZE + (_subx))*ocSizePadded + (_oc)) * ntxtySizePadded + (_ntile))
-#define WRITEOUTPUT(_noc,_y,_x,_value) STORE(output,((_noc) * ySize + (_y)) * xSize + (_x),_value)
+#define WRITEOUTPUT(_noc,_y,_x,_value) STORE(output,(_noc) * xyStride + (_y) * xSize + (_x),_value)
 
   __private real wTile[INTILE_XSIZE * INTILE_YSIZE];
 
@@ -769,6 +773,9 @@ __kernel void scaleBiasMaskActNCHW(
 #elif ACTIVATION == 12
       float a = LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c);
       real result = floatToReal(a < (LOG1PEXPTHRESHOLD*0.125f) ? a * tanh(log1p(exp(a*8.0f))) : a) * LOAD(mask,n * xySize + xy);
+#elif ACTIVATION == 3
+      float a = LOAD(input,idx) * LOAD(scale,c) + LOAD(bias,c);
+      real result = floatToReal(a / (1.0f + exp(-a))) * LOAD(mask,n * xySize + xy);
 #endif
       STORE(output,idx,result);
     }
@@ -777,16 +784,23 @@ __kernel void scaleBiasMaskActNCHW(
 )%%";
 
 string OpenCLKernels::addPointWise = OpenCLKernels::common + R"%%(
+#ifndef ELTS_PER_THREAD
+  #define ELTS_PER_THREAD 1
+#endif
 __kernel void addPointWise(
   __global realstore* accum,
   __global realstore* value,
   int size
 ) {
-  const int s = get_global_id(0);
-
-  if(s < size) {
-    real result = LOAD(accum,s) + LOAD(value,s);
-    STORE(accum,s,result);
+  const int offsetInTile = get_local_id(0);
+  const int tileStart = get_group_id(0) * (get_local_size(0) * ELTS_PER_THREAD);
+  #pragma unroll
+  for(int d = 0; d < ELTS_PER_THREAD; d++) {
+    int s = tileStart + d * get_local_size(0) + offsetInTile;
+    if(s < size) {
+      real result = LOAD(accum,s) + LOAD(value,s);
+      STORE(accum,s,result);
+    }
   }
 }
 )%%";
@@ -987,18 +1001,38 @@ __kernel void valueHeadPoolChannelsNCHW(
 
 
 string OpenCLKernels::addChannelBiasesNCHW = OpenCLKernels::common + R"%%(
+#ifndef XY_ELTS_PER_THREAD
+  #define XY_ELTS_PER_THREAD 1
+#endif
+#ifndef NC_ELTS_PER_THREAD
+  #define NC_ELTS_PER_THREAD 1
+#endif
 __kernel void addChannelBiasesNCHW(
   __global realstore* accum,  //NC, HW
   __global float* biases, //NC
   int ncSize,
   int xySize
 ) {
-  const int xy = get_global_id(0);
-  const int nc = get_global_id(1);
+  const int xyOffsetInTile = get_local_id(0);
+  const int xyTileStart = get_group_id(0) * (get_local_size(0) * XY_ELTS_PER_THREAD);
+  const int ncBase = get_global_id(1) * NC_ELTS_PER_THREAD;
 
-  if(nc < ncSize && xy < xySize) {
-    real result = LOAD(accum,nc * xySize + xy) + floatToReal(biases[nc]);
-    STORE(accum, nc * xySize + xy, result);
+  #pragma unroll
+  for(int r = 0; r < NC_ELTS_PER_THREAD; r++) {
+    const int nc = ncBase + r;
+    if(nc >= ncSize)
+      return;
+    real bias = floatToReal(biases[nc]);
+    int baseIdx = nc * xySize;
+    #pragma unroll
+    for(int d = 0; d < XY_ELTS_PER_THREAD; d++) {
+      int xy = xyTileStart + d * get_local_size(0) + xyOffsetInTile;
+      if(xy < xySize) {
+        int idx = baseIdx + xy;
+        real result = LOAD(accum,idx) + bias;
+        STORE(accum, idx, result);
+      }
+    }
   }
 }
 )%%";
@@ -1025,6 +1059,9 @@ __kernel void addCBiasesNCAct(
 #elif ACTIVATION == 12
     float a = accum[n * cSize + c] + biases[c];
     accum[n * cSize + c] = floatToReal(a < (LOG1PEXPTHRESHOLD*0.125f) ? a * tanh(log1p(exp(a*8.0f))) : a);
+#elif ACTIVATION == 3
+    float a = accum[n * cSize + c] + biases[c];
+    accum[n * cSize + c] = a / (1.0f + exp(-a));
 #endif
   }
 }
@@ -1039,6 +1076,589 @@ __kernel void extractChannel0NCHW(__global realstore* in, __global realstore* ou
   if(xyIdx < xySize && nIdx < nSize) {
     real result = LOAD(in,nIdx * cSize * xySize + xyIdx);
     STORE(out,nIdx * xySize + xyIdx,result);
+  }
+}
+)%%";
+
+// ============== Transformer Kernels ==============
+
+// Per-channel RMSNorm used inside transformer blocks (weight-only, no bias).
+// Input/output are NCHW spatial tensors. Mask is applied.
+// Each workgroup of WG_C_SIZE * WG_XY_SIZE threads cooperatively reduces across C channels
+// for WG_XY_SIZE spatial positions. Adjacent threads in a warp handle adjacent xy positions
+// for the same channel, giving coalesced memory access in NCHW layout.
+// Defines: WG_C_SIZE, WG_XY_SIZE - workgroup dimensions (both powers of two)
+//          C_PER_THREAD - channels per thread per loop iteration
+string OpenCLKernels::transformerRMSNorm = OpenCLKernels::common + R"%%(
+__kernel void transformerRMSNorm(
+  __global realstore* input,   // N, C, H, W (NCHW)
+  __global realstore* output,  // N, C, H, W (NCHW)
+  __global float* weight,      // C (gamma)
+  __global float* beta,        // C (per-channel bias added after scaling)
+  __global realstore* mask,    // N, H, W
+  int nSize,
+  int cSize,
+  int xySize,
+  float epsilon
+) {
+  // Thread decomposition: adjacent threads get adjacent xy for coalesced NCHW access
+  const int lid = get_local_id(0);
+  const int lid_xy = lid % WG_XY_SIZE;
+  const int lid_c = lid / WG_XY_SIZE;
+  const int xy = get_group_id(0) * WG_XY_SIZE + lid_xy;
+  const int n = get_group_id(1);
+  if(n >= nSize) return;
+
+  float maskVal = (xy < xySize) ? LOAD(mask, n * xySize + xy) : 0.0f;
+
+  // Phase 1: Each thread accumulates sum of squares for its channels
+  float acc = 0.0f;
+  for(int base = lid_c * C_PER_THREAD; base < cSize; base += WG_C_SIZE * C_PER_THREAD) {
+    #pragma unroll
+    for(int dc = 0; dc < C_PER_THREAD; dc++) {
+      int c = base + dc;
+      if(c < cSize && xy < xySize) {
+        float val = LOAD(input, (n * cSize + c) * xySize + xy) * maskVal;
+        acc += val * val;
+      }
+    }
+  }
+
+  // Phase 2: Reduce across C dimension in local memory
+  // partials[lid_xy][lid_c] - each xy position reduces independently
+  __local float partials[WG_XY_SIZE * WG_C_SIZE];
+  partials[lid_xy * WG_C_SIZE + lid_c] = acc;
+  for(int span = WG_C_SIZE / 2; span > 0; span /= 2) {
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if(lid_c < span)
+      partials[lid_xy * WG_C_SIZE + lid_c] += partials[lid_xy * WG_C_SIZE + lid_c + span];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+  float rms = rsqrt(partials[lid_xy * WG_C_SIZE] / (float)cSize + epsilon);
+
+  // Phase 3: Apply normalization
+  for(int base = lid_c * C_PER_THREAD; base < cSize; base += WG_C_SIZE * C_PER_THREAD) {
+    #pragma unroll
+    for(int dc = 0; dc < C_PER_THREAD; dc++) {
+      int c = base + dc;
+      if(c < cSize && xy < xySize) {
+        float val = LOAD(input, (n * cSize + c) * xySize + xy);
+        float result = (val * rms * weight[c] + beta[c]) * maskVal;
+        STORE(output, (n * cSize + c) * xySize + xy, floatToReal(result));
+      }
+    }
+  }
+}
+)%%";
+
+// Spatial RMSNorm for trunk tip (rsnh suffix).
+// Three-kernel approach for deterministic parallel reduction:
+//   Pass 1 (SumSq): Compute masked sum of squares from NCHW input, producing partial sums.
+//   Pass 2 (Reduce): Reduce partial sums to a single sum per batch element.
+//   Apply: Normalize with gamma, beta, mask using the computed RMS.
+//
+// The two reduction kernels share the same structure, parametrized by TILE_SIZE.
+// Each workgroup handles a contiguous chunk of TILE_SIZE * tilesPerGroup elements.
+// Threads accumulate, then reduce in local memory; the leader writes one output.
+
+// Pass 1: Square + mask reduction from NCHW input to partial sums.
+// Input: [N, C, xySize] (NCHW), Mask: [N, xySize]
+// Output: [N, numWorkgroups] partial sums of squares.
+string OpenCLKernels::transformerSpatialRMSNormSumSq = OpenCLKernels::common + R"%%(
+//Defines:
+//TILE_SIZE - workgroup size (power of two)
+
+__kernel void transformerSpatialRMSNormSumSq(
+  __global realstore* input,   // N, C, xySize (NCHW)
+  __global realstore* mask,    // N, xySize
+  __global float* output,      // N, numCHWWorkgroups (partial sums)
+  int nSize,
+  int cSize,
+  int xySize,
+  int tilesPerGroup
+) {
+  const int lid = get_local_id(0);
+  const int n = get_group_id(1);
+  if(n >= nSize) return;
+
+  const int groupIdx = get_group_id(0);
+  const int totalElems = cSize * xySize;
+  const int chunkStart = groupIdx * TILE_SIZE * tilesPerGroup;
+
+  float acc = 0.0f;
+  for(int t = 0; t < tilesPerGroup; t++) {
+    int idx = chunkStart + t * TILE_SIZE + lid;
+    if(idx < totalElems) {
+      int c = idx / xySize;
+      int xy = idx % xySize;
+      float maskVal = LOAD(mask, n * xySize + xy);
+      float val = LOAD(input, (n * cSize + c) * xySize + xy) * maskVal;
+      acc += val * val;
+    }
+  }
+
+  __local float partials[TILE_SIZE];
+  partials[lid] = acc;
+  for(int span = TILE_SIZE / 2; span > 0; span /= 2) {
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if(lid < span)
+      partials[lid] += partials[lid + span];
+  }
+
+  if(lid == 0) {
+    int numWorkgroups = get_num_groups(0);
+    output[n * numWorkgroups + groupIdx] = partials[0];
+  }
+}
+)%%";
+
+// Pass 2: Plain sum reduction from partial sums to a single value per batch element.
+// Input: [N, numPartials] floats (partial sums from pass 1), Output: [N, 1].
+string OpenCLKernels::transformerSpatialRMSNormReduce = R"%%(
+//Defines:
+//TILE_SIZE - workgroup size (power of two), same as pass 1
+
+__kernel void transformerSpatialRMSNormReduce(
+  __global float* input,       // N, numPartials
+  __global float* output,      // N, 1
+  int nSize,
+  int numPartials,
+  int tilesPerGroup
+) {
+  const int lid = get_local_id(0);
+  const int n = get_group_id(1);
+  if(n >= nSize) return;
+
+  const int groupIdx = get_group_id(0);
+  const int chunkStart = groupIdx * TILE_SIZE * tilesPerGroup;
+
+  float acc = 0.0f;
+  for(int t = 0; t < tilesPerGroup; t++) {
+    int idx = chunkStart + t * TILE_SIZE + lid;
+    if(idx < numPartials) {
+      acc += input[n * numPartials + idx];
+    }
+  }
+
+  __local float partials[TILE_SIZE];
+  partials[lid] = acc;
+  for(int span = TILE_SIZE / 2; span > 0; span /= 2) {
+    barrier(CLK_LOCAL_MEM_FENCE);
+    if(lid < span)
+      partials[lid] += partials[lid + span];
+  }
+
+  if(lid == 0) {
+    int numWorkgroups = get_num_groups(0);
+    output[n * numWorkgroups + groupIdx] = partials[0];
+  }
+}
+)%%";
+
+// Apply: Read sum of squares (single value per batch element from reduction),
+// compute rms, apply normalization with gamma/beta/mask.
+string OpenCLKernels::transformerSpatialRMSNormApply = OpenCLKernels::common + R"%%(
+//Defines:
+//APPLY_ELTS_PER_THREAD - elements per work-item
+
+__kernel void transformerSpatialRMSNormApply(
+  __global realstore* input,   // N, C, xySize (NCHW)
+  __global realstore* output,  // N, C, xySize (NCHW)
+  __global float* gamma,       // C
+  __global float* beta,        // C
+  __global realstore* mask,    // N, xySize
+  __global float* maskSum,     // N
+  __global float* sumSqBuf,    // N (final sum of squares from reduction)
+  int nSize,
+  int cSize,
+  int xySize,
+  float epsilon
+) {
+  const int n = get_group_id(1);
+  if(n >= nSize) return;
+
+  float mSum = maskSum[n];
+  float denom = mSum * (float)cSize;
+  float rms = rsqrt(sumSqBuf[n] / denom + epsilon);
+
+  const int totalElems = cSize * xySize;
+  int idx = (int)get_group_id(0) * (int)get_local_size(0) * APPLY_ELTS_PER_THREAD + (int)get_local_id(0);
+
+  for(int e = 0; e < APPLY_ELTS_PER_THREAD; e++) {
+    if(idx < totalElems) {
+      int c = idx / xySize;
+      int xy = idx % xySize;
+      float maskVal = LOAD(mask, n * xySize + xy);
+      float val = LOAD(input, (n * cSize + c) * xySize + xy);
+      float result = (val * rms * gamma[c] + beta[c]) * maskVal;
+      STORE(output, (n * cSize + c) * xySize + xy, floatToReal(result));
+    }
+    idx += (int)get_local_size(0);
+  }
+}
+)%%";
+
+// Apply Rotary Position Embeddings (RoPE) to Q or K tensors.
+// Input/output: (N, numHeads, headDim, HW) - after rearranging from NCHW projection
+// Cos/sin tables: (HW, numPairs) where numPairs = headDim/2
+// For learnable RoPE: cos/sin are precomputed from frequencies per head.
+// Rotation: for each pair (x0, x1): out0 = x0*cos - x1*sin, out1 = x0*sin + x1*cos
+string OpenCLKernels::transformerApplyRoPE = OpenCLKernels::common + R"%%(
+__kernel void transformerApplyRoPE(
+  __global realstore* data,     // N, numBufHeads, headDim, HW - modified in place
+  __global float* cosTable,     // numKVHeads, numPairs, HW (learnable) or numPairs, HW (fixed)
+  __global float* sinTable,     // same layout as cosTable
+  int nSize,
+  int numBufHeads,
+  int numKVHeads,
+  int headDim,
+  int xySize,
+  int numPairs,
+  int learnableRope   // 1 = per-head tables, 0 = shared tables
+) {
+  const int xy = get_global_id(0);
+  const int pairIdx = get_global_id(1);  // which pair within headDim (0..numPairs-1)
+  const int nh = get_global_id(2);       // n * numBufHeads + h
+
+  int n = nh / numBufHeads;
+  int h = nh % numBufHeads;
+
+  if(n < nSize && pairIdx < numPairs && xy < xySize) {
+    int idx0 = ((n * numBufHeads + h) * headDim + pairIdx * 2) * xySize + xy;
+    int idx1 = ((n * numBufHeads + h) * headDim + pairIdx * 2 + 1) * xySize + xy;
+
+    float x0 = LOAD(data, idx0);
+    float x1 = LOAD(data, idx1);
+
+    int tableIdx;
+    if(learnableRope) {
+      int kvh = h * numKVHeads / numBufHeads;
+      tableIdx = (kvh * numPairs + pairIdx) * xySize + xy;
+    } else {
+      tableIdx = pairIdx * xySize + xy;
+    }
+
+    float cosVal = cosTable[tableIdx];
+    float sinVal = sinTable[tableIdx];
+
+    float out0 = x0 * cosVal - x1 * sinVal;
+    float out1 = x0 * sinVal + x1 * cosVal;
+
+    STORE(data, idx0, floatToReal(out0));
+    STORE(data, idx1, floatToReal(out1));
+  }
+}
+)%%";
+
+// FlashAttention-style scaled dot product attention.
+// Q: (N*numHeads, headDim, seqLen) - where seqLen = HW
+// K: (N*numKVHeads, headDim, seqLen)
+// V: (N*numKVHeads, vHeadDim, seqLen)
+// mask: (N, seqLen)
+// Output: (N*numHeads, vHeadDim, seqLen)
+//
+// Uses workgroup-tiled approach with online softmax:
+// - A workgroup of ATTN_BLOCK_Q work-items handles ATTN_BLOCK_Q query positions for one head.
+// - Iterates over key/value positions in tiles of ATTN_BLOCK_KV.
+// - K/V tiles are loaded cooperatively into local memory, then each work-item
+//   computes its dot products against the shared tile.
+//
+// Compile-time defines:
+// ATTN_BLOCK_Q  - number of threads per workgroup (= local size dim 0)
+// ATTN_BLOCK_KV - tile size for key/value iteration
+// Q_PER_THREAD  - query positions per thread (workgroup handles ATTN_BLOCK_Q * Q_PER_THREAD total)
+// ATTN_HEAD_DIM - the head dimension for Q/K
+// ATTN_V_HEAD_DIM - the head dimension for V
+string OpenCLKernels::transformerScaledDotProductAttention = R"%%(
+#ifndef PRECISION_STORAGE
+  #define PRECISION_STORAGE 32
+#endif
+#if PRECISION_STORAGE == 16
+  #pragma OPENCL EXTENSION cl_khr_fp16: enable
+  typedef half realstore;
+  #define LOAD(__buf,__x) vload_half((__x),(__buf))
+  #define STORE(__buf,__x,__y) vstore_half((__y),(__x),(__buf))
+#else
+  typedef float realstore;
+  #define LOAD(__buf,__x) ((__buf)[(__x)])
+  #define STORE(__buf,__x,__y) ((__buf)[(__x)] = (__y))
+#endif
+
+#ifndef Q_PER_THREAD
+  #define Q_PER_THREAD 1
+#endif
+
+__kernel void scaledDotProductAttention(
+  __global realstore* Q,       // (N*numHeads, headDim, seqLen)
+  __global realstore* K,       // (N*numKVHeads, headDim, seqLen)
+  __global realstore* V,       // (N*numKVHeads, vHeadDim, seqLen)
+  __global realstore* output,  // (N*numHeads, vHeadDim, seqLen)
+  __global realstore* mask,    // (N, seqLen) - 0 for masked positions
+  int seqLen,
+  int numHeads,
+  int numKVHeads,
+  float scale                  // 1/sqrt(headDim)
+) {
+  const int localIdx = get_local_id(0);   // 0..ATTN_BLOCK_Q-1
+  const int qBlockStart = get_group_id(0) * (ATTN_BLOCK_Q * Q_PER_THREAD);
+  const int bh = get_global_id(1);        // batch * numHeads + head
+
+  const int n = bh / numHeads;
+  const int h = bh % numHeads;
+  const int kvh = h / (numHeads / numKVHeads);
+  const int kvBase = n * numKVHeads + kvh;
+
+  // Local memory for K and V tiles
+  __local float kTile[ATTN_BLOCK_KV * ATTN_HEAD_DIM];
+  __local float vTile[ATTN_BLOCK_KV * ATTN_V_HEAD_DIM];
+  __local float kMaskTile[ATTN_BLOCK_KV];
+
+  // Load query vectors and masks for all Q_PER_THREAD positions into private registers
+  float q[Q_PER_THREAD * ATTN_HEAD_DIM];
+  float qMask[Q_PER_THREAD];
+  float runningMax[Q_PER_THREAD];
+  float runningSum[Q_PER_THREAD];
+  float acc[Q_PER_THREAD * ATTN_V_HEAD_DIM];
+
+  for(int qi = 0; qi < Q_PER_THREAD; qi++) {
+    int qPos = qBlockStart + qi * ATTN_BLOCK_Q + localIdx;
+    qMask[qi] = 0.0f;
+    if(qPos < seqLen) {
+      qMask[qi] = LOAD(mask, n * seqLen + qPos);
+      if(qMask[qi] != 0.0f) {
+        for(int d = 0; d < ATTN_HEAD_DIM; d++) {
+          q[qi * ATTN_HEAD_DIM + d] = LOAD(Q, (bh * ATTN_HEAD_DIM + d) * seqLen + qPos);
+        }
+      }
+    }
+    runningMax[qi] = -1e30f;
+    runningSum[qi] = 0.0f;
+    for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+      acc[qi * ATTN_V_HEAD_DIM + d] = 0.0f;
+    }
+  }
+
+  // Iterate over key/value positions in tiles
+  for(int kvStart = 0; kvStart < seqLen; kvStart += ATTN_BLOCK_KV) {
+    // Cooperatively load K tile into local memory
+    for(int t = localIdx; t < ATTN_BLOCK_KV * ATTN_HEAD_DIM; t += ATTN_BLOCK_Q) {
+      int tileKPos = t / ATTN_HEAD_DIM;
+      int tileD = t % ATTN_HEAD_DIM;
+      int globalKPos = kvStart + tileKPos;
+      if(globalKPos < seqLen) {
+        kTile[tileKPos * ATTN_HEAD_DIM + tileD] = LOAD(K, (kvBase * ATTN_HEAD_DIM + tileD) * seqLen + globalKPos);
+      } else {
+        kTile[tileKPos * ATTN_HEAD_DIM + tileD] = 0.0f;
+      }
+    }
+
+    // Cooperatively load V tile
+    for(int t = localIdx; t < ATTN_BLOCK_KV * ATTN_V_HEAD_DIM; t += ATTN_BLOCK_Q) {
+      int tileKPos = t / ATTN_V_HEAD_DIM;
+      int tileD = t % ATTN_V_HEAD_DIM;
+      int globalKPos = kvStart + tileKPos;
+      if(globalKPos < seqLen) {
+        vTile[tileKPos * ATTN_V_HEAD_DIM + tileD] = LOAD(V, (kvBase * ATTN_V_HEAD_DIM + tileD) * seqLen + globalKPos);
+      } else {
+        vTile[tileKPos * ATTN_V_HEAD_DIM + tileD] = 0.0f;
+      }
+    }
+
+    // Cooperatively load mask for this KV tile
+    for(int t = localIdx; t < ATTN_BLOCK_KV; t += ATTN_BLOCK_Q) {
+      int globalKPos = kvStart + t;
+      if(globalKPos < seqLen) {
+        kMaskTile[t] = LOAD(mask, n * seqLen + globalKPos);
+      } else {
+        kMaskTile[t] = 0.0f;
+      }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    int kvEnd = min(ATTN_BLOCK_KV, seqLen - kvStart);
+
+    // Each thread processes Q_PER_THREAD query positions against the shared KV tile
+    for(int qi = 0; qi < Q_PER_THREAD; qi++) {
+      int qPos = qBlockStart + qi * ATTN_BLOCK_Q + localIdx;
+      if(qPos < seqLen && qMask[qi] != 0.0f) {
+        for(int tileK = 0; tileK < kvEnd; tileK++) {
+          if(kMaskTile[tileK] == 0.0f)
+            continue;
+
+          // Dot product Q . K
+          float dot = 0.0f;
+          for(int d = 0; d < ATTN_HEAD_DIM; d++) {
+            dot += q[qi * ATTN_HEAD_DIM + d] * kTile[tileK * ATTN_HEAD_DIM + d];
+          }
+          dot *= scale;
+
+          // Online softmax update
+          float newMax = fmax(runningMax[qi], dot);
+          float expOldMax = exp(runningMax[qi] - newMax);
+          float expCur = exp(dot - newMax);
+
+          for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+            acc[qi * ATTN_V_HEAD_DIM + d] *= expOldMax;
+          }
+          runningSum[qi] = runningSum[qi] * expOldMax + expCur;
+          runningMax[qi] = newMax;
+
+          for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+            acc[qi * ATTN_V_HEAD_DIM + d] += expCur * vTile[tileK * ATTN_V_HEAD_DIM + d];
+          }
+        }
+      }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+  }
+
+  // Write output for all Q_PER_THREAD positions
+  for(int qi = 0; qi < Q_PER_THREAD; qi++) {
+    int qPos = qBlockStart + qi * ATTN_BLOCK_Q + localIdx;
+    if(qPos < seqLen) {
+      if(qMask[qi] == 0.0f) {
+        for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+          STORE(output, (bh * ATTN_V_HEAD_DIM + d) * seqLen + qPos, 0.0f);
+        }
+      } else {
+        float invSum = (runningSum[qi] > 0.0f) ? (1.0f / runningSum[qi]) : 0.0f;
+        for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+          float result = acc[qi * ATTN_V_HEAD_DIM + d] * invSum;
+          STORE(output, (bh * ATTN_V_HEAD_DIM + d) * seqLen + qPos, result);
+        }
+      }
+    }
+  }
+}
+)%%";
+
+// Naive (non-tiled) attention kernel: one work-item per (query_position, head).
+// Simpler, no shared memory, no barriers. May be faster for small seqLen or small headDim.
+// Same interface as the tiled version except no workgroup coordination.
+// Compile-time defines: ATTN_HEAD_DIM, ATTN_V_HEAD_DIM
+string OpenCLKernels::transformerScaledDotProductAttentionNaive = R"%%(
+#ifndef PRECISION_STORAGE
+  #define PRECISION_STORAGE 32
+#endif
+#if PRECISION_STORAGE == 16
+  #pragma OPENCL EXTENSION cl_khr_fp16: enable
+  typedef half realstore;
+  #define LOAD(__buf,__x) vload_half((__x),(__buf))
+  #define STORE(__buf,__x,__y) vstore_half((__y),(__x),(__buf))
+#else
+  typedef float realstore;
+  #define LOAD(__buf,__x) ((__buf)[(__x)])
+  #define STORE(__buf,__x,__y) ((__buf)[(__x)] = (__y))
+#endif
+
+__kernel void scaledDotProductAttentionNaive(
+  __global realstore* Q,       // (N*numHeads, headDim, seqLen)
+  __global realstore* K,       // (N*numKVHeads, headDim, seqLen)
+  __global realstore* V,       // (N*numKVHeads, vHeadDim, seqLen)
+  __global realstore* output,  // (N*numHeads, vHeadDim, seqLen)
+  __global realstore* mask,    // (N, seqLen) - 0 for masked positions
+  int seqLen,
+  int numHeads,
+  int numKVHeads,
+  float scale                  // 1/sqrt(headDim)
+) {
+  const int qPos = get_global_id(0);
+  const int bh = get_global_id(1);  // batch * numHeads + head
+
+  const int n = bh / numHeads;
+  const int h = bh % numHeads;
+  const int kvh = h / (numHeads / numKVHeads);
+  const int kvBase = n * numKVHeads + kvh;
+
+  if(qPos >= seqLen)
+    return;
+
+  float qMask = LOAD(mask, n * seqLen + qPos);
+  if(qMask == 0.0f) {
+    for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+      STORE(output, (bh * ATTN_V_HEAD_DIM + d) * seqLen + qPos, 0.0f);
+    }
+    return;
+  }
+
+  // Load query vector into private registers
+  float q[ATTN_HEAD_DIM];
+  for(int d = 0; d < ATTN_HEAD_DIM; d++) {
+    q[d] = LOAD(Q, (bh * ATTN_HEAD_DIM + d) * seqLen + qPos);
+  }
+
+  // Online softmax: iterate over all key positions
+  float runningMax = -1e30f;
+  float runningSum = 0.0f;
+  float acc[ATTN_V_HEAD_DIM];
+  for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+    acc[d] = 0.0f;
+  }
+
+  for(int kPos = 0; kPos < seqLen; kPos++) {
+    float kMask = LOAD(mask, n * seqLen + kPos);
+    if(kMask == 0.0f)
+      continue;
+
+    // Dot product Q . K
+    float dot = 0.0f;
+    for(int d = 0; d < ATTN_HEAD_DIM; d++) {
+      float kVal = LOAD(K, (kvBase * ATTN_HEAD_DIM + d) * seqLen + kPos);
+      dot += q[d] * kVal;
+    }
+    dot *= scale;
+
+    // Online softmax update
+    float newMax = fmax(runningMax, dot);
+    float expOldMax = exp(runningMax - newMax);
+    float expCur = exp(dot - newMax);
+
+    for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+      acc[d] *= expOldMax;
+    }
+    runningSum = runningSum * expOldMax + expCur;
+    runningMax = newMax;
+
+    for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+      float vVal = LOAD(V, (kvBase * ATTN_V_HEAD_DIM + d) * seqLen + kPos);
+      acc[d] += expCur * vVal;
+    }
+  }
+
+  // Normalize and write output
+  float invSum = (runningSum > 0.0f) ? (1.0f / runningSum) : 0.0f;
+  for(int d = 0; d < ATTN_V_HEAD_DIM; d++) {
+    float result = acc[d] * invSum;
+    STORE(output, (bh * ATTN_V_HEAD_DIM + d) * seqLen + qPos, result);
+  }
+}
+)%%";
+
+// SwiGLU: output = SiLU(linear1(x)) * linearGate(x)
+// Both inputs are already computed.
+// SwiGLU activation: output = SiLU(main_proj) * gate_proj
+// Flat grid-stride over all N*C*XY elements, no mask needed (inputs already masked by prior layers).
+// Defines: ELTS_PER_THREAD - elements per work-item
+string OpenCLKernels::transformerSwiGLU = OpenCLKernels::common + R"%%(
+__kernel void transformerSwiGLU(
+  __global realstore* main_proj,
+  __global realstore* gate_proj,
+  __global realstore* output,
+  int size
+) {
+  const int tileStart = get_group_id(0) * (int)(get_local_size(0)) * ELTS_PER_THREAD;
+  const int lid = get_local_id(0);
+  #pragma unroll
+  for(int d = 0; d < ELTS_PER_THREAD; d++) {
+    int s = tileStart + d * (int)(get_local_size(0)) + lid;
+    if(s < size) {
+      float a = LOAD(main_proj, s);
+      float b = LOAD(gate_proj, s);
+      float silu_a = a / (1.0f + exp(-a));
+      STORE(output, s, floatToReal(silu_a * b));
+    }
   }
 }
 )%%";

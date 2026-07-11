@@ -17,9 +17,10 @@ from typing import Dict, List
 import torch
 import torch.nn
 from torch.optim.swa_utils import AveragedModel
+from katago.train.model_pytorch import RMSNormMask
 
 from katago.train import modelconfigs
-from katago.train.model_pytorch import Model, ResBlock, NestedBottleneckResBlock
+from katago.train.model_pytorch import Model, ResBlock, NestedBottleneckResBlock, TransformerAttentionBlock, TransformerFFNBlock, NestedBottleneckTransformerBlock
 from katago.train.load_model import load_model
 
 #Command and args-------------------------------------------------------------------
@@ -29,22 +30,31 @@ Export neural net weights to file for KataGo engine.
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-checkpoint', help='Checkpoint to test', required=True)
+parser.add_argument('-checkpoint', help='Checkpoint to test', required=False)
+parser.add_argument('-export-random-initialized-model', help='Instead of loading a checkpoint, export a freshly random-initialized model of the given model config name (e.g. b15c512h8nbttflrs-fson-silu-rsnh)', required=False)
 parser.add_argument('-export-dir', help='model file dir to save to', required=True)
 parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
 parser.add_argument('-export-14-as-15', help='Export model version 14 as 15', action="store_true", required=False)
+parser.add_argument('-export-15-or-16-as-17', help='Export model version 15 or 16 as 17', action="store_true", required=False)
 args = vars(parser.parse_args())
 
 
 def main(args):
     checkpoint_file = args["checkpoint"]
+    export_random_initialized_model = args["export_random_initialized_model"]
     export_dir = args["export_dir"]
     model_name = args["model_name"]
     filename_prefix = args["filename_prefix"]
     use_swa = args["use_swa"]
     export_14_as_15 = args["export_14_as_15"]
+    export_15_or_16_as_17 = args["export_15_or_16_as_17"]
+
+    if (checkpoint_file is None) == (export_random_initialized_model is None):
+        raise Exception("Exactly one of -checkpoint or -export-random-initialized-model must be specified")
+    if export_random_initialized_model is not None and use_swa:
+        raise Exception("-use-swa cannot be used with -export-random-initialized-model")
 
     os.makedirs(export_dir,exist_ok=True)
 
@@ -62,7 +72,19 @@ def main(args):
     logging.info(str(sys.argv))
 
     # LOAD MODEL ---------------------------------------------------------------------
-    model, swa_model, other_state_dict = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
+    if export_random_initialized_model is not None:
+        if export_random_initialized_model not in modelconfigs.config_of_name:
+            raise Exception(f"Unknown model config name: {export_random_initialized_model}")
+        model_config = modelconfigs.config_of_name[export_random_initialized_model]
+        logging.info(f"Exporting freshly random-initialized model with config: {export_random_initialized_model}")
+        logging.info(str(model_config))
+        model = Model(model_config, pos_len=19)
+        model.initialize()
+        model.to("cpu")
+        swa_model = None
+        other_state_dict = {}
+    else:
+        model, swa_model, other_state_dict = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
     model_config = model.config
 
     # WRITING MODEL ----------------------------------------------------------------
@@ -81,6 +103,23 @@ def main(args):
     # Hack to be able to export version 14 as version 15
     if version == 14 and export_14_as_15:
         version = 15
+    elif export_14_as_15:
+        raise Exception("export_14_as_15 specified but version was " + str(version))
+
+    # Configs that use rmsnorm for trunk tip that claim version 15 or 16 automatically get upgraded
+    # to version 17. Version 17 is a model format change that supports a strict superset of version 15 and 16,
+    # representing q value predictions by outputting the expected policy outputs (2 or 4), having a few more
+    # slots for unused params to allow for flexibility without future version bumps
+    # Version 15 and/or 16 was used to train some experimental transformer with trunk tip rmsnorm
+    # that we want to still be able to export and run, so we autoupgrade to version 17 for exporting them.
+    if (version == 15 or version == 16) and export_15_or_16_as_17:
+        version = 17
+    elif export_15_or_16_as_17:
+        raise Exception("export_15_or_16_as_17 specified but version was " + str(version))
+    elif version == 15 or version == 16:
+        if model.trunk_final_rmsnorm:
+            logging.warn("Autoupgrading v15 or v16 model to v17 due to trunk rmsnorm")
+            version = 17
 
     writeln(model_name)
     writeln(version)
@@ -225,6 +264,8 @@ def main(args):
             writeln("ACTIVATION_RELU")
         elif isinstance(activation,torch.nn.Mish):
             writeln("ACTIVATION_MISH")
+        elif isinstance(activation,torch.nn.SiLU):
+            writeln("ACTIVATION_SILU")
         elif isinstance(activation,torch.nn.Identity):
             writeln("ACTIVATION_IDENTITY")
         else:
@@ -245,6 +286,25 @@ def main(args):
         (out_channels,) = linearbias.shape
         writeln(out_channels)
         write_weights(linearbias)
+
+    def write_rmsnorm(name,rmsnormmask):
+        writeln(name)
+        writeln(rmsnormmask.c_in)
+        writeln(rmsnormmask.eps)
+        writeln(1 if rmsnormmask.spatial else 0)
+        cgroup_size = rmsnormmask.cgroup_size if rmsnormmask.cgroup_size is not None else 0
+        writeln(cgroup_size)
+        if not rmsnormmask.spatial:
+            # Non-spatial: weight comes from torch.nn.RMSNorm
+            assert rmsnormmask.norm is not None
+            assert rmsnormmask.norm.weight.shape == (rmsnormmask.c_in,)
+            write_weights(rmsnormmask.norm.weight)
+        else:
+            # Spatial: weight comes from self.gamma
+            assert rmsnormmask.gamma.shape == (rmsnormmask.c_in,)
+            write_weights(rmsnormmask.gamma)
+        assert rmsnormmask.beta.shape == (rmsnormmask.c_in,)
+        write_weights(rmsnormmask.beta)
 
     def write_normactconv(name,normactconv):
         if normactconv.c_gpool is None:
@@ -278,6 +338,76 @@ def main(args):
             write_matmul(name+".convpool.linear_g", normactconv.convpool.linear_g.weight)
             assert normactconv.convpool.linear_g.bias is None
 
+    def write_transformer_norm(name,rmsnorm):
+        """Write an inline RMSNorm (torch.nn.RMSNorm) used inside transformer blocks.
+        These are simpler than the trunk-final RMSNormMask: just a weight vector, no bias, no spatial modes."""
+        writeln(name)
+        num_channels = rmsnorm.weight.shape[0]
+        writeln(num_channels)
+        writeln(rmsnorm.eps)
+        write_weights(rmsnorm.weight)
+
+    def write_transformer_attention_block(name,block):
+        assert not getattr(block, 'use_qk_norm', False), \
+            f"{name}: QK normalization is not yet supported for export"
+        assert not getattr(block, 'use_gab', False), \
+            f"{name}: GAB attention bias is not yet supported for export"
+        assert not getattr(block, 'use_tab', False), \
+            f"{name}: TAB attention bias is not yet supported for export"
+        assert not getattr(block, 'inline_registers', False), \
+            f"{name}: Inline registers are not yet supported for export"
+        assert getattr(block, 'num_rw_registers', 0) == 0, \
+            f"{name}: RW registers are not yet supported for export"
+
+        writeln("transformer_attention_block")
+        writeln(name)
+        writeln(block.num_heads)
+        writeln(block.num_kv_heads)
+        writeln(block.q_head_dim)
+        writeln(block.v_head_dim)
+        writeln(1 if block.use_rope else 0)
+        writeln(1 if block.learnable_rope else 0)
+
+        write_transformer_norm(name+".norm1", block.norm1)
+        write_matmul(name+".q_proj", block.q_proj.weight)
+        write_matmul(name+".k_proj", block.k_proj.weight)
+        write_matmul(name+".v_proj", block.v_proj.weight)
+        write_matmul(name+".out_proj", block.out_proj.weight)
+
+        if block.use_rope:
+            if block.learnable_rope:
+                # rope_freqs: (num_kv_heads, q_head_dim//2, 2)
+                writeln(name+".rope_freqs")
+                freqs = block.rope_freqs.detach()
+                writeln(freqs.shape[0])  # num_kv_heads
+                writeln(freqs.shape[1])  # num_pairs
+                writeln(freqs.shape[2])  # 2 (omega_x, omega_y)
+                write_weights(freqs)
+            else:
+                # Non-learnable: write theta so C++ can recompute
+                writeln(name+".rope_theta")
+                writeln(block.rope_theta)
+
+    def write_transformer_ffn_block(name,block):
+        assert not getattr(block, 'use_depthwise_conv', False), \
+            f"{name}: FFN depthwise conv is not yet supported for export"
+        assert not getattr(block, 'inline_registers', False), \
+            f"{name}: Inline registers are not yet supported for export"
+        assert getattr(block, 'num_rw_registers', 0) == 0, \
+            f"{name}: RW registers are not yet supported for export"
+
+        writeln("transformer_ffn_block")
+        writeln(name)
+        writeln(block.c_main)
+        writeln(block.ffn_dim)
+        writeln(1 if block.use_swiglu else 0)
+
+        write_transformer_norm(name+".norm", block.norm)
+        write_matmul(name+".ffn_linear1", block.ffn_linear1.weight)
+        if block.use_swiglu:
+            write_matmul(name+".ffn_linear_gate", block.ffn_linear_gate.weight)
+        write_matmul(name+".ffn_linear2", block.ffn_linear2.weight)
+
     def write_block(name,block):
         if isinstance(block,ResBlock) and block.normactconv1.c_gpool is None:
             assert block.normactconv2.c_gpool is None
@@ -300,8 +430,21 @@ def main(args):
             for i,subblock in enumerate(block.blockstack):
                 write_block(name+".blockstack."+str(i),subblock)
             write_normactconv(name+".normactconvq", block.normactconvq)
+        elif isinstance(block,TransformerAttentionBlock):
+            write_transformer_attention_block(name, block)
+        elif isinstance(block,TransformerFFNBlock):
+            write_transformer_ffn_block(name, block)
+        elif isinstance(block,NestedBottleneckTransformerBlock):
+            writeln("nested_bottleneck_block")
+            writeln(name)
+            writeln(2 * block.internal_length)
+            assert len(block.blockstack) == 2 * block.internal_length
+            write_normactconv(name+".normactconvp", block.normactconvp)
+            for i,subblock in enumerate(block.blockstack):
+                write_block(name+".blockstack."+str(i), subblock)
+            write_normactconv(name+".normactconvq", block.normactconvq)
         else:
-            assert False, "This kind of block is not supported for export right now"
+            assert False, f"This kind of block is not supported for export right now: {type(block)}"
 
     def write_metadata_encoder(name,encoder):
         writeln(name)
@@ -325,8 +468,25 @@ def main(args):
         writeln(model.c_gpool)
         writeln(model.c_gpool)
         if version >= 15:
+            # Trunk final norm kind:
+            # 0 = standard (batch norm or bias mask)
+            # 1 = RMSNorm (non-spatial)
+            # 2 = RMSNorm spatial (no groups)
+            # 3 = RMSNorm spatial grouped
+            if model.trunk_final_rmsnorm:
+                assert isinstance(model.norm_trunkfinal, RMSNormMask)
+                assert model.norm_trunkfinal.cgroup_size is None, \
+                    "Grouped spatial RMSNorm (cgroup_size != None) is not supported for export"
+                trunk_norm_kind = 1  # TRUNK_NORM_KIND_RMSNORM; spatial flag is in the RMSNormLayerDesc
+
+                # Older katago c++ versions didn't actually do proper checking here and yet didn't support
+                # this so it's not actually sound to output a non-zero trunk kind.
+                # Version 17 loading code on c++ does do proper checking.
+                assert version >= 17
+            else:
+                trunk_norm_kind = 0
+            writeln(trunk_norm_kind)
             # Write some dummy placeholders for future features
-            writeln(0)
             writeln(0)
             writeln(0)
             writeln(0)
@@ -342,7 +502,9 @@ def main(args):
 
         for i,block in enumerate(model.blocks):
             write_block("model.blocks."+str(i), block)
-        if model.trunk_normless:
+        if model.trunk_final_rmsnorm:
+            write_rmsnorm("model.norm_trunkfinal", model.norm_trunkfinal)
+        elif model.trunk_normless:
             write_biasmask("model.norm_trunkfinal", model.norm_trunkfinal)
         else:
             write_bn("model.norm_trunkfinal", model.norm_trunkfinal)
@@ -350,6 +512,16 @@ def main(args):
 
     def write_policy_head(name,policyhead):
         writeln(name)
+        if version >= 17:
+            assert policyhead.conv2p.weight.shape[0] == 6 or policyhead.conv2p.weight.shape[0] == 8
+            if policyhead.conv2p.weight.shape[0] == 6:
+                writeln(2) # we're going to write 2 policy output channels - regular and optimistic (see below)
+            else:
+                writeln(4) # we're going to write 4 policy output channels - regular, optimistic, q winloss, q score (see below)
+            # Write some dummy placeholders for future features
+            writeln(0)
+            writeln(0)
+            writeln(0)
         write_conv(name+".conv1p", policyhead.conv1p)
         write_conv(name+".conv1g", policyhead.conv1g)
         write_biasmask(name+".biasg", policyhead.biasg)
@@ -385,7 +557,7 @@ def main(args):
             write_matbias(name+".linear_pass_bias", torch.tensor([0.0]*c_p1,dtype=torch.float32,device="cpu"))
             write_activation(name+".act_pass", torch.nn.Identity())
             write_matmul(name+".linear_pass2", torch.tensor([[1.0,0.0]+[0.0]*(c_p1-2),[0.0,1.0]+[0.0]*(c_p1-2)],dtype=torch.float32,device="cpu"))
-        elif version <= 15:
+        elif version <= 15 or policyhead.conv2p.weight.shape[0] == 6:
             assert policyhead.conv2p.weight.shape[0] == 6
             write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5]), dim=0))
             write_matmul(name+".linear_pass", policyhead.linear_pass.weight)
@@ -409,6 +581,11 @@ def main(args):
 
     def write_value_head(name, valuehead):
         writeln(name)
+        if version >= 17:
+            # Write some dummy placeholders for future features
+            writeln(0)
+            writeln(0)
+            writeln(0)
         write_conv(name+".conv1", valuehead.conv1)
         write_biasmask(name+".bias1", valuehead.bias1)
         write_activation(name+".act1", valuehead.act1)
@@ -445,7 +622,7 @@ def main(args):
     f.close()
 
     with open(os.path.join(export_dir,"metadata.json"),"w") as f:
-        train_state = other_state_dict["train_state"]
+        train_state = other_state_dict.get("train_state", {})
         data = {}
         if "global_step_samples" in train_state:
             data["global_step_samples"] = train_state["global_step_samples"]

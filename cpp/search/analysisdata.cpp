@@ -1,5 +1,7 @@
 #include "../search/analysisdata.h"
 
+#include "../core/test.h"
+
 AnalysisData::AnalysisData()
   :move(Board::NULL_LOC),
    numVisits(0),
@@ -254,7 +256,7 @@ void AnalysisData::writePVVisitsUpToPhaseEnd(std::ostream& out, const Board& ini
   Board board(initialBoard);
   BoardHistory hist(initialHist);
   Player nextPla = initialPla;
-  assert(pv.size() == pvVisits.size());
+  testAssert(pv.size() == pvVisits.size());
   for(int j = 0; j<pv.size(); j++) {
     if(j > 0)
       out << " ";
@@ -271,7 +273,7 @@ void AnalysisData::writePVEdgeVisitsUpToPhaseEnd(std::ostream& out, const Board&
   Board board(initialBoard);
   BoardHistory hist(initialHist);
   Player nextPla = initialPla;
-  assert(pv.size() == pvEdgeVisits.size());
+  testAssert(pv.size() == pvEdgeVisits.size());
   for(int j = 0; j<pv.size(); j++) {
     if(j > 0)
       out << " ";
