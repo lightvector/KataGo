@@ -1230,7 +1230,7 @@ struct ComputeHandle {
     if(useOnnxEmit) {
       logger->write("TensorRT backend: building network via ONNX emitter");
       const ModelDesc& desc = loadedModel->modelDesc;
-      OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
+      OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger, /*emitFusedMishOp=*/false);
       onnxBytes = std::move(onnxResult.serializedModel);
 
       if(dumpDebugPlan) {

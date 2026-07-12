@@ -271,6 +271,35 @@ Typical run config for Intel NPU:
 Multi-device assignment is mainly for `onnxProvider=cuda/tensorrt/migraphx` (`onnxDeviceToUseThread*`).
 For `onnxProvider=openvino` on Intel NPU, a single device is typically used.
 
+##### Windows AMD NPU (VitisAI EP) Setup
+This branch defaults to the `onnxruntime-win-x64-vitisai` ONNX Runtime package (built with the VitisAI execution provider) rather than the OpenVINO one used above. It targets AMD Ryzen AI NPUs via the [AMD Ryzen AI / VitisAI SDK](https://ryzenai.docs.amd.com/).
+
+1. Install the Ryzen AI SDK (provides `onnxruntime_providers_vitisai.dll`'s runtime dependencies, `vaip_config.json`, and NPU `xclbin` firmware images). Typical install path: `C:\Program Files\RyzenAI\<version>`.
+2. Prepare `cpp/external/onnxruntime-win-x64-vitisai/{include,lib,bin}` with an ONNX Runtime build that includes the VitisAI EP (`onnxruntime_providers_vitisai.dll`/`.lib`), matching the ORT ABI version bundled with your Ryzen AI SDK.
+3. CMake auto-detects the newest `RyzenAI\<version>` folder under `%ProgramFiles%` at configure time (validated by the presence of `voe-*-win_amd64\vaip_config.json` inside it -- a stale `PATH` entry pointing at an uninstalled version is not trusted). Override with `-DRYZENAI_ROOT=...` or the `RYZENAI_ROOT` environment variable if auto-detection picks the wrong install or you have a nonstandard layout.
+4. The build copies `vaip_config.json`, the `xclbins/` firmware directory, `xrt_coreutil.dll`, and the VitisAI EP's runtime dependency DLLs (`dyn_dispatch_core.dll`, `vaiml.dll`, `flexmlrt.dll`, etc., all from the Ryzen AI SDK's `deployment/` folder) next to `katago.exe` automatically. The ONNX Runtime core DLLs (`onnxruntime.dll`, `onnxruntime_providers_shared.dll`, `onnxruntime_providers_vitisai.dll`) come from `ONNXRUNTIME_ROOT` instead, to keep the ABI consistent with what KataGo was linked against.
+
+```
+cmake -S cpp -B cpp/build -G "Visual Studio 18 2026" -A x64 -DUSE_BACKEND=ONNX
+cmake --build cpp/build --config Release -j
+```
+
+(`ONNXRUNTIME_ROOT` defaults to `cpp/external/onnxruntime-win-x64-vitisai` on this branch, so it does not need to be passed explicitly unless overriding.)
+
+Typical run config for AMD Ryzen AI NPU:
+* `onnxProvider = vitisai`
+* `onnxVitisAIConfigFile = ...` (optional; defaults to the auto-detected `vaip_config.json` baked in at build time)
+* `onnxVitisAICacheDir = ...` (optional; defaults to `<katagodata>/vitisaicache` -- the NPU model compile is slow, on the order of minutes, so this cache avoids recompiling on every launch)
+* `onnxVitisAIDisableCPUFallback = true` (default; fails loudly at session creation if any node can't run on the NPU, rather than silently falling back to CPU for that node)
+
+VitisAI only accelerates a quantized (INT8 QDQ) ONNX graph -- FP32 nodes fall back to CPU. To quantize a KataGo model:
+1. `katago exportonnx -model <model>.bin.gz -xlen 19 -ylen 19 -output model-fp32.onnx` -- export a fixed-size FP32 ONNX graph.
+2. `katago dumpcalibrationdata -model <model>.bin.gz -sgfdir <dir of real games> -output calib.npz` -- sample calibration input tensors from real games (reuses the same feature-encoding path as inference).
+3. `python python/quantize_vitisai.py --input model-fp32.onnx --calibration calib.npz --output model-int8.onnx` -- offline quantize via AMD's `amd-quark` (`quark.onnx`), bundled with the Ryzen AI SDK's Python environment.
+4. Point `nnModelFile` at `model-int8.onnx` and set `onnxProvider = vitisai`.
+
+This quantization step is entirely offline/manual -- `katago.exe` does not invoke it automatically.
+
 ## MacOS
    * TLDR (Metal backend - recommended for most users, hybrid CPU+GPU+Neural Engine for maximum throughput):
      ```

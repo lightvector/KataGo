@@ -30,6 +30,7 @@ gtp : Runs GTP engine that can be plugged into any standard Go GUI for play/anal
 benchmark : Test speed with different numbers of search threads.
 genconfig : User-friendly interface to generate a config with rules and automatic performance tuning.
 exportonnx : Export KataGo .bin/.bin.gz model to a fixed-size .onnx model.
+dumpcalibrationdata : Dump NN input tensors sampled from sgf games, for offline quantization (e.g. for VitisAI/NPU).
 
 contribute : Connect to online distributed KataGo training and run perpetually contributing selfplay games.
 
@@ -170,6 +171,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::printclockinfo(subArgs);
   else if(subcommand == "exportonnx")
     return MainCmds::exportonnx(subArgs);
+  else if(subcommand == "dumpcalibrationdata")
+    return MainCmds::dumpcalibrationdata(subArgs);
   else if(subcommand == "sandbox")
     return MainCmds::sandbox();
   else if(subcommand == "version") {

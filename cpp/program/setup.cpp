@@ -239,45 +239,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     string homeDataDirOverride = loadHomeDataDirOverride(cfg);
 
-    // Backend-specific options (e.g. openclTunerFile, cudaDisableGraphSDPA) are read directly by the
-    // relevant compute backend off of cfg (see createComputeContext). Because they follow the backend
-    // prefix convention, the getBackendPrefixes() loop above already marks them used for the backends
-    // that don't read them, so no explicit mark-used is needed here.
-    string backendExtraParam;
-#if defined(USE_ONNX_BACKEND)
-    string onnxProvider = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
-    backendExtraParam = "provider=" + onnxProvider;
-    if(cfg.contains("onnxInputSpatial"))
-      backendExtraParam += ";inputSpatial=" + cfg.getString("onnxInputSpatial");
-    if(cfg.contains("onnxInputGlobal"))
-      backendExtraParam += ";inputGlobal=" + cfg.getString("onnxInputGlobal");
-    if(cfg.contains("onnxInputMeta"))
-      backendExtraParam += ";inputMeta=" + cfg.getString("onnxInputMeta");
-    if(cfg.contains("onnxOutputPolicy"))
-      backendExtraParam += ";outputPolicy=" + cfg.getString("onnxOutputPolicy");
-    if(cfg.contains("onnxOutputValue"))
-      backendExtraParam += ";outputValue=" + cfg.getString("onnxOutputValue");
-    if(cfg.contains("onnxOutputMiscvalue"))
-      backendExtraParam += ";outputMiscvalue=" + cfg.getString("onnxOutputMiscvalue");
-    if(cfg.contains("onnxOutputOwnership"))
-      backendExtraParam += ";outputOwnership=" + cfg.getString("onnxOutputOwnership");
-    if(cfg.contains("onnxModelVersion"))
-      backendExtraParam += ";modelVersion=" + cfg.getString("onnxModelVersion");
-    if(cfg.contains("onnxOpenVINODeviceType"))
-      backendExtraParam += ";openvinoDeviceType=" + cfg.getString("onnxOpenVINODeviceType");
-    if(cfg.contains("onnxOpenVINODeviceId"))
-      backendExtraParam += ";openvinoDeviceId=" + cfg.getString("onnxOpenVINODeviceId");
-    if(cfg.contains("onnxOpenVINOEnableNPUFastCompile"))
-      backendExtraParam += ";openvinoEnableNPUFastCompile=" + cfg.getString("onnxOpenVINOEnableNPUFastCompile");
-    if(cfg.contains("onnxOpenVINOCacheDir"))
-      backendExtraParam += ";openvinoCacheDir=" + cfg.getString("onnxOpenVINOCacheDir");
-#else
-    if(cfg.contains("openclTunerFile"))
-      backendExtraParam = cfg.getString("openclTunerFile");
-#endif
-    bool openCLReTunePerBoardSize = false;
-    if(cfg.contains("openclReTunePerBoardSize"))
-      openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
+    // Backend-specific options (e.g. openclTunerFile, cudaDisableGraphSDPA, onnxProvider,
+    // onnxVitisAIConfigFile) are read directly by the relevant compute backend off of cfg (see
+    // each backend's createComputeContext). Because they follow the backend prefix convention,
+    // the getBackendPrefixes() loop above already marks them used for the backends that don't
+    // read them, so no explicit mark-used or pass-through is needed here.
 
     enabled_t useFP16Mode = enabled_t::Auto;
     if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
@@ -361,7 +327,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
-      backendExtraParam,
       homeDataDirOverride,
       useFP16Mode,
       numNNServerThreadsPerModel,

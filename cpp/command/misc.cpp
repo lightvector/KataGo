@@ -50,21 +50,34 @@ int MainCmds::exportonnx(const vector<string>& args) {
   string outputFile;
   int nnXLen;
   int nnYLen;
+  bool emitFusedMishOp;
   try {
     KataGoCommandLine cmd("Export KataGo .bin/.bin.gz model to ONNX file.");
     cmd.addModelFileArg();
     TCLAP::ValueArg<string> outputArg("o","output","Output ONNX file path",true,string(),"FILE");
     TCLAP::ValueArg<int> xLenArg("x","xlen","Board x size baked into exported model",false,19,"N");
     TCLAP::ValueArg<int> yLenArg("y","ylen","Board y size baked into exported model",false,19,"N");
+    TCLAP::SwitchArg emitFusedMishOpArg(
+      "","emitFusedMishOp",
+      "Emit KataGo's Mish activation as a single native ONNX Mish node instead of the decomposed "
+      "Softplus+Tanh+Mul. Off by default (matches what TensorRT's nvonnxparser and the live ONNX "
+      "backends are tested against). Turn this on when exporting for external quantizers targeting "
+      "AMD VitisAI/Ryzen AI NPU: its DPU compiler recognizes the fused Mish op for XINT8 "
+      "quantization but not the decomposed Softplus primitive, so without this flag the exported "
+      "graph's Conv/activation layers fail to fuse into NPU-executable subgraphs.",
+      false
+    );
     cmd.add(outputArg);
     cmd.add(xLenArg);
     cmd.add(yLenArg);
+    cmd.add(emitFusedMishOpArg);
     cmd.parseArgs(args);
 
     modelFile = cmd.getModelFile();
     outputFile = outputArg.getValue();
     nnXLen = xLenArg.getValue();
     nnYLen = yLenArg.getValue();
+    emitFusedMishOp = emitFusedMishOpArg.getValue();
   }
   catch(TCLAP::ArgException& e) {
     cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
@@ -80,7 +93,9 @@ int MainCmds::exportonnx(const vector<string>& args) {
     NeuralNet::freeLoadedModel
   );
   const ModelDesc& modelDesc = NeuralNet::getModelDesc(loadedModel.get());
-  string onnxBytes = OnnxModelBuilder::buildOnnxModel(modelDesc, nnXLen, nnYLen);
+  OnnxModelBuilder::Result onnxResult =
+    OnnxModelBuilder::build(modelDesc, nnXLen, nnYLen, /*requireExactNNLen=*/false, /*transformerNHWC=*/false, nullptr, emitFusedMishOp);
+  string onnxBytes = std::move(onnxResult.serializedModel);
 
   ofstream out;
   FileUtils::open(out, outputFile, std::ios::binary | std::ios::out);

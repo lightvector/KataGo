@@ -359,10 +359,22 @@ static void serveEvals(
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeedThisThread);
 
-  // Used to have a try catch around this but actually we're in big trouble if this raises an exception
-  // and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
-  // toplevel for easier debugging
-  nnEval->serve(*buf,rand,gpuIdxForThisThread,serverThreadIdx);
+  // An uncaught exception escaping a std::thread's entry function does NOT propagate to any
+  // try/catch at toplevel on the main thread - it calls std::terminate() directly, which aborts
+  // the process with no message printed. So catch here instead, print what actually went wrong,
+  // and then exit - achieving the same "fail fast, nnEval thread dying is fatal" intent as before,
+  // but with a diagnosable error message instead of a silent abort().
+  try {
+    nnEval->serve(*buf,rand,gpuIdxForThisThread,serverThreadIdx);
+  }
+  catch(const std::exception& e) {
+    cerr << "Uncaught exception in NN eval server thread " << serverThreadIdx << ": " << e.what() << endl;
+    std::exit(1);
+  }
+  catch(...) {
+    cerr << "Uncaught exception of unknown type in NN eval server thread " << serverThreadIdx << endl;
+    std::exit(1);
+  }
   delete buf;
 }
 

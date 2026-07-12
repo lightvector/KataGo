@@ -8,7 +8,7 @@
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninputs.h"
 
-#include "onnx.pb.h"
+#include "onnx/onnx_pb.h"
 
 using namespace std;
 
@@ -23,6 +23,7 @@ struct Builder {
   int nnYLen;
   bool requireExactNNLen;
   bool transformerNHWC;  // run the trunk block stack channel-last (NHWC) vs NCHW
+  bool emitFusedMishOp;  // emit a native ONNX Mish node instead of Softplus+Tanh+Mul (see header)
 
   // Mask-derived feature tensor names (computed once, reused by every gpool). Empty if exact.
   string maskSumName;    // [N,1,1,1] sum of mask over H,W  (only when !exact)
@@ -177,7 +178,14 @@ struct Builder {
     string out = uniq(desc.name);
     addNode("Conv", {input, wName}, out, desc.name);
     onnx::NodeProto* node = lastNode();
+    // strides/pads/dilations default to (1,1)/(0,0,0,0)/(1,1) per the ONNX spec when omitted, which
+    // is exactly what a 1x1 conv needs here -- but some EPs' graph compilers (e.g. AMD VitisAI's xir,
+    // which requires "strides" to be explicitly present) don't apply ONNX's own default semantics, so
+    // set them explicitly rather than relying on the (spec-compliant but not universally honored) omission.
     { onnx::AttributeProto* a = addAttr(node, "kernel_shape"); a->set_type(onnx::AttributeProto::INTS); a->add_ints(1); a->add_ints(1); }
+    { onnx::AttributeProto* a = addAttr(node, "strides"); a->set_type(onnx::AttributeProto::INTS); a->add_ints(1); a->add_ints(1); }
+    { onnx::AttributeProto* a = addAttr(node, "pads"); a->set_type(onnx::AttributeProto::INTS); a->add_ints(0); a->add_ints(0); a->add_ints(0); a->add_ints(0); }
+    { onnx::AttributeProto* a = addAttr(node, "dilations"); a->set_type(onnx::AttributeProto::INTS); a->add_ints(1); a->add_ints(1); }
     return out;
   }
 
@@ -244,6 +252,22 @@ struct Builder {
       // The SCALE8 variant is the runtime applyScale8ToReduceActivations() transform that keeps
       // FP16 activations small. ONNX Softplus has no beta, so for SCALE8 we
       // scale the input by 8 before Softplus and do NOT scale the result.
+      if(emitFusedMishOp) {
+        // Native ONNX `Mish` (opset 18+) computes y = y*tanh(softplus(y)) with no beta parameter.
+        // For plain mish that's exactly mish(x), one node. For mish_scale8, substitute y=8x:
+        // Mish(8x) = 8x*tanh(softplus(8x)), so mish_scale8(x) = x*tanh(softplus(8x)) = Mish(8x)/8.
+        string mishIn = input;
+        if(act == ACTIVATION_MISH_SCALE8) {
+          string bName = addScalarInitializer(uniq(desc.name + "/beta8"), 8.0f);
+          mishIn = addNode("Mul", {input, bName}, uniq(desc.name + "/beta8mul"), desc.name + "/beta8mul");
+        }
+        string m = addNode("Mish", {mishIn}, uniq(desc.name + "/mish"), desc.name + "/mish");
+        if(act == ACTIVATION_MISH_SCALE8) {
+          string invBName = addScalarInitializer(uniq(desc.name + "/invbeta8"), 0.125f);
+          return addNode("Mul", {m, invBName}, uniq(desc.name), desc.name);
+        }
+        return m;
+      }
       string spIn = input;
       if(act == ACTIVATION_MISH_SCALE8) {
         string bName = addScalarInitializer(uniq(desc.name + "/beta8"), 8.0f);
@@ -812,13 +836,14 @@ Result build(
   int nnYLen,
   bool requireExactNNLen,
   bool transformerNHWC,
-  Logger* logger
+  Logger* logger,
+  bool emitFusedMishOp
 ) {
   if(desc.metaEncoderVersion > 0)
     throw StringError("OnnxModelBuilder: SGF metadata encoder not yet supported");
 
   if(logger != NULL)
-    logger->write("Building internal onnx model, requireExactNNLen=" + Global::boolToString(requireExactNNLen) + " transformerNHWC=" + Global::boolToString(transformerNHWC));
+    logger->write("Building internal onnx model, requireExactNNLen=" + Global::boolToString(requireExactNNLen) + " transformerNHWC=" + Global::boolToString(transformerNHWC) + " emitFusedMishOp=" + Global::boolToString(emitFusedMishOp));
 
   int numInputChannels = desc.numInputChannels;
   int numInputGlobalChannels = desc.numInputGlobalChannels;
@@ -848,6 +873,7 @@ Result build(
   b.nnYLen = nnYLen;
   b.requireExactNNLen = requireExactNNLen;
   b.transformerNHWC = transformerNHWC;
+  b.emitFusedMishOp = emitFusedMishOp;
 
   // ---- Inputs (NCHW, dynamic batch) ----
   auto addInput = [&](const string& name, int channels) {

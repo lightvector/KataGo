@@ -91,3 +91,4 @@ cpp/build.ninja
 cpp/KataGoSwift.*
 cpp/include/KataGoSwift/KataGoSwift-swift.h
 cpp/external/katagocoreml/proto/
+cpp/external/onnxruntime-win-x64-vitisai/

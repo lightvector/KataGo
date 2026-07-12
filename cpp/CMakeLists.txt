@@ -60,9 +60,13 @@ else()
   set(_katago_auto_fetch_default OFF)
 endif()
 option(KATAGO_AUTO_FETCH_DEPS "Automatically fetch missing dependencies into build/deps (Windows/Linux use vcpkg)." ${_katago_auto_fetch_default})
-set(KATAGO_DEPS_DIR "${CMAKE_SOURCE_DIR}/build/deps" CACHE PATH "Directory for auto-fetched third-party dependencies")
+set(KATAGO_DEPS_DIR "${CMAKE_BINARY_DIR}/deps" CACHE PATH "Directory for auto-fetched third-party dependencies")
 if(WIN32)
-  set(_katago_vcpkg_triplet_default "x64-windows")
+  # Static libs (not DLLs), but still linked against the dynamic CRT (matches how katago.exe
+  # itself is built). Using static libs here avoids a class of heap-corruption crash where a
+  # dependency (e.g. abseil_dll.dll, a transitive dependency of protobuf) ends up loaded as two
+  # separate DLL instances at runtime, corrupting the heap during static initialization.
+  set(_katago_vcpkg_triplet_default "x64-windows-static-md")
 elseif(UNIX AND NOT APPLE)
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
     set(_katago_vcpkg_triplet_default "arm64-linux")
@@ -460,6 +464,7 @@ add_executable(katago
   command/analysis.cpp
   command/benchmark.cpp
   command/contribute.cpp
+  command/dumpcalibrationdata.cpp
   command/evalsgf.cpp
   command/gatekeeper.cpp
   command/genbook.cpp
@@ -610,8 +615,67 @@ elseif(USE_BACKEND STREQUAL "OPENCL")
 elseif(USE_BACKEND STREQUAL "ONNX")
   target_compile_definitions(katago PRIVATE USE_ONNX_BACKEND)
 
+  # ---- AMD Ryzen AI / VitisAI SDK discovery (Windows) ----
+  # Done here, ahead of ONNXRUNTIME_ROOT, so that when a Ryzen AI SDK install is found, its own
+  # bundled onnxruntime/ package (include+lib+bin, all one matched build) can be preferred as the
+  # ONNXRUNTIME_ROOT default. This matters: onnxruntime_providers_vitisai.dll / vaiml.dll /
+  # dyn_bins.dll / onnxruntime_vitisai_ep.dll are NOT independently versioned components -- they're
+  # part of one cohesive ORT+VitisAI-EP build, and mixing DLLs of the same name from two
+  # differently-sourced ORT packages (e.g. a separately-downloaded ORT vs. the SDK's own copy)
+  # produces a runtime ABI mismatch deep in the VitisAI EP's own call chain: session creation and
+  # even NPU compilation succeed, but actually creating an inference "runner" against the compiled
+  # model fails (observed as "Failed to create runner: Failed to open library ... xrt_core.dll",
+  # which is misleading -- the file opens fine standalone; the real cause is a symbol/ABI mismatch
+  # triggered only once several of the mismatched DLLs are loaded into the same process together).
+  # Not hardcoded to any particular Ryzen AI SDK version or install path: scans
+  # %ProgramFiles%\RyzenAI\<version> for the highest installed version, validated by the
+  # actual presence of voe-*-win_amd64/vaip_config.json inside it (a bare PATH entry is not a
+  # reliable signal -- e.g. a stale entry can point at an uninstalled older version). A manual
+  # override is available via -DRYZENAI_ROOT=... or the RYZENAI_ROOT environment variable.
   if(WIN32)
-    set(_onnx_default_root "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime-win-x64-openvino")
+    set(RYZENAI_ROOT "" CACHE PATH "Path to an AMD Ryzen AI / VitisAI SDK installation (e.g. C:/Program Files/RyzenAI/1.7.1). Auto-detected if not set.")
+    if(NOT RYZENAI_ROOT AND DEFINED ENV{RYZENAI_ROOT})
+      set(RYZENAI_ROOT "$ENV{RYZENAI_ROOT}")
+    endif()
+    if(NOT RYZENAI_ROOT)
+      set(_ryzenai_search_roots "")
+      if(DEFINED ENV{ProgramFiles})
+        list(APPEND _ryzenai_search_roots "$ENV{ProgramFiles}/RyzenAI")
+      endif()
+      if(DEFINED ENV{ProgramW6432})
+        list(APPEND _ryzenai_search_roots "$ENV{ProgramW6432}/RyzenAI")
+      endif()
+      list(REMOVE_DUPLICATES _ryzenai_search_roots)
+      foreach(_ryzenai_search_root IN LISTS _ryzenai_search_roots)
+        file(GLOB _ryzenai_candidate_dirs "${_ryzenai_search_root}/*")
+        set(_ryzenai_valid_candidates "")
+        foreach(_ryzenai_candidate IN LISTS _ryzenai_candidate_dirs)
+          if(IS_DIRECTORY "${_ryzenai_candidate}")
+            file(GLOB _ryzenai_vaip_configs_probe "${_ryzenai_candidate}/voe-*-win_amd64/vaip_config.json")
+            if(_ryzenai_vaip_configs_probe)
+              list(APPEND _ryzenai_valid_candidates "${_ryzenai_candidate}")
+            endif()
+          endif()
+        endforeach()
+        if(_ryzenai_valid_candidates)
+          list(SORT _ryzenai_valid_candidates COMPARE NATURAL ORDER DESCENDING)
+          list(GET _ryzenai_valid_candidates 0 _ryzenai_best)
+          set(RYZENAI_ROOT "${_ryzenai_best}")
+          break()
+        endif()
+      endforeach()
+    endif()
+    if(RYZENAI_ROOT AND IS_DIRECTORY "${RYZENAI_ROOT}")
+      string(REPLACE "\\" "/" RYZENAI_ROOT "${RYZENAI_ROOT}")
+    endif()
+  endif()
+
+  if(WIN32 AND RYZENAI_ROOT AND EXISTS "${RYZENAI_ROOT}/onnxruntime/lib/onnxruntime.lib" AND EXISTS "${RYZENAI_ROOT}/onnxruntime/include/onnxruntime/core/session/onnxruntime_cxx_api.h")
+    # Prefer the Ryzen AI SDK's own bundled ONNX Runtime + VitisAI EP build over a separately
+    # prepared cpp/external/onnxruntime-win-x64-vitisai package -- see comment above.
+    set(_onnx_default_root "${RYZENAI_ROOT}/onnxruntime")
+  elseif(WIN32)
+    set(_onnx_default_root "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime-win-x64-vitisai")
   elseif(UNIX AND NOT APPLE)
     set(_onnx_default_root "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime-linux-x64-openvino")
   else()
@@ -623,7 +687,19 @@ elseif(USE_BACKEND STREQUAL "ONNX")
     message(FATAL_ERROR "ONNXRUNTIME_ROOT does not exist: ${ONNXRUNTIME_ROOT}")
   endif()
 
-  set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include")
+  # Package layouts vary: some ship headers directly under include/ (e.g. the openvino package),
+  # some nest them one level deeper under include/onnxruntime/ (e.g. the standalone vitisai
+  # package), and the Ryzen AI SDK's own bundled copy nests them two levels deeper under
+  # include/onnxruntime/core/session/.
+  if(EXISTS "${ONNXRUNTIME_ROOT}/include/onnxruntime_cxx_api.h")
+    set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include")
+  elseif(EXISTS "${ONNXRUNTIME_ROOT}/include/onnxruntime/onnxruntime_cxx_api.h")
+    set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include/onnxruntime")
+  elseif(EXISTS "${ONNXRUNTIME_ROOT}/include/onnxruntime/core/session/onnxruntime_cxx_api.h")
+    set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include/onnxruntime/core/session")
+  else()
+    set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include")
+  endif()
   if(NOT IS_DIRECTORY "${ONNXRUNTIME_INCLUDE_DIR}")
     message(FATAL_ERROR "ONNX Runtime include directory not found: ${ONNXRUNTIME_INCLUDE_DIR}")
   endif()
@@ -631,7 +707,9 @@ elseif(USE_BACKEND STREQUAL "ONNX")
 
   if(WIN32)
     set(ONNXRUNTIME_LIB "${ONNXRUNTIME_ROOT}/lib/onnxruntime.lib")
-    file(GLOB ONNXRUNTIME_DLLS "${ONNXRUNTIME_ROOT}/lib/*.dll")
+    # Package layouts vary: some ship runtime DLLs under lib/ (e.g. the openvino package), others
+    # under bin/ (e.g. the vitisai package) -- glob both.
+    file(GLOB ONNXRUNTIME_DLLS "${ONNXRUNTIME_ROOT}/lib/*.dll" "${ONNXRUNTIME_ROOT}/bin/*.dll")
   else()
     find_library(ONNXRUNTIME_LIB onnxruntime HINTS "${ONNXRUNTIME_ROOT}/lib" "${ONNXRUNTIME_ROOT}")
   endif()
@@ -751,6 +829,90 @@ elseif(USE_BACKEND STREQUAL "ONNX")
       )
     endforeach()
   endif()
+
+  # ---- AMD Ryzen AI / VitisAI EP runtime deployment (Windows) ----
+  # RYZENAI_ROOT was already located above (ahead of ONNXRUNTIME_ROOT). This section copies the
+  # remaining pieces needed at runtime: vaip_config.json, xclbins, XRT, and the handful of VitisAI
+  # deployment DLLs not already part of RYZENAI_ROOT/onnxruntime/bin (which, when used as
+  # ONNXRUNTIME_ROOT, is already fully copied by the ONNXRUNTIME_DLLS loop above -- see the ABI
+  # matching rationale in the RYZENAI_ROOT detection comment above).
+  if(WIN32 AND RYZENAI_ROOT AND IS_DIRECTORY "${RYZENAI_ROOT}")
+    file(GLOB _ryzenai_voe_dirs "${RYZENAI_ROOT}/voe-*-win_amd64")
+    set(_ryzenai_vaip_config "")
+    set(_ryzenai_xclbins_dir "")
+    if(_ryzenai_voe_dirs)
+      list(SORT _ryzenai_voe_dirs COMPARE NATURAL ORDER DESCENDING)
+      list(GET _ryzenai_voe_dirs 0 _ryzenai_voe_dir)
+      if(EXISTS "${_ryzenai_voe_dir}/vaip_config.json")
+        set(_ryzenai_vaip_config "${_ryzenai_voe_dir}/vaip_config.json")
+      endif()
+      if(IS_DIRECTORY "${_ryzenai_voe_dir}/xclbins")
+        set(_ryzenai_xclbins_dir "${_ryzenai_voe_dir}/xclbins")
+      endif()
+    endif()
+
+    if(_ryzenai_vaip_config)
+      message(STATUS "VitisAI: found Ryzen AI installation at ${RYZENAI_ROOT}, vaip_config.json = ${_ryzenai_vaip_config}")
+      # Baked in only as a fallback default (see ComputeContext's vitisaiConfigFile init in
+      # onnxbackend.cpp); always overridable at runtime via the onnxVitisAIConfigFile config key,
+      # so copying the exe to a machine with a different Ryzen AI install layout doesn't break --
+      # it just requires setting that key.
+      target_compile_definitions(katago PRIVATE "KATAGO_VITISAI_DEFAULT_CONFIG_FILE=\"${_ryzenai_vaip_config}\"")
+
+      add_custom_command(TARGET katago POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${_ryzenai_vaip_config}" $<TARGET_FILE_DIR:katago>
+      )
+      if(_ryzenai_xclbins_dir)
+        add_custom_command(TARGET katago POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${_ryzenai_xclbins_dir}" $<TARGET_FILE_DIR:katago>/xclbins
+        )
+      endif()
+
+      # XRT (NPU device driver userspace lib). Not ORT/VitisAI-EP-versioned, so no ABI concern
+      # sourcing this from RYZENAI_ROOT/xrt regardless of where ONNXRUNTIME_ROOT points.
+      if(EXISTS "${RYZENAI_ROOT}/xrt/xrt_coreutil.dll")
+        add_custom_command(TARGET katago POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${RYZENAI_ROOT}/xrt/xrt_coreutil.dll" $<TARGET_FILE_DIR:katago>
+        )
+      endif()
+
+      # Remaining VitisAI deployment DLLs that RYZENAI_ROOT/onnxruntime/bin does not ship (as of
+      # SDK 1.7.1: flexmlrt.dll, onnx_custom_ops.dll, ryzen_mm.dll, ryzenai_onnx_utils.dll). Prefer
+      # them from RYZENAI_ROOT/onnxruntime/bin first in case a future SDK version adds them there
+      # (keeping the whole set ABI-matched), falling back to RYZENAI_ROOT/deployment otherwise --
+      # these four are lower-level utility/custom-op libraries outside the tightly-coupled
+      # onnxruntime.dll <-> onnxruntime_providers_vitisai.dll <-> onnxruntime_vitisai_ep.dll <->
+      # vaiml.dll chain, so sourcing them from deployment/ alongside an onnxruntime/bin-derived
+      # ONNXRUNTIME_ROOT is not expected to reintroduce the ABI mismatch that motivated this change.
+      set(_ryzenai_extra_dlls
+        flexmlrt.dll
+        onnx_custom_ops.dll
+        ryzen_mm.dll
+        ryzenai_onnx_utils.dll
+      )
+      foreach(_ryzenai_dll_name IN LISTS _ryzenai_extra_dlls)
+        set(_ryzenai_dll_src "")
+        if(EXISTS "${RYZENAI_ROOT}/onnxruntime/bin/${_ryzenai_dll_name}")
+          set(_ryzenai_dll_src "${RYZENAI_ROOT}/onnxruntime/bin/${_ryzenai_dll_name}")
+        elseif(EXISTS "${RYZENAI_ROOT}/deployment/${_ryzenai_dll_name}")
+          set(_ryzenai_dll_src "${RYZENAI_ROOT}/deployment/${_ryzenai_dll_name}")
+        endif()
+        if(_ryzenai_dll_src)
+          add_custom_command(TARGET katago POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              "${_ryzenai_dll_src}" $<TARGET_FILE_DIR:katago>
+          )
+        endif()
+      endforeach()
+    else()
+      message(STATUS "VitisAI: Ryzen AI installation found at ${RYZENAI_ROOT} but no voe-*-win_amd64/vaip_config.json inside it -- onnxProvider=vitisai will require onnxVitisAIConfigFile to be set manually in your config")
+    endif()
+  elseif(WIN32)
+    message(STATUS "VitisAI: no Ryzen AI / VitisAI SDK installation auto-detected (set -DRYZENAI_ROOT=... to override) -- onnxProvider=vitisai will require onnxVitisAIConfigFile to be set manually in your config")
+  endif()
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
   # Allow EIGEN3_INCLUDE_DIRS as a manual override (for users who downloaded
@@ -803,7 +965,8 @@ if(KATAGO_AUTO_FETCH_DEPS)
     if(EXISTS "${_katago_vcpkg_installed_root}/include/zlib.h")
       set(ZLIB_INCLUDE_DIR "${_katago_vcpkg_installed_root}/include" CACHE PATH "Path to directory with zlib.h and other header files" FORCE)
     endif()
-    find_library(_katago_zlib_lib NAMES zlib z HINTS "${_katago_vcpkg_installed_root}/lib" "${_katago_vcpkg_installed_root}/debug/lib" NO_DEFAULT_PATH)
+    # "zs" is vcpkg's name for the static zlib lib (as opposed to "zlib"/"z" for the DLL import lib).
+    find_library(_katago_zlib_lib NAMES zlib z zs HINTS "${_katago_vcpkg_installed_root}/lib" "${_katago_vcpkg_installed_root}/debug/lib" NO_DEFAULT_PATH)
     if(_katago_zlib_lib)
       set(ZLIB_LIBRARY "${_katago_zlib_lib}" CACHE FILEPATH "Path to 'libz.so' on Linux or 'libz.lib' on Windows" FORCE)
     endif()
@@ -821,15 +984,45 @@ else()
   message(SEND_ERROR "${ColorBoldRed}zlib was not found, if zlib is actually installed but not being found you can set ZLIB_INCLUDE_DIR to the directory with zlib.h and other headers, and ZLIB_LIBRARY to the compiled library 'libz.so' on Linux or 'libz.lib' on Windows. On the command line, this is -DZLIB_INCLUDE_DIR=... and -DZLIB_LIBRARY=... ${ColorReset}")
 endif(ZLIB_FOUND)
 
+if(KATAGO_AUTO_FETCH_DEPS)
+  set(_need_libzip_deps FALSE)
+  if((NOT LIBZIP_LIBRARY) OR (NOT LIBZIP_INCLUDE_DIR_ZIP) OR (NOT LIBZIP_INCLUDE_DIR_ZIPCONF))
+    set(_need_libzip_deps TRUE)
+  endif()
+  if(_need_libzip_deps)
+    # libzip's vcpkg port pulls in bzip2 as a dependency (needed for the BZip2 compression
+    # method); since we link against the raw .lib below rather than via vcpkg's CMake config
+    # (which would propagate transitive link deps automatically), bz2 must also be located
+    # and linked explicitly, or the final link fails with unresolved BZ2_bz* symbols.
+    katago_vcpkg_install_if_needed("libzip")
+    set(_katago_vcpkg_installed_root "${KATAGO_VCPKG_ROOT}/installed/${KATAGO_VCPKG_TRIPLET}")
+    if(EXISTS "${_katago_vcpkg_installed_root}/include/zip.h")
+      set(LIBZIP_INCLUDE_DIR_ZIP "${_katago_vcpkg_installed_root}/include" CACHE PATH "Path to directory with zip.h and other header files" FORCE)
+    endif()
+    if(EXISTS "${_katago_vcpkg_installed_root}/include/zipconf.h")
+      set(LIBZIP_INCLUDE_DIR_ZIPCONF "${_katago_vcpkg_installed_root}/include" CACHE PATH "Path to directory with zipconf.h and other header files" FORCE)
+    endif()
+    find_library(_katago_libzip_lib NAMES zip HINTS "${_katago_vcpkg_installed_root}/lib" "${_katago_vcpkg_installed_root}/debug/lib" NO_DEFAULT_PATH)
+    find_library(_katago_bz2_lib NAMES bz2 HINTS "${_katago_vcpkg_installed_root}/lib" "${_katago_vcpkg_installed_root}/debug/lib" NO_DEFAULT_PATH)
+    if(_katago_libzip_lib)
+      if(_katago_bz2_lib)
+        set(LIBZIP_LIBRARY "${_katago_libzip_lib};${_katago_bz2_lib}" CACHE FILEPATH "Path to 'libzip.so' on Linux or 'libzip.lib' or 'zip.lib' on Windows" FORCE)
+      else()
+        set(LIBZIP_LIBRARY "${_katago_libzip_lib}" CACHE FILEPATH "Path to 'libzip.so' on Linux or 'libzip.lib' or 'zip.lib' on Windows" FORCE)
+      endif()
+    endif()
+  endif()
+endif()
+
 find_library(LIBZIP_LIBRARY NAMES zip)
 find_path(LIBZIP_INCLUDE_DIR_ZIP NAMES zip.h)
 find_path(LIBZIP_INCLUDE_DIR_ZIPCONF NAMES zipconf.h)
 if((NOT LIBZIP_LIBRARY) OR (NOT LIBZIP_INCLUDE_DIR_ZIP) OR (NOT LIBZIP_INCLUDE_DIR_ZIPCONF))
   if(BUILD_DISTRIBUTED)
-    message(SEND_ERROR "${ColorBoldRed}WARNING: BUILD_DISTRIBUTED was requested but libzip library was NOT found. KataGo needs this for writing training data so libzip is required. On Linux, install through your normal package manager. On Windows, set LIBZIP_INCLUDE_DIR_ZIP to the directory that includes zip.h and other files, and LIBZIP_INCLUDE_DIR_ZIPCONF to the directory that includes zipconf.h and other files, and LIBZIP_LIBRARY to the libzip.lib or zip.lib file. ${ColorReset}")
+    message(SEND_ERROR "${ColorBoldRed}WARNING: BUILD_DISTRIBUTED was requested but libzip library was NOT found. KataGo needs this for writing training data so libzip is required. On Linux, install through your normal package manager. On Windows, set LIBZIP_INCLUDE_DIR_ZIP to the directory that includes zip.h and other files, and LIBZIP_INCLUDE_DIR_ZIPCONF to the directory that includes zipconf.h and other files, and LIBZIP_LIBRARY to the libzip.lib or zip.lib file, or enable KATAGO_AUTO_FETCH_DEPS=ON to auto-install via vcpkg. ${ColorReset}")
   endif()
   target_compile_definitions(katago PRIVATE NO_LIBZIP)
-  message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible.${ColorReset}")
+  message(WARNING "${ColorBoldRed}WARNING: libzip library was NOT found. KataGo should still work for GTP/matches/analysis if everything else is good, but selfplay for writing training data will not be possible. Enable KATAGO_AUTO_FETCH_DEPS=ON to auto-install libzip via vcpkg.${ColorReset}")
   set(LIBZIP_INCLUDE_DIR_ZIP ${LIBZIP_INCLUDE_DIR_ZIP} CACHE PATH "Path to directory with zip.h and other header files")
   set(LIBZIP_INCLUDE_DIR_ZIPCONF ${LIBZIP_INCLUDE_DIR_ZIPCONF} CACHE PATH "Path to directory with zipconf.h and other header files")
   set(LIBZIP_LIBRARY ${LIBZIP_LIBRARY} CACHE FILEPATH "Path to 'libzip.so' on Linux or 'libzip.lib' or 'zip.lib' on Windows")
