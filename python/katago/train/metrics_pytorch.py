@@ -2,6 +2,7 @@ from typing import Any, Dict, List
 import math
 
 from ..train.model_pytorch import EXTRA_SCORE_DISTR_RADIUS, Model, compute_gain, ExtraOutputs, MetadataEncoder
+from ..train.trainloop_helpers import env_flag
 
 import torch
 import torch.nn
@@ -36,20 +37,43 @@ class Metrics:
         self.scoremean_multiplier = raw_model.scoremean_multiplier
 
         self.score_belief_offset_vector = raw_model.value_head.score_belief_offset_vector
-        self.moving_unowned_proportion_sum = 0.0
-        self.moving_unowned_proportion_weight = 0.0
+        # Keeping the seki moving average on the model device avoids a per-batch
+        # GPU->CPU sync in the training loss and lets the loss be torch.compiled.
+        self.seki_ema_on_device = env_flag("KATAGO_SEKI_EMA_ON_DEVICE", default=True)
+        if self.seki_ema_on_device:
+            metric_device = self.score_belief_offset_vector.device
+            self.moving_unowned_proportion_sum = torch.zeros([], device=metric_device, dtype=torch.float32)
+            self.moving_unowned_proportion_weight = torch.zeros([], device=metric_device, dtype=torch.float32)
+        else:
+            self.moving_unowned_proportion_sum = 0.0
+            self.moving_unowned_proportion_weight = 0.0
 
     def state_dict(self):
+        # Checkpoints always store plain floats regardless of where the moving
+        # average lives at runtime.
+        moving_sum = self.moving_unowned_proportion_sum
+        moving_weight = self.moving_unowned_proportion_weight
+        if isinstance(moving_sum, torch.Tensor):
+            moving_sum = moving_sum.item()
+        if isinstance(moving_weight, torch.Tensor):
+            moving_weight = moving_weight.item()
         return dict(
-            moving_unowned_proportion_sum = self.moving_unowned_proportion_sum,
-            moving_unowned_proportion_weight = self.moving_unowned_proportion_weight,
+            moving_unowned_proportion_sum = moving_sum,
+            moving_unowned_proportion_weight = moving_weight,
         )
     def load_state_dict(self, state_dict: Dict[str,Any]):
-        if isinstance(state_dict["moving_unowned_proportion_sum"],torch.Tensor):
-            self.moving_unowned_proportion_sum = state_dict["moving_unowned_proportion_sum"].item()
+        moving_sum = state_dict["moving_unowned_proportion_sum"]
+        moving_weight = state_dict["moving_unowned_proportion_weight"]
+        if isinstance(moving_sum, torch.Tensor):
+            moving_sum = moving_sum.item()
+        if isinstance(moving_weight, torch.Tensor):
+            moving_weight = moving_weight.item()
+        if self.seki_ema_on_device:
+            self.moving_unowned_proportion_sum.fill_(moving_sum)
+            self.moving_unowned_proportion_weight.fill_(moving_weight)
         else:
-            self.moving_unowned_proportion_sum = state_dict["moving_unowned_proportion_sum"]
-        self.moving_unowned_proportion_weight = state_dict["moving_unowned_proportion_weight"]
+            self.moving_unowned_proportion_sum = moving_sum
+            self.moving_unowned_proportion_weight = moving_weight
 
     def loss_policy_player_samplewise(self, pred_logits, target_probs, weight, global_weight):
         assert pred_logits.shape[1:] == (self.policy_len,)
@@ -185,10 +209,15 @@ class Metrics:
         unowned_proportion = torch.mean(unowned_proportion * weight)
         if is_training:
             if not skip_moving_update:
-                self.moving_unowned_proportion_sum *= 0.998
-                self.moving_unowned_proportion_weight *= 0.998
-                self.moving_unowned_proportion_sum += unowned_proportion.item()
-                self.moving_unowned_proportion_weight += 1.0
+                if self.seki_ema_on_device:
+                    with torch.no_grad():
+                        self.moving_unowned_proportion_sum.mul_(0.998).add_(unowned_proportion.detach())
+                        self.moving_unowned_proportion_weight.mul_(0.998).add_(1.0)
+                else:
+                    self.moving_unowned_proportion_sum *= 0.998
+                    self.moving_unowned_proportion_weight *= 0.998
+                    self.moving_unowned_proportion_sum += unowned_proportion.item()
+                    self.moving_unowned_proportion_weight += 1.0
             moving_unowned_proportion = self.moving_unowned_proportion_sum / self.moving_unowned_proportion_weight
             seki_weight_scale = 8.0 * 0.005 / (0.005 + moving_unowned_proportion)
         else:
@@ -321,6 +350,12 @@ class Metrics:
 
         return norms
 
+    @staticmethod
+    def get_model_norm_metrics(raw_model):
+        """Model norm metrics in the naming used by the training metrics dict."""
+        norms = Metrics.get_model_norms(raw_model)
+        return {f"norm_{group_name}_batch": value for group_name, value in norms.items()}
+
     def get_specific_norms_and_gradient_stats(self,raw_model):
         with torch.no_grad():
             params = {}
@@ -403,6 +438,7 @@ class Metrics:
         variance_time_loss_scale,
         main_loss_scale,
         intermediate_loss_scale,
+        include_model_norms=True,
     ):
         results = self.metrics_dict_batchwise_single_heads_output(
             raw_model,
@@ -417,6 +453,7 @@ class Metrics:
             seki_loss_scale=seki_loss_scale,
             variance_time_loss_scale=variance_time_loss_scale,
             is_intermediate=False,
+            include_model_norms=include_model_norms,
         )
         if main_loss_scale is not None:
             results["loss_sum"] = main_loss_scale * results["loss_sum"]
@@ -449,6 +486,12 @@ class Metrics:
                         results["I"+key] = value
                 results["loss_sum"] = results["loss_sum"] + intermediate_loss_scale * iresults["loss_sum"]
 
+        # Only the aggregate loss participates in backward. Keeping every
+        # logging component attached makes autograd treat dozens of metrics
+        # as differentiable outputs and retain their graphs until logging.
+        for key, value in results.items():
+            if key != "loss_sum" and isinstance(value, torch.Tensor):
+                results[key] = value.detach()
         return results
 
     def metrics_dict_batchwise_single_heads_output(
@@ -465,6 +508,7 @@ class Metrics:
         seki_loss_scale,
         variance_time_loss_scale,
         is_intermediate,
+        include_model_norms=True,
     ):
         (
             policy_logits,
@@ -894,8 +938,6 @@ class Metrics:
                 global_weight,
             )
 
-            norms = self.get_model_norms(raw_model)
-
             extra_results = {
                 "wsum": weight * self.world_size,
                 "nsamp": nsamples * self.world_size,
@@ -904,8 +946,8 @@ class Metrics:
                 "sekiweightscale_sum": seki_weight_scale * weight,
             }
 
-            for group_name in norms:
-                extra_results[f"norm_{group_name}_batch"] = norms[group_name]
+            if include_model_norms:
+                extra_results.update(self.get_model_norm_metrics(raw_model))
 
             for key,value in extra_results.items():
                 results[key] = value

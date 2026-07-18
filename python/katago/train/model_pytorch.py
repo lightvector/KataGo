@@ -15,6 +15,13 @@ from typing import Any, List, Dict, Optional, Set
 from torch.amp import autocast
 
 from ..train import modelconfigs
+from ..train.trainloop_helpers import env_flag
+
+# Under AMP, cast the small cos/sin rotation tables to the input dtype before the
+# batch-sized Q/K rotation, instead of promoting the batch-sized rotation
+# intermediates to FP32. The trigonometric functions themselves remain FP32.
+# Set the environment variable to 0 for a full-FP32 rotation regression comparison.
+LEARNED_ROPE_CAST_TO_INPUT_DTYPE = env_flag("KATAGO_LEARNED_ROPE_CAST_TO_INPUT_DTYPE", default=True)
 
 EXTRA_SCORE_DISTR_RADIUS = 60
 
@@ -282,6 +289,10 @@ class NormMask(torch.nn.Module):
         self.running_avg_momentum = config["bnorm_running_avg_momentum"]
         self.fixup_use_gamma = fixup_use_gamma
         self.is_last_batchnorm = is_last_batchnorm
+        # May be set to True externally (see Model transformer_skip_redundant_masks)
+        # when everything downstream of this norm is sound without zeroing
+        # off-board values. Not a checkpointed quantity.
+        self.skip_mask = False
         self.gamma_weight_decay_center_1 = config.get("gamma_weight_decay_center_1",False)
         self.use_gamma = (
             ("bnorm_use_gamma" in config and config["bnorm_use_gamma"]) or
@@ -381,22 +392,35 @@ class NormMask(torch.nn.Module):
         return zeromean_x, mean, std
 
     def apply_gamma_beta_scale_mask(self, x, mask):
-        if self.scale is not None:
-            if self.gamma is not None:
-                if self.gamma_weight_decay_center_1:
-                    return (x * ((self.gamma+1.0) * self.scale) + self.beta) * mask
-                else:
-                    return (x * (self.gamma * self.scale) + self.beta) * mask
-            else:
-                return (x * self.scale + self.beta) * mask
+        # x is either NCHW (params broadcast as (1,C,1,1))
+        # or NSC (params broadcast as (1,1,C))
+        # mask matches correspondingly.
+        if x.dim() == 3:
+            beta = self.beta.reshape(1, 1, -1)
+            gamma = self.gamma.reshape(1, 1, -1) if self.gamma is not None else None
         else:
-            if self.gamma is not None:
+            beta = self.beta
+            gamma = self.gamma
+
+        if self.scale is not None:
+            if gamma is not None:
                 if self.gamma_weight_decay_center_1:
-                    return (x * (self.gamma+1.0) + self.beta) * mask
+                    out = x * ((gamma+1.0) * self.scale) + beta
                 else:
-                    return (x * self.gamma + self.beta) * mask
+                    out = x * (gamma * self.scale) + beta
             else:
-                return (x + self.beta) * mask
+                out = x * self.scale + beta
+        else:
+            if gamma is not None:
+                if self.gamma_weight_decay_center_1:
+                    out = x * (gamma+1.0) + beta
+                else:
+                    out = x * gamma + beta
+            else:
+                out = x + beta
+        if self.skip_mask:
+            return out
+        return out * mask
 
 
     def forward(self, x, mask, mask_sum_hw, mask_sum: float):
@@ -661,19 +685,24 @@ class NormActConv(torch.nn.Module):
     def forward(self, x, mask, mask_sum_hw, mask_sum: float, extra_outputs: Optional[ExtraOutputs], block_shared_data: Optional[Dict[str, Any]] = None):
         """
         Parameters:
-        x: NCHW
-        mask: N1HW
+        x: NCHW, with mask N1HW, or NSC sequence layout (1x1 conv only), with mask NS1
         mask_sum_hw: N111
         mask_sum: scalar
 
-        Returns: NCHW
+        Returns: same layout as x
         """
         out = x
         out = self.norm(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
         out = self.act(out)
         # print("TENSOR AFTER NORMACT")
         # print(out)
-        if self.convpool is not None:
+        if x.dim() == 3:
+            # Sequence layout: a 1x1 convolution is a linear map over channels.
+            assert self.convpool is None and self.conv1x1 is None
+            weight = self.conv.weight
+            assert weight.shape[2] == 1 and weight.shape[3] == 1
+            out = torch.nn.functional.linear(out, weight.reshape(weight.shape[0], weight.shape[1]))
+        elif self.convpool is not None:
             out = self.convpool(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=extra_outputs)
         else:
             if self.conv1x1 is not None:
@@ -1286,6 +1315,9 @@ def apply_learnable_rotary_emb(xq, xk, cos_q, sin_q, cos_k, sin_k):
         if cos.dim() == 3:
             cos = cos.unsqueeze(0)  # (1, S, H, P)
             sin = sin.unsqueeze(0)
+        if LEARNED_ROPE_CAST_TO_INPUT_DTYPE:
+            cos = cos.to(dtype=x.dtype)
+            sin = sin.to(dtype=x.dtype)
         out = torch.stack([x0 * cos - x1 * sin, x0 * sin + x1 * cos], dim=-1)
         return out.reshape(B, S, H, D).type_as(x)
 
@@ -1317,6 +1349,39 @@ def compute_gab_fourier_features(dr, dc, freqs):
 GAB_TEMPLATES = "gab_templates"
 TAB_KQ = "tab_kq"
 REGISTER_STATE = "register_state"
+FLEX_BLOCK_MASK = "flex_block_mask"
+
+
+_flex_attention_compiled = None
+
+def get_flex_attention_fn():
+    """flex_attention, compiled on first use. When called inside an outer
+    torch.compile region, dynamo traces through to the flex_attention HOP.
+    In eager mode the compiled wrapper avoids flex's slow decomposed fallback."""
+    global _flex_attention_compiled
+    if _flex_attention_compiled is None:
+        from torch.nn.attention.flex_attention import flex_attention
+        _flex_attention_compiled = torch.compile(flex_attention, dynamic=False)
+    return _flex_attention_compiled
+
+
+def build_flex_attention_block_mask(mask):
+    """Build a flex-attention BlockMask for the board key-padding mask.
+
+    mask: N1HW (or N11S) float 0/1 mask. The result is shared by every
+    attention layer in the forward pass. Only key positions are masked.
+    Off-board query rows produce garbage exactly like the additive-mask path.
+    """
+    from torch.nn.attention.flex_attention import create_block_mask
+    batch_size = mask.shape[0]
+    seq_len = mask.numel() // batch_size
+    mask_bs = mask.reshape(batch_size, seq_len) > 0.5
+
+    def mask_mod(b, h, q_idx, kv_idx):
+        return mask_bs[b, kv_idx]
+
+    return create_block_mask(mask_mod, batch_size, None, seq_len, seq_len, device=mask.device)
+
 
 @dataclass
 class RegisterState:
@@ -2188,10 +2253,17 @@ class TransformerAttentionBlock(torch.nn.Module):
         mask_sum: scalar
 
         Returns: NCHW or NC1S (residual only, caller is responsible for adding to trunk)
+
+        Alternatively accepts NSC sequence layout (with mask NS1) and returns NSC.
         """
-        batch_size, channels, height, width = x.shape
-        seq_len = height * width
-        x_in = x.view(batch_size, channels, -1).permute(0, 2, 1)
+        input_was_seq = x.dim() == 3
+        if input_was_seq:
+            batch_size, seq_len, channels = x.shape
+            x_in = x
+        else:
+            batch_size, channels, height, width = x.shape
+            seq_len = height * width
+            x_in = x.view(batch_size, channels, -1).permute(0, 2, 1)
 
         x_norm = self.norm1(x_in)
 
@@ -2249,10 +2321,28 @@ class TransformerAttentionBlock(torch.nn.Module):
         if self.use_gab or self.use_tab:
             template_bias, extra_kq = self._compute_gab_bias(x_norm, mask, mask_sum_hw, block_shared_data)
 
-        if mask is not None:
+        # If attention weights are requested, force the manual path so we can capture them.
+        wants_attn_weights = (
+            extra_outputs is not None
+            and self.name+".attn_weights" in extra_outputs.requested
+        )
+
+        # A shared flex-attention block mask (see build_flex_attention_block_mask)
+        # replaces the additive -inf mask when no extra bias terms are involved.
+        flex_block_mask = None
+        if (
+            block_shared_data is not None
+            and FLEX_BLOCK_MASK in block_shared_data
+            and template_bias is None
+            and extra_kq is None
+            and not wants_attn_weights
+        ):
+            flex_block_mask = block_shared_data[FLEX_BLOCK_MASK]
+
+        if mask is not None and flex_block_mask is None:
             # For inline registers, mask is N11S and already includes register positions
-            # (always 1.0), so seq_len already covers them.
-            mask_flat = mask.view(batch_size, 1, 1, seq_len)
+            # (always 1.0), so seq_len already covers them. For sequence layout, mask is NS1.
+            mask_flat = mask.reshape(batch_size, 1, 1, seq_len)
             attn_mask = torch.zeros_like(mask_flat, dtype=q.dtype)
             attn_mask.masked_fill_(mask_flat == 0, float('-inf'))
         else:
@@ -2282,13 +2372,13 @@ class TransformerAttentionBlock(torch.nn.Module):
             k = torch.cat([k, extra_k], dim=-1)  # (B, H, S, d_head + D_extra)
             # v stays (B, H, S, d_head), scaled_dot_product_attention supports differing channels for v than q/k
 
-        # If attention weights are requested, force the manual path so we can capture them.
-        wants_attn_weights = (
-            extra_outputs is not None
-            and self.name+".attn_weights" in extra_outputs.requested
-        )
-
-        if not wants_attn_weights:
+        if flex_block_mask is not None:
+            attn_output = get_flex_attention_fn()(
+                q, k, v,
+                block_mask=flex_block_mask,
+                scale=scale,
+            )
+        elif not wants_attn_weights:
             attn_output = torch.nn.functional.scaled_dot_product_attention(
                 q, k, v,
                 attn_mask=attn_mask,
@@ -2313,7 +2403,10 @@ class TransformerAttentionBlock(torch.nn.Module):
         attn_output = attn_output.view(batch_size, seq_len, self.num_heads * self.v_head_dim)
         attn_output = self.out_proj(attn_output)
 
-        result = attn_output.permute(0, 2, 1).view(batch_size, channels, height, width)
+        if input_was_seq:
+            result = attn_output
+        else:
+            result = attn_output.permute(0, 2, 1).view(batch_size, channels, height, width)
         if extra_outputs is not None:
             extra_outputs.report(self.name+".out", result)
         return result
@@ -2388,10 +2481,17 @@ class TransformerFFNBlock(torch.nn.Module):
         mask_sum: scalar
 
         Returns: NCHW (residual only, caller is responsible for adding to trunk)
+
+        Alternatively accepts NSC sequence layout and returns NSC.
         """
-        batch_size, channels, height, width = x.shape
-        seq_len = height * width
-        x_in = x.view(batch_size, channels, -1).permute(0, 2, 1)
+        input_was_seq = x.dim() == 3
+        if input_was_seq:
+            batch_size, seq_len, channels = x.shape
+            assert not self.use_depthwise_conv, "Sequence layout does not support depthwise conv in FFN"
+        else:
+            batch_size, channels, height, width = x.shape
+            seq_len = height * width
+        x_in = x if input_was_seq else x.view(batch_size, channels, -1).permute(0, 2, 1)
 
         xn = self.norm(x_in)
 
@@ -2410,7 +2510,10 @@ class TransformerFFNBlock(torch.nn.Module):
             x1 = x1_spatial.view(batch_size, self.ffn_dim, -1).permute(0, 2, 1)
         x1 = self.ffn_linear2(x1)
 
-        result = x1.permute(0, 2, 1).view(batch_size, channels, height, width)
+        if input_was_seq:
+            result = x1
+        else:
+            result = x1.permute(0, 2, 1).view(batch_size, channels, height, width)
 
         if extra_outputs is not None:
             extra_outputs.report(self.name+".out", result)
@@ -2803,6 +2906,18 @@ def _block_kind_uses_tab(block_kind: str) -> bool:
     if base not in _BLOCK_KIND_FLAGS:
         raise NotImplementedError(f"Unknown block kind {block_kind!r}, add it to _BLOCK_KIND_FLAGS")
     return _BLOCK_KIND_FLAGS[base][1]
+
+
+# Block kinds whose trunk computation involves only 1x1 convolutions plus
+# attention/FFN sublayers, so the trunk can run in NSC sequence layout and
+# per-block mask multiplications are skippable (see Model.__init__).
+_TRANSFORMER_SEQ_LAYOUT_KINDS = frozenset([
+    "attnrope",
+    "ffnsg",
+    "bottlenest2transformerrope",
+    "bottlenest2transformerropesg",
+    "bottlenest3transformerropesg",
+])
 
 
 class Model(torch.nn.Module):
@@ -3200,6 +3315,47 @@ class Model(torch.nn.Module):
             self.rw_reg_readout_act = act(self.activation, inplace=False)
             self.rw_reg_readout_proj2 = torch.nn.Linear(self.c_trunk, self.c_trunk, bias=False)
 
+        # Optional optimizations for pure transformer trunks where every
+        # block is built from 1x1 convolutions plus attention/FFN sublayers:
+        #
+        # - transformer_seq_layout ("NHWC"): keep the whole trunk in NSC sequence layout
+        #   so each attention/FFN sublayer avoids a pair of NCHW <-> NSC transposes.
+        #   The trunk converts to NSC once after the input conv and back to NCHW before trunk-final norm.
+        # - transformer_skip_redundant_masks: skip the off-board mask multiply in
+        #   each transformer bottleneck's p/q NormMask.
+        #   Sound because attention already excludes off-board keys via its own attention mask,
+        #   every other trunk op is pointwise across positions (1x1 convs, RMSNorms, FFN linears),
+        #   and the trunk-final norms compute masked statistics and re-mask their output before any head
+        #   or pooling reads the trunk.
+        #   Off-board trunk values become nonzero garbage, which is fine.
+        #
+        # Neither changes any parameter or on-board output. Both can be toggled freely for an existing checkpoint.
+        trunk_is_plain_transformer = (
+            all(bk[1] in _TRANSFORMER_SEQ_LAYOUT_KINDS for bk in self.block_kind)
+            and not self.use_trunk_channel_gate
+            and not self.use_trunk_residual_backout
+            and not self.use_rw_registers
+        )
+        self.transformer_seq_layout = (
+            env_flag("KATAGO_TRANSFORMER_NHWC", default=True) and trunk_is_plain_transformer
+        )
+        self.transformer_skip_redundant_masks = (
+            env_flag("KATAGO_TRANSFORMER_SKIP_REDUNDANT_MASKS", default=True)
+            and trunk_is_plain_transformer
+            and not config.get("transformer_ffn_depthwise_conv", False)
+        )
+        if self.transformer_skip_redundant_masks:
+            for block in self.blocks:
+                if isinstance(block, NestedBottleneckTransformerBlock):
+                    block.normactconvp.norm.skip_mask = True
+                    block.normactconvq.norm.skip_mask = True
+        # Flex-attention with a block mask built once per forward, instead of the
+        # additive -inf attention bias whose handling roughly doubles the cost of
+        # the mem-efficient SDPA backend. Same masking semantics (keys only).
+        self.use_flex_attention = (
+            env_flag("KATAGO_FLEX_ATTENTION", default=True) and trunk_is_plain_transformer
+        )
+
         if self.trunk_final_rmsnorm:
             spatial = config.get("trunk_rmsnorm_spatial", False)
             cgroup_size = config.get("rmsnorm_spatial_cgroup_size", None) if spatial else None
@@ -3477,6 +3633,8 @@ class Model(torch.nn.Module):
         if self.tab_module is not None:
             tab_keys, tab_queries = self.tab_module(out, mask)
             block_shared_data[TAB_KQ] = TABKeyQueryData(keys=tab_keys, queries=tab_queries)
+        if self.use_flex_attention:
+            block_shared_data[FLEX_BLOCK_MASK] = build_flex_attention_block_mask(mask)
         if self.use_rw_registers:
             # Compute board geometry from mask for register tokens.
             # mask: (B, 1, H, W)
@@ -3543,6 +3701,17 @@ class Model(torch.nn.Module):
         else:
             backout = None
 
+        # For pure transformer trunks, optionally run the whole trunk in NSC
+        # sequence layout, converting once here and once before the final norm.
+        seq_layout = self.transformer_seq_layout
+        if seq_layout:
+            seq_B, seq_C, seq_H, seq_W = out.shape
+            # Learnable RoPE position arithmetic inside blocks assumes the full
+            # pos_len x pos_len grid.
+            assert seq_H == self.pos_len and seq_W == self.pos_len
+            out = out.view(seq_B, seq_C, seq_H * seq_W).transpose(1, 2).contiguous()
+            mask = mask.view(seq_B, seq_H * seq_W, 1)
+
         if self.has_intermediate_head:
             count = 0
             for i, block in enumerate(self.blocks[:self.intermediate_head_blocks]):
@@ -3563,7 +3732,10 @@ class Model(torch.nn.Module):
                 count += 1
 
             iout = out
-            if self.inline_registers and self.use_rw_registers:
+            if seq_layout:
+                # Restore NCHW for the intermediate head. The trunk itself stays NSC.
+                iout = out.transpose(1, 2).reshape(out.shape[0], self.c_trunk, orig_H, orig_W)
+            elif self.inline_registers and self.use_rw_registers:
                 # Split off registers and restore NCHW for intermediate head
                 board_hw = orig_H * orig_W
                 iout = iout[:, :, :, :board_hw].view(iout.shape[0], self.c_trunk, orig_H, orig_W)
@@ -3659,6 +3831,9 @@ class Model(torch.nn.Module):
             # Restore to NCHW and add readout
             out = out_board.view(out.shape[0], self.c_trunk, orig_H, orig_W)
             out = out + rw_readout.unsqueeze(-1).unsqueeze(-1)  # broadcast to NCHW
+
+        if seq_layout:
+            out = out.transpose(1, 2).reshape(out.shape[0], self.c_trunk, orig_H, orig_W)
 
         # Use original mask for final norm and heads (NCHW format)
         out = self.norm_trunkfinal(out, mask=orig_mask, mask_sum_hw=orig_mask_sum_hw, mask_sum=orig_mask_sum)
