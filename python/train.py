@@ -44,6 +44,7 @@ from katago.train.metrics_pytorch import Metrics
 from katago.utils.training_data_generator import TrainingDataGenerator
 from katago.train import load_model
 from katago.train import data_processing_pytorch
+from katago.train import trainloop_helpers
 from katago.train.metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
@@ -107,7 +108,8 @@ if __name__ == "__main__":
     optional_args.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon/normuon/aurora', required=False, action='store_true')
 
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
-    optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
+    optional_args.add_argument('-use-fp16', help='Use fp16 AMP training (with gradient scaler)', required=False, action='store_true')
+    optional_args.add_argument('-use-bf16', help='Use bf16 AMP training (no gradient scaler). Mutually exclusive with -use-fp16', required=False, action='store_true')
     optional_args.add_argument('-no-compile', help='Do not torch.compile', required=False, action='store_true')
     optional_args.add_argument('-use-tf32-matmul', help='Reduce float32 precision for speed on some gpus', required=False, action='store_true')
 
@@ -368,6 +370,11 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             raise ValueError("-use-polar-express can only be used with muon or normuon or aurora optimizer")
     optimizer_name = "Aurora" if use_aurora else "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
     use_fp16 = args["use_fp16"]
+    use_bf16 = args["use_bf16"]
+    if use_fp16 and use_bf16:
+        raise ValueError("-use-fp16 and -use-bf16 are mutually exclusive")
+    use_amp = use_fp16 or use_bf16
+    amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
     no_compile = args["no_compile"]
     use_tf32_matmul = args["use_tf32_matmul"]
 
@@ -563,14 +570,24 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
     NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
-    def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=None):
+    def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=None, skip_optimizer=False):
         if gnorm_stats_debug:
             logging.warning("Skipping save since debugging gnorm stats")
             return
+        optimizer_state_dict = None
+        if not skip_optimizer:
+            if hasattr(optimizer, "state_dict_for_checkpoint"):
+                # Collective: gathers the Muon states sharded across DDP ranks,
+                # so when skip_optimizer is False, every rank must call save()
+                # at the same point. Returns None on nonzero ranks.
+                optimizer_state_dict = optimizer.state_dict_for_checkpoint()
+            elif rank == 0:
+                optimizer_state_dict = optimizer.state_dict()
         if rank == 0:
             state_dict = {}
             state_dict["model"] = ddp_model.state_dict()
-            state_dict["optimizer"] = optimizer.state_dict()
+            if optimizer_state_dict is not None:
+                state_dict["optimizer"] = optimizer_state_dict
             state_dict["metrics"] = metrics_obj.state_dict()
             state_dict["running_metrics"] = {
                 k: dict(v) if isinstance(v, defaultdict) else v
@@ -781,11 +798,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             raw_model.initialize()
 
             raw_model.to(device)
-            compiled_model = raw_model if no_compile else torch.compile(raw_model, mode="default")
-            if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(compiled_model, device_ids=[device])
-            else:
-                ddp_model = compiled_model
+            # Applies torch.compile and DDP options.
+            # Must run before the optimizer is constructed since it may replace Parameter objects.
+            ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -871,11 +886,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             raw_model.load_state_dict(model_state_dict)
 
             raw_model.to(device)
-            compiled_model = raw_model if no_compile else torch.compile(raw_model, mode="default")
-            if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(compiled_model, device_ids=[device])
-            else:
-                ddp_model = compiled_model
+            # Applies torch.compile and DDP options.
+            # Must run before the optimizer is constructed since it may replace Parameter objects.
+            ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -919,16 +932,18 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 old_optimizer_name = train_state.get("optimizer_name","SGD")
                 if old_optimizer_name == optimizer_name:
                     try:
-                        optimizer.load_state_dict(state_dict["optimizer"])
+                        if hasattr(optimizer, "load_state_dict_for_checkpoint"):
+                            optimizer.load_state_dict_for_checkpoint(state_dict["optimizer"])
+                        else:
+                            optimizer.load_state_dict(state_dict["optimizer"])
                     except ValueError as e:
                         logging.info(f"WARNING: Failed to load optimizer state dict: {e}, dropping old optimizer state")
                     train_state["optimizer_name"] = optimizer_name
                 else:
                     train_state["optimizer_name"] = optimizer_name
                     logging.info(f"WARNING: Optimizer name {old_optimizer_name} in checkpoint but we are set to use {optimizer_name} now, dropping old optimizer state")
-
             else:
-                logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
+                logging.info("WARNING: Optimizer not found in state dict (e.g. a skip_optimizer save), using fresh optimizer")
                 train_state["optimizer_name"] = optimizer_name
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
@@ -1319,15 +1334,6 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         return None
 
     # METRICS -----------------------------------------------------------------------------------
-    def detensorify_metrics(metrics):
-        ret = {}
-        for key in metrics:
-            if isinstance(metrics[key], torch.Tensor):
-                ret[key] = metrics[key].detach().cpu().item()
-            else:
-                ret[key] = metrics[key]
-        return ret
-
     if rank == 0:
         train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
         val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
@@ -1370,10 +1376,20 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         running_metrics["weights"] = defaultdict(float,running_metrics["weights"])
 
     torch.backends.cudnn.benchmark = True
+    trainloop_helpers.maybe_enable_compiled_autograd()
 
+    model_norms_only_at_print = trainloop_helpers.get_model_norms_only_at_print()
+    logging.info(f"model_norms_only_at_print {model_norms_only_at_print}")
+    training_metrics_fn = trainloop_helpers.make_training_metrics_fn(metrics_obj, no_compile, model_norms_only_at_print)
+    step_norm_tracker = trainloop_helpers.StepNormTracker(optimizer)
+    gnorm_watcher = trainloop_helpers.GnormWatcher()
+
+    scaler = None
     if use_fp16:
         logging.info("Training in FP16! Creating scaler")
         scaler = GradScaler("cuda")
+    elif use_bf16:
+        logging.info("Training in BF16 AMP without gradient scaling.")
     else:
         logging.info("Training in FP32.")
 
@@ -1440,7 +1456,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         logging.info(f"Training dir: {traindir}")
         logging.info(f"Export dir: {exportdir}")
         logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
-        if use_fp16:
+        if scaler is not None:
             logging.info(f"Current grad scale: {scaler.get_scale()}")
 
         lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="always")
@@ -1497,8 +1513,8 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 # if raw_model.get_has_metadata_encoder():
                 #     extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
 
-                if use_fp16:
-                    with autocast("cuda"):
+                if use_amp:
+                    with autocast("cuda", dtype=amp_dtype):
                         # Note: output heads are already in fp32 despite autocast
                         model_outputs = ddp_model(
                             batch["binaryInputNCHW"],
@@ -1514,8 +1530,11 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                         extra_outputs=extra_outputs,
                     )
 
+                # The print-batch extras below run when the post-increment batch count hits the print interval.
+                is_print_batch = (batch_count_this_epoch + 1) % print_train_loss_every_batches == 0
+
                 postprocessed = raw_model.postprocess_output(model_outputs)
-                metrics = metrics_obj.metrics_dict_batchwise(
+                metrics = training_metrics_fn(
                     raw_model,
                     postprocessed,
                     extra_outputs,
@@ -1530,13 +1549,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                     variance_time_loss_scale=variance_time_loss_scale,
                     main_loss_scale=main_loss_scale,
                     intermediate_loss_scale=intermediate_loss_scale,
+                    include_model_norms=not model_norms_only_at_print,
                 )
+                if model_norms_only_at_print and is_print_batch:
+                    metrics.update(metrics_obj.get_model_norm_metrics(raw_model))
 
                 # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
                 loss = metrics["loss_sum"] * world_size
 
                 # Reduce gradients across DDP
-                if use_fp16:
+                if scaler is not None:
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
                 else:
@@ -1568,12 +1590,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 # Loosen gradient clipping as we shift to smaller learning rates
                 gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,get_effective_lr_scale(train_state)))
 
-                gnorm = torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), gnorm_cap).detach().cpu().item()
-
-                if math.isfinite(gnorm) and abs(gnorm < 1e30):
-                    metrics["gnorm_batch"] = gnorm
-                    exgnorm = max(0.0, gnorm - gnorm_cap)
-                    metrics["exgnorm_sum"] = exgnorm * batch_size
+                trainloop_helpers.clip_gradients_and_record(ddp_model, gnorm_cap, metrics, batch_size)
 
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
@@ -1589,55 +1606,25 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 metrics["window_end_batch"] = train_state["total_num_data_rows"]
 
                 # Store parameters to later calculate empirical step vector length
-                old_params = {}
-                for name, param in ddp_model.named_parameters():
-                    if param.requires_grad:
-                        old_params[name] = param.data.detach().clone()
+                step_norm_tracker.capture(ddp_model, is_print_batch=is_print_batch)
 
-                if use_fp16:
+                if scaler is not None:
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     optimizer.step()
 
                 # Empirical step vector length (overall and per parameter group)
-                with torch.no_grad():
-                    step_norm_squared = 0.0
-                    step_norm_squared_per_group = defaultdict(float)
+                step_norm_tracker.record(ddp_model, metrics)
 
-                    # Build a mapping from parameter id to group name
-                    param_to_group = {}
-                    for param_group in optimizer.param_groups:
-                        group_name = param_group["group_name"]
-                        for param in param_group["params"]:
-                            param_to_group[id(param)] = group_name
-
-                    param_idx = 0
-                    for name, param in ddp_model.named_parameters():
-                        if param.requires_grad:
-                            param_diff_squared = torch.sum(torch.square(param.data - old_params[name])).cpu().item()
-                            step_norm_squared += param_diff_squared
-
-                            # Add to per-group tracking
-                            group_name = param_to_group.get(id(param), "unknown")
-                            step_norm_squared_per_group[group_name] += param_diff_squared
-
-                            param_idx += 1
-
-                    step_norm = math.sqrt(step_norm_squared)
-                    metrics["step_norm_batch"] = step_norm
-
-                    # Store per-group step norms
-                    for group_name, norm_squared in step_norm_squared_per_group.items():
-                        metrics[f"step_norm_{group_name}_batch"] = math.sqrt(norm_squared)
-
-                del model_outputs, postprocessed, loss, old_params
+                del model_outputs, postprocessed, loss
 
                 batch_count_this_epoch += 1
                 train_state["train_steps_since_last_reload"] += batch_size * world_size
                 train_state["global_step_samples"] += batch_size * world_size
 
-                metrics = detensorify_metrics(metrics)
+                metrics = trainloop_helpers.detensorify_metrics(metrics)
+                gnorm_watcher.observe(metrics, gnorm_cap=gnorm_cap)
 
                 if lookahead_k is not None and lookahead_print:
                     # Only accumulate metrics when lookahead is synced if lookahead_print is True
@@ -1650,6 +1637,21 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
 
 
                 if batch_count_this_epoch % print_train_loss_every_batches == 0:
+
+                    # Norms computed only on this print batch are snapshots;
+                    # store them with weight 1 so logging cannot divide 0 by 0
+                    # (e.g. when lookahead_print gives surrounding batches zero
+                    # accumulation weight).
+                    if model_norms_only_at_print:
+                        trainloop_helpers.set_snapshot_metrics(
+                            running_metrics["sums"], running_metrics["weights"], metrics,
+                            [key for key in metrics if key.startswith("norm_") and key.endswith("_batch")],
+                        )
+                    if step_norm_tracker.only_at_print:
+                        trainloop_helpers.set_snapshot_metrics(
+                            running_metrics["sums"], running_metrics["weights"], metrics,
+                            [key for key in metrics if key.startswith("step_norm_") and key.endswith("_batch")],
+                        )
 
                     if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
                         metrics["brn_rmax"] = train_state["brenorm_rmax"]
@@ -1734,8 +1736,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             if len(val_files) == 0:
                 logging.info("No validation files, skipping validation step")
             else:
+                validation_model = trainloop_helpers.get_local_validation_model(ddp_model, raw_model, world_size)
                 with torch.no_grad():
-                    ddp_model.eval()
+                    validation_model.eval()
                     val_metric_sums = defaultdict(float)
                     val_metric_weights = defaultdict(float)
                     val_samples = 0
@@ -1751,16 +1754,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                         include_meta=raw_model.get_has_metadata_encoder(),
                         model_config=model_config
                     ):
-                        if use_fp16:
-                            with autocast("cuda"):
+                        if use_amp:
+                            with autocast("cuda", dtype=amp_dtype):
                                 # Note: output heads are already in fp32 despite autocast
-                                model_outputs = ddp_model(
+                                model_outputs = validation_model(
                                     batch["binaryInputNCHW"],
                                     batch["globalInputNC"],
                                     input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
                                 )
                         else:
-                            model_outputs = ddp_model(
+                            model_outputs = validation_model(
                                 batch["binaryInputNCHW"],
                                 batch["globalInputNC"],
                                 input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
@@ -1783,7 +1786,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                             main_loss_scale=main_loss_scale,
                             intermediate_loss_scale=intermediate_loss_scale,
                         )
-                        metrics = detensorify_metrics(metrics)
+                        metrics = trainloop_helpers.detensorify_metrics(metrics)
                         accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0, new_weight=1.0)
                         val_samples += batch_size
                         if max_val_samples is not None and val_samples > max_val_samples:
@@ -1797,7 +1800,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                     log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
                     t1 = time.perf_counter()
                     logging.info(f"Validation took {t1-t0} seconds")
-                    ddp_model.train()
+                    validation_model.train()
 
         if rank == 0:
             logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
@@ -1830,7 +1833,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 else:
                     os.mkdir(savepathtmp)
                     logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
-                    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"))
+                    # skip_optimizer: export only needs weights, and this save runs on
+                    # rank 0 only so it must not trigger the optimizer-state collective.
+                    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"), skip_optimizer=True)
                     time.sleep(2)
                     os.rename(savepathtmp,savepath)
 
@@ -1847,7 +1852,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
                 last_longterm_checkpoint_save_time = now
                 dated_name = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-                save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
+                # skip_optimizer: archival checkpoint, and this save runs on rank 0
+                # only so it must not trigger the optimizer-state collective.
+                save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"), skip_optimizer=True)
 
     train_metrics_out.close()
     val_metrics_out.close()

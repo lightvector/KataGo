@@ -4,6 +4,7 @@
 import sys
 import os
 import argparse
+import shlex
 import traceback
 import math
 import time
@@ -800,6 +801,9 @@ if __name__ == '__main__':
     optional_args.add_argument('-exclude-qvalues', action="store_true", required=False, help='Exclude Q-value targets (for backwards compatibility with pre-v1.16)')
 
     args = parser.parse_args()
+
+    print("Command: %s" % shlex.join(sys.argv), flush=True)
+
     dirs = args.dirs
     min_rows = args.min_rows
     max_rows = args.max_rows
