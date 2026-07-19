@@ -56,6 +56,14 @@ struct PlaySettings {
   double policySurpriseDataWeight;
   //Probabilistically favor samples that had high winLossValue surprise (kl divergence).
   double valueSurpriseDataWeight;
+  //If true, value surprise (both for valueSurpriseDataWeight and for reanalyze selection) is the KL divergence
+  //of this turn's own search value result from the raw neural net value prediction, instead of the KL divergence
+  //of the smoothed forward-looking game result from that prediction. The search value surprise depends only on
+  //information available at the time of the search, so it does not condition data weighting/selection on the
+  //game's realized outcome, at the cost of not noticing surprises that only the actual continuation of the game
+  //would reveal. Its typical magnitude is also smaller, so valueSurpriseDataWeight and
+  //reanalyzeValueSurpriseWeight may need retuning when enabling this.
+  bool useSearchValueSurprise;
   //Scale frequency weights for writing data by this
   double scaleDataWeight;
 

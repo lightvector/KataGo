@@ -47,7 +47,8 @@ struct ReanalysisData {
   //search's values but whose later entries and final outcome still reflect the actual game.
   bool usedOutcomeTargets = true;
   //The policy surprise and value surprise of the original cheap search on this turn, which are the stats
-  //that drove the probability of this position being selected for reanalysis.
+  //that drove the probability of this position being selected for reanalysis. The value surprise is computed
+  //by whichever definition was configured (see PlaySettings::useSearchValueSurprise).
   float selectionPolicySurprise = 0.0f;
   float selectionValueSurprise = 0.0f;
   //The number of visits of the original cheap search, whose recorded targets were replaced.
@@ -254,7 +255,8 @@ struct TrainingWriteBuffers {
   //C64: 1 if this position originally got only a cheap search during the game and was reanalyzed with a full search
   //after the game ended, generating this row. 0 for ordinary full-search rows and side position rows.
   //C65: If C64, the policy surprise of the original cheap search (the reanalysis search's own policy surprise is in C30).
-  //C66: If C64, the value surprise of the original cheap search. Both C65 and C66 are the stats that drove the
+  //C66: If C64, the value surprise of the original cheap search, by whichever value surprise definition was
+  //configured (see PlaySettings::useSearchValueSurprise). Both C65 and C66 are the stats that drove the
   //probability of this position being selected for reanalysis, recorded for statistical purposes.
   //C67: If C64, the number of visits of the original cheap search (the reanalysis search's visits are in C60).
   //C68-79: Unused, zero-filled.

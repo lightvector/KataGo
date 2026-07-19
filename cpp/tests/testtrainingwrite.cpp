@@ -293,7 +293,8 @@ void Tests::runTrainingWriteTests() {
     const string& seedBase,
     bool useOutcomeTargets,
     double policySurpriseDataWeight,
-    double valueSurpriseDataWeight
+    double valueSurpriseDataWeight,
+    bool useSearchValueSurprise
   ) {
     int inputsVsn = 3;
     int nnXLen = 5;
@@ -338,6 +339,7 @@ void Tests::runTrainingWriteTests() {
     playSettings.cheapSearchTargetWeight = 0.0f;
     playSettings.policySurpriseDataWeight = policySurpriseDataWeight;
     playSettings.valueSurpriseDataWeight = valueSurpriseDataWeight;
+    playSettings.useSearchValueSurprise = useSearchValueSurprise;
     playSettings.useReanalyze = true;
     playSettings.reanalyzeProp = 0.5;
     playSettings.reanalyzePolicySurpriseWeight = 1.0;
@@ -417,8 +419,11 @@ void Tests::runTrainingWriteTests() {
     cout << endl;
   };
 
-  runReanalyze("testtrainingwrite-reanalyze-outcome",true,0.0,0.0);
-  runReanalyze("testtrainingwrite-reanalyze-searchonly",false,0.5,0.1);
+  runReanalyze("testtrainingwrite-reanalyze-outcome",true,0.0,0.0,false);
+  runReanalyze("testtrainingwrite-reanalyze-searchonly",false,0.5,0.1,false);
+  //Same as the previous but with value surprise computed from each turn's own search rather than the
+  //smoothed future game result, for both the data weighting and the reanalyze selection.
+  runReanalyze("testtrainingwrite-reanalyze-searchvaluesurprise",false,0.5,0.1,true);
 
   NeuralNet::globalCleanup();
 }
@@ -617,7 +622,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool testValueSurpriseWeight,
     bool testHint,
     bool testResign,
-    bool testScaleDataWeight
+    bool testScaleDataWeight,
+    bool testSearchValueSurprise
   ) {
     nnEval->clearCache();
     nnEval->clearStats();
@@ -693,6 +699,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       playSettings.valueSurpriseDataWeight = 0.15;
       playSettings.noResolveTargetWeights = true;
     }
+    playSettings.useSearchValueSurprise = testSearchValueSurprise;
     if(testResign) {
       playSettings.allowResignation = true;
       playSettings.resignThreshold = -0.9;
@@ -711,6 +718,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
     cout << "seedBase: " << seedBase << endl;
+    if(testSearchValueSurprise)
+      cout << "Rerunning the same game with useSearchValueSurprise=true - only the data weights should differ" << endl;
 
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
@@ -760,16 +769,20 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     cout << endl;
   };
 
-  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false,false,false);
-  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false,false,false);
+  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false,false,false,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false,false,false,false);
   Rules r = Rules::getTrompTaylorish();
   r.hasButton = true;
-  run("test lead int button!",r,false,true,false,false,false,false,false);
-  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false,false,false);
-  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false,false);
-  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true,false,false);
-  run("test resign!",Rules::getTrompTaylorish(),false,false,false,false,false,true,false);
-  run("test scale data weight!",Rules::getTrompTaylorish(),false,false,false,false,false,false,true);
+  run("test lead int button!",r,false,true,false,false,false,false,false,false);
+  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false,false,false,false);
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false,false,false);
+  //Same seeds and settings as the previous, so it replays the identical game, but with value surprise for
+  //the data weighting computed from each turn's own search rather than the smoothed future game result.
+  //The recorded rows should be identical except for the row weights.
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false,false,true);
+  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true,false,false,false);
+  run("test resign!",Rules::getTrompTaylorish(),false,false,false,false,false,true,false,false);
+  run("test scale data weight!",Rules::getTrompTaylorish(),false,false,false,false,false,false,true,false);
 
   //Test reanalysis of cheap-search positions interacting with reduceVisits. Requires a real neural net so that
   //the winrate actually gets extreme enough for reduceVisits to trigger - we play with an absurd komi so that

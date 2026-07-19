@@ -1288,17 +1288,43 @@ static Loc runBotWithLimits(
   return loc;
 }
 
-//Compute how surprising the smoothed forward-looking game result at each turn was (KL divergence),
-//relative to the raw neural net value prediction at that turn.
+//KL divergence of a win/loss/noresult distribution from the raw neural net value prediction, capped at 1.
+static double valueSurpriseKL(double winValue, double lossValue, double noResultValue, const ReportedSearchValues& rawNNValues) {
+  double valueSurprise = 0.0;
+  if(winValue > 1e-100) valueSurprise += winValue * (log(winValue) - log(std::max((double)rawNNValues.winValue,1e-100)));
+  if(lossValue > 1e-100) valueSurprise += lossValue * (log(lossValue) - log(std::max((double)rawNNValues.lossValue,1e-100)));
+  if(noResultValue > 1e-100) valueSurprise += noResultValue * (log(noResultValue) - log(std::max((double)rawNNValues.noResultValue,1e-100)));
+
+  //Just in case, guard against float imprecision
+  if(valueSurprise < 0.0)
+    valueSurprise = 0.0;
+  //Cap value surprise at extreme value, to reduce the chance of a ridiculous weight on a move.
+  return std::min(valueSurprise,1.0);
+}
+
+//Compute how surprising the value result at each turn was (KL divergence), relative to the raw neural net
+//value prediction at that turn. By default the value result compared is the smoothed forward-looking game
+//result, which depends on how the game actually continued and ended. If useSearchValueSurprise is true, it is
+//instead the value result of that turn's own search, which depends only on information available at the time
+//of the search, so that data weighting/selection based on it does not condition on the game's realized outcome.
 //whiteValueTargetsByTurn should have one entry per turn plus a final entry for the game outcome.
 static void computeValueSurpriseByTurn(
   vector<double>& valueSurpriseByTurn,
   const vector<ValueTargets>& whiteValueTargetsByTurn,
   const vector<ReportedSearchValues>& rawNNValues,
-  int boardArea
+  int boardArea,
+  bool useSearchValueSurprise
 ) {
   testAssert(whiteValueTargetsByTurn.size() == rawNNValues.size() + 1);
   valueSurpriseByTurn.resize(rawNNValues.size());
+
+  if(useSearchValueSurprise) {
+    for(int i = 0; i < (int)rawNNValues.size(); i++) {
+      const ValueTargets& searchValues = whiteValueTargetsByTurn[i];
+      valueSurpriseByTurn[i] = valueSurpriseKL(searchValues.win, searchValues.loss, searchValues.noResult, rawNNValues[i]);
+    }
+    return;
+  }
 
   double nowFactor = 1.0/(1.0 + boardArea * 0.016);
 
@@ -1310,16 +1336,7 @@ static void computeValueSurpriseByTurn(
     lossValue = lossValue + nowFactor * (whiteValueTargetsByTurn[i].loss - lossValue);
     noResultValue = noResultValue + nowFactor * (whiteValueTargetsByTurn[i].noResult - noResultValue);
 
-    double valueSurprise = 0.0;
-    if(winValue > 1e-100) valueSurprise += winValue * (log(winValue) - log(std::max((double)rawNNValues[i].winValue,1e-100)));
-    if(lossValue > 1e-100) valueSurprise += lossValue * (log(lossValue) - log(std::max((double)rawNNValues[i].lossValue,1e-100)));
-    if(noResultValue > 1e-100) valueSurprise += noResultValue * (log(noResultValue) - log(std::max((double)rawNNValues[i].noResultValue,1e-100)));
-
-    //Just in case, guard against float imprecision
-    if(valueSurprise < 0.0)
-      valueSurprise = 0.0;
-    //Cap value surprise at extreme value, to reduce the chance of a ridiculous weight on a move.
-    valueSurpriseByTurn[i] = std::min(valueSurprise,1.0);
+    valueSurpriseByTurn[i] = valueSurpriseKL(winValue, lossValue, noResultValue, rawNNValues[i]);
   }
 }
 
@@ -1991,7 +2008,10 @@ FinishedGameData* Play::runGame(
     testAssert(rawNNValues.size() == gameData->targetWeightByTurn.size());
 
     vector<double> valueSurpriseByTurn;
-    computeValueSurpriseByTurn(valueSurpriseByTurn, gameData->whiteValueTargetsByTurn, rawNNValues, board.x_size * board.y_size);
+    computeValueSurpriseByTurn(
+      valueSurpriseByTurn, gameData->whiteValueTargetsByTurn, rawNNValues, board.x_size * board.y_size,
+      playSettings.useSearchValueSurprise
+    );
 
     //After the game, select some of the positions that got only cheap searches and redo them with full searches,
     //so that they get recorded as full training positions. This happens entirely after the game so it cannot
@@ -2011,8 +2031,12 @@ FinishedGameData* Play::runGame(
       }
 
       //Reanalysis overwrote the searched values at the reanalyzed turns, which feed into the value targets and
-      //the value surprise of every turn at or before them, so recompute.
-      computeValueSurpriseByTurn(valueSurpriseByTurn, gameData->whiteValueTargetsByTurn, rawNNValues, board.x_size * board.y_size);
+      //the value surprise of every turn at or before them (of just those turns themselves, for search value
+      //surprise), so recompute.
+      computeValueSurpriseByTurn(
+        valueSurpriseByTurn, gameData->whiteValueTargetsByTurn, rawNNValues, board.x_size * board.y_size,
+        playSettings.useSearchValueSurprise
+      );
 
       if(logSearchInfo || logMoves) {
         int numCheapSearchTurns = 0;
