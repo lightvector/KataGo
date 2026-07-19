@@ -1,6 +1,8 @@
 #ifndef DATAIO_TRAINING_WRITE_H_
 #define DATAIO_TRAINING_WRITE_H_
 
+#include <atomic>
+
 #include "../dataio/numpywrite.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/sgfmetadata.h"
@@ -359,7 +361,9 @@ class TrainingDataWriter {
 
   bool isEmpty() const;
   int64_t numRowsInBuffer() const;
-  int64_t numRowsWritten() const;  // Cumulative training rows written across all files by this writer.
+  // Cumulative training rows added by this writer, including rows still in the buffer not yet flushed to file.
+  // Safe to call concurrently from other threads (e.g. for stats logging).
+  int64_t numRowsWritten() const;
 
  private:
   std::string outputDir;
@@ -369,7 +373,9 @@ class TrainingDataWriter {
 
   std::ostream* debugOut;
   int debugOnlyWriteEvery;
-  int64_t rowCount;
+  // Atomic only so that numRowsWritten() can be read for stats from other threads;
+  // all mutation happens on the single thread using this writer.
+  std::atomic<int64_t> rowCount;
 
   bool isFirstFile;
   int firstFileMaxRows;

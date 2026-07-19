@@ -1053,7 +1053,7 @@ int64_t TrainingDataWriter::numRowsInBuffer() const {
   return writeBuffers->curRows;
 }
 int64_t TrainingDataWriter::numRowsWritten() const {
-  return rowCount;
+  return rowCount.load(std::memory_order_relaxed);
 }
 
 void TrainingDataWriter::writeAndClearIfFull() {
@@ -1197,7 +1197,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
 
     while(targetWeight > 0.0) {
       if(targetWeight >= 1.0 || rand.nextBool(targetWeight)) {
-        if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
+        if(debugOut == NULL || rowCount.load(std::memory_order_relaxed) % debugOnlyWriteEvery == 0) {
           writeBuffers->addRow(
             board,hist,nextPlayer,
             data.startHist,
@@ -1238,7 +1238,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
           );
           writeAndClearIfFull();
         }
-        rowCount++;
+        rowCount.fetch_add(1, std::memory_order_relaxed);
       }
       targetWeight -= 1.0;
     }
@@ -1260,7 +1260,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
     double targetWeight = sp->targetWeight;
     while(targetWeight > 0.0) {
       if(targetWeight >= 1.0 || rand.nextBool(targetWeight)) {
-        if(debugOut == NULL || rowCount % debugOnlyWriteEvery == 0) {
+        if(debugOut == NULL || rowCount.load(std::memory_order_relaxed) % debugOnlyWriteEvery == 0) {
 
           int turnIdx = (int)sp->hist.moveHistory.size();
           testAssert(turnIdx >= data.startHist.moveHistory.size());
@@ -1311,7 +1311,7 @@ void TrainingDataWriter::writeGame(const FinishedGameData& data) {
           );
           writeAndClearIfFull();
         }
-        rowCount++;
+        rowCount.fetch_add(1, std::memory_order_relaxed);
       }
       targetWeight -= 1.0;
     }
