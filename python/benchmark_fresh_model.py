@@ -52,6 +52,9 @@ def main():
     parser.add_argument('-multi-gpus', help='Comma-separated GPU ids for DDP trainloop benchmark, e.g. "0,1". Only valid with -mode trainloop', type=str, default=None)
     parser.add_argument('-master-port', help='Localhost port for DDP', type=int, default=23456)
     parser.add_argument('-print-every', help='Emulated train loss print interval in batches for trainloop mode', type=int, default=100)
+    parser.add_argument('-attn-logit-penalty-cap', help='Enable the attention logit bound penalty as in train.py, for benchmarking its overhead (trainloop mode)', type=float, default=None)
+    parser.add_argument('-attn-logit-penalty-coeff', help='Coeff for -attn-logit-penalty-cap', type=float, default=1e-3)
+    parser.add_argument('-attn-logit-penalty-batch-frac', help='Fraction of the batch to compute the penalty on, as in train.py', type=float, default=1.0)
     args = vars(parser.parse_args())
 
     if args["mode"] == "trainloop":
@@ -406,6 +409,14 @@ def trainloop_worker(rank, world_size, args):
     total_params = sum(p.numel() for p in raw_model.parameters())
     rank0print(f"Total parameters: {total_params:,}")
 
+    attn_logit_penalty_cap = args["attn_logit_penalty_cap"]
+    attn_logit_penalty_coeff = args["attn_logit_penalty_coeff"]
+    if attn_logit_penalty_cap is not None:
+        raw_model.attn_logit_penalty_cap = attn_logit_penalty_cap
+        raw_model.attn_logit_penalty_batch_frac = args["attn_logit_penalty_batch_frac"]
+        rank0print(f"Attention logit penalty enabled: cap={attn_logit_penalty_cap} coeff={attn_logit_penalty_coeff} "
+                   f"batch_frac={args['attn_logit_penalty_batch_frac']}")
+
     ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
 
     param_groups = build_train_param_groups(raw_model)
@@ -469,6 +480,13 @@ def trainloop_worker(rank, world_size, args):
 
         # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
         loss = metrics["loss_sum"] * world_size
+
+        # Attention logit bound penalty, mirroring train.py.
+        if attn_logit_penalty_cap is not None:
+            attn_pen_sum = raw_model.attn_logit_penalty_per_sample.mean() * batch_size
+            metrics["alogitpen_sum"] = attn_pen_sum.detach()
+            metrics["alogitubmax_batch"] = raw_model.attn_logit_ub_batch_max
+            loss = loss + attn_logit_penalty_coeff * attn_pen_sum * world_size
 
         if scaler is not None:
             scaler.scale(loss).backward()

@@ -63,10 +63,17 @@ void NeuralNet::globalCleanup() {
 //   element at (n, xy, h, d) lives at offset (h*headDim + d) + (n*seqLen + xy) * (numHeads*headDim).
 //
 // Masking: when a mask is present, we build a fully-materialized additive attention bias of shape
-// [B, 1, S, S] from the [B, S] mask: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -1e4). cudnn does not have
+// [B, 1, S, S] from the [B, S] mask: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -3e4). cudnn does not have
 // plans for the [B,1,1,S] broadcast pattern that would let us avoid this materialization, but the
 // full bias is correct for arbitrary (non-prefix) masks, which we need to support sub-board games.
 // The bias is built once per inference (the mask is the same across all 20 attention blocks).
+//
+// The bias tensor dtype MUST match the io dtype (fp16). An fp32 bias with fp16 Q/K/V passes
+// validate/check_support/build_plans on cudnn 9.x but silently misexecutes (nonfinite outputs -
+// the fused kernel evidently reinterprets the buffer). Since cudnn adds the (converted) bias to the
+// fp32 scores and computes the softmax in fp32, the fp16-range-limited -3e4 constant still masks
+// exactly (exp underflow) for any model whose genuine logit spread is below ~3e4.
+// See cudahelpers.cu for details.
 //
 // When mask is NULL (full-board, requireExactNNLen case), we build a no-bias graph instead, which
 // avoids both the extra memory and the bias build kernel.

@@ -1350,6 +1350,9 @@ GAB_TEMPLATES = "gab_templates"
 TAB_KQ = "tab_kq"
 REGISTER_STATE = "register_state"
 FLEX_BLOCK_MASK = "flex_block_mask"
+# When present in block_shared_data (training-time attention logit penalty), each attention layer
+# appends its per-(batch,head) differentiable upper bound on pre-mask attention logit magnitude.
+ATTN_LOGIT_UB = "attn_logit_ub"
 
 
 _flex_attention_compiled = None
@@ -2041,6 +2044,38 @@ class NestedBottleneckTransformerBlock(torch.nn.Module):
         return out
 
 
+# Hack for measuring attention logit ranges
+# ATTN_LOGIT_STATS_CAPTURE = None
+# def _capture_attn_logit_stats(store, name, q, k, scale, mask, batch_size, seq_len):
+#     with torch.no_grad():
+#         qn = torch.linalg.vector_norm(q.float(), dim=-1)  # (B, H, S)
+#         kn = torch.linalg.vector_norm(k.float(), dim=-1)
+#         ub = scale * qn.amax(dim=-1) * kn.amax(dim=-1)  # (B, H)
+#         ub_entry = store.setdefault("UB:" + name, [ub.amax(), ub.mean(), torch.zeros_like(ub.mean())])
+#         ub_entry[0] = torch.maximum(ub_entry[0], ub.amax())
+#         ub_entry[1] = ub_entry[1] + ub.mean()
+#         ub_entry[2] = ub_entry[2] + 1.0
+#         logits = torch.matmul(q.float(), k.float().transpose(-2, -1)) * scale  # (B,H,S,S)
+#         min_all = logits.amin()
+#         max_all = logits.amax()
+#         if mask is not None:
+#             offboard_pair = (mask.reshape(batch_size, 1, 1, seq_len) * mask.reshape(batch_size, 1, seq_len, 1)) == 0
+#             logits.masked_fill_(offboard_pair, float("-inf"))
+#             max_on = logits.amax()
+#             logits.masked_fill_(offboard_pair, float("inf"))
+#             min_on = logits.amin()
+#         else:
+#             min_on, max_on = min_all, max_all
+#         entry = store.get(name)
+#         if entry is None:
+#             store[name] = [min_all, max_all, min_on, max_on]
+#         else:
+#             entry[0] = torch.minimum(entry[0], min_all)
+#             entry[1] = torch.maximum(entry[1], max_all)
+#             entry[2] = torch.minimum(entry[2], min_on)
+#             entry[3] = torch.maximum(entry[3], max_on)
+
+
 class TransformerAttentionBlock(torch.nn.Module):
     """Self-attention half of a transformer block, with its own residual connection.
 
@@ -2371,6 +2406,41 @@ class TransformerAttentionBlock(torch.nn.Module):
             q = torch.cat([q, extra_q], dim=-1)  # (B, H, S, d_head + D_extra)
             k = torch.cat([k, extra_k], dim=-1)  # (B, H, S, d_head + D_extra)
             # v stays (B, H, S, d_head), scaled_dot_product_attention supports differing channels for v than q/k
+
+        # Hack: record pre-mask logit min/max when capture is enabled
+        # (see the commented-out ATTN_LOGIT_STATS_CAPTURE block above the class).
+        # if ATTN_LOGIT_STATS_CAPTURE is not None:
+        #     _capture_attn_logit_stats(
+        #         ATTN_LOGIT_STATS_CAPTURE, self.name, q, k, scale, mask, batch_size, seq_len
+        #     )
+
+        # Training-time attention logit penalty (see Model.attn_logit_penalty_cap): record the
+        # differentiable per-(batch,head) upper bound on pre-mask attention logit magnitude,
+        #   scale * max_i ||q_i|| * max_j ||k_j|| >= max_ij |scale * q_i . k_j|.
+        # The max deliberately includes off-board garbage positions, since inference backends
+        # compute logits at those positions too before masking, and their magnitudes are what
+        # constrain the fp16-safe additive mask bias constants. (Correct for the extra_kq/gab/tab
+        # path too: there q is pre-multiplied by the true scale and `scale` is 1.0.)
+        #
+        # Cost notes: computed on only the first `num_batch_items` samples
+        # (see attn_logit_penalty_batch_frac) since the hinge dynamics are slow enough that subsampled
+        # gradients suffice, and the dominant cost is the extra backward through every layer's
+        # q/k. The explicit .float() BEFORE squaring is required for correctness, not just
+        # accumulation: an fp16 square overflows to inf at |q| >= 256 (hot-layer components are
+        # already ~65) regardless of any fp32 accumulator, and eager would hit that even though
+        # inductor's fused kernels happen to compute fp16 pointwise math in fp32 registers. Under
+        # torch.compile the cast fuses into the reduction prologue, so no fp32 copy of q/k is
+        # materialized. The sqrt happens after the position amax.
+        if block_shared_data is not None and ATTN_LOGIT_UB in block_shared_data:
+            ub_state = block_shared_data[ATTN_LOGIT_UB]
+            nb = ub_state["num_batch_items"]
+            qs = q[:nb].float()
+            ks = k[:nb].float()
+            ub_qnorm2 = (qs * qs).sum(dim=-1)  # (B', H, S)
+            ub_knorm2 = (ks * ks).sum(dim=-1)  # (B', H, S)
+            ub_state["ubs"].append(
+                scale * torch.sqrt(ub_qnorm2.amax(dim=-1) * ub_knorm2.amax(dim=-1))  # (B', H)
+            )
 
         if flex_block_mask is not None:
             attn_output = get_flex_attention_fn()(
@@ -3356,6 +3426,20 @@ class Model(torch.nn.Module):
             env_flag("KATAGO_FLEX_ATTENTION", default=True) and trunk_is_plain_transformer
         )
 
+        # Training-time attention logit penalty. Not part of the model config: set externally
+        # (e.g. by train.py from -attn-logit-penalty-cap) before any torch.compile wrapping.
+        # When set to a float cap, each forward stores:
+        #   self.attn_logit_penalty_per_sample: (B',) sum over attention layers of
+        #     mean over heads of relu(logit_upper_bound - cap), differentiable (linear hinge),
+        #     over the first B' = ceil(B * attn_logit_penalty_batch_frac) batch items.
+        #   self.attn_logit_ub_batch_max: 0-dim detached max of the bound over all layers/samples/heads.
+        # See TransformerAttentionBlock for the bound definition (includes off-board positions).
+        # attn_logit_penalty_batch_frac < 1 computes the penalty on a fixed slice of the batch,
+        # cutting its (mostly-backward) cost proportionally at the price of gradient variance,
+        # which the slow hinge dynamics tolerate. The compiled/DDP graph stays static.
+        self.attn_logit_penalty_cap = None
+        self.attn_logit_penalty_batch_frac = 1.0
+
         if self.trunk_final_rmsnorm:
             spatial = config.get("trunk_rmsnorm_spatial", False)
             cgroup_size = config.get("rmsnorm_spatial_cgroup_size", None) if spatial else None
@@ -3635,6 +3719,9 @@ class Model(torch.nn.Module):
             block_shared_data[TAB_KQ] = TABKeyQueryData(keys=tab_keys, queries=tab_queries)
         if self.use_flex_attention:
             block_shared_data[FLEX_BLOCK_MASK] = build_flex_attention_block_mask(mask)
+        if self.attn_logit_penalty_cap is not None:
+            pen_batch_items = max(1, int(math.ceil(mask.shape[0] * self.attn_logit_penalty_batch_frac)))
+            block_shared_data[ATTN_LOGIT_UB] = {"num_batch_items": pen_batch_items, "ubs": []}
         if self.use_rw_registers:
             # Compute board geometry from mask for register tokens.
             # mask: (B, 1, H, W)
@@ -3834,6 +3921,16 @@ class Model(torch.nn.Module):
 
         if seq_layout:
             out = out.transpose(1, 2).reshape(out.shape[0], self.c_trunk, orig_H, orig_W)
+
+        if self.attn_logit_penalty_cap is not None:
+            ub_list = block_shared_data[ATTN_LOGIT_UB]["ubs"]
+            assert len(ub_list) > 0, "attn_logit_penalty_cap set but model has no attention layers"
+            ubs = torch.stack(ub_list)  # (num_attn_layers, B', H)
+            excess = torch.nn.functional.relu(ubs - self.attn_logit_penalty_cap)
+            # Linear hinge: constant-magnitude pull on offending heads regardless of how far
+            # above the cap they currently are, gentler than a squared hinge for large excesses.
+            self.attn_logit_penalty_per_sample = excess.mean(dim=2).sum(dim=0)  # (B',)
+            self.attn_logit_ub_batch_max = ubs.detach().amax()
 
         # Use original mask for final norm and heads (NCHW format)
         out = self.norm_trunkfinal(out, mask=orig_mask, mask_sum_hw=orig_mask_sum_hw, mask_sum=orig_mask_sum)

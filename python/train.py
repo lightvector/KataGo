@@ -137,6 +137,9 @@ if __name__ == "__main__":
     optional_args.add_argument('-brenorm-target-dmax', type=float, help='Gradually adjust brenorm dmax to this value', required=False)
     optional_args.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
 
+    optional_args.add_argument('-attn-logit-penalty-cap', type=float, help='Penalize attention layers whose per-head logit upper bound (scale * max||q|| * max||k||, incl off-board positions) exceeds this. None = disabled.', required=False)
+    optional_args.add_argument('-attn-logit-penalty-coeff', type=float, default=1e-3, help='Loss coeff for the attention logit bound penalty (linear hinge, mean over heads, sum over layers, per sample)', required=False)
+    optional_args.add_argument('-attn-logit-penalty-batch-frac', type=float, default=1.0, help='Compute the attention logit penalty on only this fraction of each batch (cuts its cost proportionally, adds gradient variance)', required=False)
     optional_args.add_argument('-soft-policy-weight-scale', type=float, default=8.0, help='Soft policy loss coeff', required=False)
     optional_args.add_argument('-disable-optimistic-policy', help='Disable optimistic policy', required=False, action='store_true')
     optional_args.add_argument('-meta-kata-only-soft-policy', help='Mask soft policy on non-kata rows using sgfmeta', required=False, action='store_true')
@@ -402,6 +405,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
     brenorm_avg_momentum = args["brenorm_avg_momentum"]
     brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
 
+    attn_logit_penalty_cap = args["attn_logit_penalty_cap"]
+    attn_logit_penalty_coeff = args["attn_logit_penalty_coeff"]
+    attn_logit_penalty_batch_frac = args["attn_logit_penalty_batch_frac"]
     soft_policy_weight_scale = args["soft_policy_weight_scale"]
     disable_optimistic_policy = args["disable_optimistic_policy"]
     meta_kata_only_soft_policy = args["meta_kata_only_soft_policy"]
@@ -798,6 +804,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             raw_model.initialize()
 
             raw_model.to(device)
+            if attn_logit_penalty_cap is not None:
+                raw_model.attn_logit_penalty_cap = attn_logit_penalty_cap
+                raw_model.attn_logit_penalty_batch_frac = attn_logit_penalty_batch_frac
             # Applies torch.compile and DDP options.
             # Must run before the optimizer is constructed since it may replace Parameter objects.
             ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
@@ -886,6 +895,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             raw_model.load_state_dict(model_state_dict)
 
             raw_model.to(device)
+            if attn_logit_penalty_cap is not None:
+                raw_model.attn_logit_penalty_cap = attn_logit_penalty_cap
+                raw_model.attn_logit_penalty_batch_frac = attn_logit_penalty_batch_frac
             # Applies torch.compile and DDP options.
             # Must run before the optimizer is constructed since it may replace Parameter objects.
             ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
@@ -1556,6 +1568,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
 
                 # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
                 loss = metrics["loss_sum"] * world_size
+
+                # Attention logit bound penalty (kept out of loss_sum so the main loss stays comparable
+                # across runs; logged as its own metrics). mean * batch_size rather than sum: with
+                # attn-logit-penalty-batch-frac < 1 the penalty is computed on a slice of the batch,
+                # and this keeps it an unbiased estimate of the full-batch sum (coeff meaning unchanged).
+                if attn_logit_penalty_cap is not None:
+                    attn_pen_sum = raw_model.attn_logit_penalty_per_sample.mean() * batch_size
+                    metrics["alogitpen_sum"] = attn_pen_sum.detach()
+                    metrics["alogitubmax_batch"] = raw_model.attn_logit_ub_batch_max
+                    loss = loss + attn_logit_penalty_coeff * attn_pen_sum * world_size
 
                 # Reduce gradients across DDP
                 if scaler is not None:
