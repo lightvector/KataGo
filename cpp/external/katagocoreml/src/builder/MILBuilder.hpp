@@ -36,6 +36,13 @@ public:
     int getBoardXSize() const { return m_board_x_size; }
     int getBoardYSize() const { return m_board_y_size; }
 
+    /// Effective precision flags after construction. The constructor may demote a narrow
+    /// transformer trunk to full FP32 (see the precision-tier comment in the .cpp); callers
+    /// serializing the model must use these, not the requested options, so the declared
+    /// Model-description I/O dtype and metadata match the actual MIL program dtypes.
+    bool getEffectiveUseFp16() const { return m_use_fp16; }
+    bool getEffectiveUseFp16IO() const { return m_use_fp16_io; }
+
 private:
     const KataGoModelDesc& m_model;
     int m_board_x_size;
@@ -47,10 +54,14 @@ private:
     // trunks (attention widens activation range, overflowing FP16 conv/matmul/pooling accumulation).
     // Plain convnets run pure FP16 on the ANE -- the long-standing pre-tier path, verified to pass
     // testgpuerror (b18c384nbt) and ~2.3x faster than forcing their per-block global pooling to FP32.
-    // For transformers: narrow trunks (<256) build fully FP32; wider ones use non-spatial FP32 (matmuls +
-    // pooling) plus, for very wide trunks (>=320), conv FP32. RMSNorm reductions: FP32 when m_use_fp16.
+    // For transformers: trunks below FULL_FP32_MAX_TRUNK_CHANNELS build fully FP32; at/above it they
+    // use non-spatial FP32 (matmuls + pooling) plus conv FP32 (>= CONV_FP32_MIN_TRUNK_CHANNELS).
+    // The two constants are currently equal, so there is no partial-tier band with FP16 convs; they
+    // are kept separate in case the boundaries ever need to diverge again. See the constructor
+    // comment in the .cpp for the measurements behind these values. RMSNorm reductions: FP32 when
+    // m_use_fp16.
     static constexpr int CONV_FP32_MIN_TRUNK_CHANNELS = 320;   // transformer convs run FP32 at/above this width
-    static constexpr int FULL_FP32_MAX_TRUNK_CHANNELS = 256;   // transformer trunks below this build fully FP32
+    static constexpr int FULL_FP32_MAX_TRUNK_CHANNELS = 320;   // transformer trunks below this build fully FP32
     bool m_nonspatial_fp32 = false;  // = m_use_fp16 && hasTransformer (matmuls + global pooling)
     bool m_conv_fp32 = false;        // = m_use_fp16 && hasTransformer && trunk_channels >= CONV_FP32_MIN_...
     int m_min_batch_size;

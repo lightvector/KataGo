@@ -65,18 +65,26 @@ MILBuilder::MILBuilder(const KataGoModelDesc& model,
           : CoreML::Specification::MILSpec::DataType::FLOAT32)
     , m_ops(board_x_size, board_y_size, optimize_identity_mask)
     , m_var_counter(0) {
-    // Precision in FP16 mode. The ANE accumulates FP16 in FP16, so any FP32 op runs OFF the FP16-only
-    // ANE (on CPU/GPU), breaking the ANE pipeline. These off-ANE FP32 escalations are applied ONLY to
-    // transformer trunks, whose attention blocks widen the activation range enough to overflow FP16
-    // accumulation. Plain convnets stay PURE FP16 on the ANE -- the long-standing pre-tier path, verified
-    // to pass testgpuerror (b18c384nbt, b28c512nbt) and ~2.6x faster than forcing their per-block global
-    // pooling and convs to FP32 (measured: the per-block pooling round-trips, not the convs, dominate the
-    // slowdown). For transformers:
-    //   - NARROW trunks (<256ch) build FULLY in FP32: their policy/value metrics sit right on the
-    //     testgpuerror thresholds and no partial-FP32 config passes all board sizes (partial FP32 leaves a
-    //     noisy FP16 spatial stream). Off-ANE but cheap since narrow; equals the FP32 reference. Weights
-    //     stored FP32 (per-weight serialization).
-    //   - WIDER trunks use partial FP32: non-spatial (matmuls + pooling) always, convs only for >=320ch.
+    // Precision in FP16 mode. The ANE's datapath is FP16 at op granularity: reductions use a wide
+    // (FP32-class) accumulator, but every op's inputs and stored outputs round to FP16, so a chain of
+    // ops re-rounds at each boundary and cancellation-heavy chains (notably the attention softmax
+    // chain, measured ~10x worse policyKLDiv than with an FP32 attention core) lose precision that a
+    // wide accumulator alone cannot save. FP32 type annotations are not implemented by the ANE, so
+    // any FP32 op runs OFF the ANE (on CPU/GPU), breaking the ANE pipeline -- FP32 escalation is a
+    // per-op trade of accuracy against ANE residency (measured ~1.8x eval slowdown for escalating the
+    // attention core on b11c768). These off-ANE FP32 escalations are applied ONLY to transformer
+    // trunks, whose attention/RMSNorm ops widen the activation range and deepen the rounding chains.
+    // Plain convnets stay PURE FP16 on the ANE -- the long-standing pre-tier path, verified to pass
+    // testgpuerror (b18c384nbt, b28c512nbt) and ~2.6x faster than forcing their per-block global
+    // pooling and convs to FP32 (measured: the per-block pooling round-trips, not the convs, dominate
+    // the slowdown). For transformers:
+    //   - Trunks below 320ch build FULLY in FP32: b4c256 on the partial tier failed testgpuerror
+    //     policyKLDiv at 19x19 (max 1.77x over; FP32 convs at 256 did not fix it, an FP32 attention
+    //     core did but is not worth the ANE slowdown for wide models). Off-ANE but cheap since
+    //     narrow; equals the FP32 reference. Weights stored FP32 (per-weight serialization).
+    //   - Trunks at/above 320ch use partial FP32: non-spatial (matmuls + pooling) and convs, leaving
+    //     the attention core, spatial elementwise ops, and value-head linears FP16 on the ANE
+    //     (b10c384/b15c512/b11c768 pass with >=2.7x headroom on every metric).
     const int trunkChannels = model.trunk.trunk_num_channels;
     const bool hasTransformer = blocksContainTransformer(model.trunk.blocks);
     const bool full_fp32 = use_fp16 && hasTransformer && trunkChannels < FULL_FP32_MAX_TRUNK_CHANNELS;

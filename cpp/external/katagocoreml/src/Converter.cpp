@@ -58,6 +58,14 @@ void KataGoConverter::convert(const std::string& input_path,
 
     // Update options with model metadata for serialization
     ConversionOptions final_options = options;
+
+    // The builder may have demoted a narrow transformer trunk to full FP32; propagate the
+    // effective precision so the serialized Model description declares I/O dtypes matching
+    // the actual MIL function, and so the compute_precision metadata does not lie.
+    final_options.use_fp16_io = builder.getEffectiveUseFp16IO();
+    if (use_fp16 && !builder.getEffectiveUseFp16()) {
+        final_options.compute_precision = "FLOAT32";
+    }
     final_options.model_version = model.model_version;
     final_options.meta_encoder_version = model.meta_encoder_version;
     final_options.num_input_meta_channels = model.num_input_meta_channels;

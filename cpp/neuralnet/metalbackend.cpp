@@ -115,10 +115,16 @@ SWBatchNormLayerDesc batchNormLayerDescToSwift(const BatchNormLayerDesc* desc) {
   int numChannels = desc->numChannels;
   testAssert(desc->mergedScale.size() == numChannels);
   testAssert(desc->mergedBias.size() == numChannels);
+  // A default-constructed desc (e.g. the unused trunkTipBN of an RMSNorm-tip trunk) has empty
+  // vectors, whose .data() may be null; null in a non-optional Swift pointer parameter is
+  // undefined, so substitute a valid dummy pointer that is never dereferenced (numChannels == 0).
+  static float dummy = 0.0f;
+  float* mergedScale = desc->mergedScale.empty() ? &dummy : (float*)desc->mergedScale.data();
+  float* mergedBias = desc->mergedBias.empty() ? &dummy : (float*)desc->mergedBias.data();
   return createSWBatchNormLayerDesc(
     numChannels,
-    (float*)desc->mergedScale.data(),
-    (float*)desc->mergedBias.data());
+    mergedScale,
+    mergedBias);
 }
 
 /// Convert an activation layer description from C++ to Swift
@@ -129,7 +135,9 @@ ActivationKind activationLayerDescToSwift(const ActivationLayerDesc* desc) {
     case ACTIVATION_MISH:
       return ActivationKind::mish();
     case ACTIVATION_MISH_SCALE8:
-      return ActivationKind::identity(); // Metal/CoreML does not use scaled mish
+      // Only created by applyScale8ToReduceActivations(), which the Metal backend never calls.
+      // Throw rather than silently treating it as identity if that ever changes.
+      throw StringError(desc->name + ": ACTIVATION_MISH_SCALE8 is not supported by the Metal backend");
     case ACTIVATION_SILU:
       return ActivationKind::silu();
     case ACTIVATION_IDENTITY:
@@ -642,7 +650,10 @@ coremlOnlyHandle(createCoreMLOnlyHandleIfNeeded(context, loadedModel, requireExa
   metaEncoderVersion = modelDesc->metaEncoderVersion;
   this->inputsUseNHWC = inputsUseNHWC;
   this->requireExactNNLen = requireExactNNLen;
-  useFP16 = (context->useFP16Mode != enabled_t::False);
+  // Report what this handle actually computes with. The MPSGraph (GPU) path builds its graph
+  // entirely in FP32 regardless of useFP16Mode; only the CoreML (ANE) path converts the model
+  // at FP16. If the MPSGraph path is ever switched to honor useFP16Mode, update this too.
+  useFP16 = (gpuIdx == METAL_MUX_ANE) && (context->useFP16Mode != enabled_t::False);
 }
 
 ComputeHandle::~ComputeHandle() {
