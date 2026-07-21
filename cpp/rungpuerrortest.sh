@@ -175,10 +175,12 @@ MODELBASE12=$(basename "$MODEL12")
          -reference-file "$REFERENCEDIR"/"$MODELBASE11"_size9_rectbuffer.txt | tee "$RESULTSDIR"/"$MODELBASE11"_size9_rectbuffer.txt
 
 # Larger transformer models (not publicly downloadable, so these entries are commented out;
-# place the model files in models/ manually to run them). The reference files were generated
-# with the Eigen backend using the SAME -quick flag and overrides as the commands below
-# (the _quick suffix marks the reduced 669-position set - large models are slow on CPU).
-# References exist in tests/results/gpu_error_reference_files/ for all of these.
+# place the model files in models/ manually to run them). Like all reference files, the
+# references are machine-local (tests/results/gpu_error_reference_files/ is not in git):
+# generate them by running these same commands with an Eigen-backend build of katago, which
+# writes the reference file instead of checking against it. The _quick suffix marks the
+# -quick position subsample (large models are slow on CPU) - the flag must match between
+# reference generation and checking.
 #
 # MODEL13=models/b10c384h6nbttflrs.bin.gz  # v17 transformer, 6 heads, learnable rope, rmsnorm trunk tip
 # MODEL14=models/b15c512h8nbttflrs-fson-silu.bin.gz  # v17 transformer, 8 heads, learnable rope, silu

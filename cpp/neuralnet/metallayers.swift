@@ -1371,8 +1371,8 @@ struct TransformerAttentionBlock {
         let maskSeq = graph.reshape(maskTensor, shape: [-1, 1, 1, seq as NSNumber], name: nil)
         let one = graph.constant(1.0, dataType: dataType)
         // This graph is FP32-only, where 1e9 is safe. If this path ever gains an FP16 mode, this
-        // constant must shrink to an FP16-safe magnitude (e.g. 1e4, as CUDA and the CoreML MIL
-        // builder use): 1e9 overflows FP16 to +inf, and (mask - 1) * inf = 0 * inf = NaN at every
+        // constant must shrink to an FP16-safe magnitude (e.g. 3e4, as the CoreML MIL builder
+        // uses): 1e9 overflows FP16 to +inf, and (mask - 1) * inf = 0 * inf = NaN at every
         // valid key, poisoning the softmax. The precondition makes that switch fail loudly here.
         precondition(dataType == .float32, "attention mask bias magnitude 1e9 is only safe in FP32")
         let big = graph.constant(1.0e9, dataType: dataType)

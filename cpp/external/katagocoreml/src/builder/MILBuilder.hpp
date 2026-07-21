@@ -43,6 +43,13 @@ public:
     bool getEffectiveUseFp16() const { return m_use_fp16; }
     bool getEffectiveUseFp16IO() const { return m_use_fp16_io; }
 
+    /// True if converting a model with this trunk width / transformer-ness would be demoted to
+    /// fully-FP32 compute even when FP16 is requested (see the precision-tier comment in the
+    /// .cpp). Exposed so callers can report effective precision without performing a conversion.
+    static bool wouldBuildFullyFp32(int trunk_num_channels, bool has_transformer_blocks) {
+        return has_transformer_blocks && trunk_num_channels < FULL_FP32_MAX_TRUNK_CHANNELS;
+    }
+
 private:
     const KataGoModelDesc& m_model;
     int m_board_x_size;

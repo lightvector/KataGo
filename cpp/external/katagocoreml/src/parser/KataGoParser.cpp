@@ -14,7 +14,8 @@ namespace katagocoreml {
 
 namespace {
 // Cross-field dimension consistency check, mirroring desc.cpp's pattern of named errors.
-void checkDimsEqual(const std::string& name, const char* aDesc, int a, const char* bDesc, int b) {
+// Takes int64_t so callers can pass products like numChannels*3 without signed-int overflow UB.
+void checkDimsEqual(const std::string& name, const char* aDesc, int64_t a, const char* bDesc, int64_t b) {
     if (a != b) {
         throw std::runtime_error(name + ": " + aDesc + " (" + std::to_string(a) + ") != " +
                                  bDesc + " (" + std::to_string(b) + ")");
@@ -169,6 +170,13 @@ bool KataGoParser::readBool() {
 }
 
 std::vector<float> KataGoParser::readFloats(size_t count, const std::string& name) {
+    // Bound count by the remaining file size BEFORE allocating: text floats need at least
+    // 2 bytes each and binary exactly 4, so a count exceeding the remaining byte count is
+    // impossible. Without this, a crafted file (gzip compresses multi-GB of zeros to a few
+    // MB) could trigger an enormous zero-initializing allocation before any read fails.
+    if (count > m_buffer.size() - m_pos) {
+        throw std::runtime_error(name + ": not enough bytes for " + std::to_string(count) + " floats");
+    }
     std::vector<float> floats(count);
 
     if (!m_binary_floats) {
@@ -185,7 +193,7 @@ std::vector<float> KataGoParser::readFloats(size_t count, const std::string& nam
             if (m_buffer[m_pos] == '@') {
                 break;
             }
-            if (m_pos - scan_start > 100) {
+            if (m_pos - scan_start >= 100) {
                 throw std::runtime_error(name + ": could not find @BIN@ marker near expected position."
                                          " Invalid model - perhaps a .txt model with a binary header, or corrupted data?");
             }
@@ -454,7 +462,7 @@ GlobalPoolingResidualBlockDesc KataGoParser::parseGlobalPoolingResidualBlock(int
                    "gpoolConv.inChannels", block.gpool_conv.in_channels);
     checkDimsEqual(block.name, "gpoolBN.numChannels", block.gpool_bn.num_channels,
                    "gpoolConv.outChannels", block.gpool_conv.out_channels);
-    checkDimsEqual(block.name, "gpoolBN.numChannels * 3", block.gpool_bn.num_channels * 3,
+    checkDimsEqual(block.name, "gpoolBN.numChannels * 3", (int64_t)block.gpool_bn.num_channels * 3,
                    "gpoolToBiasMul.inChannels", block.gpool_to_bias_mul.in_channels);
     checkDimsEqual(block.name, "midBN.numChannels", block.mid_bn.num_channels,
                    "regularConv.outChannels", block.regular_conv.out_channels);
@@ -800,6 +808,7 @@ TrunkDesc KataGoParser::parseTrunk(int model_version, int meta_encoder_version) 
             int unused = readInt();
             if (unused != 0) {
                 throw std::runtime_error(trunk.name + ": unknown/unsupported trunk option " +
+                                         std::string(1, static_cast<char>('B' + i)) + ": " +
                                          std::to_string(unused));
             }
         }
@@ -882,6 +891,7 @@ PolicyHeadDesc KataGoParser::parsePolicyHead(int model_version) {
             int unused = readInt();
             if (unused != 0) {
                 throw std::runtime_error(head.name + ": unknown/unsupported policy option " +
+                                         std::string(1, static_cast<char>('A' + i)) + ": " +
                                          std::to_string(unused));
             }
         }
@@ -924,13 +934,13 @@ PolicyHeadDesc KataGoParser::parsePolicyHead(int model_version) {
     checkDimsEqual(head.name, "g1Conv.outChannels", head.g1_conv.out_channels,
                    "g1BN.numChannels", head.g1_bn.num_channels);
     checkDimsEqual(head.name, "gpoolToBiasMul.inChannels", head.gpool_to_bias_mul.in_channels,
-                   "g1BN.numChannels * 3", head.g1_bn.num_channels * 3);
+                   "g1BN.numChannels * 3", (int64_t)head.g1_bn.num_channels * 3);
     checkDimsEqual(head.name, "gpoolToBiasMul.outChannels", head.gpool_to_bias_mul.out_channels,
                    "p1BN.numChannels", head.p1_bn.num_channels);
     checkDimsEqual(head.name, "p2Conv.inChannels", head.p2_conv.in_channels,
                    "p1BN.numChannels", head.p1_bn.num_channels);
     checkDimsEqual(head.name, "gpoolToPassMul.inChannels", head.gpool_to_pass_mul.in_channels,
-                   "g1BN.numChannels * 3", head.g1_bn.num_channels * 3);
+                   "g1BN.numChannels * 3", (int64_t)head.g1_bn.num_channels * 3);
     checkDimsEqual(head.name, "p2Conv.outChannels", head.p2_conv.out_channels,
                    "policyOutChannels", head.policy_out_channels);
     if (model_version >= 15) {
@@ -961,6 +971,7 @@ ValueHeadDesc KataGoParser::parseValueHead(int model_version) {
             int unused = readInt();
             if (unused != 0) {
                 throw std::runtime_error(head.name + ": unknown/unsupported value option " +
+                                         std::string(1, static_cast<char>('A' + i)) + ": " +
                                          std::to_string(unused));
             }
         }
@@ -984,7 +995,7 @@ ValueHeadDesc KataGoParser::parseValueHead(int model_version) {
     checkDimsEqual(head.name, "v1Conv.outChannels", head.v1_conv.out_channels,
                    "v1BN.numChannels", head.v1_bn.num_channels);
     checkDimsEqual(head.name, "v2Mul.inChannels", head.v2_mul.in_channels,
-                   "v1BN.numChannels * 3", head.v1_bn.num_channels * 3);
+                   "v1BN.numChannels * 3", (int64_t)head.v1_bn.num_channels * 3);
     checkDimsEqual(head.name, "v2Mul.outChannels", head.v2_mul.out_channels,
                    "v2Bias.numChannels", head.v2_bias.num_channels);
     checkDimsEqual(head.name, "v2Mul.outChannels", head.v2_mul.out_channels,

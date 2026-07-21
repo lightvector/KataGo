@@ -93,6 +93,10 @@ void KataGoConverter::convert(const std::string& input_path,
     serializer.serialize(program.get(), weights_copy, output_path, final_options);
 }
 
+bool KataGoConverter::wouldBuildFullyFp32(int trunk_num_channels, bool has_transformer_blocks) {
+    return MILBuilder::wouldBuildFullyFp32(trunk_num_channels, has_transformer_blocks);
+}
+
 ModelInfo KataGoConverter::getModelInfo(const std::string& input_path) {
     KataGoParser parser(input_path);
     KataGoModelDesc model = parser.parse();

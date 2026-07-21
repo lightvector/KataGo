@@ -213,8 +213,8 @@ BatchNormLayerDesc::BatchNormLayerDesc(istream& in, bool binaryFloats) {
 
   if(numChannels < 1)
     throw StringError(name + ": numChannels (" + Global::intToString(numChannels) + ") < 1");
-  if(epsilon <= 0)
-    throw StringError(name + ": epsilon (" + Global::floatToString(epsilon) + ") <= 0");
+  if(!(epsilon > 0) || !isfinite(epsilon))
+    throw StringError(name + ": epsilon (" + Global::floatToString(epsilon) + ") is not positive and finite");
 
   vector<float> floats;
   readFloats(in, (size_t)numChannels, binaryFloats, name, floats);
@@ -1007,7 +1007,7 @@ RMSNormLayerDesc::RMSNormLayerDesc(istream& in, bool binaryFloats) {
 
   if(in.fail())
     throw StringError(name + ": rmsnorm layer failed to parse parameters");
-  if(epsilon <= 0 || epsilon > 1.0f)
+  if(!(epsilon > 0) || epsilon > 1.0f)
     throw StringError(name + ": rmsnorm epsilon (" + Global::doubleToString(epsilon) + ") is not positive or is too large");
   if(numChannels < 1)
     throw StringError(name + ": rmsnorm numChannels (" + Global::intToString(numChannels) + ") < 1");
@@ -1056,7 +1056,7 @@ TransformerRMSNormDesc::TransformerRMSNormDesc(istream& in, bool binaryFloats) {
     throw StringError(name + ": transformer rmsnorm failed to parse parameters");
   if(numChannels < 1)
     throw StringError(name + ": transformer rmsnorm numChannels (" + Global::intToString(numChannels) + ") < 1");
-  if(epsilon <= 0 || epsilon > 1.0f)
+  if(!(epsilon > 0) || epsilon > 1.0f)
     throw StringError(name + ": transformer rmsnorm epsilon (" + Global::doubleToString(epsilon) + ") is not positive or is too large");
 
   vector<float> floats;
@@ -1166,8 +1166,8 @@ TransformerAttentionDesc::TransformerAttentionDesc(istream& in, bool binaryFloat
       in >> ropeTheta;
       if(in.fail())
         throw StringError(name + ": failed to parse rope theta");
-      if(ropeTheta <= 0.0f)
-        throw StringError(name + ": rope theta must be positive");
+      if(!(ropeTheta > 0.0f) || !isfinite(ropeTheta))
+        throw StringError(name + ": rope theta must be positive and finite");
     }
   }
 
@@ -2317,37 +2317,37 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
     in >> postProcessParams.tdScoreMultiplier;
     if(in.fail())
       throw StringError(name + ": model failed to parse tdScoreMultiplier");
-    if(postProcessParams.tdScoreMultiplier <= 0)
+    if(!(postProcessParams.tdScoreMultiplier > 0) || !isfinite(postProcessParams.tdScoreMultiplier))
       throw StringError(name + ": model tdScoreMultiplier must be positive");
     in >> postProcessParams.scoreMeanMultiplier;
     if(in.fail())
       throw StringError(name + ": model failed to parse scoreMeanMultiplier");
-    if(postProcessParams.scoreMeanMultiplier <= 0)
+    if(!(postProcessParams.scoreMeanMultiplier > 0) || !isfinite(postProcessParams.scoreMeanMultiplier))
       throw StringError(name + ": model scoreMeanMultiplier must be positive");
     in >> postProcessParams.scoreStdevMultiplier;
     if(in.fail())
       throw StringError(name + ": model failed to parse scoreStdevMultiplier");
-    if(postProcessParams.scoreStdevMultiplier <= 0)
+    if(!(postProcessParams.scoreStdevMultiplier > 0) || !isfinite(postProcessParams.scoreStdevMultiplier))
       throw StringError(name + ": model scoreStdevMultiplier must be positive");
     in >> postProcessParams.leadMultiplier;
     if(in.fail())
       throw StringError(name + ": model failed to parse leadMultiplier");
-    if(postProcessParams.leadMultiplier <= 0)
+    if(!(postProcessParams.leadMultiplier > 0) || !isfinite(postProcessParams.leadMultiplier))
       throw StringError(name + ": model leadMultiplier must be positive");
     in >> postProcessParams.varianceTimeMultiplier;
     if(in.fail())
       throw StringError(name + ": model failed to parse varianceTimeMultiplier");
-    if(postProcessParams.varianceTimeMultiplier <= 0)
+    if(!(postProcessParams.varianceTimeMultiplier > 0) || !isfinite(postProcessParams.varianceTimeMultiplier))
       throw StringError(name + ": model varianceTimeMultiplier must be positive");
     in >> postProcessParams.shorttermValueErrorMultiplier;
     if(in.fail())
       throw StringError(name + ": model failed to parse shorttermValueErrorMultiplier");
-    if(postProcessParams.shorttermValueErrorMultiplier <= 0)
+    if(!(postProcessParams.shorttermValueErrorMultiplier > 0) || !isfinite(postProcessParams.shorttermValueErrorMultiplier))
       throw StringError(name + ": model shorttermValueErrorMultiplier must be positive");
     in >> postProcessParams.shorttermScoreErrorMultiplier;
     if(in.fail())
       throw StringError(name + ": model failed to parse shorttermScoreErrorMultiplier");
-    if(postProcessParams.shorttermScoreErrorMultiplier <= 0)
+    if(!(postProcessParams.shorttermScoreErrorMultiplier > 0) || !isfinite(postProcessParams.shorttermScoreErrorMultiplier))
       throw StringError(name + ": model shorttermScoreErrorMultiplier must be positive");
   }
   else {

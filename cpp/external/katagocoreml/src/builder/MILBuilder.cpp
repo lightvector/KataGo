@@ -82,8 +82,11 @@ MILBuilder::MILBuilder(const KataGoModelDesc& model,
     //     policyKLDiv at 19x19 (max 1.77x over; FP32 convs at 256 did not fix it, an FP32 attention
     //     core did but is not worth the ANE slowdown for wide models). Off-ANE but cheap since
     //     narrow; equals the FP32 reference. Weights stored FP32 (per-weight serialization).
-    //   - Trunks at/above 320ch use partial FP32: non-spatial (matmuls + pooling) and convs, leaving
-    //     the attention core, spatial elementwise ops, and value-head linears FP16 on the ANE
+    //   - Trunks at/above 320ch use partial FP32: q/k/v projections, FFN matmuls, pooling, norm
+    //     cores, convs, and the pooled head layers (addLinearOp: value head v2/v3/sv3, policy
+    //     gpool-to-pass, metadata encoder - measured ~25-60% better value-metric errors at ~2%
+    //     cost). The attention core (scores/softmax/attn@V, gated by ATTENTION_CORE_FP32), the
+    //     per-head output-projection matmuls, and spatial elementwise ops stay FP16 on the ANE
     //     (b10c384/b15c512/b11c768 pass with >=2.7x headroom on every metric).
     const int trunkChannels = model.trunk.trunk_num_channels;
     const bool hasTransformer = blocksContainTransformer(model.trunk.blocks);
@@ -2366,9 +2369,12 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
     binary("sub", maskSeq, oneName, mm1, {-1, 1, 1, seq});
     // Use an FP16-safe magnitude: 1e9 overflows FP16 to +inf, and for valid keys
     // (maskSeq-1 == 0) the product 0 * inf becomes NaN, poisoning the whole softmax.
-    // 1e4 is well within FP16 range and exp(score - 1e4) still underflows to 0.
+    // 3e4 is exactly representable in FP16 (a multiple of the local ulp of 16), stays well
+    // below the FP16 max of 65504 even after summing with any plausible score, and
+    // exp(score - 3e4) underflows to exactly 0 - while leaving ~3x more headroom than
+    // 1e4 against unusually large valid scores.
     std::string bigName = prefix + "_big";
-    addFloatScalarConstOp(block, bigName, 1.0e4f);
+    addFloatScalarConstOp(block, bigName, 3.0e4f);
     std::string keyBias = genVarName(prefix + "_kb");
     binary("mul", mm1, bigName, keyBias, {-1, 1, 1, seq});
 
@@ -2414,10 +2420,13 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
         attnOut = castFixed(block, attnOut, "fp16", {-1, numHeads, seq, vHeadDim});
     }
 
-    // Output projection, done per-head to avoid reshape-after-transpose: CoreML's reshape
-    // ignores an immediately-preceding transpose, so merging [head,dim]->channels after a
-    // transpose scrambles the data. Instead slice each head from attnOut (head is the
-    // contiguous axis 1), reshape (leading-merge only), matmul its weight slice, and sum.
+    // Output projection, done per-head as a workaround: merging [head,dim]->channels via
+    // transpose({0,2,1,3}) followed by reshape was observed to scramble the data on this
+    // specific pattern (root cause not isolated - note the transpose+reshape at this
+    // function's INPUT works fine, so it is not a general CoreML rule; possibly a fusion or
+    // layout bug for this rank-4 permutation feeding a trailing-dim merge). Instead slice
+    // each head from attnOut (head is the contiguous axis 1), reshape (leading-merge only),
+    // matmul its weight slice, and sum.
     //   out[b,s,c] = sum_h sum_d attnOut[b,h,s,d] * outProj.weights[(h*vHeadDim+d)*outC + c]
     const int outC = desc.out_proj.out_channels;
     std::string proj2d;

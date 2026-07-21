@@ -597,6 +597,21 @@ static swift::Optional<KataGoSwift::CoreMLComputeHandle> createCoreMLOnlyHandleI
   return convertAndCreateCoreMLOnlyHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx);
 }
 
+// True if any block (recursing into nested bottlenecks) is a transformer block. Used to
+// predict the converter's narrow-transformer full-FP32 demotion for precision reporting.
+static bool trunkHasTransformerBlocks(const vector<pair<int, unique_ptr_void>>& blocks) {
+  for(const auto& block : blocks) {
+    if(block.first == TRANSFORMER_ATTENTION_BLOCK_KIND || block.first == TRANSFORMER_FFN_BLOCK_KIND)
+      return true;
+    if(block.first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)block.second.get();
+      if(trunkHasTransformerBlocks(desc->blocks))
+        return true;
+    }
+  }
+  return false;
+}
+
 // Helper function to create MPSGraph-only handle for all non-ANE modes
 static swift::Optional<KataGoSwift::MPSGraphModelHandle> createMPSGraphHandleIfNeeded(
   ComputeContext* context,
@@ -651,9 +666,13 @@ coremlOnlyHandle(createCoreMLOnlyHandleIfNeeded(context, loadedModel, requireExa
   this->inputsUseNHWC = inputsUseNHWC;
   this->requireExactNNLen = requireExactNNLen;
   // Report what this handle actually computes with. The MPSGraph (GPU) path builds its graph
-  // entirely in FP32 regardless of useFP16Mode; only the CoreML (ANE) path converts the model
-  // at FP16. If the MPSGraph path is ever switched to honor useFP16Mode, update this too.
-  useFP16 = (gpuIdx == METAL_MUX_ANE) && (context->useFP16Mode != enabled_t::False);
+  // entirely in FP32 regardless of useFP16Mode; the CoreML (ANE) path converts at FP16 EXCEPT
+  // that the converter demotes narrow transformer trunks to full FP32 for accuracy - query the
+  // converter's predicate so that case reports FP32 too. If the MPSGraph path is ever switched
+  // to honor useFP16Mode, update this.
+  bool aneWouldDemoteToFP32 = katagocoreml::KataGoConverter::wouldBuildFullyFp32(
+    modelDesc->trunk.trunkNumChannels, trunkHasTransformerBlocks(modelDesc->trunk.blocks));
+  useFP16 = (gpuIdx == METAL_MUX_ANE) && (context->useFP16Mode != enabled_t::False) && !aneWouldDemoteToFP32;
 }
 
 ComputeHandle::~ComputeHandle() {
