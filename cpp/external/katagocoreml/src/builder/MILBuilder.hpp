@@ -62,6 +62,14 @@ private:
     // m_use_fp16.
     static constexpr int CONV_FP32_MIN_TRUNK_CHANNELS = 320;   // transformer convs run FP32 at/above this width
     static constexpr int FULL_FP32_MAX_TRUNK_CHANNELS = 320;   // transformer trunks below this build fully FP32
+    // Escalate the attention scores/softmax/attn@V chain to FP32 in the partial tier. Measured on
+    // an M2 (b11c768, testgpuerror -quick, baseline 308s): fixes the worst observed fp16 margins
+    // (b10c384 rect leadError max 0.73x of limit -> 0.35x; ~10x better policyKLDiv) but costs
+    // ~1.7-2.3x eval time, because ANE<->CPU boundary transitions dominate, not FLOPs. Off by
+    // default: all current models pass with margin without it. If accuracy is ever preferred over
+    // ANE throughput, enable this (softmax-only escalation is NOT a valid cheaper substitute; it
+    // measured slower AND less accurate - see buildTransformerAttentionBlock).
+    static constexpr bool ATTENTION_CORE_FP32 = false;
     bool m_nonspatial_fp32 = false;  // = m_use_fp16 && hasTransformer (matmuls + global pooling)
     bool m_conv_fp32 = false;        // = m_use_fp16 && hasTransformer && trunk_channels >= CONV_FP32_MIN_...
     int m_min_batch_size;

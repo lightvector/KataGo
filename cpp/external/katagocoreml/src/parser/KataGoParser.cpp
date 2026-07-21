@@ -12,6 +12,16 @@
 
 namespace katagocoreml {
 
+namespace {
+// Cross-field dimension consistency check, mirroring desc.cpp's pattern of named errors.
+void checkDimsEqual(const std::string& name, const char* aDesc, int a, const char* bDesc, int b) {
+    if (a != b) {
+        throw std::runtime_error(name + ": " + aDesc + " (" + std::to_string(a) + ") != " +
+                                 bDesc + " (" + std::to_string(b) + ")");
+    }
+}
+}  // namespace
+
 // ============================================================================
 // Constructor
 // ============================================================================
@@ -167,10 +177,17 @@ std::vector<float> KataGoParser::readFloats(size_t count, const std::string& nam
             floats[i] = readFloat();
         }
     } else {
-        // Binary format - find @BIN@ marker
+        // Binary format - find @BIN@ marker. Bound the scan like desc.cpp (which allows at
+        // most 100 chars before the marker): an unbounded scan would silently skip arbitrary
+        // junk between weight blocks, masking corruption or resyncing past a real error.
+        size_t scan_start = m_pos;
         while (m_pos < m_buffer.size()) {
             if (m_buffer[m_pos] == '@') {
                 break;
+            }
+            if (m_pos - scan_start > 100) {
+                throw std::runtime_error(name + ": could not find @BIN@ marker near expected position."
+                                         " Invalid model - perhaps a .txt model with a binary header, or corrupted data?");
             }
             m_pos++;
         }
@@ -299,9 +316,10 @@ BatchNormLayerDesc KataGoParser::parseBatchNormLayer() {
                                  std::to_string(layer.num_channels));
     }
     // epsilon == 0 with variance == 0 would divide by zero in the merged-scale
-    // formula below and produce Inf weights. Match master desc.cpp's check.
-    if (layer.epsilon <= 0.0f) {
-        throw std::runtime_error(layer.name + ": batchnorm epsilon must be > 0, got " +
+    // formula below and produce Inf weights. Written NaN-safe and finite-checked
+    // (stof accepts "nan"/"inf" tokens, and NaN passes a `<= 0` comparison).
+    if (!(layer.epsilon > 0.0f) || !std::isfinite(layer.epsilon)) {
+        throw std::runtime_error(layer.name + ": batchnorm epsilon must be positive and finite, got " +
                                  std::to_string(layer.epsilon));
     }
 
@@ -362,6 +380,13 @@ MatMulLayerDesc KataGoParser::parseMatMulLayer() {
     layer.in_channels = readInt();
     layer.out_channels = readInt();
 
+    // Matches desc.cpp; a negative count would wrap the size_t product below.
+    if (layer.in_channels < 1 || layer.out_channels < 1) {
+        throw std::runtime_error(layer.name + ": matmul channels must be positive, got in=" +
+                                 std::to_string(layer.in_channels) + " out=" +
+                                 std::to_string(layer.out_channels));
+    }
+
     // Weights in [ic, oc] order
     size_t num_weights = static_cast<size_t>(layer.in_channels) * layer.out_channels;
     layer.weights = readFloats(num_weights, layer.name);
@@ -373,6 +398,10 @@ MatBiasLayerDesc KataGoParser::parseMatBiasLayer() {
     MatBiasLayerDesc layer;
     layer.name = readString();
     layer.num_channels = readInt();
+    if (layer.num_channels < 1) {
+        throw std::runtime_error(layer.name + ": matbias numChannels must be >= 1, got " +
+                                 std::to_string(layer.num_channels));
+    }
     layer.weights = readFloats(layer.num_channels, layer.name);
 
     return layer;
@@ -392,6 +421,14 @@ ResidualBlockDesc KataGoParser::parseResidualBlock(int model_version) {
     block.mid_activation = parseActivationLayer(model_version);
     block.final_conv = parseConvLayer();
 
+    // Internal cross-checks, matching desc.cpp.
+    checkDimsEqual(block.name, "preBN.numChannels", block.pre_bn.num_channels,
+                   "regularConv.inChannels", block.regular_conv.in_channels);
+    checkDimsEqual(block.name, "midBN.numChannels", block.mid_bn.num_channels,
+                   "regularConv.outChannels", block.regular_conv.out_channels);
+    checkDimsEqual(block.name, "midBN.numChannels", block.mid_bn.num_channels,
+                   "finalConv.inChannels", block.final_conv.in_channels);
+
     return block;
 }
 
@@ -410,6 +447,22 @@ GlobalPoolingResidualBlockDesc KataGoParser::parseGlobalPoolingResidualBlock(int
     block.mid_activation = parseActivationLayer(model_version);
     block.final_conv = parseConvLayer();
 
+    // Internal cross-checks, matching desc.cpp.
+    checkDimsEqual(block.name, "preBN.numChannels", block.pre_bn.num_channels,
+                   "regularConv.inChannels", block.regular_conv.in_channels);
+    checkDimsEqual(block.name, "preBN.numChannels", block.pre_bn.num_channels,
+                   "gpoolConv.inChannels", block.gpool_conv.in_channels);
+    checkDimsEqual(block.name, "gpoolBN.numChannels", block.gpool_bn.num_channels,
+                   "gpoolConv.outChannels", block.gpool_conv.out_channels);
+    checkDimsEqual(block.name, "gpoolBN.numChannels * 3", block.gpool_bn.num_channels * 3,
+                   "gpoolToBiasMul.inChannels", block.gpool_to_bias_mul.in_channels);
+    checkDimsEqual(block.name, "midBN.numChannels", block.mid_bn.num_channels,
+                   "regularConv.outChannels", block.regular_conv.out_channels);
+    checkDimsEqual(block.name, "midBN.numChannels", block.mid_bn.num_channels,
+                   "gpoolToBiasMul.outChannels", block.gpool_to_bias_mul.out_channels);
+    checkDimsEqual(block.name, "midBN.numChannels", block.mid_bn.num_channels,
+                   "finalConv.inChannels", block.final_conv.in_channels);
+
     return block;
 }
 
@@ -417,6 +470,10 @@ NestedBottleneckResidualBlockDesc KataGoParser::parseNestedBottleneckBlock(int m
     NestedBottleneckResidualBlockDesc block;
     block.name = readString();
     block.num_blocks = readInt();
+    if (block.num_blocks < 1) {
+        throw std::runtime_error(block.name + ": nested bottleneck res block num blocks must be positive, got " +
+                                 std::to_string(block.num_blocks));
+    }
 
     block.pre_bn = parseBatchNormLayer();
     block.pre_activation = parseActivationLayer(model_version);
@@ -427,6 +484,14 @@ NestedBottleneckResidualBlockDesc KataGoParser::parseNestedBottleneckBlock(int m
     block.post_bn = parseBatchNormLayer();
     block.post_activation = parseActivationLayer(model_version);
     block.post_conv = parseConvLayer();
+
+    // Internal cross-checks, matching desc.cpp.
+    checkDimsEqual(block.name, "preBN.numChannels", block.pre_bn.num_channels,
+                   "preConv.inChannels", block.pre_conv.in_channels);
+    checkDimsEqual(block.name, "postBN.numChannels", block.post_bn.num_channels,
+                   "preConv.outChannels", block.pre_conv.out_channels);
+    checkDimsEqual(block.name, "postBN.numChannels", block.post_bn.num_channels,
+                   "postConv.inChannels", block.post_conv.in_channels);
 
     return block;
 }
@@ -666,6 +731,14 @@ SGFMetadataEncoderDesc KataGoParser::parseSGFMetadataEncoder(int model_version, 
     encoder.meta_encoder_version = meta_encoder_version;
     encoder.num_input_meta_channels = readInt();
 
+    // desc.cpp validates the declared count against NNModelVersion::getNumInputMetaChannels;
+    // for the only supported metaEncoderVersion (1) that is 192, which parseModel also hardcodes.
+    if (meta_encoder_version == 1 && encoder.num_input_meta_channels != 192) {
+        throw std::runtime_error(encoder.name + ": numInputMetaChannels (" +
+                                 std::to_string(encoder.num_input_meta_channels) +
+                                 ") != 192 expected for metaEncoderVersion 1");
+    }
+
     encoder.mul1 = parseMatMulLayer();
     encoder.bias1 = parseMatBiasLayer();
     encoder.act1 = parseActivationLayer(model_version);
@@ -673,6 +746,16 @@ SGFMetadataEncoderDesc KataGoParser::parseSGFMetadataEncoder(int model_version, 
     encoder.bias2 = parseMatBiasLayer();
     encoder.act2 = parseActivationLayer(model_version);
     encoder.mul3 = parseMatMulLayer();
+
+    // Internal cross-checks, matching desc.cpp.
+    checkDimsEqual(encoder.name, "mul1.outChannels", encoder.mul1.out_channels,
+                   "bias1.numChannels", encoder.bias1.num_channels);
+    checkDimsEqual(encoder.name, "mul2.inChannels", encoder.mul2.in_channels,
+                   "mul1.outChannels", encoder.mul1.out_channels);
+    checkDimsEqual(encoder.name, "mul2.outChannels", encoder.mul2.out_channels,
+                   "bias2.numChannels", encoder.bias2.num_channels);
+    checkDimsEqual(encoder.name, "mul3.inChannels", encoder.mul3.in_channels,
+                   "mul2.outChannels", encoder.mul2.out_channels);
 
     return encoder;
 }
@@ -832,6 +915,38 @@ PolicyHeadDesc KataGoParser::parsePolicyHead(int model_version) {
         head.policy_out_channels = 1;
     }
 
+    // Internal cross-checks, matching desc.cpp. In particular p2Conv.outChannels must equal
+    // policy_out_channels: parseModel reports num_policy_channels from the latter while the MIL
+    // graph emits p2Conv's actual width, so a mismatch would mean the consumer reads the policy
+    // buffer with the wrong channel count (silent wrong output) rather than a load error.
+    checkDimsEqual(head.name, "p1Conv.outChannels", head.p1_conv.out_channels,
+                   "p1BN.numChannels", head.p1_bn.num_channels);
+    checkDimsEqual(head.name, "g1Conv.outChannels", head.g1_conv.out_channels,
+                   "g1BN.numChannels", head.g1_bn.num_channels);
+    checkDimsEqual(head.name, "gpoolToBiasMul.inChannels", head.gpool_to_bias_mul.in_channels,
+                   "g1BN.numChannels * 3", head.g1_bn.num_channels * 3);
+    checkDimsEqual(head.name, "gpoolToBiasMul.outChannels", head.gpool_to_bias_mul.out_channels,
+                   "p1BN.numChannels", head.p1_bn.num_channels);
+    checkDimsEqual(head.name, "p2Conv.inChannels", head.p2_conv.in_channels,
+                   "p1BN.numChannels", head.p1_bn.num_channels);
+    checkDimsEqual(head.name, "gpoolToPassMul.inChannels", head.gpool_to_pass_mul.in_channels,
+                   "g1BN.numChannels * 3", head.g1_bn.num_channels * 3);
+    checkDimsEqual(head.name, "p2Conv.outChannels", head.p2_conv.out_channels,
+                   "policyOutChannels", head.policy_out_channels);
+    if (model_version >= 15) {
+        checkDimsEqual(head.name, "gpoolToPassMul.outChannels", head.gpool_to_pass_mul.out_channels,
+                       "gpoolToPassBias.numChannels", head.gpool_to_pass_bias->num_channels);
+        checkDimsEqual(head.name, "gpoolToPassMul.outChannels", head.gpool_to_pass_mul.out_channels,
+                       "gpoolToPassMul2.inChannels", head.gpool_to_pass_mul2->in_channels);
+        checkDimsEqual(head.name, "gpoolToPassMul.outChannels", head.gpool_to_pass_mul.out_channels,
+                       "p1Conv.outChannels", head.p1_conv.out_channels);
+        checkDimsEqual(head.name, "gpoolToPassMul2.outChannels", head.gpool_to_pass_mul2->out_channels,
+                       "policyOutChannels", head.policy_out_channels);
+    } else {
+        checkDimsEqual(head.name, "gpoolToPassMul.outChannels", head.gpool_to_pass_mul.out_channels,
+                       "policyOutChannels", head.policy_out_channels);
+    }
+
     return head;
 }
 
@@ -863,6 +978,30 @@ ValueHeadDesc KataGoParser::parseValueHead(int model_version) {
     head.sv3_bias = parseMatBiasLayer();
     head.v_ownership_conv = parseConvLayer();
 
+    // Internal cross-checks, matching desc.cpp (only v8+ branches: older versions are
+    // rejected by isVersionSupported). v3Mul/sv3Mul/vOwnershipConv widths must match the
+    // counts parseModel hardcodes, since the MIL graph emits the actual layer widths.
+    checkDimsEqual(head.name, "v1Conv.outChannels", head.v1_conv.out_channels,
+                   "v1BN.numChannels", head.v1_bn.num_channels);
+    checkDimsEqual(head.name, "v2Mul.inChannels", head.v2_mul.in_channels,
+                   "v1BN.numChannels * 3", head.v1_bn.num_channels * 3);
+    checkDimsEqual(head.name, "v2Mul.outChannels", head.v2_mul.out_channels,
+                   "v2Bias.numChannels", head.v2_bias.num_channels);
+    checkDimsEqual(head.name, "v2Mul.outChannels", head.v2_mul.out_channels,
+                   "v3Mul.inChannels", head.v3_mul.in_channels);
+    checkDimsEqual(head.name, "v3Mul.outChannels", head.v3_mul.out_channels, "3", 3);
+    checkDimsEqual(head.name, "v3Bias.numChannels", head.v3_bias.num_channels, "3", 3);
+    checkDimsEqual(head.name, "sv3Mul.inChannels", head.sv3_mul.in_channels,
+                   "v2Mul.outChannels", head.v2_mul.out_channels);
+    const int expected_sv = (model_version >= 9) ? 6 : 4;
+    checkDimsEqual(head.name, "sv3Mul.outChannels", head.sv3_mul.out_channels,
+                   "expected scoreValueChannels", expected_sv);
+    checkDimsEqual(head.name, "sv3Bias.numChannels", head.sv3_bias.num_channels,
+                   "expected scoreValueChannels", expected_sv);
+    checkDimsEqual(head.name, "vOwnershipConv.inChannels", head.v_ownership_conv.in_channels,
+                   "v1Conv.outChannels", head.v1_conv.out_channels);
+    checkDimsEqual(head.name, "vOwnershipConv.outChannels", head.v_ownership_conv.out_channels, "1", 1);
+
     return head;
 }
 
@@ -878,9 +1017,15 @@ KataGoModelDesc KataGoParser::parseModel() {
     model.model_version = readInt();
 
     if (!isVersionSupported(model.model_version)) {
+        // Note: the main engine (desc.cpp) accepts versions 3+, so a pre-v8 model that loads
+        // fine on other backends (including Metal's MPSGraph GPU path) still lands here on the
+        // CoreML/ANE path; say so rather than leaving the user to guess.
         throw std::runtime_error(
-            "Only KataGo model versions 8-17 are supported, got version " +
-            std::to_string(model.model_version));
+            "Only KataGo model versions 8-17 are supported by the CoreML/ANE converter, got version " +
+            std::to_string(model.model_version) +
+            (model.model_version < 8
+                 ? ". This older model can still be used with the GPU (MPSGraph) path or other backends."
+                 : ". You may need a newer KataGo version."));
     }
 
     model.num_input_channels = readInt();
@@ -905,10 +1050,12 @@ KataGoModelDesc KataGoParser::parseModel() {
         p.variance_time_multiplier = readFloat();
         p.shortterm_value_error_multiplier = readFloat();
         p.shortterm_score_error_multiplier = readFloat();
+        // NaN-safe and finite-checked: these multipliers scale engine outputs, so a NaN/Inf
+        // here (which stof will happily parse) would silently poison every evaluation.
         auto checkPositive = [&](const char* field, float v) {
-            if (v <= 0.0f) {
+            if (!(v > 0.0f) || !std::isfinite(v)) {
                 throw std::runtime_error(model.name + ": postProcessParams." + field +
-                                         " must be > 0, got " + std::to_string(v));
+                                         " must be positive and finite, got " + std::to_string(v));
             }
         };
         checkPositive("tdScoreMultiplier", p.td_score_multiplier);
@@ -975,6 +1122,14 @@ KataGoModelDesc KataGoParser::parseModel() {
                                  ") != trunk.initialMatMul.inChannels (" +
                                  std::to_string(model.trunk.initial_matmul.in_channels) + ")");
     }
+
+    // Head-input-vs-trunk cross-checks, matching desc.cpp.
+    checkDimsEqual(model.name, "policyHead.p1Conv.inChannels", model.policy_head.p1_conv.in_channels,
+                   "trunkNumChannels", model.trunk.trunk_num_channels);
+    checkDimsEqual(model.name, "policyHead.g1Conv.inChannels", model.policy_head.g1_conv.in_channels,
+                   "trunkNumChannels", model.trunk.trunk_num_channels);
+    checkDimsEqual(model.name, "valueHead.v1Conv.inChannels", model.value_head.v1_conv.in_channels,
+                   "trunkNumChannels", model.trunk.trunk_num_channels);
 
     // Determine output channel counts
     model.num_policy_channels = model.policy_head.policy_out_channels;

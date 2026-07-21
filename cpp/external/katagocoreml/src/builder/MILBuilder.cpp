@@ -1162,16 +1162,84 @@ void MILBuilder::addLinearOp(CoreML::Specification::MILSpec::Block* block,
                              const MatMulLayerDesc& matmul,
                              const MatBiasLayerDesc& bias,
                              const std::string& output) {
+    std::string weight_name = output + "_weight_0";
+    std::string bias_name = output + "_bias_0";
+    const int in_ch = matmul.in_channels;
+    const int out_ch = matmul.out_channels;
+
+    if (m_nonspatial_fp32) {
+        // FP32 escalation for the partial-FP32 tier. MIL `linear` requires const weight/bias, so
+        // the runtime-cast trick cannot apply to it; rewrite as matmul+add, which accept cast
+        // inputs. These layers (value head v2/v3/sv3, policy gpool-to-pass, metadata encoder)
+        // reduce pooled features directly into the engine's final outputs (value, lead, score),
+        // and are tiny relative to the trunk, so the off-ANE FP32 cost is negligible. Weights and
+        // bias are simply stored FP32 (per-weight serialization handles the mixed dtypes).
+        const auto savedDtype = m_weight_dtype;
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+        // KataGo's [in_channels, out_channels] row-major layout is used untransposed by matmul.
+        addConstOp(block, weight_name, matmul.weights,
+                   {static_cast<int64_t>(in_ch), static_cast<int64_t>(out_ch)});
+        addConstOp(block, bias_name, bias.weights, {static_cast<int64_t>(bias.num_channels)});
+
+        std::string x32 = castFixed(block, input, "fp32", {-1, in_ch});
+
+        std::string txName = output + "_tx", tyName = output + "_ty";
+        addBoolScalarConstOp(block, txName, false);
+        addBoolScalarConstOp(block, tyName, false);
+        std::string mm32 = genVarName(output + "_mm32");
+        {
+            auto* op = block->add_operations();
+            op->set_type("matmul");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(x32);
+            (*op->mutable_inputs())["y"].add_arguments()->set_name(weight_name);
+            (*op->mutable_inputs())["transpose_x"].add_arguments()->set_name(txName);
+            (*op->mutable_inputs())["transpose_y"].add_arguments()->set_name(tyName);
+            setShape(op, mm32, {-1, out_ch});
+        }
+        std::string add32 = genVarName(output + "_add32");
+        {
+            auto* op = block->add_operations();
+            op->set_type("add");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(mm32);
+            (*op->mutable_inputs())["y"].add_arguments()->set_name(bias_name);
+            setShape(op, add32, {-1, out_ch});
+        }
+        m_weight_dtype = savedDtype;
+
+        // Cast back to the ambient dtype under the exact output name callers expect.
+        {
+            std::string dtName = output + "_dt";
+            auto* cop = block->add_operations();
+            cop->set_type("const");
+            auto& na = (*cop->mutable_attributes())["name"];
+            na.mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+            na.mutable_immediatevalue()->mutable_tensor()->mutable_strings()->add_values(dtName);
+            auto& va = (*cop->mutable_attributes())["val"];
+            va.mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+            va.mutable_immediatevalue()->mutable_tensor()->mutable_strings()->add_values("fp16");
+            auto* co = cop->add_outputs();
+            co->set_name(dtName);
+            co->mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+
+            auto* op = block->add_operations();
+            op->set_type("cast");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(add32);
+            (*op->mutable_inputs())["dtype"].add_arguments()->set_name(dtName);
+            auto* out = op->add_outputs();
+            out->set_name(output);
+            auto* out_type = out->mutable_type()->mutable_tensortype();
+            out_type->set_datatype(CoreML::Specification::MILSpec::DataType::FLOAT16);
+            out_type->set_rank(2);
+            setBatchDimension(out_type);
+            out_type->add_dimensions()->mutable_constant()->set_size(out_ch);
+        }
+        return;
+    }
+
     // Create const operations for weight and bias (matching Python's linear op structure)
     // Core ML linear expects weights in [out_channels, in_channels] format
     // KataGo matmul stores weights in [in_channels, out_channels] format
     // We need to transpose the weights to match Python's fuse_matmul_weight_bias pass
-    std::string weight_name = output + "_weight_0";
-    std::string bias_name = output + "_bias_0";
-
-    // Transpose weights from [in_channels, out_channels] to [out_channels, in_channels]
-    const int in_ch = matmul.in_channels;
-    const int out_ch = matmul.out_channels;
     std::vector<float> transposed_weights(matmul.weights.size());
     for (int i = 0; i < in_ch; ++i) {
         for (int j = 0; j < out_ch; ++j) {
@@ -1189,9 +1257,6 @@ void MILBuilder::addLinearOp(CoreML::Specification::MILSpec::Block* block,
     std::vector<int64_t> bias_shape = {static_cast<int64_t>(bias.num_channels)};
     addConstOp(block, bias_name, bias.weights, bias_shape);
 
-    // NOTE: the MIL `linear` op requires const weight/bias, so the runtime-cast-to-FP32 trick can't
-    // be applied here (unlike `matmul`). Value-head linear stays FP16; if a model ever needs it in
-    // FP32, rewrite as matmul+add (matmul accepts cast inputs).
     auto* op = block->add_operations();
     op->set_type("linear");
     auto& inputs = *op->mutable_inputs();
@@ -2289,16 +2354,10 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
         vh = repeatKVHeads(vh, "vhrep", vHeadDim);
     }
 
-    std::string scores = genVarName(prefix + "_scores");
-    matmul(qh, kh, scores, {-1, numHeads, seq, seq}, false, true);
-    std::string scaleName = prefix + "_scale";
-    addFloatScalarConstOp(block, scaleName, 1.0f / std::sqrt(static_cast<float>(qHeadDim)));
-    std::string scaled = genVarName(prefix + "_sc");
-    binary("mul", scores, scaleName, scaled, {-1, numHeads, seq, seq});
-
     // mask [B,1,H,W] -> [B,1,1,seq] directly (contiguous reshape; H,W already trailing so the
     // row-major flatten gives seq index xy=y*W+x). No transpose -> avoids the reshape-after-
-    // transpose issue, and is also correct for non-full boards.
+    // transpose issue, and is also correct for non-full boards. Computed in the ambient dtype
+    // (FP16 in FP16 mode) since the mask tensor is FP16; cast up below if the core runs FP32.
     std::string maskSeq = genVarName(prefix + "_mseq");
     reshape(mask, maskSeq, {-1, 1, 1, seq}, {-1, 1, 1, seq});
     std::string oneName = prefix + "_one";
@@ -2312,8 +2371,30 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
     addFloatScalarConstOp(block, bigName, 1.0e4f);
     std::string keyBias = genVarName(prefix + "_kb");
     binary("mul", mm1, bigName, keyBias, {-1, 1, 1, seq});
+
+    // Optional FP32 escalation of the scores/softmax/attn@V chain, gated by
+    // ATTENTION_CORE_FP32 (currently off; see MILBuilder.hpp for the measured tradeoffs).
+    // When enabled it must cover the whole chain contiguously: escalating the softmax ALONE
+    // was measured to regress accuracy and speed, because an isolated off-ANE fp32 island
+    // makes the partitioner relocate the neighboring seq-x-seq matmuls off the ANE in FP16,
+    // losing its wide accumulator.
+    const bool attnCoreFp32 = m_nonspatial_fp32 && ATTENTION_CORE_FP32;
+    std::string qhc = attnCoreFp32 ? castFixed(block, qh, "fp32", {-1, numHeads, seq, qHeadDim}) : qh;
+    std::string khc = attnCoreFp32 ? castFixed(block, kh, "fp32", {-1, numHeads, seq, qHeadDim}) : kh;
+    std::string vhc = attnCoreFp32 ? castFixed(block, vh, "fp32", {-1, numHeads, seq, vHeadDim}) : vh;
+    std::string keyBiasC = attnCoreFp32 ? castFixed(block, keyBias, "fp32", {-1, 1, 1, seq}) : keyBias;
+    const auto savedCoreDtype = m_weight_dtype;
+    if (attnCoreFp32)
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+
+    std::string scores = genVarName(prefix + "_scores");
+    matmul(qhc, khc, scores, {-1, numHeads, seq, seq}, false, true);
+    std::string scaleName = prefix + "_scale";
+    addFloatScalarConstOp(block, scaleName, 1.0f / std::sqrt(static_cast<float>(qHeadDim)));
+    std::string scaled = genVarName(prefix + "_sc");
+    binary("mul", scores, scaleName, scaled, {-1, numHeads, seq, seq});
     std::string scoresMasked = genVarName(prefix + "_scm");
-    binary("add", scaled, keyBias, scoresMasked, {-1, numHeads, seq, seq});
+    binary("add", scaled, keyBiasC, scoresMasked, {-1, numHeads, seq, seq});
 
     std::string attn = genVarName(prefix + "_attn");
     {
@@ -2327,7 +2408,11 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
     }
 
     std::string attnOut = genVarName(prefix + "_ao");
-    matmul(attn, vh, attnOut, {-1, numHeads, seq, vHeadDim}, false, false);
+    matmul(attn, vhc, attnOut, {-1, numHeads, seq, vHeadDim}, false, false);
+    if (attnCoreFp32) {
+        m_weight_dtype = savedCoreDtype;
+        attnOut = castFixed(block, attnOut, "fp16", {-1, numHeads, seq, vHeadDim});
+    }
 
     // Output projection, done per-head to avoid reshape-after-transpose: CoreML's reshape
     // ignores an immediately-preceding transpose, so merging [head,dim]->channels after a
