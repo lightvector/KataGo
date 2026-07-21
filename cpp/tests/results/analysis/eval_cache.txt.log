@@ -28,7 +28,7 @@ useGraphSearch = true
 : nnRandSeed0 = analysisTest
 : After dedups: nnModelFile0 = tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz useFP16 false
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
 : Cuda backend thread 0: Model name: g170-b10c128-s1141046784-d204142634 (convnet, 2994503 params)
 : Loaded config configs/analysis_example.cfg and/or command-line and query overrides
