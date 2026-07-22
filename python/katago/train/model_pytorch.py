@@ -2990,6 +2990,46 @@ _TRANSFORMER_SEQ_LAYOUT_KINDS = frozenset([
 ])
 
 
+def compute_attn_logit_dataless_bounds(model) -> Dict[str, float]:
+    """Rigorous data-free upper bound on pre-mask attention logit magnitude, per attention layer.
+
+    For each TransformerAttentionBlock: norm1 is RMSNorm, so each position's normed input has
+    ||x_norm|| <= sqrt(C) * max|gamma| (the epsilon only tightens this), the q/k projections
+    amplify by at most their per-head top singular values, and RoPE (fixed or learnable) is a
+    norm-preserving rotation. So per query head h (kv head h // n_rep):
+      |logit| <= scale * sigma_max(W_q,h) * sigma_max(W_k,h//n_rep) * C * max|gamma|^2
+    With qk-norm the per-head RMSNorms bound the head vectors directly instead:
+      |logit| <= scale * d_head * max|gamma_qnorm| * max|gamma_knorm|
+    The layer bound is the max over heads. Holds for ANY input (including off-board garbage),
+    with no data needed. Does NOT include the extra additive logit terms of gab/tab blocks.
+    Measured tightness vs actual logits: ~4-7x on layers that exercise their capacity (attention
+    sinks), up to ~200x on layers that don't; see python/tmp/attn_logit_stats/.
+
+    Inference backends mask off-board keys with large negative additive constants (-3e4 in fp16;
+    see cpp/neuralnet/cudahelpers.cu and onnxmodelbuilder.cpp), which is correct as long as
+    genuine logit magnitudes stay well below that scale - this bound certifies it from weights alone.
+    """
+    bounds = {}
+    with torch.no_grad():
+        for _, block in model.named_modules():
+            if isinstance(block, TransformerAttentionBlock):
+                scale = 1.0 / math.sqrt(block.q_head_dim)
+                if block.use_qk_norm:
+                    gq = block.q_norm.weight.abs().max().item()
+                    gk = block.k_norm.weight.abs().max().item()
+                    bounds[block.name] = scale * block.q_head_dim * gq * gk
+                    continue
+                gamma = block.norm1.weight.abs().max().item()
+                d = block.q_head_dim
+                wq = block.q_proj.weight
+                wk = block.k_proj.weight
+                sq = [torch.linalg.svdvals(wq[h * d:(h + 1) * d, :].float())[0].item() for h in range(block.num_heads)]
+                sk = [torch.linalg.svdvals(wk[h * d:(h + 1) * d, :].float())[0].item() for h in range(block.num_kv_heads)]
+                best = max(sq[h] * sk[h // block.n_rep] for h in range(block.num_heads))
+                bounds[block.name] = scale * best * block.c_main * gamma * gamma
+    return bounds
+
+
 class Model(torch.nn.Module):
     def __init__(self, config: modelconfigs.ModelConfig, pos_len: int):
         super(Model, self).__init__()
