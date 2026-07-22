@@ -1583,6 +1583,12 @@ struct RMSNormLayer {
     (void)cudaHandles;
     testAssert((int)desc->gamma.size() == numChannels);
     testAssert((int)desc->beta.size() == numChannels);
+    // The device kernels apply only RELU/MISH/SILU explicitly and treat anything else as
+    // identity; guard here so an unsupported kind (e.g. MISH_SCALE8, which applyScale8 can
+    // produce for non-transformer nets) fails loudly instead of silently skipping activation.
+    if(activation != ACTIVATION_IDENTITY && activation != ACTIVATION_RELU &&
+       activation != ACTIVATION_MISH && activation != ACTIVATION_SILU)
+      throw StringError(name + ": RMSNorm layer unsupported activation: " + Global::intToString(activation));
     CudaUtils::mallocAndCopyToDevice(name, desc->gamma, gammaBuf, useFP16);
     CudaUtils::mallocAndCopyToDevice(name, desc->beta, betaBuf, useFP16);
   }

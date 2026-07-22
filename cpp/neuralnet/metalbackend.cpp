@@ -115,10 +115,16 @@ SWBatchNormLayerDesc batchNormLayerDescToSwift(const BatchNormLayerDesc* desc) {
   int numChannels = desc->numChannels;
   testAssert(desc->mergedScale.size() == numChannels);
   testAssert(desc->mergedBias.size() == numChannels);
+  // A default-constructed desc (e.g. the unused trunkTipBN of an RMSNorm-tip trunk) has empty
+  // vectors, whose .data() may be null; null in a non-optional Swift pointer parameter is
+  // undefined, so substitute a valid dummy pointer that is never dereferenced (numChannels == 0).
+  static float dummy = 0.0f;
+  float* mergedScale = desc->mergedScale.empty() ? &dummy : (float*)desc->mergedScale.data();
+  float* mergedBias = desc->mergedBias.empty() ? &dummy : (float*)desc->mergedBias.data();
   return createSWBatchNormLayerDesc(
     numChannels,
-    (float*)desc->mergedScale.data(),
-    (float*)desc->mergedBias.data());
+    mergedScale,
+    mergedBias);
 }
 
 /// Convert an activation layer description from C++ to Swift
@@ -129,7 +135,11 @@ ActivationKind activationLayerDescToSwift(const ActivationLayerDesc* desc) {
     case ACTIVATION_MISH:
       return ActivationKind::mish();
     case ACTIVATION_MISH_SCALE8:
-      return ActivationKind::identity(); // Metal/CoreML does not use scaled mish
+      // Only created by applyScale8ToReduceActivations(), which the Metal backend never calls.
+      // Throw rather than silently treating it as identity if that ever changes.
+      throw StringError(desc->name + ": ACTIVATION_MISH_SCALE8 is not supported by the Metal backend");
+    case ACTIVATION_SILU:
+      return ActivationKind::silu();
     case ACTIVATION_IDENTITY:
       return ActivationKind::identity();
     default:
@@ -217,6 +227,63 @@ SWNestedBottleneckResidualBlockDesc nestedBottleneckResidualBlockDescToSwift(con
     postConv);
 }
 
+/// Convert a transformer RMSNorm description from C++ to Swift
+SWTransformerRMSNormDesc transformerRMSNormDescToSwift(const TransformerRMSNormDesc* desc) {
+  return createSWTransformerRMSNormDesc(
+    desc->numChannels,
+    desc->epsilon,
+    (float*)desc->weight.data());
+}
+
+/// Convert a transformer attention block description from C++ to Swift
+SWTransformerAttentionBlockDesc transformerAttentionBlockDescToSwift(const TransformerAttentionDesc* desc) {
+  SWTransformerRMSNormDesc preLN = transformerRMSNormDescToSwift(&desc->preLN);
+  SWMatMulLayerDesc qProj = matMulLayerDescToSwift(&desc->qProj);
+  SWMatMulLayerDesc kProj = matMulLayerDescToSwift(&desc->kProj);
+  SWMatMulLayerDesc vProj = matMulLayerDescToSwift(&desc->vProj);
+  SWMatMulLayerDesc outProj = matMulLayerDescToSwift(&desc->outProj);
+  float* ropeFreqs = desc->ropeFreqs.empty() ? nullptr : (float*)desc->ropeFreqs.data();
+
+  return createSWTransformerAttentionBlockDesc(
+    desc->numHeads,
+    desc->numKVHeads,
+    desc->qHeadDim,
+    desc->vHeadDim,
+    desc->useRope,
+    desc->learnableRope,
+    preLN,
+    qProj,
+    kProj,
+    vProj,
+    outProj,
+    desc->ropeNumKVHeads,
+    desc->ropeNumPairs,
+    ropeFreqs,
+    desc->ropeTheta);
+}
+
+/// Convert a transformer FFN block description from C++ to Swift
+SWTransformerFFNBlockDesc transformerFFNBlockDescToSwift(const TransformerFFNDesc* desc) {
+  // The Metal forward pass (metallayers.swift TransformerFFNBlock) only implements the SwiGLU path
+  // (SiLU(linear1) * gate); a non-SwiGLU model has no gate weights, so guard here as Eigen and CoreML
+  // do (eigenbackend.cpp / katagocoreml MILBuilder) instead of crashing on the empty gate descriptor.
+  if(!desc->useSwiGLU)
+    throw StringError(desc->name + ": non-SwiGLU transformer FFN not supported in Metal backend");
+  SWTransformerRMSNormDesc preLN = transformerRMSNormDescToSwift(&desc->preLN);
+  SWMatMulLayerDesc linear1 = matMulLayerDescToSwift(&desc->linear1);
+  SWMatMulLayerDesc linearGate = matMulLayerDescToSwift(&desc->linearGate);
+  SWMatMulLayerDesc linear2 = matMulLayerDescToSwift(&desc->linear2);
+
+  return createSWTransformerFFNBlockDesc(
+    desc->numChannels,
+    desc->ffnChannels,
+    desc->useSwiGLU,
+    preLN,
+    linear1,
+    linearGate,
+    linear2);
+}
+
 /// Convert residual blocks from C++ to Swift
 swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, unique_ptr_void>>& blocks) {
   auto builder = createBlockDescriptorBuilder();
@@ -230,9 +297,12 @@ swift::Array<BlockDescriptor> residualBlocksToSwift(const vector<pair<int, uniqu
     } else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
       BlockDescriptor descriptor = nestedBottleneckResidualBlockDescToSwift((NestedBottleneckResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
-    } else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
-              blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
-      throw StringError("Transformer blocks are not yet supported by the Metal backend");
+    } else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+      BlockDescriptor descriptor = transformerAttentionBlockDescToSwift((TransformerAttentionDesc*)blockDesc);
+      builder.enque(descriptor);
+    } else if(blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+      BlockDescriptor descriptor = transformerFFNBlockDescToSwift((TransformerFFNDesc*)blockDesc);
+      builder.enque(descriptor);
     } else {
       BlockDescriptor descriptor = residualBlockDescToSwift((ResidualBlockDesc*)blockDesc);
       builder.enque(descriptor);
@@ -265,14 +335,24 @@ swift::Optional<SWSGFMetadataEncoderDesc> sGFMetadataEncoderDescToSwift(const SG
 }
 
 /// Convert a trunk description from C++ to Swift
+SWRMSNormLayerDesc rmsNormLayerDescToSwift(const RMSNormLayerDesc* desc) {
+  float* gamma = desc->gamma.empty() ? nullptr : (float*)desc->gamma.data();
+  float* beta = desc->beta.empty() ? nullptr : (float*)desc->beta.data();
+  return createSWRMSNormLayerDesc(
+    desc->numChannels,
+    desc->epsilon,
+    desc->spatial,
+    gamma,
+    beta);
+}
+
 SWTrunkDesc trunkDescToSwift(const TrunkDesc* trunk) {
   SWConvLayerDesc initialConv = convLayerDescToSwift(&trunk->initialConv);
   SWMatMulLayerDesc initialMatMul = matMulLayerDescToSwift(&trunk->initialMatMul);
   auto sgfMetadataEncoder = sGFMetadataEncoderDescToSwift(&trunk->sgfMetadataEncoder);
   auto swBlocks = residualBlocksToSwift(trunk->blocks);
-  if(trunk->trunkNormKind != TRUNK_NORM_KIND_STANDARD)
-    throw StringError("Trunk RMSNorm is not yet supported by the Metal backend");
   SWBatchNormLayerDesc trunkTipBN = batchNormLayerDescToSwift(&trunk->trunkTipBN);
+  SWRMSNormLayerDesc trunkTipRMSNorm = rmsNormLayerDescToSwift(&trunk->trunkTipRMSNorm);
   ActivationKind trunkTipActivation = activationLayerDescToSwift(&trunk->trunkTipActivation);
 
   return createSWTrunkDesc(
@@ -285,7 +365,9 @@ SWTrunkDesc trunkDescToSwift(const TrunkDesc* trunk) {
     initialMatMul,
     sgfMetadataEncoder,
     swBlocks,
+    trunk->trunkNormKind,
     trunkTipBN,
+    trunkTipRMSNorm,
     trunkTipActivation);
 }
 
@@ -515,6 +597,21 @@ static swift::Optional<KataGoSwift::CoreMLComputeHandle> createCoreMLOnlyHandleI
   return convertAndCreateCoreMLOnlyHandle(context, loadedModel, requireExactNNLen, maxBatchSize, serverThreadIdx);
 }
 
+// True if any block (recursing into nested bottlenecks) is a transformer block. Used to
+// predict the converter's narrow-transformer full-FP32 demotion for precision reporting.
+static bool trunkHasTransformerBlocks(const vector<pair<int, unique_ptr_void>>& blocks) {
+  for(const auto& block : blocks) {
+    if(block.first == TRANSFORMER_ATTENTION_BLOCK_KIND || block.first == TRANSFORMER_FFN_BLOCK_KIND)
+      return true;
+    if(block.first == NESTED_BOTTLENECK_BLOCK_KIND) {
+      const NestedBottleneckResidualBlockDesc* desc = (const NestedBottleneckResidualBlockDesc*)block.second.get();
+      if(trunkHasTransformerBlocks(desc->blocks))
+        return true;
+    }
+  }
+  return false;
+}
+
 // Helper function to create MPSGraph-only handle for all non-ANE modes
 static swift::Optional<KataGoSwift::MPSGraphModelHandle> createMPSGraphHandleIfNeeded(
   ComputeContext* context,
@@ -568,7 +665,14 @@ coremlOnlyHandle(createCoreMLOnlyHandleIfNeeded(context, loadedModel, requireExa
   metaEncoderVersion = modelDesc->metaEncoderVersion;
   this->inputsUseNHWC = inputsUseNHWC;
   this->requireExactNNLen = requireExactNNLen;
-  useFP16 = (context->useFP16Mode != enabled_t::False);
+  // Report what this handle actually computes with. The MPSGraph (GPU) path builds its graph
+  // entirely in FP32 regardless of useFP16Mode; the CoreML (ANE) path converts at FP16 EXCEPT
+  // that the converter demotes narrow transformer trunks to full FP32 for accuracy - query the
+  // converter's predicate so that case reports FP32 too. If the MPSGraph path is ever switched
+  // to honor useFP16Mode, update this.
+  bool aneWouldDemoteToFP32 = katagocoreml::KataGoConverter::wouldBuildFullyFp32(
+    modelDesc->trunk.trunkNumChannels, trunkHasTransformerBlocks(modelDesc->trunk.blocks));
+  useFP16 = (gpuIdx == METAL_MUX_ANE) && (context->useFP16Mode != enabled_t::False) && !aneWouldDemoteToFP32;
 }
 
 ComputeHandle::~ComputeHandle() {

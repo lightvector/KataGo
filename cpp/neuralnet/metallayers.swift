@@ -76,6 +76,11 @@ extension MPSGraph {
 
         return mulTensor
     }
+
+    /// SiLU / Swish activation: x * sigmoid(x). Numerically stable across FP16/FP32.
+    func silu(tensor: MPSGraphTensor) -> MPSGraphTensor {
+        return multiplication(tensor, sigmoid(with: tensor, name: nil), name: nil)
+    }
 }
 
 // MARK: - Input Shape Utilities
@@ -358,6 +363,7 @@ public enum ActivationKind {
     case identity
     case relu
     case mish
+    case silu
 }
 
 /// A struct that represents a description of convolutional layer.
@@ -487,6 +493,63 @@ public func createSWMatBiasLayerDesc(
         weights: weights)
 }
 
+/// A lightweight RMSNorm description used inside transformer blocks (weight only, no bias).
+public struct SWTransformerRMSNormDesc {
+    let numChannels: NSNumber
+    let epsilon: Float
+    let weight: UnsafeMutablePointer<Float32>
+
+    init(numChannels: NSNumber, epsilon: Float, weight: UnsafeMutablePointer<Float32>) {
+        self.numChannels = numChannels
+        self.epsilon = epsilon
+        self.weight = weight
+    }
+}
+
+public func createSWTransformerRMSNormDesc(
+    numChannels: Int32,
+    epsilon: Float,
+    weight: UnsafeMutablePointer<Float32>
+) -> SWTransformerRMSNormDesc {
+    return SWTransformerRMSNormDesc(
+        numChannels: numChannels as NSNumber,
+        epsilon: epsilon,
+        weight: weight)
+}
+
+/// A full-featured RMSNorm description (gamma/beta, spatial mode), used at the trunk tip.
+public struct SWRMSNormLayerDesc {
+    let numChannels: NSNumber
+    let epsilon: Float
+    let spatial: Bool
+    let gamma: UnsafeMutablePointer<Float32>?
+    let beta: UnsafeMutablePointer<Float32>?
+
+    init(numChannels: NSNumber, epsilon: Float, spatial: Bool,
+         gamma: UnsafeMutablePointer<Float32>?, beta: UnsafeMutablePointer<Float32>?) {
+        self.numChannels = numChannels
+        self.epsilon = epsilon
+        self.spatial = spatial
+        self.gamma = gamma
+        self.beta = beta
+    }
+}
+
+public func createSWRMSNormLayerDesc(
+    numChannels: Int32,
+    epsilon: Float,
+    spatial: Bool,
+    gamma: UnsafeMutablePointer<Float32>?,
+    beta: UnsafeMutablePointer<Float32>?
+) -> SWRMSNormLayerDesc {
+    return SWRMSNormLayerDesc(
+        numChannels: numChannels as NSNumber,
+        epsilon: epsilon,
+        spatial: spatial,
+        gamma: gamma,
+        beta: beta)
+}
+
 // MARK: - Core Layers
 
 /// A class that represents a convolutional layer using MPSGraph
@@ -612,6 +675,8 @@ struct ActivationLayer {
             resultTensor = graph.reLU(with: sourceTensor, name: nil)
         case .mish:
             resultTensor = graph.mish(tensor: sourceTensor)
+        case .silu:
+            resultTensor = graph.silu(tensor: sourceTensor)
         default:
             resultTensor = sourceTensor
         }
@@ -987,6 +1052,140 @@ public func createSWNestedBottleneckResidualBlockDesc(
         postConv: postConv)
 }
 
+public class SWTransformerAttentionBlockDesc: BlockDescriptor {
+    let numHeads: Int
+    let numKVHeads: Int
+    let qHeadDim: Int
+    let vHeadDim: Int
+    let useRope: Bool
+    let learnableRope: Bool
+    let preLN: SWTransformerRMSNormDesc
+    let qProj: SWMatMulLayerDesc
+    let kProj: SWMatMulLayerDesc
+    let vProj: SWMatMulLayerDesc
+    let outProj: SWMatMulLayerDesc
+    let ropeNumKVHeads: Int
+    let ropeNumPairs: Int
+    let ropeFreqs: UnsafeMutablePointer<Float32>?  // learnable: (numKVHeads, numPairs, 2) flattened
+    let ropeTheta: Float
+
+    init(
+        numHeads: Int,
+        numKVHeads: Int,
+        qHeadDim: Int,
+        vHeadDim: Int,
+        useRope: Bool,
+        learnableRope: Bool,
+        preLN: SWTransformerRMSNormDesc,
+        qProj: SWMatMulLayerDesc,
+        kProj: SWMatMulLayerDesc,
+        vProj: SWMatMulLayerDesc,
+        outProj: SWMatMulLayerDesc,
+        ropeNumKVHeads: Int,
+        ropeNumPairs: Int,
+        ropeFreqs: UnsafeMutablePointer<Float32>?,
+        ropeTheta: Float
+    ) {
+        self.numHeads = numHeads
+        self.numKVHeads = numKVHeads
+        self.qHeadDim = qHeadDim
+        self.vHeadDim = vHeadDim
+        self.useRope = useRope
+        self.learnableRope = learnableRope
+        self.preLN = preLN
+        self.qProj = qProj
+        self.kProj = kProj
+        self.vProj = vProj
+        self.outProj = outProj
+        self.ropeNumKVHeads = ropeNumKVHeads
+        self.ropeNumPairs = ropeNumPairs
+        self.ropeFreqs = ropeFreqs
+        self.ropeTheta = ropeTheta
+    }
+}
+
+public func createSWTransformerAttentionBlockDesc(
+    numHeads: Int32,
+    numKVHeads: Int32,
+    qHeadDim: Int32,
+    vHeadDim: Int32,
+    useRope: Bool,
+    learnableRope: Bool,
+    preLN: SWTransformerRMSNormDesc,
+    qProj: SWMatMulLayerDesc,
+    kProj: SWMatMulLayerDesc,
+    vProj: SWMatMulLayerDesc,
+    outProj: SWMatMulLayerDesc,
+    ropeNumKVHeads: Int32,
+    ropeNumPairs: Int32,
+    ropeFreqs: UnsafeMutablePointer<Float32>?,
+    ropeTheta: Float
+) -> SWTransformerAttentionBlockDesc {
+    return SWTransformerAttentionBlockDesc(
+        numHeads: Int(numHeads),
+        numKVHeads: Int(numKVHeads),
+        qHeadDim: Int(qHeadDim),
+        vHeadDim: Int(vHeadDim),
+        useRope: useRope,
+        learnableRope: learnableRope,
+        preLN: preLN,
+        qProj: qProj,
+        kProj: kProj,
+        vProj: vProj,
+        outProj: outProj,
+        ropeNumKVHeads: Int(ropeNumKVHeads),
+        ropeNumPairs: Int(ropeNumPairs),
+        ropeFreqs: ropeFreqs,
+        ropeTheta: ropeTheta)
+}
+
+public class SWTransformerFFNBlockDesc: BlockDescriptor {
+    let numChannels: Int
+    let ffnChannels: Int
+    let useSwiGLU: Bool
+    let preLN: SWTransformerRMSNormDesc
+    let linear1: SWMatMulLayerDesc
+    let linearGate: SWMatMulLayerDesc
+    let linear2: SWMatMulLayerDesc
+
+    init(
+        numChannels: Int,
+        ffnChannels: Int,
+        useSwiGLU: Bool,
+        preLN: SWTransformerRMSNormDesc,
+        linear1: SWMatMulLayerDesc,
+        linearGate: SWMatMulLayerDesc,
+        linear2: SWMatMulLayerDesc
+    ) {
+        self.numChannels = numChannels
+        self.ffnChannels = ffnChannels
+        self.useSwiGLU = useSwiGLU
+        self.preLN = preLN
+        self.linear1 = linear1
+        self.linearGate = linearGate
+        self.linear2 = linear2
+    }
+}
+
+public func createSWTransformerFFNBlockDesc(
+    numChannels: Int32,
+    ffnChannels: Int32,
+    useSwiGLU: Bool,
+    preLN: SWTransformerRMSNormDesc,
+    linear1: SWMatMulLayerDesc,
+    linearGate: SWMatMulLayerDesc,
+    linear2: SWMatMulLayerDesc
+) -> SWTransformerFFNBlockDesc {
+    return SWTransformerFFNBlockDesc(
+        numChannels: Int(numChannels),
+        ffnChannels: Int(ffnChannels),
+        useSwiGLU: useSwiGLU,
+        preLN: preLN,
+        linear1: linear1,
+        linearGate: linearGate,
+        linear2: linear2)
+}
+
 public class BlockDescriptorBuilder {
     public var blockDescriptors: [BlockDescriptor] = []
 
@@ -999,6 +1198,347 @@ public class BlockDescriptorBuilder {
 
 public func createBlockDescriptorBuilder() -> BlockDescriptorBuilder {
     return BlockDescriptorBuilder()
+}
+
+// MARK: - Transformer Layers
+
+/// Lightweight RMSNorm used inside transformer blocks (weight only, no bias).
+/// Input/output are NCHW [B, C, H, W]. Normalizes across channels per spatial position,
+/// scales by per-channel weight, and masks the output.
+struct TransformerRMSNormLayer {
+    let resultTensor: MPSGraphTensor
+
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        descriptor: SWTransformerRMSNormDesc
+    ) {
+        let numChannels = descriptor.numChannels
+        let dataType = sourceTensor.dataType
+
+        // meanSq over channel axis (1): [B,1,H,W]
+        let sq = graph.square(with: sourceTensor, name: nil)
+        let sumSq = graph.reductionSum(with: sq, axis: 1, name: nil)
+        let invC = graph.constant(1.0 / numChannels.doubleValue, dataType: dataType)
+        let meanSq = graph.multiplication(sumSq, invC, name: nil)
+        let epsTensor = graph.constant(Double(descriptor.epsilon), dataType: dataType)
+        let denom = graph.squareRoot(with: graph.addition(meanSq, epsTensor, name: nil), name: nil)
+        let normalized = graph.division(sourceTensor, denom, name: nil)
+
+        // scale by per-channel weight [1, C, 1, 1]
+        // Data-backed constants hold Float32 bytes, so their dataType must stay .float32 even if
+        // the surrounding graph ever switches to FP16 (a dtype mismatch fails loudly; reinterpreting
+        // the bytes would silently produce garbage).
+        let weightShape: [NSNumber] = [1, numChannels, 1, 1]
+        let weightData = Data(floatsNoCopy: descriptor.weight, shape: weightShape)
+        let weightTensor = graph.constant(weightData, shape: weightShape, dataType: .float32)
+        let scaled = graph.multiplication(normalized, weightTensor, name: nil)
+
+        resultTensor = graph.multiplication(scaled, maskTensor, name: nil)
+    }
+}
+
+/// Full-featured RMSNorm for the trunk tip: gamma/beta, spatial or per-position mode, and a
+/// fused activation. Input/output are NCHW [B, C, H, W]. Mirrors the Eigen RMSNormLayer.
+struct TrunkRMSNormLayer {
+    let resultTensor: MPSGraphTensor
+
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        descriptor: SWRMSNormLayerDesc,
+        activationKind: ActivationKind
+    ) {
+        let dataType = sourceTensor.dataType
+        let numChannels = descriptor.numChannels
+
+        // Zero invalid positions before accumulating sum of squares.
+        let masked = graph.multiplication(sourceTensor, maskTensor, name: nil)
+        let sq = graph.square(with: masked, name: nil)
+
+        let meanSq: MPSGraphTensor
+        if descriptor.spatial {
+            // Normalize over channels AND valid spatial positions per batch element.
+            let sumSq = graph.reductionSum(with: sq, axes: [1, 2, 3], name: nil)      // [B,1,1,1]
+            let count = graph.reductionSum(with: maskTensor, axes: [1, 2, 3], name: nil)  // valid positions
+            let cTensor = graph.constant(numChannels.doubleValue, dataType: dataType)
+            let totalElts = graph.multiplication(count, cTensor, name: nil)
+            meanSq = graph.division(sumSq, totalElts, name: nil)
+        } else {
+            // Per-position normalization across channels.
+            let sumSq = graph.reductionSum(with: sq, axes: [1], name: nil)            // [B,1,H,W]
+            let invC = graph.constant(1.0 / numChannels.doubleValue, dataType: dataType)
+            meanSq = graph.multiplication(sumSq, invC, name: nil)
+        }
+
+        let epsTensor = graph.constant(Double(descriptor.epsilon), dataType: dataType)
+        let denom = graph.squareRoot(with: graph.addition(meanSq, epsTensor, name: nil), name: nil)
+        let normalized = graph.division(sourceTensor, denom, name: nil)
+
+        // Data-backed constants hold Float32 bytes; keep dataType .float32 (see TransformerRMSNormLayer).
+        let gammaShape: [NSNumber] = [1, numChannels, 1, 1]
+        let gammaTensor = graph.constant(Data(floatsNoCopy: descriptor.gamma!, shape: gammaShape), shape: gammaShape, dataType: .float32)
+        let betaTensor = graph.constant(Data(floatsNoCopy: descriptor.beta!, shape: gammaShape), shape: gammaShape, dataType: .float32)
+        let scaled = graph.addition(graph.multiplication(normalized, gammaTensor, name: nil), betaTensor, name: nil)
+
+        let activated = ActivationLayer(graph: graph, sourceTensor: scaled, activationKind: activationKind).resultTensor
+        resultTensor = graph.multiplication(activated, maskTensor, name: nil)
+    }
+}
+
+/// A transformer self-attention block (pre-norm, multi-head, optional 2D RoPE, GQA).
+/// Mirrors the Eigen reference: RMSNorm -> Q/K/V projections -> RoPE -> scaled dot-product
+/// attention with masked softmax -> output projection -> masked residual.
+/// Tensors are NCHW [B, C, H, W]; spatial positions (H*W, ordered y*W+x) are the sequence.
+struct TransformerAttentionBlock {
+    let resultTensor: MPSGraphTensor
+
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        descriptor: SWTransformerAttentionBlockDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
+        let dataType = sourceTensor.dataType
+        let numHeads = descriptor.numHeads
+        let numKVHeads = descriptor.numKVHeads
+        let qHeadDim = descriptor.qHeadDim
+        let vHeadDim = descriptor.vHeadDim
+        let nnX = nnXLen.intValue
+        let nnY = nnYLen.intValue
+        let seq = nnX * nnY
+
+        // 1. RMSNorm (NCHW)
+        let normed = TransformerRMSNormLayer(
+            graph: graph,
+            sourceTensor: sourceTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.preLN).resultTensor
+
+        // To NHWC [B,H,W,C] so that reshape [-1, C] groups channels per position.
+        let normedNHWC = graph.transpose(normed, permutation: [0, 2, 3, 1], name: nil)
+
+        // 2. Q/K/V projections via matmul over channels -> [B*seq, heads*dim]
+        let q = MatMulLayer(graph: graph, descriptor: descriptor.qProj, sourceTensor: normedNHWC).resultTensor
+        let k = MatMulLayer(graph: graph, descriptor: descriptor.kProj, sourceTensor: normedNHWC).resultTensor
+        let v = MatMulLayer(graph: graph, descriptor: descriptor.vProj, sourceTensor: normedNHWC).resultTensor
+
+        // 3. reshape to [B, heads, seq, dim]
+        var qh = TransformerAttentionBlock.toHeads(graph, q, seq: seq, numHeads: numHeads, headDim: qHeadDim)
+        var kh = TransformerAttentionBlock.toHeads(graph, k, seq: seq, numHeads: numKVHeads, headDim: qHeadDim)
+        let vh = TransformerAttentionBlock.toHeads(graph, v, seq: seq, numHeads: numKVHeads, headDim: vHeadDim)
+
+        // 4. RoPE on Q and K
+        if descriptor.useRope {
+            let numPairs = qHeadDim / 2
+            // Q heads map to KV heads via kvh = h * numKVHeads / numHeads (matches Eigen).
+            let (qCos, qSin) = TransformerAttentionBlock.makeRopeTables(
+                graph, descriptor: descriptor, nHeads: numHeads, seq: seq, numPairs: numPairs,
+                nnX: nnX, nnY: nnY, qHeadDim: qHeadDim,
+                kvIndexForHead: { h in (h * numKVHeads) / numHeads })
+            let (kCos, kSin) = TransformerAttentionBlock.makeRopeTables(
+                graph, descriptor: descriptor, nHeads: numKVHeads, seq: seq, numPairs: numPairs,
+                nnX: nnX, nnY: nnY, qHeadDim: qHeadDim,
+                kvIndexForHead: { h in h })
+            qh = TransformerAttentionBlock.applyRope(graph, qh, cosT: qCos, sinT: qSin,
+                                                     numHeads: numHeads, seq: seq, numPairs: numPairs)
+            kh = TransformerAttentionBlock.applyRope(graph, kh, cosT: kCos, sinT: kSin,
+                                                     numHeads: numKVHeads, seq: seq, numPairs: numPairs)
+        }
+
+        // GQA: if numKVHeads < numHeads, repeat KV heads so they align with query heads.
+        var khExp = kh
+        var vhExp = vh
+        if numKVHeads != numHeads {
+            let groupSize = numHeads / numKVHeads
+            khExp = TransformerAttentionBlock.repeatKVHeads(graph, kh, numKVHeads: numKVHeads, groupSize: groupSize)
+            vhExp = TransformerAttentionBlock.repeatKVHeads(graph, vh, numKVHeads: numKVHeads, groupSize: groupSize)
+        }
+
+        // 5. scores = scale * Q @ K^T -> [B, heads, seq, seq]
+        let khT = graph.transpose(khExp, permutation: [0, 1, 3, 2], name: nil)
+        var scores = graph.matrixMultiplication(primary: qh, secondary: khT, name: nil)
+        let scale = graph.constant(1.0 / Double(qHeadDim).squareRoot(), dataType: dataType)
+        scores = graph.multiplication(scores, scale, name: nil)
+
+        // Mask keys: add (maskKey - 1) * BIG so masked key columns get ~ -inf before softmax.
+        // maskTensor [B,1,H,W] -> [B,1,1,seq]; the flat element order is already b, y, x so a
+        // direct reshape suffices.
+        let maskSeq = graph.reshape(maskTensor, shape: [-1, 1, 1, seq as NSNumber], name: nil)
+        let one = graph.constant(1.0, dataType: dataType)
+        // This graph is FP32-only, where 1e9 is safe. If this path ever gains an FP16 mode, this
+        // constant must shrink to an FP16-safe magnitude (e.g. 3e4, as the CoreML MIL builder
+        // uses): 1e9 overflows FP16 to +inf, and (mask - 1) * inf = 0 * inf = NaN at every
+        // valid key, poisoning the softmax. The precondition makes that switch fail loudly here.
+        precondition(dataType == .float32, "attention mask bias magnitude 1e9 is only safe in FP32")
+        let big = graph.constant(1.0e9, dataType: dataType)
+        let keyBias = graph.multiplication(graph.subtraction(maskSeq, one, name: nil), big, name: nil)
+        scores = graph.addition(scores, keyBias, name: nil)
+
+        // 6. softmax over key axis (last)
+        let attn = graph.softMax(with: scores, axis: 3, name: nil)
+
+        // 7. out = attn @ V -> [B, heads, seq, vHeadDim]
+        let attnOut = graph.matrixMultiplication(primary: attn, secondary: vhExp, name: nil)
+
+        // 8. back to [B*seq, heads*vHeadDim]
+        let outHeadsLast = graph.transpose(attnOut, permutation: [0, 2, 1, 3], name: nil)  // [B,seq,heads,vHeadDim]
+        let outFlat = graph.reshape(outHeadsLast, shape: [-1, (numHeads * vHeadDim) as NSNumber], name: nil)
+
+        // 9. output projection -> [B*seq, C]
+        let proj = MatMulLayer(graph: graph, descriptor: descriptor.outProj, sourceTensor: outFlat).resultTensor
+
+        // 10. reshape to NHWC then NCHW
+        let outChannels = descriptor.outProj.outChannels
+        let projNHWC = graph.reshape(proj, shape: [-1, nnYLen, nnXLen, outChannels], name: nil)
+        let projNCHW = graph.transpose(projNHWC, permutation: [0, 3, 1, 2], name: nil)
+
+        // 11. masked residual
+        let masked = graph.multiplication(projNCHW, maskTensor, name: nil)
+        resultTensor = graph.addition(sourceTensor, masked, name: nil)
+    }
+
+    /// Reshape [B*seq, numHeads*headDim] -> [B, numHeads, seq, headDim].
+    static func toHeads(_ graph: MPSGraph, _ x: MPSGraphTensor, seq: Int, numHeads: Int, headDim: Int) -> MPSGraphTensor {
+        let reshaped = graph.reshape(x, shape: [-1, seq as NSNumber, numHeads as NSNumber, headDim as NSNumber], name: nil)
+        return graph.transpose(reshaped, permutation: [0, 2, 1, 3], name: nil)
+    }
+
+    /// Repeat each KV head groupSize times along the head axis: [B,numKVHeads,seq,dim] -> [B,numKVHeads*groupSize,seq,dim].
+    static func repeatKVHeads(_ graph: MPSGraph, _ x: MPSGraphTensor, numKVHeads: Int, groupSize: Int) -> MPSGraphTensor {
+        // Repeat each KV head groupSize times consecutively so query head h uses kv = h / groupSize,
+        // matching the Eigen reference (kvh = h / kvGroupSize). We slice each KV head and concat the
+        // copies along the head axis. Note: MPSGraph.broadcast(_:shape:) does NOT infer -1, so a
+        // reshape+broadcast approach with a dynamic batch dim triggers an NDArray INT_MAX assertion;
+        // slice+concat is shape-safe with no -1 broadcast.
+        var heads: [MPSGraphTensor] = []
+        heads.reserveCapacity(numKVHeads * groupSize)
+        for kv in 0..<numKVHeads {
+            for _ in 0..<groupSize {
+                heads.append(graph.sliceTensor(x, dimension: 1, start: kv, length: 1, name: nil))  // [B,1,seq,dim]
+            }
+        }
+        return graph.concatTensors(heads, dimension: 1, name: nil)
+    }
+
+    /// Apply interleaved-pair RoPE to [B, nHeads, seq, headDim] using cos/sin tables [1,nHeads,seq,numPairs].
+    static func applyRope(_ graph: MPSGraph, _ x: MPSGraphTensor, cosT: MPSGraphTensor, sinT: MPSGraphTensor,
+                          numHeads: Int, seq: Int, numPairs: Int) -> MPSGraphTensor {
+        let pairsShape: [NSNumber] = [-1, numHeads as NSNumber, seq as NSNumber, numPairs as NSNumber, 2]
+        let xPairs = graph.reshape(x, shape: pairsShape, name: nil)
+        let evenShape: [NSNumber] = [-1, numHeads as NSNumber, seq as NSNumber, numPairs as NSNumber]
+        let xEven = graph.reshape(graph.sliceTensor(xPairs, dimension: 4, start: 0, length: 1, name: nil), shape: evenShape, name: nil)
+        let xOdd = graph.reshape(graph.sliceTensor(xPairs, dimension: 4, start: 1, length: 1, name: nil), shape: evenShape, name: nil)
+        let outEven = graph.subtraction(graph.multiplication(xEven, cosT, name: nil), graph.multiplication(xOdd, sinT, name: nil), name: nil)
+        let outOdd = graph.addition(graph.multiplication(xEven, sinT, name: nil), graph.multiplication(xOdd, cosT, name: nil), name: nil)
+        let pairShape5: [NSNumber] = [-1, numHeads as NSNumber, seq as NSNumber, numPairs as NSNumber, 1]
+        let outEvenE = graph.reshape(outEven, shape: pairShape5, name: nil)
+        let outOddE = graph.reshape(outOdd, shape: pairShape5, name: nil)
+        let stacked = graph.concatTensors([outEvenE, outOddE], dimension: 4, name: nil)
+        return graph.reshape(stacked, shape: [-1, numHeads as NSNumber, seq as NSNumber, (numPairs * 2) as NSNumber], name: nil)
+    }
+
+    /// Build RoPE cos/sin constant tensors of shape [1, nHeads, seq, numPairs].
+    static func makeRopeTables(_ graph: MPSGraph, descriptor: SWTransformerAttentionBlockDesc,
+                               nHeads: Int, seq: Int, numPairs: Int, nnX: Int, nnY: Int, qHeadDim: Int,
+                               kvIndexForHead: (Int) -> Int) -> (MPSGraphTensor, MPSGraphTensor) {
+        // desc.cpp validates that learnable-rope models always carry frequencies; without this check
+        // a nil pointer would silently fall through to the fixed-theta branch with theta=0 (NaN tables).
+        precondition(!descriptor.learnableRope || descriptor.ropeFreqs != nil,
+                     "learnableRope requires ropeFreqs")
+        let count = nHeads * seq * numPairs
+        // Managed arrays (freed on return). Unlike the weight constants elsewhere, which point at
+        // C++-owned descriptor memory and so use floatsNoCopy, these tables have no persistent owner;
+        // we copy them into the Data below so MPSGraph owns the bytes (avoids a leak / use-after-free).
+        var cosBuf = [Float32](repeating: 0, count: count)
+        var sinBuf = [Float32](repeating: 0, count: count)
+        let numPairsPerDim = numPairs / 2
+        let dimHalf = qHeadDim / 2
+        for h in 0..<nHeads {
+            let kvh = kvIndexForHead(h)
+            for xy in 0..<seq {
+                let y = xy / nnX
+                let x = xy % nnX
+                for p in 0..<numPairs {
+                    var angle: Float = 0
+                    if descriptor.learnableRope, let freqs = descriptor.ropeFreqs {
+                        let freqX = freqs[(kvh * numPairs + p) * 2 + 0]
+                        let freqY = freqs[(kvh * numPairs + p) * 2 + 1]
+                        angle = Float(x) * freqX + Float(y) * freqY
+                    } else {
+                        let theta = descriptor.ropeTheta
+                        if p < numPairsPerDim {
+                            let freq = 1.0 / powf(theta, Float(2 * p) / Float(dimHalf))
+                            angle = Float(y) * freq
+                        } else {
+                            let pAdj = p - numPairsPerDim
+                            let freq = 1.0 / powf(theta, Float(2 * pAdj) / Float(dimHalf))
+                            angle = Float(x) * freq
+                        }
+                    }
+                    let idx = (h * seq + xy) * numPairs + p
+                    cosBuf[idx] = cosf(angle)
+                    sinBuf[idx] = sinf(angle)
+                }
+            }
+        }
+        let shape: [NSNumber] = [1, nHeads as NSNumber, seq as NSNumber, numPairs as NSNumber]
+        let cosData = cosBuf.withUnsafeBufferPointer { Data(buffer: $0) }
+        let sinData = sinBuf.withUnsafeBufferPointer { Data(buffer: $0) }
+        // Data-backed constants hold Float32 bytes; keep dataType .float32 (see TransformerRMSNormLayer).
+        let cosTensor = graph.constant(cosData, shape: shape, dataType: .float32)
+        let sinTensor = graph.constant(sinData, shape: shape, dataType: .float32)
+        return (cosTensor, sinTensor)
+    }
+}
+
+/// A transformer feed-forward block (pre-norm, SwiGLU): RMSNorm -> SiLU(linear1)*gate -> linear2 -> masked residual.
+struct TransformerFFNBlock {
+    let resultTensor: MPSGraphTensor
+
+    init(
+        graph: MPSGraph,
+        sourceTensor: MPSGraphTensor,
+        maskTensor: MPSGraphTensor,
+        descriptor: SWTransformerFFNBlockDesc,
+        nnXLen: NSNumber,
+        nnYLen: NSNumber
+    ) {
+        let numChannels = descriptor.numChannels
+
+        // The C++ conversion layer throws for non-SwiGLU FFN models; this block only implements
+        // the SwiGLU path, so fail loudly if that guard is ever bypassed.
+        precondition(descriptor.useSwiGLU, "non-SwiGLU transformer FFN is not supported")
+
+        // 1. RMSNorm
+        let normed = TransformerRMSNormLayer(
+            graph: graph,
+            sourceTensor: sourceTensor,
+            maskTensor: maskTensor,
+            descriptor: descriptor.preLN).resultTensor
+        let normedNHWC = graph.transpose(normed, permutation: [0, 2, 3, 1], name: nil)
+
+        // 2. linear1 + gate, both [B*seq, ffnChannels]
+        let a = MatMulLayer(graph: graph, descriptor: descriptor.linear1, sourceTensor: normedNHWC).resultTensor
+        let gate = MatMulLayer(graph: graph, descriptor: descriptor.linearGate, sourceTensor: normedNHWC).resultTensor
+
+        // 3. SwiGLU: SiLU(a) * gate, SiLU(a) = a * sigmoid(a)
+        let siluA = graph.multiplication(a, graph.sigmoid(with: a, name: nil), name: nil)
+        let h = graph.multiplication(siluA, gate, name: nil)
+
+        // 4. linear2 -> [B*seq, numChannels]
+        let out = MatMulLayer(graph: graph, descriptor: descriptor.linear2, sourceTensor: h).resultTensor
+
+        // 5. reshape to NHWC then NCHW, masked residual
+        let outNHWC = graph.reshape(out, shape: [-1, nnYLen, nnXLen, numChannels as NSNumber], name: nil)
+        let outNCHW = graph.transpose(outNHWC, permutation: [0, 3, 1, 2], name: nil)
+        let masked = graph.multiplication(outNCHW, maskTensor, name: nil)
+        resultTensor = graph.addition(sourceTensor, masked, name: nil)
+    }
 }
 
 // MARK: - Block Implementations
@@ -1241,8 +1781,30 @@ struct BlockStack {
                 optimizeIdentityMask: optimizeIdentityMask)
 
             blockInput = ordinary.resultTensor
+        case let attnDescriptor as SWTransformerAttentionBlockDesc:
+            let attn = TransformerAttentionBlock(
+                graph: graph,
+                sourceTensor: sourceTensor,
+                maskTensor: maskTensor,
+                descriptor: attnDescriptor,
+                nnXLen: nnXLen,
+                nnYLen: nnYLen)
+
+            blockInput = attn.resultTensor
+        case let ffnDescriptor as SWTransformerFFNBlockDesc:
+            let ffn = TransformerFFNBlock(
+                graph: graph,
+                sourceTensor: sourceTensor,
+                maskTensor: maskTensor,
+                descriptor: ffnDescriptor,
+                nnXLen: nnXLen,
+                nnYLen: nnYLen)
+
+            blockInput = ffn.resultTensor
         default:
-            blockInput = sourceTensor
+            // Every BlockDescriptor subclass the C++ conversion layer can enqueue has a case above;
+            // silently passing the input through would skip a block and corrupt outputs.
+            fatalError("Unhandled block descriptor type: \(type(of: blockDescriptor))")
         }
 
         return processBlockDescriptors(
@@ -1472,6 +2034,10 @@ class SGFMetadataEncoder {
 
 // MARK: - Trunk
 
+/// Trunk-tip normalization kind, mirroring desc.h TRUNK_NORM_KIND_* (the value is serialized in the model).
+let TRUNK_NORM_KIND_STANDARD = 0  // BatchNorm or BiasMask (existing)
+let TRUNK_NORM_KIND_RMSNORM = 1   // RMSNorm
+
 /// A class that describes a trunk for a neural network
 public class SWTrunkDesc {
     let version: Int
@@ -1483,7 +2049,9 @@ public class SWTrunkDesc {
     let initialMatMul: SWMatMulLayerDesc
     let sgfMetadataEncoder: SWSGFMetadataEncoderDesc?
     let blockDescriptors: [BlockDescriptor]
+    let trunkNormKind: Int
     let trunkTipBN: SWBatchNormLayerDesc
+    let trunkTipRMSNorm: SWRMSNormLayerDesc
     let trunkTipActivation: ActivationKind
 
     init(
@@ -1496,7 +2064,9 @@ public class SWTrunkDesc {
         initialMatMul: SWMatMulLayerDesc,
         sgfMetadataEncoder: SWSGFMetadataEncoderDesc?,
         blockDescriptors: [BlockDescriptor],
+        trunkNormKind: Int,
         trunkTipBN: SWBatchNormLayerDesc,
+        trunkTipRMSNorm: SWRMSNormLayerDesc,
         trunkTipActivation: ActivationKind
     ) {
         self.version = version
@@ -1508,7 +2078,9 @@ public class SWTrunkDesc {
         self.initialMatMul = initialMatMul
         self.sgfMetadataEncoder = sgfMetadataEncoder
         self.blockDescriptors = blockDescriptors
+        self.trunkNormKind = trunkNormKind
         self.trunkTipBN = trunkTipBN
+        self.trunkTipRMSNorm = trunkTipRMSNorm
         self.trunkTipActivation = trunkTipActivation
     }
 }
@@ -1523,7 +2095,9 @@ public func createSWTrunkDesc(
     initialMatMul: SWMatMulLayerDesc,
     sgfMetadataEncoder: SWSGFMetadataEncoderDesc?,
     blockDescriptors: [BlockDescriptor],
+    trunkNormKind: Int32,
     trunkTipBN: SWBatchNormLayerDesc,
+    trunkTipRMSNorm: SWRMSNormLayerDesc,
     trunkTipActivation: ActivationKind
 ) -> SWTrunkDesc {
     return SWTrunkDesc(
@@ -1536,7 +2110,9 @@ public func createSWTrunkDesc(
         initialMatMul: initialMatMul,
         sgfMetadataEncoder: sgfMetadataEncoder,
         blockDescriptors: blockDescriptors,
+        trunkNormKind: Int(trunkNormKind),
         trunkTipBN: trunkTipBN,
+        trunkTipRMSNorm: trunkTipRMSNorm,
         trunkTipActivation: trunkTipActivation)
 }
 
@@ -1632,21 +2208,33 @@ struct Trunk {
             nnYLen: nnYLen,
             optimizeIdentityMask: optimizeIdentityMask)
 
-        let trunkTipBN = BatchNormLayer(
-            graph: graph,
-            sourceTensor: blocks.resultTensor,
-            maskTensor: maskTensor,
-            descriptor: descriptor.trunkTipBN,
-            nnXLen: nnXLen,
-            nnYLen: nnYLen,
-            optimizeIdentityMask: optimizeIdentityMask)
+        // RMSNorm trunk tip uses a fused activation; standard uses BatchNorm followed by a separate activation.
+        if descriptor.trunkNormKind == TRUNK_NORM_KIND_RMSNORM {
+            let trunkTipRMSNorm = TrunkRMSNormLayer(
+                graph: graph,
+                sourceTensor: blocks.resultTensor,
+                maskTensor: maskTensor,
+                descriptor: descriptor.trunkTipRMSNorm,
+                activationKind: descriptor.trunkTipActivation)
 
-        let trunkTipActivation = ActivationLayer(
-            graph: graph,
-            sourceTensor: trunkTipBN.resultTensor,
-            activationKind: descriptor.trunkTipActivation)
+            resultTensor = trunkTipRMSNorm.resultTensor
+        } else {
+            let trunkTipBN = BatchNormLayer(
+                graph: graph,
+                sourceTensor: blocks.resultTensor,
+                maskTensor: maskTensor,
+                descriptor: descriptor.trunkTipBN,
+                nnXLen: nnXLen,
+                nnYLen: nnYLen,
+                optimizeIdentityMask: optimizeIdentityMask)
 
-        resultTensor = trunkTipActivation.resultTensor
+            let trunkTipActivation = ActivationLayer(
+                graph: graph,
+                sourceTensor: trunkTipBN.resultTensor,
+                activationKind: descriptor.trunkTipActivation)
+
+            resultTensor = trunkTipActivation.resultTensor
+        }
 
         assert(resultTensor.shape?.count == 4)
     }

@@ -4,11 +4,45 @@
 #include "MILBuilder.hpp"
 #include "MILBlob/Fp16.hpp"
 #include <stdexcept>
+#include <cmath>
 
 // Include generated protobuf headers
 #include "MIL.pb.h"
 
 namespace katagocoreml {
+
+namespace {
+// RAII: set a dtype slot to FLOAT32 for the current scope and restore it on exit. Used to emit a
+// sub-region of ops in FP32 inside an otherwise-FP16 model.
+struct ScopedFp32 {
+    CoreML::Specification::MILSpec::DataType& slot;
+    CoreML::Specification::MILSpec::DataType saved;
+    explicit ScopedFp32(CoreML::Specification::MILSpec::DataType& s)
+        : slot(s), saved(s) { s = CoreML::Specification::MILSpec::DataType::FLOAT32; }
+    ~ScopedFp32() { slot = saved; }
+    ScopedFp32(const ScopedFp32&) = delete;
+    ScopedFp32& operator=(const ScopedFp32&) = delete;
+};
+
+// True if any block in this list is a transformer (attention/FFN), recursing into nested-bottleneck
+// blocks (which can themselves contain transformer blocks). Used to scope the off-ANE FP32
+// escalations to transformer trunks only.
+bool blocksContainTransformer(const std::vector<BlockEntry>& blocks) {
+    for (const auto& entry : blocks) {
+        if (entry.block_kind == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+            entry.block_kind == TRANSFORMER_FFN_BLOCK_KIND) {
+            return true;
+        }
+        if (entry.block_kind == NESTED_BOTTLENECK_BLOCK_KIND) {
+            const auto& nbt = std::get<NestedBottleneckResidualBlockDesc>(*entry.block);
+            if (blocksContainTransformer(nbt.blocks)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+}  // namespace
 
 MILBuilder::MILBuilder(const KataGoModelDesc& model,
                        int board_x_size,
@@ -30,7 +64,41 @@ MILBuilder::MILBuilder(const KataGoModelDesc& model,
           ? CoreML::Specification::MILSpec::DataType::FLOAT16
           : CoreML::Specification::MILSpec::DataType::FLOAT32)
     , m_ops(board_x_size, board_y_size, optimize_identity_mask)
-    , m_var_counter(0) {}
+    , m_var_counter(0) {
+    // Precision in FP16 mode. The ANE's datapath is FP16 at op granularity: reductions use a wide
+    // (FP32-class) accumulator, but every op's inputs and stored outputs round to FP16, so a chain of
+    // ops re-rounds at each boundary and cancellation-heavy chains (notably the attention softmax
+    // chain, measured ~10x worse policyKLDiv than with an FP32 attention core) lose precision that a
+    // wide accumulator alone cannot save. FP32 type annotations are not implemented by the ANE, so
+    // any FP32 op runs OFF the ANE (on CPU/GPU), breaking the ANE pipeline -- FP32 escalation is a
+    // per-op trade of accuracy against ANE residency (measured ~1.8x eval slowdown for escalating the
+    // attention core on b11c768). These off-ANE FP32 escalations are applied ONLY to transformer
+    // trunks, whose attention/RMSNorm ops widen the activation range and deepen the rounding chains.
+    // Plain convnets stay PURE FP16 on the ANE -- the long-standing pre-tier path, verified to pass
+    // testgpuerror (b18c384nbt, b28c512nbt) and ~2.6x faster than forcing their per-block global
+    // pooling and convs to FP32 (measured: the per-block pooling round-trips, not the convs, dominate
+    // the slowdown). For transformers:
+    //   - Trunks below 320ch build FULLY in FP32: b4c256 on the partial tier failed testgpuerror
+    //     policyKLDiv at 19x19 (max 1.77x over; FP32 convs at 256 did not fix it, an FP32 attention
+    //     core did but is not worth the ANE slowdown for wide models). Off-ANE but cheap since
+    //     narrow; equals the FP32 reference. Weights stored FP32 (per-weight serialization).
+    //   - Trunks at/above 320ch use partial FP32: q/k/v projections, FFN matmuls, pooling, norm
+    //     cores, convs, and the pooled head layers (addLinearOp: value head v2/v3/sv3, policy
+    //     gpool-to-pass, metadata encoder - measured ~25-60% better value-metric errors at ~2%
+    //     cost). The attention core (scores/softmax/attn@V, gated by ATTENTION_CORE_FP32), the
+    //     per-head output-projection matmuls, and spatial elementwise ops stay FP16 on the ANE
+    //     (b10c384/b15c512/b11c768 pass with >=2.7x headroom on every metric).
+    const int trunkChannels = model.trunk.trunk_num_channels;
+    const bool hasTransformer = blocksContainTransformer(model.trunk.blocks);
+    const bool full_fp32 = use_fp16 && hasTransformer && trunkChannels < FULL_FP32_MAX_TRUNK_CHANNELS;
+    if (full_fp32) {
+        m_use_fp16 = false;
+        m_use_fp16_io = false;
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+    }
+    m_nonspatial_fp32 = m_use_fp16 && hasTransformer;
+    m_conv_fp32 = m_use_fp16 && hasTransformer && trunkChannels >= CONV_FP32_MIN_TRUNK_CHANNELS;
+}
 
 void MILBuilder::setBatchDimension(CoreML::Specification::MILSpec::TensorType* tensor_type) {
     auto* dim = tensor_type->add_dimensions();
@@ -212,8 +280,10 @@ void MILBuilder::addConstOp(CoreML::Specification::MILSpec::Block* block,
                             const std::string& name,
                             const std::vector<float>& data,
                             const std::vector<int64_t>& shape) {
-    // Register weight for blob storage
-    m_ops.registerWeight(name, data, shape);
+    // Register weight for blob storage. Mark FP32 storage when this const is declared FP32 (e.g.
+    // inside an FP32 sub-region of an otherwise-FP16 model) so storage matches the declared type.
+    m_ops.registerWeight(name, data, shape,
+                         m_weight_dtype == CoreML::Specification::MILSpec::DataType::FLOAT32);
 
     // Add const operation
     auto* op = block->add_operations();
@@ -328,7 +398,11 @@ void MILBuilder::addFloatScalarConstOp(CoreML::Specification::MILSpec::Block* bl
     val_type->set_datatype(m_weight_dtype);
     val_type->set_rank(0);
 
-    if (m_use_fp16) {
+    // Key the storage format off the DECLARED dtype (m_weight_dtype), not the global m_use_fp16:
+    // a temporarily-flipped FP32 sub-region (m_weight_dtype=FLOAT32 while m_use_fp16 stays true)
+    // must store FP32 floats, or CoreML rejects the model ("storage and type have different number
+    // of elements"). For all non-flipped calls m_weight_dtype tracks m_use_fp16, so this is a no-op.
+    if (m_weight_dtype == CoreML::Specification::MILSpec::DataType::FLOAT16) {
         // For FP16, use bytes storage with FP16 representation
         MILBlob::Fp16 fp16_val = MILBlob::Fp16::FromFloat(value);
         std::string bytes_data(reinterpret_cast<const char*>(&fp16_val.bytes), sizeof(fp16_val.bytes));
@@ -424,6 +498,68 @@ void MILBuilder::addCastOp(CoreML::Specification::MILSpec::Block* block,
     for (size_t i = 1; i < shape.size(); i++) {
         tt->add_dimensions()->mutable_constant()->set_size(shape[i]);
     }
+}
+
+std::string MILBuilder::castFixed(CoreML::Specification::MILSpec::Block* block,
+                                  const std::string& input,
+                                  const std::string& dtype,
+                                  const std::vector<int64_t>& dims) {
+    std::string out = genVarName(input + "_cast");
+    std::string dtName = out + "_dt";
+    {
+        auto* op = block->add_operations();
+        op->set_type("const");
+        auto& na = (*op->mutable_attributes())["name"];
+        na.mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+        na.mutable_immediatevalue()->mutable_tensor()->mutable_strings()->add_values(dtName);
+        auto& va = (*op->mutable_attributes())["val"];
+        va.mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+        va.mutable_immediatevalue()->mutable_tensor()->mutable_strings()->add_values(dtype);
+        auto* o = op->add_outputs();
+        o->set_name(dtName);
+        o->mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+    }
+    auto* op = block->add_operations();
+    op->set_type("cast");
+    (*op->mutable_inputs())["x"].add_arguments()->set_name(input);
+    (*op->mutable_inputs())["dtype"].add_arguments()->set_name(dtName);
+    auto* o = op->add_outputs();
+    o->set_name(out);
+    auto* tt = o->mutable_type()->mutable_tensortype();
+    tt->set_datatype(dtype == "fp32" ? CoreML::Specification::MILSpec::DataType::FLOAT32
+                                     : CoreML::Specification::MILSpec::DataType::FLOAT16);
+    tt->set_rank(static_cast<int64_t>(dims.size()));
+    for (int64_t d : dims) {
+        if (d < 0) tt->add_dimensions()->mutable_unknown()->set_variadic(false);
+        else tt->add_dimensions()->mutable_constant()->set_size(d);
+    }
+    return out;
+}
+
+void MILBuilder::addGlobalPoolingFp32(CoreML::Specification::MILSpec::Block* block,
+                                      const std::string& input,
+                                      const std::string& mask,
+                                      int channels,
+                                      const std::string& output,
+                                      bool valueVariant) {
+    auto pool = [&](const std::string& in, const std::string& msk, const std::string& out) {
+        if (valueVariant) addGlobalPoolingValueOps(block, in, msk, channels, out);
+        else              addGlobalPoolingOps(block, in, msk, channels, out);
+    };
+    // Non-spatial per KataGo's FP16 convention -> FP32 (the FP16 spatial sum over H*W loses too much
+    // precision at larger board sizes). No addConstOp in the pooling, so flipping m_weight_dtype is
+    // safe. Cast input/mask up, pool in FP32, cast the [N, channels*3] features back to FP16.
+    if (!m_nonspatial_fp32) {
+        pool(input, mask, output);
+        return;
+    }
+    std::string in32 = castFixed(block, input, "fp32", {-1, channels, m_board_y_size, m_board_x_size});
+    std::string mask32 = m_optimize_identity_mask
+        ? mask
+        : castFixed(block, mask, "fp32", {-1, 1, m_board_y_size, m_board_x_size});
+    std::string out32 = genVarName(output + "_f32");
+    { ScopedFp32 g(m_weight_dtype); pool(in32, mask32, out32); }
+    addCastOp(block, out32, output, "fp16", {-1, channels * 3});
 }
 
 void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
@@ -566,6 +702,21 @@ void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
         tt->add_dimensions()->mutable_constant()->set_size(4);
     }
 
+    // Channel-gated FP32 convs. The ANE accumulates FP16 convs in FP16, which loses too much
+    // precision for WIDE trunks and fails testgpuerror at large board sizes (validated: 384ch
+    // fails, <=256ch is fine FP16-on-ANE). For wide trunks (>= threshold) run convs in FP32 (weights
+    // cast up at runtime, stored fp16). FP32 convs can't run on the fp16-only ANE, so only the wide
+    // models that actually need it pay that off-ANE cost; narrow models keep convs on the ANE.
+    const bool convFp32 = m_conv_fp32;
+    std::string convX = input, convW = weight_name, convOut = output;
+    auto savedConvDtype = m_weight_dtype;
+    if (convFp32) {
+        convX = castFixed(block, input, "fp32", {-1, layer.in_channels, m_board_y_size, m_board_x_size});
+        convW = castFixed(block, weight_name, "fp32", layer.getWeightShape());
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+        convOut = output + "_cf32";
+    }
+
     // Add conv operation referencing all const parameters
     auto* op = block->add_operations();
     op->set_type("conv");
@@ -577,12 +728,12 @@ void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
     inputs["pad"].add_arguments()->set_name(pad_name);
     inputs["pad_type"].add_arguments()->set_name(pad_type_name);
     inputs["strides"].add_arguments()->set_name(strides_name);
-    inputs["weight"].add_arguments()->set_name(weight_name);
-    inputs["x"].add_arguments()->set_name(input);
+    inputs["weight"].add_arguments()->set_name(convW);
+    inputs["x"].add_arguments()->set_name(convX);
 
     // Output with dimensions [batch, out_channels, height, width]
     auto* out = op->add_outputs();
-    out->set_name(output);
+    out->set_name(convOut);
     auto* out_type = out->mutable_type()->mutable_tensortype();
     out_type->set_datatype(m_weight_dtype);
     out_type->set_rank(4);
@@ -590,6 +741,11 @@ void MILBuilder::addConvOp(CoreML::Specification::MILSpec::Block* block,
     out_type->add_dimensions()->mutable_constant()->set_size(layer.out_channels);
     out_type->add_dimensions()->mutable_constant()->set_size(m_board_y_size);
     out_type->add_dimensions()->mutable_constant()->set_size(m_board_x_size);
+
+    if (convFp32) {
+        m_weight_dtype = savedConvDtype;
+        addCastOp(block, convOut, output, "fp16", {-1, layer.out_channels, m_board_y_size, m_board_x_size});
+    }
 }
 
 // Helper: Set output tensor type with 4D shape [batch, C, H, W]
@@ -732,6 +888,63 @@ void MILBuilder::addBatchNormActivationOps(CoreML::Specification::MILSpec::Block
         setTensorOutput4D(op, output, bn.num_channels, m_board_y_size, m_board_x_size);
     } else if (act.activation_type == ActivationType::Mish) {
         addMishOps(block, bn_output, output, 4, bn.num_channels);
+    } else if (act.activation_type == ActivationType::Silu) {
+        addSiluOps(block, bn_output, output, 4, bn.num_channels);
+    }
+}
+
+void MILBuilder::addSiluOps(CoreML::Specification::MILSpec::Block* block,
+                            const std::string& input,
+                            const std::string& output,
+                            int rank,
+                            int channels) {
+    // SiLU / Swish: x * sigmoid(x)
+    auto setOutputType = [this, rank, channels](CoreML::Specification::MILSpec::Operation* op, const std::string& name) {
+        auto* out = op->add_outputs();
+        out->set_name(name);
+        auto* out_type = out->mutable_type()->mutable_tensortype();
+        out_type->set_datatype(m_weight_dtype);
+        out_type->set_rank(rank);
+        setBatchDimension(out_type);
+        out_type->add_dimensions()->mutable_constant()->set_size(channels);
+        if (rank == 4) {
+            out_type->add_dimensions()->mutable_constant()->set_size(m_board_y_size);
+            out_type->add_dimensions()->mutable_constant()->set_size(m_board_x_size);
+        }
+    };
+
+    std::string sig = output + "_sigmoid";
+    {
+        auto* op = block->add_operations();
+        op->set_type("sigmoid");
+        auto& inputs = *op->mutable_inputs();
+        inputs["x"].add_arguments()->set_name(input);
+        setOutputType(op, sig);
+    }
+    {
+        auto* op = block->add_operations();
+        op->set_type("mul");
+        auto& inputs = *op->mutable_inputs();
+        inputs["x"].add_arguments()->set_name(input);
+        inputs["y"].add_arguments()->set_name(sig);
+        setOutputType(op, output);
+    }
+}
+
+void MILBuilder::setShape(CoreML::Specification::MILSpec::Operation* op,
+                          const std::string& name,
+                          const std::vector<int64_t>& dims) {
+    auto* out = op->add_outputs();
+    out->set_name(name);
+    auto* t = out->mutable_type()->mutable_tensortype();
+    t->set_datatype(m_weight_dtype);
+    t->set_rank(static_cast<int64_t>(dims.size()));
+    for (int64_t d : dims) {
+        auto* dim = t->add_dimensions();
+        if (d < 0)
+            dim->mutable_unknown()->set_variadic(false);
+        else
+            dim->mutable_constant()->set_size(d);
     }
 }
 
@@ -887,23 +1100,38 @@ void MILBuilder::addMatMulOp(CoreML::Specification::MILSpec::Block* block,
             CoreML::Specification::MILSpec::DataType::BOOL);
     }
 
+    // Non-spatial matmul in FP32 (KataGo FP16 convention; weights cast up at runtime, stored fp16).
+    std::string mmIn = input, mmW = weight_name, mmOut = output;
+    auto savedMmDtype = m_weight_dtype;
+    if (m_nonspatial_fp32) {
+        mmIn = castFixed(block, input, "fp32", {-1, layer.in_channels});
+        mmW = castFixed(block, weight_name, "fp32", layer.getWeightShape());
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+        mmOut = output + "_mmf32";
+    }
+
     // Add matmul operation
     auto* op = block->add_operations();
     op->set_type("matmul");
     auto& inputs = *op->mutable_inputs();
     inputs["transpose_x"].add_arguments()->set_name(transpose_x_name);
     inputs["transpose_y"].add_arguments()->set_name(transpose_y_name);
-    inputs["x"].add_arguments()->set_name(input);
-    inputs["y"].add_arguments()->set_name(weight_name);
+    inputs["x"].add_arguments()->set_name(mmIn);
+    inputs["y"].add_arguments()->set_name(mmW);
 
     // Output with 2D shape [batch, out_channels]
     auto* out = op->add_outputs();
-    out->set_name(output);
+    out->set_name(mmOut);
     auto* out_type = out->mutable_type()->mutable_tensortype();
     out_type->set_datatype(m_weight_dtype);
     out_type->set_rank(2);
     setBatchDimension(out_type);
     out_type->add_dimensions()->mutable_constant()->set_size(layer.out_channels);
+
+    if (m_nonspatial_fp32) {
+        m_weight_dtype = savedMmDtype;
+        addCastOp(block, mmOut, output, "fp16", {-1, layer.out_channels});
+    }
 }
 
 void MILBuilder::addMatBiasOp(CoreML::Specification::MILSpec::Block* block,
@@ -937,16 +1165,84 @@ void MILBuilder::addLinearOp(CoreML::Specification::MILSpec::Block* block,
                              const MatMulLayerDesc& matmul,
                              const MatBiasLayerDesc& bias,
                              const std::string& output) {
+    std::string weight_name = output + "_weight_0";
+    std::string bias_name = output + "_bias_0";
+    const int in_ch = matmul.in_channels;
+    const int out_ch = matmul.out_channels;
+
+    if (m_nonspatial_fp32) {
+        // FP32 escalation for the partial-FP32 tier. MIL `linear` requires const weight/bias, so
+        // the runtime-cast trick cannot apply to it; rewrite as matmul+add, which accept cast
+        // inputs. These layers (value head v2/v3/sv3, policy gpool-to-pass, metadata encoder)
+        // reduce pooled features directly into the engine's final outputs (value, lead, score),
+        // and are tiny relative to the trunk, so the off-ANE FP32 cost is negligible. Weights and
+        // bias are simply stored FP32 (per-weight serialization handles the mixed dtypes).
+        const auto savedDtype = m_weight_dtype;
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+        // KataGo's [in_channels, out_channels] row-major layout is used untransposed by matmul.
+        addConstOp(block, weight_name, matmul.weights,
+                   {static_cast<int64_t>(in_ch), static_cast<int64_t>(out_ch)});
+        addConstOp(block, bias_name, bias.weights, {static_cast<int64_t>(bias.num_channels)});
+
+        std::string x32 = castFixed(block, input, "fp32", {-1, in_ch});
+
+        std::string txName = output + "_tx", tyName = output + "_ty";
+        addBoolScalarConstOp(block, txName, false);
+        addBoolScalarConstOp(block, tyName, false);
+        std::string mm32 = genVarName(output + "_mm32");
+        {
+            auto* op = block->add_operations();
+            op->set_type("matmul");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(x32);
+            (*op->mutable_inputs())["y"].add_arguments()->set_name(weight_name);
+            (*op->mutable_inputs())["transpose_x"].add_arguments()->set_name(txName);
+            (*op->mutable_inputs())["transpose_y"].add_arguments()->set_name(tyName);
+            setShape(op, mm32, {-1, out_ch});
+        }
+        std::string add32 = genVarName(output + "_add32");
+        {
+            auto* op = block->add_operations();
+            op->set_type("add");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(mm32);
+            (*op->mutable_inputs())["y"].add_arguments()->set_name(bias_name);
+            setShape(op, add32, {-1, out_ch});
+        }
+        m_weight_dtype = savedDtype;
+
+        // Cast back to the ambient dtype under the exact output name callers expect.
+        {
+            std::string dtName = output + "_dt";
+            auto* cop = block->add_operations();
+            cop->set_type("const");
+            auto& na = (*cop->mutable_attributes())["name"];
+            na.mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+            na.mutable_immediatevalue()->mutable_tensor()->mutable_strings()->add_values(dtName);
+            auto& va = (*cop->mutable_attributes())["val"];
+            va.mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+            va.mutable_immediatevalue()->mutable_tensor()->mutable_strings()->add_values("fp16");
+            auto* co = cop->add_outputs();
+            co->set_name(dtName);
+            co->mutable_type()->mutable_tensortype()->set_datatype(CoreML::Specification::MILSpec::DataType::STRING);
+
+            auto* op = block->add_operations();
+            op->set_type("cast");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(add32);
+            (*op->mutable_inputs())["dtype"].add_arguments()->set_name(dtName);
+            auto* out = op->add_outputs();
+            out->set_name(output);
+            auto* out_type = out->mutable_type()->mutable_tensortype();
+            out_type->set_datatype(CoreML::Specification::MILSpec::DataType::FLOAT16);
+            out_type->set_rank(2);
+            setBatchDimension(out_type);
+            out_type->add_dimensions()->mutable_constant()->set_size(out_ch);
+        }
+        return;
+    }
+
     // Create const operations for weight and bias (matching Python's linear op structure)
     // Core ML linear expects weights in [out_channels, in_channels] format
     // KataGo matmul stores weights in [in_channels, out_channels] format
     // We need to transpose the weights to match Python's fuse_matmul_weight_bias pass
-    std::string weight_name = output + "_weight_0";
-    std::string bias_name = output + "_bias_0";
-
-    // Transpose weights from [in_channels, out_channels] to [out_channels, in_channels]
-    const int in_ch = matmul.in_channels;
-    const int out_ch = matmul.out_channels;
     std::vector<float> transposed_weights(matmul.weights.size());
     for (int i = 0; i < in_ch; ++i) {
         for (int j = 0; j < out_ch; ++j) {
@@ -964,7 +1260,6 @@ void MILBuilder::addLinearOp(CoreML::Specification::MILSpec::Block* block,
     std::vector<int64_t> bias_shape = {static_cast<int64_t>(bias.num_channels)};
     addConstOp(block, bias_name, bias.weights, bias_shape);
 
-    // Add linear operation
     auto* op = block->add_operations();
     op->set_type("linear");
     auto& inputs = *op->mutable_inputs();
@@ -1637,6 +1932,662 @@ void MILBuilder::addGlobalPoolingValueOps(CoreML::Specification::MILSpec::Block*
 // Network Component Builders
 // ============================================================================
 
+// ---------------------------------------------------------------------------
+// Transformer blocks (MIL). Layout is NCHW [B, C, H, W]; spatial positions
+// (H*W, ordered y*W+x) are treated as the attention sequence. RoPE is applied
+// via a fixed pair-rotation matmul plus host-precomputed cos/sin tables, which
+// keeps every tensor rank <= 4 (ANE-friendly).
+// ---------------------------------------------------------------------------
+
+std::string MILBuilder::addTransformerRMSNorm(CoreML::Specification::MILSpec::Block* block,
+                                              const std::string& input,
+                                              const TransformerRMSNormDesc& desc,
+                                              const std::string& mask,
+                                              const std::string& prefix) {
+    const int C = desc.num_channels;
+    const int H = m_board_y_size, W = m_board_x_size;
+    auto emit2 = [&](const std::string& type, const std::string& x, const std::string& y,
+                     const std::string& out, const std::vector<int64_t>& dims) {
+        auto* op = block->add_operations();
+        op->set_type(type);
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        setShape(op, out, dims);
+    };
+
+    // RMSNorm reduction core: square -> mean over channels -> rsqrt. In FP16 mode compute this
+    // core in FP32 (cast input up, flip the working dtype so the core's op outputs + eps scalar are
+    // FP32, then cast 1/rms back down). The FP16 channel reduction loses too much precision on the
+    // ANE; only this core is FP32 - the scaling/weight/mask below stay FP16. No addConstOp lives in
+    // the flipped window, so weight serialization is unaffected.
+    auto savedDtype = m_weight_dtype;
+    std::string sqSrc = input;
+    if (m_use_fp16) {
+        sqSrc = genVarName(prefix + "_in32");
+        addCastOp(block, input, sqSrc, "fp32", {-1, C, H, W});
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+    }
+    std::string sq = genVarName(prefix + "_sq");
+    emit2("mul", sqSrc, sqSrc, sq, {-1, C, H, W});
+    // meanSq = reduce_mean(sq, axes=[1]) over channels. reduce_mean (not reduce_sum) is used so
+    // the accumulator stays ~O(activation^2) instead of summing hundreds of channels, which can
+    // overflow FP16 (and the FP16 accumulation on ANE) for large activations.
+    std::string meanSq = genVarName(prefix + "_meansq");
+    {
+        std::string axesName = meanSq + "_axes";
+        std::string keepName = meanSq + "_keep";
+        addIntArrayConstOp(block, axesName, {1});
+        addBoolScalarConstOp(block, keepName, true);
+        auto* op = block->add_operations();
+        op->set_type("reduce_mean");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(sq);
+        (*op->mutable_inputs())["axes"].add_arguments()->set_name(axesName);
+        (*op->mutable_inputs())["keep_dims"].add_arguments()->set_name(keepName);
+        setShape(op, meanSq, {-1, 1, H, W});
+    }
+    // MIL rsqrt computes 1/sqrt(x + epsilon); supply epsilon directly.
+    std::string epsName = prefix + "_eps";
+    addFloatScalarConstOp(block, epsName, desc.epsilon);
+    std::string invCore = genVarName(prefix + "_inv");
+    {
+        auto* op = block->add_operations();
+        op->set_type("rsqrt");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(meanSq);
+        (*op->mutable_inputs())["epsilon"].add_arguments()->set_name(epsName);
+        setShape(op, invCore, {-1, 1, H, W});
+    }
+    std::string inv = invCore;
+    if (m_use_fp16) {
+        m_weight_dtype = savedDtype;
+        inv = genVarName(prefix + "_inv16");
+        addCastOp(block, invCore, inv, "fp16", {-1, 1, H, W});
+    }
+    std::string normalized = genVarName(prefix + "_norm");
+    emit2("mul", input, inv, normalized, {-1, C, H, W});
+    std::string weightName = prefix + "_weight";
+    addConstOp(block, weightName, desc.weight, {1, static_cast<int64_t>(C), 1, 1});
+    std::string scaled = genVarName(prefix + "_scaled");
+    emit2("mul", normalized, weightName, scaled, {-1, C, H, W});
+    std::string out = genVarName(prefix + "_out");
+    emit2("mul", scaled, mask, out, {-1, C, H, W});
+    return out;
+}
+
+std::string MILBuilder::addTrunkRMSNorm(CoreML::Specification::MILSpec::Block* block,
+                                        const std::string& input,
+                                        const RMSNormLayerDesc& desc,
+                                        const ActivationLayerDesc& act,
+                                        const std::string& mask,
+                                        const std::string& prefix) {
+    const int C = desc.num_channels;
+    const int H = m_board_y_size, W = m_board_x_size;
+    auto emit2 = [&](const std::string& type, const std::string& x, const std::string& y,
+                     const std::string& out, const std::vector<int64_t>& dims) {
+        auto* op = block->add_operations();
+        op->set_type(type);
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        setShape(op, out, dims);
+    };
+    auto reduceSum = [&](const std::string& x, const std::string& out, const std::vector<int32_t>& axes,
+                         const std::vector<int64_t>& dims) {
+        std::string axesName = out + "_axes";
+        std::string keepName = out + "_keep";
+        addIntArrayConstOp(block, axesName, axes);
+        addBoolScalarConstOp(block, keepName, true);
+        auto* op = block->add_operations();
+        op->set_type("reduce_sum");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["axes"].add_arguments()->set_name(axesName);
+        (*op->mutable_inputs())["keep_dims"].add_arguments()->set_name(keepName);
+        setShape(op, out, dims);
+    };
+
+    // Variance core (mask -> square -> reduce -> rsqrt) in FP32 when in FP16 mode. The trunk-tip
+    // norm in particular reduces over many elements and loses too much precision in FP16 on the
+    // ANE; compute the core in FP32 and cast 1/rms back to FP16. Only the core is FP32 - gamma/beta,
+    // the activation and the final mask below stay FP16. No addConstOp lives in the flipped window.
+    auto savedDtype = m_weight_dtype;
+    std::string tinput = input;
+    std::string tmask = mask;
+    if (m_use_fp16) {
+        tinput = genVarName(prefix + "_in32");
+        addCastOp(block, input, tinput, "fp32", {-1, C, H, W});
+        tmask = genVarName(prefix + "_mask32");
+        addCastOp(block, mask, tmask, "fp32", {-1, 1, H, W});
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+    }
+    std::string masked = genVarName(prefix + "_premask");
+    emit2("mul", tinput, tmask, masked, {-1, C, H, W});
+    std::string sq = genVarName(prefix + "_sq");
+    emit2("mul", masked, masked, sq, {-1, C, H, W});
+
+    std::string meanSq;
+    std::vector<int64_t> denomDims;
+    if (desc.spatial) {
+        // Mean of squares over valid positions and channels. A reduce_sum over C*H*W elements
+        // overflows FP16 (e.g. trunk tip with large activations on ANE -> inf -> rsqrt 0 ->
+        // collapse). Instead take reduce_mean over all of C,H,W (masked positions are zero) and
+        // rescale by totalPositions/validCount to restrict the mean to valid positions.
+        std::string meanAll = genVarName(prefix + "_meanall");
+        {
+            std::string axesName = meanAll + "_axes", keepName = meanAll + "_keep";
+            addIntArrayConstOp(block, axesName, {1, 2, 3});
+            addBoolScalarConstOp(block, keepName, true);
+            auto* op = block->add_operations();
+            op->set_type("reduce_mean");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(sq);
+            (*op->mutable_inputs())["axes"].add_arguments()->set_name(axesName);
+            (*op->mutable_inputs())["keep_dims"].add_arguments()->set_name(keepName);
+            setShape(op, meanAll, {-1, 1, 1, 1});
+        }
+        std::string count = genVarName(prefix + "_count");
+        reduceSum(tmask, count, {1, 2, 3}, {-1, 1, 1, 1});  // valid positions (<= H*W, no overflow)
+        std::string totalPosName = prefix + "_totalpos";
+        addFloatScalarConstOp(block, totalPosName, static_cast<float>(H * W));
+        std::string scaleF = genVarName(prefix + "_scalef");
+        emit2("real_div", totalPosName, count, scaleF, {-1, 1, 1, 1});  // totalPos / validCount
+        meanSq = genVarName(prefix + "_meansq");
+        emit2("mul", meanAll, scaleF, meanSq, {-1, 1, 1, 1});
+        denomDims = {-1, 1, 1, 1};
+    } else {
+        meanSq = genVarName(prefix + "_meansq");
+        std::string axesName = meanSq + "_axes";
+        std::string keepName = meanSq + "_keep";
+        addIntArrayConstOp(block, axesName, {1});
+        addBoolScalarConstOp(block, keepName, true);
+        auto* op = block->add_operations();
+        op->set_type("reduce_mean");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(sq);
+        (*op->mutable_inputs())["axes"].add_arguments()->set_name(axesName);
+        (*op->mutable_inputs())["keep_dims"].add_arguments()->set_name(keepName);
+        setShape(op, meanSq, {-1, 1, H, W});
+        denomDims = {-1, 1, H, W};
+    }
+
+    // MIL rsqrt computes 1/sqrt(x + epsilon); supply epsilon directly.
+    std::string epsName = prefix + "_eps";
+    addFloatScalarConstOp(block, epsName, desc.epsilon);
+    std::string invCore = genVarName(prefix + "_inv");
+    {
+        auto* op = block->add_operations();
+        op->set_type("rsqrt");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(meanSq);
+        (*op->mutable_inputs())["epsilon"].add_arguments()->set_name(epsName);
+        setShape(op, invCore, denomDims);
+    }
+    std::string inv = invCore;
+    if (m_use_fp16) {
+        m_weight_dtype = savedDtype;
+        inv = genVarName(prefix + "_inv16");
+        addCastOp(block, invCore, inv, "fp16", denomDims);
+    }
+    std::string normalized = genVarName(prefix + "_norm");
+    emit2("mul", input, inv, normalized, {-1, C, H, W});
+    std::string gammaName = prefix + "_gamma";
+    std::string betaName = prefix + "_beta";
+    addConstOp(block, gammaName, desc.gamma, {1, static_cast<int64_t>(C), 1, 1});
+    addConstOp(block, betaName, desc.beta, {1, static_cast<int64_t>(C), 1, 1});
+    std::string scaled = genVarName(prefix + "_scaled");
+    emit2("mul", normalized, gammaName, scaled, {-1, C, H, W});
+    std::string biased = genVarName(prefix + "_biased");
+    emit2("add", scaled, betaName, biased, {-1, C, H, W});
+
+    std::string activated;
+    if (act.activation_type == ActivationType::Silu) {
+        activated = genVarName(prefix + "_act");
+        addSiluOps(block, biased, activated, 4, C);
+    } else if (act.activation_type == ActivationType::Mish) {
+        activated = genVarName(prefix + "_act");
+        addMishOps(block, biased, activated, 4, C);
+    } else if (act.activation_type == ActivationType::ReLU) {
+        activated = genVarName(prefix + "_act");
+        auto* op = block->add_operations();
+        op->set_type("relu");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(biased);
+        setShape(op, activated, {-1, C, H, W});
+    } else {
+        activated = biased;
+    }
+    std::string out = genVarName(prefix + "_out");
+    emit2("mul", activated, mask, out, {-1, C, H, W});
+    return out;
+}
+
+std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MILSpec::Block* block,
+                                                       const std::string& input,
+                                                       const TransformerAttentionBlockDesc& desc,
+                                                       const std::string& mask,
+                                                       const std::string& prefix) {
+    const int C = desc.q_proj.in_channels;
+    const int H = m_board_y_size, W = m_board_x_size;
+    const int seq = H * W;
+    const int numHeads = desc.num_heads, numKVHeads = desc.num_kv_heads;
+    const int qHeadDim = desc.q_head_dim, vHeadDim = desc.v_head_dim;
+    const int qTotal = numHeads * qHeadDim, kTotal = numKVHeads * qHeadDim, vTotal = numKVHeads * vHeadDim;
+
+    auto reshape = [&](const std::string& in, const std::string& out, const std::vector<int32_t>& shapeVals,
+                       const std::vector<int64_t>& dims) {
+        std::string shapeName = out + "_shape";
+        addIntArrayConstOp(block, shapeName, shapeVals);
+        auto* op = block->add_operations();
+        op->set_type("reshape");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(in);
+        (*op->mutable_inputs())["shape"].add_arguments()->set_name(shapeName);
+        setShape(op, out, dims);
+    };
+    auto transpose = [&](const std::string& in, const std::string& out, const std::vector<int32_t>& perm,
+                         const std::vector<int64_t>& dims) {
+        std::string permName = out + "_perm";
+        addIntArrayConstOp(block, permName, perm);
+        auto* op = block->add_operations();
+        op->set_type("transpose");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(in);
+        (*op->mutable_inputs())["perm"].add_arguments()->set_name(permName);
+        setShape(op, out, dims);
+    };
+    auto matmul = [&](const std::string& x, const std::string& y, const std::string& out,
+                      const std::vector<int64_t>& dims, bool transX, bool transY) {
+        std::string txName = out + "_tx", tyName = out + "_ty";
+        addBoolScalarConstOp(block, txName, transX);
+        addBoolScalarConstOp(block, tyName, transY);
+        auto* op = block->add_operations();
+        op->set_type("matmul");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        (*op->mutable_inputs())["transpose_x"].add_arguments()->set_name(txName);
+        (*op->mutable_inputs())["transpose_y"].add_arguments()->set_name(tyName);
+        setShape(op, out, dims);
+    };
+    auto binary = [&](const std::string& type, const std::string& x, const std::string& y,
+                      const std::string& out, const std::vector<int64_t>& dims) {
+        auto* op = block->add_operations();
+        op->set_type(type);
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        setShape(op, out, dims);
+    };
+
+    std::string normed = addTransformerRMSNorm(block, input, desc.pre_ln, mask, prefix + "_ln");
+    std::string nhwc = genVarName(prefix + "_nhwc");
+    transpose(normed, nhwc, {0, 2, 3, 1}, {-1, H, W, C});
+    std::string x2d = genVarName(prefix + "_x2d");
+    reshape(nhwc, x2d, {-1, C}, {-1, C});
+    // Q/K/V projection matmuls in FP32 (non-spatial, per KataGo's FP16 convention): they reduce over
+    // C channels and the ANE's FP16 accumulation loses too much precision for wide models. Weights
+    // stay fp16-stored (cast up at runtime); output cast back to FP16 for the FP16 head reshapes.
+    auto proj = [&](const MatMulLayerDesc& w, const std::string& nm, int total) {
+        std::string wName = nm + "_w";
+        addConstOp(block, wName, w.weights, w.getWeightShape());
+        std::string out = genVarName(nm);
+        if (m_nonspatial_fp32) {
+            std::string x32 = castFixed(block, x2d, "fp32", {-1, C});
+            std::string w32 = castFixed(block, wName, "fp32", w.getWeightShape());
+            auto sd = m_weight_dtype;
+            m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+            std::string o32 = genVarName(nm + "_f32");
+            matmul(x32, w32, o32, {-1, total}, false, false);
+            m_weight_dtype = sd;
+            out = castFixed(block, o32, "fp16", {-1, total});
+        } else {
+            matmul(x2d, wName, out, {-1, total}, false, false);
+        }
+        return out;
+    };
+    std::string q2d = proj(desc.q_proj, prefix + "_q", qTotal);
+    std::string k2d = proj(desc.k_proj, prefix + "_k", kTotal);
+    std::string v2d = proj(desc.v_proj, prefix + "_v", vTotal);
+    auto toHeads = [&](const std::string& in2d, const std::string& nm, int nh, int hd) {
+        std::string r = genVarName(nm + "_r");
+        reshape(in2d, r, {-1, seq, nh, hd}, {-1, seq, nh, hd});
+        std::string t = genVarName(nm + "_t");
+        transpose(r, t, {0, 2, 1, 3}, {-1, nh, seq, hd});
+        return t;
+    };
+    std::string qh = toHeads(q2d, prefix + "_qh", numHeads, qHeadDim);
+    std::string kh = toHeads(k2d, prefix + "_kh", numKVHeads, qHeadDim);
+    std::string vh = toHeads(v2d, prefix + "_vh", numKVHeads, vHeadDim);
+
+    if (desc.use_rope) {
+        const int numPairs = qHeadDim / 2;
+        const int numPairsPerDim = numPairs / 2;
+        const int dimHalf = qHeadDim / 2;
+        auto applyRope = [&](const std::string& x, int nh, const std::string& tag) {
+            std::vector<float> cosFull(static_cast<size_t>(nh) * seq * qHeadDim, 0.0f);
+            std::vector<float> sinFull(static_cast<size_t>(nh) * seq * qHeadDim, 0.0f);
+            for (int h = 0; h < nh; h++) {
+                int kvh = (h * numKVHeads) / nh;
+                for (int xy = 0; xy < seq; xy++) {
+                    int y = xy / W;
+                    int x = xy % W;
+                    for (int p = 0; p < numPairs; p++) {
+                        float angle = 0.0f;
+                        if (desc.learnable_rope) {
+                            float fx = desc.rope_freqs[(kvh * numPairs + p) * 2 + 0];
+                            float fy = desc.rope_freqs[(kvh * numPairs + p) * 2 + 1];
+                            angle = static_cast<float>(x) * fx + static_cast<float>(y) * fy;
+                        } else {
+                            if (p < numPairsPerDim) {
+                                float freq = 1.0f / std::pow(desc.rope_theta, static_cast<float>(2 * p) / dimHalf);
+                                angle = static_cast<float>(y) * freq;
+                            } else {
+                                int pAdj = p - numPairsPerDim;
+                                float freq = 1.0f / std::pow(desc.rope_theta, static_cast<float>(2 * pAdj) / dimHalf);
+                                angle = static_cast<float>(x) * freq;
+                            }
+                        }
+                        float c = std::cos(angle), s = std::sin(angle);
+                        size_t base = (static_cast<size_t>(h) * seq + xy) * qHeadDim + 2 * p;
+                        cosFull[base] = c; cosFull[base + 1] = c;
+                        sinFull[base] = s; sinFull[base + 1] = s;
+                    }
+                }
+            }
+            std::vector<float> R(static_cast<size_t>(qHeadDim) * qHeadDim, 0.0f);
+            for (int p = 0; p < numPairs; p++) {
+                R[(2 * p) * qHeadDim + (2 * p + 1)] = 1.0f;
+                R[(2 * p + 1) * qHeadDim + (2 * p)] = -1.0f;
+            }
+            std::string cosName = prefix + "_" + tag + "_cos";
+            std::string sinName = prefix + "_" + tag + "_sin";
+            std::string rName = prefix + "_" + tag + "_R";
+            addConstOp(block, cosName, cosFull, {1, nh, seq, qHeadDim});
+            addConstOp(block, sinName, sinFull, {1, nh, seq, qHeadDim});
+            // Rank-4 [1,1,qd,qd] so matmul batch dims broadcast cleanly against [B,nh,seq,qd].
+            addConstOp(block, rName, R, {1, 1, qHeadDim, qHeadDim});
+            std::string rotated = genVarName(prefix + "_" + tag + "_rot");
+            matmul(x, rName, rotated, {-1, nh, seq, qHeadDim}, false, false);
+            std::string xc = genVarName(prefix + "_" + tag + "_xc");
+            binary("mul", x, cosName, xc, {-1, nh, seq, qHeadDim});
+            std::string rs = genVarName(prefix + "_" + tag + "_rs");
+            binary("mul", rotated, sinName, rs, {-1, nh, seq, qHeadDim});
+            std::string out = genVarName(prefix + "_" + tag + "_rope");
+            binary("add", xc, rs, out, {-1, nh, seq, qHeadDim});
+            return out;
+        };
+        qh = applyRope(qh, numHeads, "q");
+        kh = applyRope(kh, numKVHeads, "k");
+    }
+
+    // GQA: when numKVHeads < numHeads, repeat each KV head groupSize times along the head
+    // axis (axis 1) so query head h consumes kv head (h / groupSize). RoPE has already been
+    // applied above to the unexpanded kh (kh = applyRope(kh, numKVHeads, "k")), mirroring the
+    // GPU path (metallayers.swift repeatKVHeads runs AFTER applyRope). We slice each KV head
+    // and concat its copies consecutively, so the resulting head index is kv*groupSize + g;
+    // query head h then maps to kv = h/groupSize == (h*numKVHeads)/numHeads (exact divisor,
+    // the same formula the qh RoPE table uses) == Eigen's kvh = h/kvGroupSize. slice_by_size +
+    // concat (not reshape+broadcast) avoids the dynamic -1 batch broadcast pitfall, same as the
+    // GPU code. The repeat is required so the scores (qh@kh^T) and attnOut (attn@vh) matmuls see
+    // matching [B,numHeads,...] batch dims instead of numHeads vs numKVHeads (no broadcast).
+    if (numKVHeads != numHeads) {
+        const int groupSize = numHeads / numKVHeads;
+        auto repeatKVHeads = [&](const std::string& x, const std::string& tag, int headDim) {
+            std::vector<std::string> parts;
+            parts.reserve(static_cast<size_t>(numKVHeads) * groupSize);
+            for (int kv = 0; kv < numKVHeads; kv++) {
+                for (int g = 0; g < groupSize; g++) {
+                    std::string part = genVarName(prefix + "_" + tag + "_slc");
+                    std::string beginName = part + "_begin", sizeName = part + "_size";
+                    addIntArrayConstOp(block, beginName, {0, kv, 0, 0});
+                    addIntArrayConstOp(block, sizeName, {-1, 1, seq, headDim});
+                    auto* sop = block->add_operations();
+                    sop->set_type("slice_by_size");
+                    (*sop->mutable_inputs())["x"].add_arguments()->set_name(x);
+                    (*sop->mutable_inputs())["begin"].add_arguments()->set_name(beginName);
+                    (*sop->mutable_inputs())["size"].add_arguments()->set_name(sizeName);
+                    setShape(sop, part, {-1, 1, seq, headDim});
+                    parts.push_back(part);
+                }
+            }
+            std::string out = genVarName(prefix + "_" + tag + "_exp");
+            std::string axisName = out + "_axis", interleaveName = out + "_interleave";
+            addIntScalarConstOp(block, axisName, 1);
+            addBoolScalarConstOp(block, interleaveName, false);
+            auto* cop = block->add_operations();
+            cop->set_type("concat");
+            auto& cin = *cop->mutable_inputs();
+            for (const std::string& part : parts)
+                cin["values"].add_arguments()->set_name(part);
+            cin["axis"].add_arguments()->set_name(axisName);
+            cin["interleave"].add_arguments()->set_name(interleaveName);
+            setShape(cop, out, {-1, numHeads, seq, headDim});
+            return out;
+        };
+        kh = repeatKVHeads(kh, "khrep", qHeadDim);
+        vh = repeatKVHeads(vh, "vhrep", vHeadDim);
+    }
+
+    // mask [B,1,H,W] -> [B,1,1,seq] directly (contiguous reshape; H,W already trailing so the
+    // row-major flatten gives seq index xy=y*W+x). No transpose -> avoids the reshape-after-
+    // transpose issue, and is also correct for non-full boards. Computed in the ambient dtype
+    // (FP16 in FP16 mode) since the mask tensor is FP16; cast up below if the core runs FP32.
+    std::string maskSeq = genVarName(prefix + "_mseq");
+    reshape(mask, maskSeq, {-1, 1, 1, seq}, {-1, 1, 1, seq});
+    std::string oneName = prefix + "_one";
+    addFloatScalarConstOp(block, oneName, 1.0f);
+    std::string mm1 = genVarName(prefix + "_mm1");
+    binary("sub", maskSeq, oneName, mm1, {-1, 1, 1, seq});
+    // Use an FP16-safe magnitude: 1e9 overflows FP16 to +inf, and for valid keys
+    // (maskSeq-1 == 0) the product 0 * inf becomes NaN, poisoning the whole softmax.
+    // 3e4 is exactly representable in FP16 (a multiple of the local ulp of 16), stays well
+    // below the FP16 max of 65504 even after summing with any plausible score, and
+    // exp(score - 3e4) underflows to exactly 0 - while leaving ~3x more headroom than
+    // 1e4 against unusually large valid scores.
+    std::string bigName = prefix + "_big";
+    addFloatScalarConstOp(block, bigName, 3.0e4f);
+    std::string keyBias = genVarName(prefix + "_kb");
+    binary("mul", mm1, bigName, keyBias, {-1, 1, 1, seq});
+
+    // Optional FP32 escalation of the scores/softmax/attn@V chain, gated by
+    // ATTENTION_CORE_FP32 (currently off; see MILBuilder.hpp for the measured tradeoffs).
+    // When enabled it must cover the whole chain contiguously: escalating the softmax ALONE
+    // was measured to regress accuracy and speed, because an isolated off-ANE fp32 island
+    // makes the partitioner relocate the neighboring seq-x-seq matmuls off the ANE in FP16,
+    // losing its wide accumulator.
+    const bool attnCoreFp32 = m_nonspatial_fp32 && ATTENTION_CORE_FP32;
+    std::string qhc = attnCoreFp32 ? castFixed(block, qh, "fp32", {-1, numHeads, seq, qHeadDim}) : qh;
+    std::string khc = attnCoreFp32 ? castFixed(block, kh, "fp32", {-1, numHeads, seq, qHeadDim}) : kh;
+    std::string vhc = attnCoreFp32 ? castFixed(block, vh, "fp32", {-1, numHeads, seq, vHeadDim}) : vh;
+    std::string keyBiasC = attnCoreFp32 ? castFixed(block, keyBias, "fp32", {-1, 1, 1, seq}) : keyBias;
+    const auto savedCoreDtype = m_weight_dtype;
+    if (attnCoreFp32)
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+
+    std::string scores = genVarName(prefix + "_scores");
+    matmul(qhc, khc, scores, {-1, numHeads, seq, seq}, false, true);
+    std::string scaleName = prefix + "_scale";
+    addFloatScalarConstOp(block, scaleName, 1.0f / std::sqrt(static_cast<float>(qHeadDim)));
+    std::string scaled = genVarName(prefix + "_sc");
+    binary("mul", scores, scaleName, scaled, {-1, numHeads, seq, seq});
+    std::string scoresMasked = genVarName(prefix + "_scm");
+    binary("add", scaled, keyBiasC, scoresMasked, {-1, numHeads, seq, seq});
+
+    std::string attn = genVarName(prefix + "_attn");
+    {
+        std::string axisName = attn + "_axis";
+        addIntScalarConstOp(block, axisName, 3);
+        auto* op = block->add_operations();
+        op->set_type("softmax");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(scoresMasked);
+        (*op->mutable_inputs())["axis"].add_arguments()->set_name(axisName);
+        setShape(op, attn, {-1, numHeads, seq, seq});
+    }
+
+    std::string attnOut = genVarName(prefix + "_ao");
+    matmul(attn, vhc, attnOut, {-1, numHeads, seq, vHeadDim}, false, false);
+    if (attnCoreFp32) {
+        m_weight_dtype = savedCoreDtype;
+        attnOut = castFixed(block, attnOut, "fp16", {-1, numHeads, seq, vHeadDim});
+    }
+
+    // Output projection, done per-head as a workaround: merging [head,dim]->channels via
+    // transpose({0,2,1,3}) followed by reshape was observed to scramble the data on this
+    // specific pattern (root cause not isolated - note the transpose+reshape at this
+    // function's INPUT works fine, so it is not a general CoreML rule; possibly a fusion or
+    // layout bug for this rank-4 permutation feeding a trailing-dim merge). Instead slice
+    // each head from attnOut (head is the contiguous axis 1), reshape (leading-merge only),
+    // matmul its weight slice, and sum.
+    //   out[b,s,c] = sum_h sum_d attnOut[b,h,s,d] * outProj.weights[(h*vHeadDim+d)*outC + c]
+    const int outC = desc.out_proj.out_channels;
+    std::string proj2d;
+    for (int h = 0; h < numHeads; h++) {
+        std::string aoh = genVarName(prefix + "_aoh");
+        {
+            std::string beginName = aoh + "_begin", sizeName = aoh + "_size";
+            addIntArrayConstOp(block, beginName, {0, h, 0, 0});
+            addIntArrayConstOp(block, sizeName, {-1, 1, seq, vHeadDim});
+            auto* op = block->add_operations();
+            op->set_type("slice_by_size");
+            (*op->mutable_inputs())["x"].add_arguments()->set_name(attnOut);
+            (*op->mutable_inputs())["begin"].add_arguments()->set_name(beginName);
+            (*op->mutable_inputs())["size"].add_arguments()->set_name(sizeName);
+            setShape(op, aoh, {-1, 1, seq, vHeadDim});
+        }
+        std::string aoh2d = genVarName(prefix + "_aoh2d");
+        reshape(aoh, aoh2d, {-1, vHeadDim}, {-1, vHeadDim});  // [B*seq, vHeadDim]
+        std::string wh = prefix + "_ow" + std::to_string(h);
+        std::vector<float> whData(static_cast<size_t>(vHeadDim) * outC);
+        for (int d = 0; d < vHeadDim; d++)
+            for (int c = 0; c < outC; c++)
+                whData[d * outC + c] = desc.out_proj.weights[static_cast<size_t>(h * vHeadDim + d) * outC + c];
+        addConstOp(block, wh, whData, {vHeadDim, outC});
+        std::string contrib = genVarName(prefix + "_contrib");
+        matmul(aoh2d, wh, contrib, {-1, outC}, false, false);
+        if (h == 0) {
+            proj2d = contrib;
+        } else {
+            std::string acc = genVarName(prefix + "_acc");
+            binary("add", proj2d, contrib, acc, {-1, outC});
+            proj2d = acc;
+        }
+    }
+    std::string projNHWC = genVarName(prefix + "_pnhwc");
+    reshape(proj2d, projNHWC, {-1, H, W, C}, {-1, H, W, C});
+    std::string projNCHW = genVarName(prefix + "_pnchw");
+    transpose(projNHWC, projNCHW, {0, 3, 1, 2}, {-1, C, H, W});
+    std::string maskedOut = genVarName(prefix + "_masked");
+    binary("mul", projNCHW, mask, maskedOut, {-1, C, H, W});
+    std::string out = genVarName(prefix + "_out");
+    binary("add", input, maskedOut, out, {-1, C, H, W});
+    return out;
+}
+
+std::string MILBuilder::buildTransformerFFNBlock(CoreML::Specification::MILSpec::Block* block,
+                                                 const std::string& input,
+                                                 const TransformerFFNBlockDesc& desc,
+                                                 const std::string& mask,
+                                                 const std::string& prefix) {
+    const int C = desc.num_channels;
+    const int ffn = desc.ffn_channels;
+    const int H = m_board_y_size, W = m_board_x_size;
+
+    if (!desc.use_swiglu) {
+        throw std::runtime_error(desc.name + ": non-SwiGLU transformer FFN not supported in CoreML backend");
+    }
+
+    auto reshape = [&](const std::string& in, const std::string& out, const std::vector<int32_t>& shapeVals,
+                       const std::vector<int64_t>& dims) {
+        std::string shapeName = out + "_shape";
+        addIntArrayConstOp(block, shapeName, shapeVals);
+        auto* op = block->add_operations();
+        op->set_type("reshape");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(in);
+        (*op->mutable_inputs())["shape"].add_arguments()->set_name(shapeName);
+        setShape(op, out, dims);
+    };
+    auto transpose = [&](const std::string& in, const std::string& out, const std::vector<int32_t>& perm,
+                         const std::vector<int64_t>& dims) {
+        std::string permName = out + "_perm";
+        addIntArrayConstOp(block, permName, perm);
+        auto* op = block->add_operations();
+        op->set_type("transpose");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(in);
+        (*op->mutable_inputs())["perm"].add_arguments()->set_name(permName);
+        setShape(op, out, dims);
+    };
+    auto matmul = [&](const std::string& x, const std::string& y, const std::string& out,
+                      const std::vector<int64_t>& dims) {
+        std::string txName = out + "_tx", tyName = out + "_ty";
+        addBoolScalarConstOp(block, txName, false);
+        addBoolScalarConstOp(block, tyName, false);
+        auto* op = block->add_operations();
+        op->set_type("matmul");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        (*op->mutable_inputs())["transpose_x"].add_arguments()->set_name(txName);
+        (*op->mutable_inputs())["transpose_y"].add_arguments()->set_name(tyName);
+        setShape(op, out, dims);
+    };
+    auto binary = [&](const std::string& type, const std::string& x, const std::string& y,
+                      const std::string& out, const std::vector<int64_t>& dims) {
+        auto* op = block->add_operations();
+        op->set_type(type);
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(x);
+        (*op->mutable_inputs())["y"].add_arguments()->set_name(y);
+        setShape(op, out, dims);
+    };
+
+    std::string normed = addTransformerRMSNorm(block, input, desc.pre_ln, mask, prefix + "_ln");
+    std::string nhwc = genVarName(prefix + "_nhwc");
+    transpose(normed, nhwc, {0, 2, 3, 1}, {-1, H, W, C});
+    std::string x2d = genVarName(prefix + "_x2d");
+    reshape(nhwc, x2d, {-1, C}, {-1, C});
+
+    // FFN matmuls in FP32 (weights cast up at runtime, stored fp16) — KataGo's FP16 convention is
+    // spatial(convs)=FP16, non-spatial(matmuls)=FP32 (see openclbackend.cpp). The ANE accumulates
+    // FP16 matmuls in FP16, which loses too much precision over C/ffn; run them in FP32 instead.
+    std::string w1 = prefix + "_w1";
+    addConstOp(block, w1, desc.linear1.weights, desc.linear1.getWeightShape());
+    std::string wg = prefix + "_wg";
+    addConstOp(block, wg, desc.linear_gate.weights, desc.linear_gate.getWeightShape());
+    std::string w2 = prefix + "_w2";
+    addConstOp(block, w2, desc.linear2.weights, desc.linear2.getWeightShape());
+
+    auto savedDtype = m_weight_dtype;
+    std::string mx2d = x2d, mw1 = w1, mwg = wg, mw2 = w2;
+    if (m_nonspatial_fp32) {
+        mx2d = castFixed(block, x2d, "fp32", {-1, C});
+        mw1 = castFixed(block, w1, "fp32", desc.linear1.getWeightShape());
+        mwg = castFixed(block, wg, "fp32", desc.linear_gate.getWeightShape());
+        mw2 = castFixed(block, w2, "fp32", desc.linear2.getWeightShape());
+        m_weight_dtype = CoreML::Specification::MILSpec::DataType::FLOAT32;
+    }
+    std::string a = genVarName(prefix + "_a");
+    matmul(mx2d, mw1, a, {-1, ffn});
+    std::string g = genVarName(prefix + "_g");
+    matmul(mx2d, mwg, g, {-1, ffn});
+
+    std::string sig = genVarName(prefix + "_sig");
+    {
+        auto* op = block->add_operations();
+        op->set_type("sigmoid");
+        (*op->mutable_inputs())["x"].add_arguments()->set_name(a);
+        setShape(op, sig, {-1, ffn});
+    }
+    std::string siluA = genVarName(prefix + "_silu");
+    binary("mul", a, sig, siluA, {-1, ffn});
+    std::string h = genVarName(prefix + "_h");
+    binary("mul", siluA, g, h, {-1, ffn});
+
+    std::string oCore = genVarName(prefix + "_o");
+    matmul(h, mw2, oCore, {-1, C});
+    std::string o = oCore;
+    if (m_nonspatial_fp32) {
+        m_weight_dtype = savedDtype;
+        o = castFixed(block, oCore, "fp16", {-1, C});
+    }
+
+    std::string oNHWC = genVarName(prefix + "_onhwc");
+    reshape(o, oNHWC, {-1, H, W, C}, {-1, H, W, C});
+    std::string oNCHW = genVarName(prefix + "_onchw");
+    transpose(oNHWC, oNCHW, {0, 3, 1, 2}, {-1, C, H, W});
+    std::string maskedOut = genVarName(prefix + "_masked");
+    binary("mul", oNCHW, mask, maskedOut, {-1, C, H, W});
+    std::string out = genVarName(prefix + "_out");
+    binary("add", input, maskedOut, out, {-1, C, H, W});
+    return out;
+}
+
 std::string MILBuilder::buildTrunk(CoreML::Specification::MILSpec::Block* block,
                                    const std::string& spatial_input,
                                    const std::string& global_input,
@@ -1747,12 +2698,23 @@ std::string MILBuilder::buildTrunk(CoreML::Specification::MILSpec::Block* block,
         } else if (entry.block_kind == NESTED_BOTTLENECK_BLOCK_KIND) {
             const auto& block_desc = std::get<NestedBottleneckResidualBlockDesc>(*entry.block);
             x = buildNestedBottleneckBlock(block, x, block_desc, mask, prefix);
+        } else if (entry.block_kind == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+            const auto& block_desc = std::get<TransformerAttentionBlockDesc>(*entry.block);
+            x = buildTransformerAttentionBlock(block, x, block_desc, mask, prefix);
+        } else if (entry.block_kind == TRANSFORMER_FFN_BLOCK_KIND) {
+            const auto& block_desc = std::get<TransformerFFNBlockDesc>(*entry.block);
+            x = buildTransformerFFNBlock(block, x, block_desc, mask, prefix);
         }
     }
 
     // Trunk tip
-    std::string trunk_out = genVarName("trunk_tip");
-    addBatchNormActivationOps(block, x, trunk.trunk_tip_bn, trunk.trunk_tip_activation, mask, trunk_out);
+    std::string trunk_out;
+    if (trunk.trunk_norm_kind == TRUNK_NORM_KIND_STANDARD) {
+        trunk_out = genVarName("trunk_tip");
+        addBatchNormActivationOps(block, x, trunk.trunk_tip_bn, trunk.trunk_tip_activation, mask, trunk_out);
+    } else {
+        trunk_out = addTrunkRMSNorm(block, x, trunk.trunk_tip_rms_norm, trunk.trunk_tip_activation, mask, "trunk_tip_rms");
+    }
 
     return trunk_out;
 }
@@ -1814,9 +2776,11 @@ std::string MILBuilder::buildGlobalPoolingResidualBlock(CoreML::Specification::M
     std::string gpool_bn_out = genVarName(prefix + "_gpool_bn");
     addBatchNormActivationOps(block, gpool_conv_out, block_desc.gpool_bn, block_desc.gpool_activation, mask, gpool_bn_out);
 
-    // Global pooling
+    // Global pooling (FP32 when m_nonspatial_fp32 -- see addGlobalPoolingFp32). Feeds a bias back
+    // into the whole trunk, so the FP16 spatial sum must not lose precision for wide trunks.
     std::string gpool_features = genVarName(prefix + "_gpool_features");
-    addGlobalPoolingOps(block, gpool_bn_out, mask, block_desc.gpool_conv.out_channels, gpool_features);
+    addGlobalPoolingFp32(block, gpool_bn_out, mask, block_desc.gpool_conv.out_channels, gpool_features,
+                         /*valueVariant=*/false);
 
     // Project to bias
     std::string gpool_bias = genVarName(prefix + "_gpool_bias");
@@ -1898,6 +2862,12 @@ std::string MILBuilder::buildNestedBottleneckBlock(CoreML::Specification::MILSpe
         } else if (entry.block_kind == GLOBAL_POOLING_BLOCK_KIND) {
             const auto& nested = std::get<GlobalPoolingResidualBlockDesc>(*entry.block);
             x = buildGlobalPoolingResidualBlock(block, x, nested, mask, nested_prefix);
+        } else if (entry.block_kind == TRANSFORMER_ATTENTION_BLOCK_KIND) {
+            const auto& nested = std::get<TransformerAttentionBlockDesc>(*entry.block);
+            x = buildTransformerAttentionBlock(block, x, nested, mask, nested_prefix);
+        } else if (entry.block_kind == TRANSFORMER_FFN_BLOCK_KIND) {
+            const auto& nested = std::get<TransformerFFNBlockDesc>(*entry.block);
+            x = buildTransformerFFNBlock(block, x, nested, mask, nested_prefix);
         }
     }
 
@@ -1942,9 +2912,9 @@ void MILBuilder::buildPolicyHead(CoreML::Specification::MILSpec::Block* block,
     std::string g1 = genVarName("policy_g1");
     addBatchNormActivationOps(block, g1_conv, ph.g1_bn, ph.g1_activation, mask, g1);
 
-    // Global pooling on G1
+    // Global pooling on G1 (FP32 when m_nonspatial_fp32; feeds the policy bias / policyKLDiv).
     std::string g1_pooled = genVarName("policy_g1_pool");
-    addGlobalPoolingOps(block, g1, mask, ph.g1_conv.out_channels, g1_pooled);
+    addGlobalPoolingFp32(block, g1, mask, ph.g1_conv.out_channels, g1_pooled, /*valueVariant=*/false);
 
     // Project to spatial bias
     std::string gpool_bias = genVarName("policy_gpool_bias");
@@ -2002,6 +2972,8 @@ void MILBuilder::buildPolicyHead(CoreML::Specification::MILSpec::Block* block,
             setTensorOutput2D(op, pass_activated, ph.gpool_to_pass_mul.out_channels);
         } else if (ph.pass_activation->activation_type == ActivationType::Mish) {
             addMishOps(block, pass_biased, pass_activated, 2, ph.gpool_to_pass_mul.out_channels);
+        } else if (ph.pass_activation->activation_type == ActivationType::Silu) {
+            addSiluOps(block, pass_biased, pass_activated, 2, ph.gpool_to_pass_mul.out_channels);
         } else {
             pass_activated = pass_biased;
         }
@@ -2032,9 +3004,9 @@ void MILBuilder::buildValueHead(CoreML::Specification::MILSpec::Block* block,
     std::string v1 = genVarName("value_v1");
     addBatchNormActivationOps(block, v1_conv, vh.v1_bn, vh.v1_activation, mask, v1);
 
-    // Global pooling (value head version)
+    // Global pooling (value head version; FP32 when m_nonspatial_fp32).
     std::string v1_pooled = genVarName("value_v1_pool");
-    addGlobalPoolingValueOps(block, v1, mask, vh.v1_conv.out_channels, v1_pooled);
+    addGlobalPoolingFp32(block, v1, mask, vh.v1_conv.out_channels, v1_pooled, /*valueVariant=*/true);
 
     // V2: linear + activation (fused matmul+bias -> linear)
     std::string v2_bias = genVarName("value_v2_bias");
@@ -2049,6 +3021,8 @@ void MILBuilder::buildValueHead(CoreML::Specification::MILSpec::Block* block,
         setTensorOutput2D(op, v2, vh.v2_mul.out_channels);
     } else if (vh.v2_activation.activation_type == ActivationType::Mish) {
         addMishOps(block, v2_bias, v2, 2, vh.v2_mul.out_channels);
+    } else if (vh.v2_activation.activation_type == ActivationType::Silu) {
+        addSiluOps(block, v2_bias, v2, 2, vh.v2_mul.out_channels);
     } else {
         v2 = v2_bias;
     }
@@ -2085,6 +3059,8 @@ std::string MILBuilder::buildSGFMetadataEncoder(CoreML::Specification::MILSpec::
         setTensorOutput2D(op, act1, encoder.mul1.out_channels);
     } else if (encoder.act1.activation_type == ActivationType::Mish) {
         addMishOps(block, bias1, act1, 2, encoder.mul1.out_channels);
+    } else if (encoder.act1.activation_type == ActivationType::Silu) {
+        addSiluOps(block, bias1, act1, 2, encoder.mul1.out_channels);
     } else {
         // Identity activation - create identity op to preserve type information
         auto* op = block->add_operations();
@@ -2107,6 +3083,8 @@ std::string MILBuilder::buildSGFMetadataEncoder(CoreML::Specification::MILSpec::
         setTensorOutput2D(op, act2, encoder.mul2.out_channels);
     } else if (encoder.act2.activation_type == ActivationType::Mish) {
         addMishOps(block, bias2, act2, 2, encoder.mul2.out_channels);
+    } else if (encoder.act2.activation_type == ActivationType::Silu) {
+        addSiluOps(block, bias2, act2, 2, encoder.mul2.out_channels);
     } else {
         // Identity activation - create identity op to preserve type information
         auto* op = block->add_operations();
