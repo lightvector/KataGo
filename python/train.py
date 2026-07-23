@@ -1861,6 +1861,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                     time.sleep(2)
                     os.rename(savepathtmp,savepath)
 
+        # Rejoin all ranks before the final save. The save below is called by every rank and,
+        # with a sharded optimizer like Muon, performs a collective (state_dict_for_checkpoint's
+        # gather) that every rank must enter together. Validation and export above run on rank 0
+        # only, so without this barrier the non-zero ranks would reach the collective immediately
+        # and sit inside an NCCL op waiting for rank 0, hitting the ~600s NCCL watchdog timeout and
+        # aborting the job on any epoch where rank 0's validation/export takes that long. This is a
+        # CPU-side multiprocessing.Barrier (no NCCL timeout), so the non-zero ranks idle here
+        # harmlessly instead. No-op when barrier is None (single-GPU / non-DDP training).
+        safe_barrier(barrier,rank)
+
         # Finally save, now after validation and exports are done
         save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
