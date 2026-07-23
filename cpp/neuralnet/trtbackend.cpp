@@ -192,7 +192,9 @@ struct ModelParser {
 
   // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
   // Bumped 7->8 for the TensorRT ONNX overhaul (ONNX emitter as default path, NHWC trunk, FP32 pinning).
-  static constexpr int tuneSalt = 8;
+  // Bumped 8->9 for the TensorRT 11 strongly-typed port (FP32 engines; old FP16-pinned plans invalid).
+  // Bumped 9->10 for the strongly-typed FP16 path (FP16 trunk emitted in the ONNX graph with casts).
+  static constexpr int tuneSalt = 10;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -267,12 +269,12 @@ struct ModelParser {
     } else {
       debugOutputLayer = network->addIdentity(*tensor);
     }
-    debugOutputLayer->setOutputType(0, DataType::kFLOAT);
     string debugOutputName = "DBG" + to_string(hash<string>{}(description));
     auto debugOutput = debugOutputLayer->getOutput(0);
     network->markOutput(*debugOutput);
     debugOutput->setName(debugOutputName.c_str());
-    debugOutput->setType(DataType::kFLOAT);
+    // Strongly-typed (TensorRT 11): the network is FP32, so this output is already FP32; just pin
+    // the layout. ITensor::setType / ILayer::setOutputType were removed.
     debugOutput->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
     model->debugOutputs.emplace_back(debugOutputName, description);
 #else
@@ -367,11 +369,9 @@ struct ModelParser {
     if(!model->requireExactNNLen) {
       maskSumLayer = network->addReduce(*inputMask, ReduceOperation::kSUM, 1U << 2 | 1U << 3, true);
       maskSumLayer->setName("InputMask/sum");
-      maskSumLayer->setPrecision(DataType::kFLOAT);
 
       auto maskWidthLayer = network->addUnary(*maskSumLayer->getOutput(0), UnaryOperation::kSQRT);
       maskWidthLayer->setName("InputMask/width");
-      maskWidthLayer->setPrecision(DataType::kFLOAT);
 
       auto maskScaleWeightsShift = make_unique<float[]>(1);
       auto maskScaleWeightsScale = make_unique<float[]>(1);
@@ -384,7 +384,6 @@ struct ModelParser {
         {DataType::kFLOAT, maskScaleWeightsScale.get(), 1},
         {DataType::kFLOAT, nullptr, 0});
       maskScaleLayer->setName("InputMask/scale");
-      maskScaleLayer->setPrecision(DataType::kFLOAT);
       model->extraWeights.push_back(move(maskScaleWeightsShift));
       model->extraWeights.push_back(move(maskScaleWeightsScale));
 
@@ -399,7 +398,6 @@ struct ModelParser {
         {DataType::kFLOAT, nullptr, 0},
         {DataType::kFLOAT, maskCenterSquareWeightsPower.get(), 1});
       maskCenterSquareLayer->setName("InputMask/centersquare");
-      maskCenterSquareLayer->setPrecision(DataType::kFLOAT);
       model->extraWeights.push_back(move(maskCenterSquareWeightsShift));
       model->extraWeights.push_back(move(maskCenterSquareWeightsPower));
 
@@ -414,7 +412,6 @@ struct ModelParser {
         {DataType::kFLOAT, maskQuadWeightsScale.get(), 1},
         {DataType::kFLOAT, nullptr, 0});
       maskQuadLayer->setName("InputMask/quad");
-      maskQuadLayer->setPrecision(DataType::kFLOAT);
       model->extraWeights.push_back(move(maskQuadWeightsShift));
       model->extraWeights.push_back(move(maskQuadWeightsScale));
     } else {
@@ -545,7 +542,6 @@ struct ModelParser {
       *p1CastLayer->getOutput(0), *gpoolToBiasMulLayer->getOutput(0), ElementWiseOperation::kSUM);
     auto gpoolBiasLayerName = name + "/gpbias";
     gpoolBiasLayer->setName(gpoolBiasLayerName.c_str());
-    gpoolBiasLayer->setPrecision(DataType::kFLOAT);
     auto p1BatchNormLayer = buildBatchNormLayer(gpoolBiasLayer->getOutput(0), &desc->p1BN, true);
     auto p1ActivationLayer = buildActivationLayer(p1BatchNormLayer->getOutput(0), &desc->p1Activation, true);
     auto p1MaskLayer = applyMaskLayer(p1ActivationLayer, true);
@@ -561,35 +557,28 @@ struct ModelParser {
     testAssert(desc->p2Conv.convYSize == 1);
 
     auto p2ConvLayer = buildConvLayer(p1MaskLayer->getOutput(0), &desc->p2Conv, true);
-    p2ConvLayer->setPrecision(DataType::kFLOAT);
     if(model->modelVersion >= 15) {
       auto gpoolToPassMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToPassMul, true);
-      gpoolToPassMulLayer->setPrecision(DataType::kFLOAT);
       auto gpoolToPassBiasLayer = buildMatBiasLayer(gpoolToPassMulLayer->getOutput(0), &desc->gpoolToPassBias, true);
       auto gpoolToPassActLayer = buildActivationLayer(gpoolToPassBiasLayer->getOutput(0), &desc->passActivation, true);
       auto gpoolToPassMul2Layer = buildMatMulLayer(gpoolToPassActLayer->getOutput(0), &desc->gpoolToPassMul2, true);
-      gpoolToPassMul2Layer->setPrecision(DataType::kFLOAT);
 
       auto outputPolicyPass = gpoolToPassMul2Layer->getOutput(0);
       network->markOutput(*outputPolicyPass);
       outputPolicyPass->setName("OutputPolicyPass");
-      outputPolicyPass->setType(DataType::kFLOAT);
       outputPolicyPass->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
     } else {
       auto gpoolToPassMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToPassMul, true);
-      gpoolToPassMulLayer->setPrecision(DataType::kFLOAT);
 
       auto outputPolicyPass = gpoolToPassMulLayer->getOutput(0);
       network->markOutput(*outputPolicyPass);
       outputPolicyPass->setName("OutputPolicyPass");
-      outputPolicyPass->setType(DataType::kFLOAT);
       outputPolicyPass->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
     }
 
     auto outputPolicy = p2ConvLayer->getOutput(0);
     network->markOutput(*outputPolicy);
     outputPolicy->setName("OutputPolicy");
-    outputPolicy->setType(DataType::kFLOAT);
     outputPolicy->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
   }
 
@@ -628,19 +617,16 @@ struct ModelParser {
     auto outputValue = v3BiasLayer->getOutput(0);
     network->markOutput(*outputValue);
     outputValue->setName("OutputValue");
-    outputValue->setType(DataType::kFLOAT);
     outputValue->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
 
     auto outputScoreValue = sv3BiasLayer->getOutput(0);
     network->markOutput(*outputScoreValue);
     outputScoreValue->setName("OutputScoreValue");
-    outputScoreValue->setType(DataType::kFLOAT);
     outputScoreValue->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
 
     auto outputOwnership = vOwnershipCastLayer->getOutput(0);
     network->markOutput(*outputOwnership);
     outputOwnership->setName("OutputOwnership");
-    outputOwnership->setType(DataType::kFLOAT);
     outputOwnership->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
 
     auto modelDesc = &model->rawModel->modelDesc;
@@ -756,10 +742,10 @@ struct ModelParser {
       {DataType::kFLOAT, transposedWeights.get(), static_cast<int64_t>(desc->weights.size())},
       {DataType::kFLOAT, nullptr, 0});
     matMulLayer->setName(desc->name.c_str());
-
-    if(forceFP32) {
-      matMulLayer->setPrecision(DataType::kFLOAT);
-    }
+    // Under TensorRT 11 (strongly-typed networks) there is no per-layer FP32 pinning; the whole
+    // ModelParser graph is FP32. The forceFP32 flag is kept on these build helpers only as a marker
+    // of the numerically-sensitive layers, for a future explicitly-typed FP16 emitter path.
+    (void)forceFP32;
 
     model->extraWeights.push_back(move(transposedWeights));
 
@@ -781,10 +767,7 @@ struct ModelParser {
       {DataType::kFLOAT, nullptr, 0},
       {DataType::kFLOAT, nullptr, 0});
     matBiasLayer->setName(desc->name.c_str());
-
-    if(forceFP32) {
-      matBiasLayer->setPrecision(DataType::kFLOAT);
-    }
+    (void)forceFP32;
 
     return matBiasLayer;
   }
@@ -819,10 +802,7 @@ struct ModelParser {
     convLayer->setDilationNd({2, {dilationY, dilationX}});
     convLayer->setPaddingMode(PaddingMode::kSAME_UPPER);
     convLayer->setName(desc->name.c_str());
-
-    if(forceFP32) {
-      convLayer->setPrecision(DataType::kFLOAT);
-    }
+    (void)forceFP32;
 
     return convLayer;
   }
@@ -847,30 +827,22 @@ struct ModelParser {
       {DataType::kFLOAT, desc->mergedScale.data(), static_cast<int64_t>(numChannels)},
       {DataType::kFLOAT, nullptr, 0});
     bnLayer->setName(desc->name.c_str());
-
-    if(forceFP32) {
-      bnLayer->setPrecision(DataType::kFLOAT);
-    }
+    (void)forceFP32;
 
     return bnLayer;
   }
 
   ILayer* buildActivationLayer(ITensor* input, const ActivationLayerDesc* desc, bool forceFP32 = false) {
     tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->activation);
+    (void)forceFP32;  // No per-layer FP32 pinning under TensorRT 11; graph is FP32 (see buildMatMulLayer).
     if(desc->activation == ACTIVATION_IDENTITY) {
       auto activationLayer = model->network->addIdentity(*input);
       activationLayer->setName(desc->name.c_str());
-      if(forceFP32) {
-        activationLayer->setPrecision(DataType::kFLOAT);
-      }
       return activationLayer;
     }
     else if(desc->activation == ACTIVATION_RELU) {
       auto activationLayer = model->network->addActivation(*input, ActivationType::kRELU);
       activationLayer->setName(desc->name.c_str());
-      if(forceFP32) {
-        activationLayer->setPrecision(DataType::kFLOAT);
-      }
       return activationLayer;
     }
     else if(desc->activation == ACTIVATION_MISH) {
@@ -882,11 +854,6 @@ struct ModelParser {
       tanhLayer->setName(tanhLayerName.c_str());
       auto mergeLayer = model->network->addElementWise(*input, *tanhLayer->getOutput(0), ElementWiseOperation::kPROD);
       mergeLayer->setName(desc->name.c_str());
-      if(forceFP32) {
-        softplusLayer->setPrecision(DataType::kFLOAT);
-        tanhLayer->setPrecision(DataType::kFLOAT);
-        mergeLayer->setPrecision(DataType::kFLOAT);
-      }
       return mergeLayer;
     }
     else if(desc->activation == ACTIVATION_MISH_SCALE8) {
@@ -900,11 +867,6 @@ struct ModelParser {
       tanhLayer->setName(tanhLayerName.c_str());
       auto mergeLayer = model->network->addElementWise(*input, *tanhLayer->getOutput(0), ElementWiseOperation::kPROD);
       mergeLayer->setName(desc->name.c_str());
-      if(forceFP32) {
-        softplusLayer->setPrecision(DataType::kFLOAT);
-        tanhLayer->setPrecision(DataType::kFLOAT);
-        mergeLayer->setPrecision(DataType::kFLOAT);
-      }
       return mergeLayer;
     }
     else {
@@ -920,6 +882,7 @@ struct ModelParser {
   ILayer* applyGPoolLayer(ILayer* inputLayer, bool forceFP32 = false, bool isValueHead = false) {
     auto& network = model->network;
     string name = inputLayer->getName();
+    (void)forceFP32;  // No per-layer FP32 pinning under TensorRT 11; graph is FP32 (see buildMatMulLayer).
 
     ILayer* gpoolSumLayer = nullptr;
     ILayer* gpoolMeanLayer = nullptr;
@@ -987,22 +950,6 @@ struct ModelParser {
     gpoolConcatLayer->setAxis(1);
     gpoolConcatLayer->setName(gpoolConcatLayerName.c_str());
 
-    if(forceFP32) {
-      if(gpoolSumLayer) {
-        gpoolSumLayer->setPrecision(DataType::kFLOAT);
-      }
-      if(gpoolMaskAddLayer) {
-        gpoolMaskAddLayer->setPrecision(DataType::kFLOAT);
-      }
-      if(gpoolMaskShiftLayer) {
-        gpoolMaskShiftLayer->setPrecision(DataType::kFLOAT);
-      }
-      gpoolMeanLayer->setPrecision(DataType::kFLOAT);
-      gpoolMeanScaleLayer->setPrecision(DataType::kFLOAT);
-      gpoolConcatInputLayer3->setPrecision(DataType::kFLOAT);
-      gpoolConcatLayer->setPrecision(DataType::kFLOAT);
-    }
-
     return gpoolConcatLayer;
   }
 
@@ -1012,11 +959,10 @@ struct ModelParser {
         model->network->addElementWise(*inputLayer->getOutput(0), *inputMask, ElementWiseOperation::kPROD);
       auto maskLayerName = string(inputLayer->getName()) + "/mask";
       maskLayer->setName(maskLayerName.c_str());
-      if(forceFP32) {
-        maskLayer->setPrecision(DataType::kFLOAT);
-      }
+      (void)forceFP32;  // No per-layer FP32 pinning under TensorRT 11; graph is FP32 (see buildMatMulLayer).
       return maskLayer;
     } else {
+      (void)forceFP32;
       return inputLayer;
     }
   }
@@ -1182,19 +1128,19 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: failed to create builder config");
     }
 
-    usingFP16 = false;
-    if(builder->platformHasFastFp16()) {
-      if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
-        config->setFlag(BuilderFlag::kFP16);
-        usingFP16 = true;
-      }
-    } else if(ctx->useFP16Mode == enabled_t::True) {
-      throw StringError("CUDA device does not support useFP16=true");
-    }
-    // The ONNX path may pin specific layers to FP32 below and needs the constraint to be hard
-    // (kOBEY) so TensorRT cannot silently fall back to an FP16 path. The ModelParser path uses the
-    // softer kPREFER. We set the flag after building the network, once forceObeyPrecision is known.
-    bool forceObeyPrecision = false;
+    // TensorRT 11 removed weakly-typed networks and the builder-driven mixed-precision machinery this
+    // backend used to rely on (the kFP16 builder flag, platformHasFastFp16(), per-layer
+    // setPrecision()/setOutputType(), and kOBEY/kPREFER_PRECISION_CONSTRAINTS). Every network is now
+    // strongly typed: precision is whatever the network (or parsed ONNX graph) declares. FP16 is
+    // therefore expressed in the ONNX graph itself - the ONNX emitter rewrites the trunk to FP16 while
+    // keeping the RMSNorm reductions, trunk tip, heads, and the graph inputs/outputs in FP32 (see
+    // OnnxModelBuilder::build / convertGraphToFloat16). useFP16=false forces a fully-FP32 engine; the
+    // hand-built ModelParser path (trtDisableOnnx) has no FP16 support and always runs FP32.
+    usingFP16 = (ctx->useFP16Mode != enabled_t::False) && useOnnxEmit;
+    if(ctx->useFP16Mode == enabled_t::True && !useOnnxEmit)
+      logger->write(
+        "TensorRT backend: WARNING useFP16=true is not supported by the non-ONNX ModelParser path "
+        "(trtDisableOnnx); running in FP32.");
 
     // Debug plan/engine dump (trtDumpDebugPlanToDir). Build a base path inside that dir, disambiguated
     // by board size + precision + exact/max so the multiple engines built in one process don't collide.
@@ -1207,8 +1153,9 @@ struct ComputeHandle {
         (usingFP16 ? "_fp16" : "_fp32") + (requireExactNNLen ? "_exact" : "_max");
     }
 
-    auto network = unique_ptr<INetworkDefinition>(
-      builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
+    // TensorRT 11 networks are always explicit-batch and strongly typed; createNetworkV2 takes no
+    // flags (the kEXPLICIT_BATCH NetworkDefinitionCreationFlag was removed).
+    auto network = unique_ptr<INetworkDefinition>(builder->createNetworkV2(0U));
     if(!network) {
       throw StringError("TensorRT backend: failed to create network definition");
     }
@@ -1230,7 +1177,7 @@ struct ComputeHandle {
     if(useOnnxEmit) {
       logger->write("TensorRT backend: building network via ONNX emitter");
       const ModelDesc& desc = loadedModel->modelDesc;
-      OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
+      OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, usingFP16, logger);
       onnxBytes = std::move(onnxResult.serializedModel);
 
       if(dumpDebugPlan) {
@@ -1252,37 +1199,17 @@ struct ComputeHandle {
         throw StringError(msg);
       }
 
-      // Constrain all graph outputs to linear FP32, matching what ModelParser sets on its outputs.
-      // getOutput does a flat cudaMemcpy of each output buffer assuming linear layout, so without
-      // this the parser may leave outputs in a reformatted layout and the copy reads garbage.
+      // Graph outputs are always FP32 (the heads are kept FP32 even in FP16 mode); we only constrain
+      // them to a linear layout, since getOutput does a flat cudaMemcpy of each output buffer assuming
+      // linear layout. Under TensorRT 11 strongly-typed networks, ITensor::setType no longer exists -
+      // the tensor type is fixed by the graph.
       for(int i = 0; i < network->getNbOutputs(); i++) {
-        ITensor* out = network->getOutput(i);
-        out->setType(DataType::kFLOAT);
-        out->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+        network->getOutput(i)->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
       }
 
-      // Force the numerically-sensitive regions to FP32: every RMSNorm reduction (square->reduce->
-      // sqrt, which sums over many elements and loses too much precision in FP16) plus the trunk-tip
-      // norm and policy/value heads. The emitter records these layer names; we pin them via per-layer
-      // setPrecision + kOBEY_PRECISION_CONSTRAINTS (a hard constraint) so correctness does not depend
-      // on TensorRT declining to fuse a numerically-equivalent FP16 path back in. This matches the
-      // FP32-forcing the hand-built ModelParser path already does for its heads/gpool.
-      std::set<string> fp32Names;
-      fp32Names.insert(onnxResult.trunkTipAndHeadNodeNames.begin(), onnxResult.trunkTipAndHeadNodeNames.end());
-      fp32Names.insert(onnxResult.rmsNormNodeNames.begin(), onnxResult.rmsNormNodeNames.end());
-      int pinned = 0;
-      for(int i = 0; i < network->getNbLayers(); i++) {
-        ILayer* layer = network->getLayer(i);
-        const char* lname = layer->getName();
-        if(lname != nullptr && fp32Names.count(string(lname))) {
-          layer->setPrecision(DataType::kFLOAT);
-          for(int o = 0; o < layer->getNbOutputs(); o++)
-            layer->setOutputType(o, DataType::kFLOAT);
-          pinned++;
-        }
-      }
-      forceObeyPrecision = true;
-      logger->write(Global::strprintf("TensorRT backend: pinned %d layers to FP32 (rmsnorm + heads)", pinned));
+      // No per-layer FP32 pinning here: precision is fixed in the ONNX graph. In FP16 mode the emitter
+      // already emitted the numerically-sensitive regions (onnxResult.trunkTipAndHeadNodeNames and
+      // rmsNormNodeNames) in FP32 with explicit casts; in FP32 mode the whole graph is FP32.
 
       // Set optimization profile dims for each input the parser created.
       auto setProfile = [&](const char* name, Dims4 minDims, Dims4 optMaxDims) {
@@ -1321,9 +1248,8 @@ struct ComputeHandle {
     debugOutputs = model->debugOutputs;
     config->addOptimizationProfile(profile);
 
-    // Honor per-layer precision constraints. The ONNX path pins some layers to FP32 and needs a hard
-    // constraint (kOBEY) so TensorRT cannot fall back to FP16; the ModelParser path uses kPREFER.
-    config->setFlag(forceObeyPrecision ? BuilderFlag::kOBEY_PRECISION_CONSTRAINTS : BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
+    // No precision-constraint flag under TensorRT 11: strongly-typed networks carry their precision
+    // in the graph itself, so kOBEY/kPREFER_PRECISION_CONSTRAINTS no longer exist.
 
 #if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
     // This is to avoid external tactic sources and tactics that have shape switching overhead
