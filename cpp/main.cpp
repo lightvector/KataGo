@@ -37,6 +37,7 @@ version : Print version and exit.
 
 analysis : Runs an engine designed to analyze entire games in parallel.
 tuner : (OpenCL only) Run tuning to find and optimize parameters that work on your GPU.
+tunehuman : Tune human-SL play parameters to hit a target ELO offset relative to a baseline config.
 
 ---Selfplay training subcommands---------
 
@@ -86,6 +87,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::gtp(subArgs);
   else if(subcommand == "tuner")
     return MainCmds::tuner(subArgs);
+  else if(subcommand == "tunehuman")
+    return MainCmds::tunehuman(subArgs);
   else if(subcommand == "match")
     return MainCmds::match(subArgs);
   else if(subcommand == "selfplay")

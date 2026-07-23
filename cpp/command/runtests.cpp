@@ -55,6 +55,8 @@ int MainCmds::runtests(const vector<string>& args) {
   Tests::runSymmetryDifferenceTests();
   Tests::runBoardReplayTest();
 
+  Tests::runHumanSLTunerTests();
+
   ScoreValue::freeTables();
 
   Tests::runInlineConfigTests();
