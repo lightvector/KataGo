@@ -26,6 +26,14 @@ namespace FancyMath {
   //predProb is scaled into the range [epsilon,1.0-epsilon].
   double binaryCrossEntropy(double predProb, double targetProb, double epsilon);
 
+  //Wilson score 95% two-tailed confidence interval for binomial proportion.
+  //Draws should be counted as 0.5 wins before calling.
+  void wilsonCI95(double wins, double n, double& lo, double& hi);
+
+  //One-tailed p-value for H0: winrate=0.5 vs H1: winrate>0.5, using normal approximation.
+  //Small values indicate the first player wins significantly more than 50%.
+  double oneTailedPValue(double wins, double n);
+
   void runTests();
 }
 
