@@ -5,8 +5,11 @@
 
 #include "../types/KataGoTypes.hpp"
 #include <array>
+#include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
+#include <zlib.h>
 
 namespace katagocoreml {
 
@@ -35,9 +38,23 @@ public:
 
 private:
     std::string m_model_path;
-    std::vector<uint8_t> m_buffer;
-    size_t m_pos = 0;
+    // Custom-deleter unique_ptr owns the gzFile so it closes on every exit path
+    // (normal return, exception, or bad_alloc) without manual try/catch.
+    struct GzCloser {
+        void operator()(gzFile f) const noexcept { if(f) gzclose(f); }
+    };
+    using GzHandle = std::unique_ptr<std::remove_pointer_t<gzFile>, GzCloser>;
+    GzHandle m_gz;
+    std::vector<uint8_t> m_refill;   // bounded refill buffer (~1 MB)
+    size_t m_refillPos = 0;          // read cursor within m_refill
+    size_t m_refillLen = 0;          // valid bytes in m_refill
     bool m_binary_floats = true;
+    bool m_formatDetected = false;
+
+    // Stream primitives
+    bool refill();                   // returns false at EOF
+    int  peekByte();                 // -1 at EOF
+    void readExact(uint8_t* dst, size_t n, const std::string& name);
 
     // Low-level reading functions
     void readUntilWhitespace(std::string& out);
@@ -73,9 +90,6 @@ private:
 
     // Main model parsing
     KataGoModelDesc parseModel();
-
-    // Helper to load file (handles gzip)
-    void loadFile();
 };
 
 }  // namespace katagocoreml

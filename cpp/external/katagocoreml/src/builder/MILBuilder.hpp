@@ -29,8 +29,8 @@ public:
     /// @return Unique pointer to MIL Program protobuf
     std::unique_ptr<CoreML::Specification::MILSpec::Program> build();
 
-    /// Get weight entries for blob serialization
-    const std::vector<WeightEntry>& getWeights() const { return m_ops.getWeights(); }
+    /// Get weight entries for blob serialization (mutable; serialization sets blob_offset)
+    std::vector<WeightEntry>& getWeightsMutable() { return m_ops.getWeightsMutable(); }
 
     /// Get board dimensions
     int getBoardXSize() const { return m_board_x_size; }
@@ -115,6 +115,24 @@ private:
                     const std::string& name,
                     const std::vector<float>& data,
                     const std::vector<int64_t>& shape);
+
+    // addConstOp registers a NON-OWNING view into `data` (see WeightEntry), so the
+    // backing storage must outlive serialization. Binding a temporary here would
+    // dangle. Deleted so such calls fail to compile; use addOwnedConstOp for
+    // derived/temporary tensors that KataGoOps should own instead.
+    void addConstOp(CoreML::Specification::MILSpec::Block* block,
+                    const std::string& name,
+                    std::vector<float>&& data,
+                    const std::vector<int64_t>& shape) = delete;
+
+    void addOwnedConstOp(CoreML::Specification::MILSpec::Block* block,
+                         const std::string& name,
+                         std::vector<float>&& data,
+                         const std::vector<int64_t>& shape);
+
+    void emitConstOp(CoreML::Specification::MILSpec::Block* block,
+                     const std::string& name,
+                     const std::vector<int64_t>& shape);
 
     void addIntArrayConstOp(CoreML::Specification::MILSpec::Block* block,
                             const std::string& name,

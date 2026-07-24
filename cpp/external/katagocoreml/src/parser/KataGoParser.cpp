@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <fstream>
 #include <limits>
 #include <stdexcept>
 #include <zlib.h>
@@ -42,54 +41,41 @@ bool KataGoParser::isVersionSupported(int version) {
 }
 
 // ============================================================================
-// File Loading
+// Stream Primitives
 // ============================================================================
 
-void KataGoParser::loadFile() {
-    // Check if gzip compressed
-    bool is_gzip = false;
-    if (m_model_path.size() >= 3) {
-        std::string ext = m_model_path.substr(m_model_path.size() - 3);
-        is_gzip = (ext == ".gz");
+bool KataGoParser::refill() {
+    if(!m_gz) return false;
+    int n = gzread(m_gz.get(), m_refill.data(), (unsigned)m_refill.size());
+    if(n < 0) {
+        int errnum;
+        const char* errmsg = gzerror(m_gz.get(), &errnum);
+        throw std::runtime_error("Error reading gzip stream: " + std::string(errmsg));
     }
+    m_refillPos = 0;
+    m_refillLen = (size_t)n;
+    return n > 0;
+}
 
-    if (is_gzip) {
-        // Read gzipped file
-        gzFile gz = gzopen(m_model_path.c_str(), "rb");
-        if (!gz) {
-            throw std::runtime_error("Cannot open gzip file: " + m_model_path);
+int KataGoParser::peekByte() {
+    if(m_refillPos >= m_refillLen) {
+        if(!refill()) return -1;
+    }
+    return (int)m_refill[m_refillPos];
+}
+
+void KataGoParser::readExact(uint8_t* dst, size_t n, const std::string& name) {
+    size_t got = 0;
+    while(got < n) {
+        if(m_refillPos >= m_refillLen) {
+            if(!refill())
+                throw std::runtime_error(name + ": unexpected EOF in binary block");
         }
-
-        // Read in chunks
-        m_buffer.clear();
-        std::vector<uint8_t> chunk(1024 * 1024);  // 1MB chunks
-        int bytes_read;
-        while ((bytes_read = gzread(gz, chunk.data(), static_cast<unsigned>(chunk.size()))) > 0) {
-            m_buffer.insert(m_buffer.end(), chunk.begin(), chunk.begin() + bytes_read);
-        }
-
-        if (bytes_read < 0) {
-            int errnum;
-            const char* errmsg = gzerror(gz, &errnum);
-            gzclose(gz);
-            throw std::runtime_error("Error reading gzip file: " + std::string(errmsg));
-        }
-
-        gzclose(gz);
-    } else {
-        // Read regular file
-        std::ifstream file(m_model_path, std::ios::binary | std::ios::ate);
-        if (!file) {
-            throw std::runtime_error("Cannot open file: " + m_model_path);
-        }
-
-        std::streamsize size = file.tellg();
-        file.seekg(0, std::ios::beg);
-
-        m_buffer.resize(static_cast<size_t>(size));
-        if (!file.read(reinterpret_cast<char*>(m_buffer.data()), size)) {
-            throw std::runtime_error("Error reading file: " + m_model_path);
-        }
+        size_t avail = m_refillLen - m_refillPos;
+        size_t take = std::min(avail, n - got);
+        std::memcpy(dst + got, m_refill.data() + m_refillPos, take);
+        m_refillPos += take;
+        got += take;
     }
 }
 
@@ -98,15 +84,16 @@ void KataGoParser::loadFile() {
 // ============================================================================
 
 KataGoModelDesc KataGoParser::parse() {
-    loadFile();
-    m_pos = 0;
-
-    // Detect if binary format (check for @BIN@ marker)
-    const std::string bin_marker = "@BIN@";
-    auto it = std::search(m_buffer.begin(), m_buffer.end(),
-                          bin_marker.begin(), bin_marker.end());
-    m_binary_floats = (it != m_buffer.end());
-
+    // Allocate the refill buffer first; if this throws, no handle has been opened.
+    m_refill.resize(1024 * 1024);
+    m_gz.reset(gzopen(m_model_path.c_str(), "rb"));
+    if(!m_gz)
+        throw std::runtime_error("Cannot open file: " + m_model_path);
+    m_refillPos = 0;
+    m_refillLen = 0;
+    m_formatDetected = false;   // decided at first readFloats
+    m_binary_floats = true;
+    // ~GzHandle closes the file on normal return OR exception — no try/catch needed.
     return parseModel();
 }
 
@@ -115,24 +102,20 @@ KataGoModelDesc KataGoParser::parse() {
 // ============================================================================
 
 void KataGoParser::skipWhitespace() {
-    while (m_pos < m_buffer.size()) {
-        char c = static_cast<char>(m_buffer[m_pos]);
-        if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
-            break;
-        }
-        m_pos++;
+    int c;
+    while((c = peekByte()) >= 0) {
+        if(c != ' ' && c != '\t' && c != '\n' && c != '\r') break;
+        m_refillPos++;
     }
 }
 
 void KataGoParser::readUntilWhitespace(std::string& out) {
     out.clear();
-    while (m_pos < m_buffer.size()) {
-        char c = static_cast<char>(m_buffer[m_pos]);
-        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
-            break;
-        }
-        out += c;
-        m_pos++;
+    int c;
+    while((c = peekByte()) >= 0) {
+        if(c == ' ' || c == '\t' || c == '\n' || c == '\r') break;
+        out += (char)c;
+        m_refillPos++;
     }
 }
 
@@ -170,55 +153,29 @@ bool KataGoParser::readBool() {
 }
 
 std::vector<float> KataGoParser::readFloats(size_t count, const std::string& name) {
-    // Bound count by the remaining file size BEFORE allocating: text floats need at least
-    // 2 bytes each and binary exactly 4, so a count exceeding the remaining byte count is
-    // impossible. Without this, a crafted file (gzip compresses multi-GB of zeros to a few
-    // MB) could trigger an enormous zero-initializing allocation before any read fails.
-    if (count > m_buffer.size() - m_pos) {
-        throw std::runtime_error(name + ": not enough bytes for " + std::to_string(count) + " floats");
-    }
     std::vector<float> floats(count);
+    skipWhitespace();
 
-    if (!m_binary_floats) {
+    // KataGo model files are uniformly text OR uniformly binary, so detecting the
+    // format once at the first weight block (binary blocks start with '@BIN@')
+    // is valid for all subsequent blocks.
+    if(!m_formatDetected) {
+        m_binary_floats = (peekByte() == '@');
+        m_formatDetected = true;
+    }
+
+    if(!m_binary_floats) {
         // Text format
-        for (size_t i = 0; i < count; i++) {
+        for(size_t i = 0; i < count; i++)
             floats[i] = readFloat();
-        }
     } else {
-        // Binary format - find @BIN@ marker. Bound the scan like desc.cpp (which allows at
-        // most 100 chars before the marker): an unbounded scan would silently skip arbitrary
-        // junk between weight blocks, masking corruption or resyncing past a real error.
-        size_t scan_start = m_pos;
-        while (m_pos < m_buffer.size()) {
-            if (m_buffer[m_pos] == '@') {
-                break;
-            }
-            if (m_pos - scan_start >= 100) {
-                throw std::runtime_error(name + ": could not find @BIN@ marker near expected position."
-                                         " Invalid model - perhaps a .txt model with a binary header, or corrupted data?");
-            }
-            m_pos++;
-        }
-
-        // Check for @BIN@ header
-        if (m_pos + 5 > m_buffer.size() ||
-            std::memcmp(&m_buffer[m_pos], "@BIN@", 5) != 0) {
+        // Binary: consume the "@BIN@" marker, then read count*4 raw bytes.
+        char marker[5];
+        readExact(reinterpret_cast<uint8_t*>(marker), 5, name);
+        if(std::memcmp(marker, "@BIN@", 5) != 0)
             throw std::runtime_error(name + ": expected @BIN@ marker for binary float block");
-        }
-        m_pos += 5;
 
-        // Read binary floats (little-endian). Compare count against the remaining bytes
-        // directly so a huge count cannot overflow the num_bytes computation and slip
-        // past this bounds check.
-        size_t remaining = m_buffer.size() - m_pos;
-        if (count > remaining / 4) {
-            throw std::runtime_error(name + ": not enough bytes for " + std::to_string(count) + " floats");
-        }
-        size_t num_bytes = count * 4;
-
-        // Copy as little-endian float32
-        std::memcpy(floats.data(), &m_buffer[m_pos], num_bytes);
-        m_pos += num_bytes;
+        readExact(reinterpret_cast<uint8_t*>(floats.data()), count * 4, name);
     }
 
     // Reject NaN/Inf weights: corrupted or otherwise invalid models would

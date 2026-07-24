@@ -508,13 +508,27 @@ ComputeContext* NeuralNet::createComputeContext(
   const LoadedModel* loadedModel,
   ConfigParser& cfg) {
 
-  (void)gpuIdxs;
+  // Only ANE-only configurations may free the engine's in-memory weights: the
+  // GPU/MPSGraph path reads them via modelDescToSwift, so freeing is unsafe
+  // unless no GPU handle can ever be built from this model.
+  // INVARIANT: gpuIdxs must be the complete (deduplicated) set of device indices
+  // that will ever be passed as gpuIdxForThisThread to createComputeHandle for
+  // this context. aneOnly==true frees the in-memory weights, so if any thread
+  // later used a GPU (MPSGraph) index not represented here, it would read freed
+  // weights. KataGo derives both from the same gpuIdxByServerThread list, so the
+  // invariant holds today; preserve it if that wiring ever changes.
+  bool aneOnly = !gpuIdxs.empty();
+  for(int idx : gpuIdxs) {
+    if(idx != METAL_MUX_ANE) { aneOnly = false; break; }
+  }
   (void)logger;
   (void)homeDataDirOverride;
   (void)loadedModel;
   (void)cfg;
 
-  return new ComputeContext(nnXLen, nnYLen, useFP16Mode);
+  ComputeContext* context = new ComputeContext(nnXLen, nnYLen, useFP16Mode);
+  context->aneOnly = aneOnly;
+  return context;
 }
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
@@ -540,6 +554,17 @@ static swift::Optional<KataGoSwift::CoreMLComputeHandle> convertAndCreateCoreMLO
   int nnYLen = metalContext.getNnYLen();
   bool useFP16 = (context->useFP16Mode != enabled_t::False);
   bool optimizeMask = requireExactNNLen;
+
+  // On a confirmed ANE-only run, free the engine's in-memory ModelDesc weight
+  // arrays. This function converts from loadedModel->modelPath (disk),
+  // so the in-memory weights are not read here; the GPU/MPSGraph path (which
+  // DOES read them via modelDescToSwift) is never built when aneOnly is true.
+  // The whole ComputeHandle ctor runs under computeHandleMutex, so this is not
+  // racy; releaseWeights() clears only weight vectors, leaving the scalar dims
+  // read by the ComputeHandle ctor / InputBuffers valid.
+  if(context->aneOnly) {
+    const_cast<LoadedModel*>(loadedModel)->modelDesc.releaseWeights();
+  }
 
   // Convert model to CoreML format in temp directory
   string coremlModelPath = CoreMLConversion::convertModelToTemp(

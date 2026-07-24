@@ -29,9 +29,12 @@ void KataGoConverter::convert(const std::string& input_path,
         throw std::invalid_argument("max_batch_size must be >= min_batch_size or <= 0 for unlimited");
     }
 
-    // Parse KataGo model
-    KataGoParser parser(input_path);
-    KataGoModelDesc model = parser.parse();
+    // Parse KataGo model (parser + its decompressed buffer freed at end of scope)
+    KataGoModelDesc model;
+    {
+        KataGoParser parser(input_path);
+        model = parser.parse();
+    }
 
     // Determine if using FP16 precision
     bool use_fp16 = (options.compute_precision == "FLOAT16");
@@ -52,9 +55,8 @@ void KataGoConverter::convert(const std::string& input_path,
                        options.use_fp16_io);
     auto program = builder.build();
 
-    // Get weights from builder
-    auto weights = builder.getWeights();
-    std::vector<WeightEntry> weights_copy(weights.begin(), weights.end());
+    // Serialize directly from the builder's weight views (no copy).
+    std::vector<WeightEntry>& weights = builder.getWeightsMutable();
 
     // Update options with model metadata for serialization
     ConversionOptions final_options = options;
@@ -90,7 +92,7 @@ void KataGoConverter::convert(const std::string& input_path,
 
     // Serialize to .mlpackage
     CoreMLSerializer serializer(final_options.specification_version);
-    serializer.serialize(program.get(), weights_copy, output_path, final_options);
+    serializer.serialize(program.get(), weights, output_path, final_options);
 }
 
 bool KataGoConverter::wouldBuildFullyFp32(int trunk_num_channels, bool has_transformer_blocks) {

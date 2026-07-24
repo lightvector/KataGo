@@ -280,11 +280,30 @@ void MILBuilder::addConstOp(CoreML::Specification::MILSpec::Block* block,
                             const std::string& name,
                             const std::vector<float>& data,
                             const std::vector<int64_t>& shape) {
-    // Register weight for blob storage. Mark FP32 storage when this const is declared FP32 (e.g.
-    // inside an FP32 sub-region of an otherwise-FP16 model) so storage matches the declared type.
+    // Register weight for blob storage (non-owning view into the model). Mark FP32 storage when this
+    // const is declared FP32 (e.g. inside an FP32 sub-region of an otherwise-FP16 model) so storage
+    // matches the declared type.
     m_ops.registerWeight(name, data, shape,
                          m_weight_dtype == CoreML::Specification::MILSpec::DataType::FLOAT32);
+    emitConstOp(block, name, shape);
+}
 
+void MILBuilder::addOwnedConstOp(CoreML::Specification::MILSpec::Block* block,
+                                 const std::string& name,
+                                 std::vector<float>&& data,
+                                 const std::vector<int64_t>& shape) {
+    // Register derived/owned weight. Mirror addConstOp's per-weight FP32 marking: emitConstOp
+    // declares this const's dtype as m_weight_dtype, so the stored bytes must follow the same flag
+    // or BNNS rejects the model ("Metadata data type does not match requested type") when a derived
+    // const lands in an FP32 sub-region of an FP16 model.
+    const bool is_fp32 = (m_weight_dtype == CoreML::Specification::MILSpec::DataType::FLOAT32);
+    m_ops.registerOwnedWeight(name, std::move(data), shape, is_fp32);
+    emitConstOp(block, name, shape);
+}
+
+void MILBuilder::emitConstOp(CoreML::Specification::MILSpec::Block* block,
+                             const std::string& name,
+                             const std::vector<int64_t>& shape) {
     // Add const operation
     auto* op = block->add_operations();
     op->set_type("const");
@@ -1254,7 +1273,7 @@ void MILBuilder::addLinearOp(CoreML::Specification::MILSpec::Block* block,
 
     // Add transposed weight constant with shape [out_channels, in_channels]
     std::vector<int64_t> transposed_shape = {static_cast<int64_t>(out_ch), static_cast<int64_t>(in_ch)};
-    addConstOp(block, weight_name, transposed_weights, transposed_shape);
+    addOwnedConstOp(block, weight_name, std::move(transposed_weights), transposed_shape);
 
     // Add bias constant
     std::vector<int64_t> bias_shape = {static_cast<int64_t>(bias.num_channels)};
@@ -2291,10 +2310,13 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
             std::string cosName = prefix + "_" + tag + "_cos";
             std::string sinName = prefix + "_" + tag + "_sin";
             std::string rName = prefix + "_" + tag + "_R";
-            addConstOp(block, cosName, cosFull, {1, nh, seq, qHeadDim});
-            addConstOp(block, sinName, sinFull, {1, nh, seq, qHeadDim});
+            // cosFull/sinFull/R are locals computed here, so register them as OWNED consts: the
+            // WeightEntry holds a non-owning FloatView and serialization runs after this lambda
+            // returns, so a non-owning addConstOp would dangle.
+            addOwnedConstOp(block, cosName, std::move(cosFull), {1, nh, seq, qHeadDim});
+            addOwnedConstOp(block, sinName, std::move(sinFull), {1, nh, seq, qHeadDim});
             // Rank-4 [1,1,qd,qd] so matmul batch dims broadcast cleanly against [B,nh,seq,qd].
-            addConstOp(block, rName, R, {1, 1, qHeadDim, qHeadDim});
+            addOwnedConstOp(block, rName, std::move(R), {1, 1, qHeadDim, qHeadDim});
             std::string rotated = genVarName(prefix + "_" + tag + "_rot");
             matmul(x, rName, rotated, {-1, nh, seq, qHeadDim}, false, false);
             std::string xc = genVarName(prefix + "_" + tag + "_xc");
@@ -2450,7 +2472,9 @@ std::string MILBuilder::buildTransformerAttentionBlock(CoreML::Specification::MI
         for (int d = 0; d < vHeadDim; d++)
             for (int c = 0; c < outC; c++)
                 whData[d * outC + c] = desc.out_proj.weights[static_cast<size_t>(h * vHeadDim + d) * outC + c];
-        addConstOp(block, wh, whData, {vHeadDim, outC});
+        // whData is a per-head local slice; register OWNED so its FloatView stays valid until
+        // serialization (a non-owning addConstOp would dangle after this loop iteration).
+        addOwnedConstOp(block, wh, std::move(whData), {vHeadDim, outC});
         std::string contrib = genVarName(prefix + "_contrib");
         matmul(aoh2d, wh, contrib, {-1, outC}, false, false);
         if (h == 0) {
