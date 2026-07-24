@@ -1,5 +1,6 @@
 #include "../search/searchparams.h"
 
+#include "../core/sha2.h"
 #include "../external/nlohmann_json/json.hpp"
 
 using nlohmann::json;
@@ -520,6 +521,37 @@ json SearchParams::changeableParametersToJson() const {
   ret["humanSLChosenMovePiklLambda"] = humanSLChosenMovePiklLambda;
 
   return ret;
+}
+
+Hash128 SearchParams::getHash() const {
+  // Build on changeableParametersToJson, but fold in the parameters it deliberately omits so that this
+  // hash reflects *all* parameters (any of which can affect cached search results). If a new parameter is
+  // added to operator== it should also be reflected here - either it will already flow through
+  // changeableParametersToJson, or it must be added to the supplement below.
+  json ret = changeableParametersToJson();
+
+  // Parameters omitted from changeableParametersToJson
+  ret["avoidMYTDaggerHackPla"] = (int)avoidMYTDaggerHackPla;
+  ret["avoidRepeatedPatternUtility"] = avoidRepeatedPatternUtility;
+  ret["antiMirror"] = antiMirror;
+  ret["useEvalCache"] = useEvalCache;
+  ret["evalCacheMinVisits"] = evalCacheMinVisits;
+  ret["nodeTableShardsPowerOfTwo"] = nodeTableShardsPowerOfTwo;
+
+  // humanSLProfile's own getHash asserts on an uninitialized profile,
+  // so only call it when initialized (the common no-human-model case leaves it uninitialized).
+  ret["humanSLProfileInitialized"] = humanSLProfile.initialized;
+  if(humanSLProfile.initialized) {
+    //Use a fixed player. We only need a stable value that distinguishes distinct profiles.
+    Hash128 profileHash = humanSLProfile.getHash(P_BLACK);
+    ret["humanSLProfileHash0"] = profileHash.hash0;
+    ret["humanSLProfileHash1"] = profileHash.hash1;
+  }
+
+  const std::string dumped = ret.dump();
+  uint64_t hash[4];
+  SHA2::get256(dumped.c_str(), hash);
+  return Hash128(hash[0], hash[1]);
 }
 
 #define PRINTPARAM(PARAMNAME) out << #PARAMNAME << ": " << PARAMNAME << std::endl;

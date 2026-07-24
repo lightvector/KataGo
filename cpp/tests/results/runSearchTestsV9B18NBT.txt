@@ -1,8 +1,8 @@
 Running v9 search tests
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 11 useFP16 = false useNHWC = false
-: Cuda backend thread 0: Model name: b18c384nbt-uec-20221121b
+: Cuda backend thread 0: Model name: b18c384nbt-uec-20221121b (nbt convnet, 26326793 params)
 Flying dagger fight with V2 params and much variety ==========================================================================
 
 MoveNum: 15 HASH: 62596E92E691CB8B98438D8728C97A2A

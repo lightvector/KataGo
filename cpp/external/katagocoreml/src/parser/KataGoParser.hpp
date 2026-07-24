@@ -17,7 +17,11 @@ namespace katagocoreml {
 /// Supports versions 8-17 models in binary format (.bin, .bin.gz).
 class KataGoParser {
 public:
-    /// Supported KataGo model versions
+    /// Supported KataGo model versions. The floor of 8 is deliberate (v3-7 predate the .bin
+    /// format; they still work via the GPU/MPSGraph path, which parses with desc.cpp). The
+    /// ceiling must be kept in lockstep with NNModelVersion::latestModelVersionImplemented in
+    /// cpp/neuralnet/modelversion.cpp whenever a new model version is added, or new models will
+    /// load on every other backend but fail CoreML/ANE conversion.
     static constexpr std::array<int, 10> SUPPORTED_VERSIONS = {8, 9, 10, 11, 12, 13, 14, 15, 16, 17};
 
     /// Constructor

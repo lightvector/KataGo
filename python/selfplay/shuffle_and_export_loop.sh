@@ -48,7 +48,7 @@ cp -r "$GITROOTDIR"/python/muon "$DATED_ARCHIVE"
     cd "$basedir"/scripts
     while true
     do
-        ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$BATCHSIZE" "$@"
+        ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$@"
         sleep 20
     done
 ) >> "$basedir"/logs/outshuffle.txt 2>&1 & disown

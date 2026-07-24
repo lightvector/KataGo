@@ -56,8 +56,37 @@ struct PlaySettings {
   double policySurpriseDataWeight;
   //Probabilistically favor samples that had high winLossValue surprise (kl divergence).
   double valueSurpriseDataWeight;
+  //If true, value surprise (both for valueSurpriseDataWeight and for reanalyze selection) is the KL divergence
+  //of this turn's own search value result from the raw neural net value prediction, instead of the KL divergence
+  //of the smoothed forward-looking game result from that prediction. The search value surprise depends only on
+  //information available at the time of the search, so it does not condition data weighting/selection on the
+  //game's realized outcome, at the cost of not noticing surprises that only the actual continuation of the game
+  //would reveal. Its typical magnitude is also smaller, so valueSurpriseDataWeight and
+  //reanalyzeValueSurpriseWeight may need retuning when enabling this.
+  bool useSearchValueSurprise;
   //Scale frequency weights for writing data by this
   double scaleDataWeight;
+
+  //After the game ends, select some cheap-search positions and redo them with a full search to record
+  //as training data, favoring positions whose cheap search was surprising. Replaces the behavior where
+  //sufficiently policy-surprising cheap searches would be recorded (at reduced weight) based on the cheap
+  //search itself - note that this replaced behavior is disabled for cheap searches whenever useReanalyze is
+  //true, even if reanalyzeProp is 0. It remains active for reduced-weight rows that are not cheap searches,
+  //i.e. rows whose visits were reduced due to extreme winrates, including reanalyzed rows reduced that way.
+  bool useReanalyze;
+  //Number of positions reanalyzed is binomial with this probability on the number of cheap-search positions.
+  double reanalyzeProp;
+  //Positions are drawn without replacement with probability proportional to
+  //(reanalyzePolicySurpriseWeight * policySurprise + reanalyzeValueSurpriseWeight * valueSurprise) ** reanalyzeSurpriseExponent
+  //where policySurprise and valueSurprise are those of the original cheap search.
+  double reanalyzePolicySurpriseWeight;
+  double reanalyzeValueSurpriseWeight;
+  double reanalyzeSurpriseExponent;
+  //If true, reanalyzed positions are recorded exactly like normal full-search positions. If false, they omit the
+  //targets derived from the final board and the actual game continuation (ownership, final score, future board
+  //positions), but still record policy, lead, and value targets (which as usual blend the searched values of this
+  //and later turns with the game outcome).
+  bool reanalyzeUseOutcomeTargets;
 
   //Record positions from within the search tree that had at least this many visits, recording only with this weight.
   bool recordTreePositions;

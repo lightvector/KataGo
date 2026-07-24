@@ -2,12 +2,28 @@ import logging
 import os
 
 import numpy as np
+from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 
 import torch
 import torch.nn.functional
 
 from ..train import modelconfigs
+
+# Needs to be kept in sync with GLOBAL_TARGET_NUM_CHANNELS in trainingwrite.cpp C++ code among other places.
+# Data format version 2 files (recorded in channel 63 of each row) had only 64 channels; they are zero-padded
+# up to this width when loading, which correctly encodes "not reanalyzed" for the version 3 channels.
+GLOBAL_TARGETS_NC_CHANNELS = 80
+
+def pad_global_targets_nc(globalTargetsNC: np.ndarray) -> np.ndarray:
+    """Zero-pad older-format globalTargetsNC rows up to the current channel count."""
+    num_channels = globalTargetsNC.shape[1]
+    if num_channels == GLOBAL_TARGETS_NC_CHANNELS:
+        return globalTargetsNC
+    assert num_channels < GLOBAL_TARGETS_NC_CHANNELS, f"globalTargetsNC has {num_channels} channels, more than the expected {GLOBAL_TARGETS_NC_CHANNELS}"
+    padded = np.zeros((globalTargetsNC.shape[0], GLOBAL_TARGETS_NC_CHANNELS), dtype=globalTargetsNC.dtype)
+    padded[:, :num_channels] = globalTargetsNC
+    return padded
 
 def read_npz_training_data(
     npz_files,
@@ -19,28 +35,53 @@ def read_npz_training_data(
     randomize_symmetries: bool,
     include_meta: bool,
     model_config: modelconfigs.ModelConfig,
+    prefetch_depth: int = 1,
 ):
     rand = np.random.default_rng(seed=list(os.urandom(12)))
     num_bin_features = modelconfigs.get_num_bin_input_features(model_config)
     num_global_features = modelconfigs.get_num_global_input_features(model_config)
     (h_base,h_builder) = build_history_matrices(model_config, device)
 
-    include_qvalues = model_config["version"] >= 16
+    # Version 16 always predicts q values; version 17+ does so only when configured.
+    include_qvalues = model_config["version"] == 16 or (
+        model_config["version"] >= 17 and bool(model_config.get("predict_q_values"))
+    )
 
     def load_npz_file(npz_file):
+        # Select only THIS rank's rows up front, while the arrays are still in
+        # their compact on-disk dtypes (packed bits / int8 / int16), so the
+        # expensive unpackbits + float32 expansion runs on 1/world_size of the
+        # data rather than the whole shard in every rank.
         with np.load(npz_file) as npz:
-            binaryInputNCHWPacked = npz["binaryInputNCHWPacked"]
-            globalInputNC = npz["globalInputNC"]
-            policyTargetsNCMove = npz["policyTargetsNCMove"].astype(np.float32)
-            globalTargetsNC = npz["globalTargetsNC"]
-            scoreDistrN = npz["scoreDistrN"].astype(np.float32)
-            valueTargetsNCHW = npz["valueTargetsNCHW"].astype(np.float32)
+            num_samples = npz["globalInputNC"].shape[0]
+            num_whole_steps = num_samples // (batch_size * world_size)
+            used = num_whole_steps * world_size * batch_size
+
+            def select_rank_rows(arr):
+                # Keep only the rows this rank will consume:
+                # reshape the used prefix to (steps, world_size, batch, ...) and
+                # take this rank's slice. For world_size>1 the trailing reshape
+                # forces a compact 1/world_size-size copy and lets the full
+                # decompressed array be freed immediately.
+                # Drop any trailing suffix that doesn't match the overall world batch size.
+                arr = arr[:used]
+                rest = arr.shape[1:]
+                arr = arr.reshape(num_whole_steps, world_size, batch_size, *rest)
+                arr = arr[:, rank]
+                return arr.reshape(num_whole_steps * batch_size, *rest)
+
+            binaryInputNCHWPacked = select_rank_rows(npz["binaryInputNCHWPacked"])
+            globalInputNC = select_rank_rows(npz["globalInputNC"])
+            policyTargetsNCMove = select_rank_rows(npz["policyTargetsNCMove"]).astype(np.float32)
+            globalTargetsNC = pad_global_targets_nc(select_rank_rows(npz["globalTargetsNC"]))
+            scoreDistrN = select_rank_rows(npz["scoreDistrN"]).astype(np.float32)
+            valueTargetsNCHW = select_rank_rows(npz["valueTargetsNCHW"]).astype(np.float32)
             if include_meta:
-                metadataInputNC = npz["metadataInputNC"].astype(np.float32)
+                metadataInputNC = select_rank_rows(npz["metadataInputNC"]).astype(np.float32)
             else:
                 metadataInputNC = None
             if include_qvalues:
-                qValueTargetsNCMove = npz["qValueTargetsNCMove"].astype(np.float32)
+                qValueTargetsNCMove = select_rank_rows(npz["qValueTargetsNCMove"]).astype(np.float32)
             else:
                 qValueTargetsNCMove = None
         del npz
@@ -60,24 +101,40 @@ def read_npz_training_data(
     if not npz_files:
         return
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(load_npz_file, npz_files[0])
+    # Prefetch up to prefetch_depth files *ahead* of the one currently being
+    # consumed, so the GPU does not stall at a file boundary waiting on disk +
+    # decompress + unpackbits for the next shard.
+    # Each in-flight file holds its full expanded (float32) arrays in RAM,
+    # so memory scales linearly with prefetch_depth
+    # (times world_size, since every rank loads each file).
+    prefetch_depth = max(1, prefetch_depth)
+    with ThreadPoolExecutor(max_workers=prefetch_depth) as executor:
+        # Keep a queue of in-flight loads: the head is the file being consumed,
+        # and up to prefetch_depth more are loading/loaded behind it.
+        pending = deque()
+        next_index = 0
+        while next_index < len(npz_files) and len(pending) <= prefetch_depth:
+            pending.append(executor.submit(load_npz_file, npz_files[next_index]))
+            next_index += 1
 
-        for next_file in (npz_files[1:] + [None]):
+        while pending:
+            future = pending.popleft()
             (npz_file, binaryInputNCHW, globalInputNC, policyTargetsNCMove, globalTargetsNC, scoreDistrN, valueTargetsNCHW, metadataInputNC, qValueTargetsNCMove) = future.result()
 
-            num_samples = binaryInputNCHW.shape[0]
-            # Just discard stuff that doesn't divide evenly
-            num_whole_steps = num_samples // (batch_size * world_size)
+            # The arrays already hold only this rank's rows (selected in load_npz_file),
+            # so the first dim is num_whole_steps * batch_size.
+            num_whole_steps = binaryInputNCHW.shape[0] // batch_size
 
             logging.info(f"Beginning {npz_file} with {num_whole_steps * world_size} usable batches, my rank is {rank}")
 
-            if next_file is not None:
-                logging.info(f"Preloading {next_file} while processing this file")
-                future = executor.submit(load_npz_file, next_file)
+            # Top the pipeline back up so prefetch_depth files stay in flight.
+            if next_index < len(npz_files):
+                logging.info(f"Preloading {npz_files[next_index]} while processing this file")
+                pending.append(executor.submit(load_npz_file, npz_files[next_index]))
+                next_index += 1
 
             for n in range(num_whole_steps):
-                start = (n * world_size + rank) * batch_size
+                start = n * batch_size
                 end = start + batch_size
 
                 batch_binaryInputNCHW = torch.from_numpy(binaryInputNCHW[start:end]).to(device)

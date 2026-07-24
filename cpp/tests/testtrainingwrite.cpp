@@ -59,6 +59,103 @@ static NNEvaluator* startNNEval(
   return nnEval;
 }
 
+//Directly test that addRow records the reanalysis info in the expected global target channels.
+static void runReanalysisRowChannelsTest() {
+  cout << "Running reanalysis row channels test" << endl;
+
+  int inputsVersion = 3;
+  int maxRows = 4;
+  int nnXLen = 5;
+  int nnYLen = 5;
+  TrainingWriteBuffers buffers(
+    inputsVersion, maxRows, NNInputs::NUM_FEATURES_SPATIAL_V3, NNInputs::NUM_FEATURES_GLOBAL_V3, nnXLen, nnYLen, false
+  );
+
+  Board board(5,5);
+  Player nextPla = P_BLACK;
+  Rules rules = Rules::getTrompTaylorish();
+  BoardHistory hist(board,nextPla,rules,0);
+
+  vector<PolicyTargetMove> policyTarget;
+  policyTarget.push_back(PolicyTargetMove(Board::PASS_LOC,1));
+  vector<ValueTargets> whiteValueTargets(1);
+  vector<QValueTargets> whiteQValueTargets(1);
+  NNRawStats nnRawStats;
+  nnRawStats.whiteWinLoss = 0.0;
+  nnRawStats.whiteScoreMean = 0.0;
+  nnRawStats.policyEntropy = 0.0;
+  Rand rand("runReanalysisRowChannelsTest");
+
+  auto addRowWith = [&](const ReanalysisData& reanalysisData) {
+    buffers.addRow(
+      board,hist,nextPla,
+      hist,hist,
+      0,
+      1.0f,
+      100,
+      &policyTarget,
+      NULL,
+      0.5, 1.0, 1.0,
+      whiteValueTargets,
+      whiteQValueTargets,
+      0,
+      1.0f,
+      1.0f,
+      1.0f,
+      nnRawStats,
+      NULL,NULL,NULL,NULL,NULL,
+      false,
+      0,
+      0.5,
+      C_EMPTY,
+      0.0,
+      Hash128(),
+      vector<ChangedNeuralNet*>(),
+      false,
+      0,
+      FinishedGameData::MODE_NORMAL,
+      NULL,
+      rand,
+      reanalysisData
+    );
+  };
+
+  //Row 0: an ordinary row, not reanalyzed
+  addRowWith(ReanalysisData());
+  //Row 1: a reanalyzed row
+  ReanalysisData reanalysisData;
+  reanalysisData.wasReanalyzed = true;
+  reanalysisData.usedOutcomeTargets = false;
+  reanalysisData.selectionPolicySurprise = 0.25f;
+  reanalysisData.selectionValueSurprise = 0.125f;
+  reanalysisData.originalNumVisits = 137;
+  addRowWith(reanalysisData);
+
+  int numGlobalChannels = 80;
+  const float* row0 = buffers.globalTargetsNC.data + 0 * numGlobalChannels;
+  const float* row1 = buffers.globalTargetsNC.data + 1 * numGlobalChannels;
+  testAssert(buffers.globalTargetsNC.getActualDataLen(2) == 2 * numGlobalChannels);
+
+  testAssert(row0[63] == 3.0f);
+  testAssert(row0[64] == 0.0f);
+  testAssert(row0[65] == 0.0f);
+  testAssert(row0[66] == 0.0f);
+  testAssert(row0[67] == 0.0f);
+
+  testAssert(row1[63] == 3.0f);
+  testAssert(row1[64] == 1.0f);
+  testAssert(row1[65] == 0.25f);
+  testAssert(row1[66] == 0.125f);
+  testAssert(row1[67] == 137.0f);
+
+  for(int c = 68; c<80; c++) {
+    testAssert(row0[c] == 0.0f);
+    testAssert(row1[c] == 0.0f);
+  }
+
+  cout << "Reanalysis row channels test passed" << endl;
+}
+
 void Tests::runTrainingWriteTests() {
   bool inputsNHWC = true;
   bool useNHWC = false;
@@ -66,6 +163,8 @@ void Tests::runTrainingWriteTests() {
 
   cout << "Running training write tests" << endl;
   NeuralNet::globalInitialize();
+
+  runReanalysisRowChannelsTest();
 
   int maxRows = 256;
   double firstFileMinRandProp = 1.0;
@@ -186,6 +285,145 @@ void Tests::runTrainingWriteTests() {
   inputsVersion = 3;
   rules = Rules::getSimpleTerritory();
   run("testtrainingwrite-simpleterritory-sgf-c",rules,0.5,inputsVersion,9,1,9,1,true);
+
+  //Reanalysis of cheap-search positions
+  //(reanalysis with reduceVisits is tested in runMoreSelfplayTestsWithNN instead, since with the neural-netless
+  //random evals here the winrate never gets extreme enough for reduceVisits to trigger)
+  auto runReanalyze = [&](
+    const string& seedBase,
+    bool useOutcomeTargets,
+    double policySurpriseDataWeight,
+    double valueSurpriseDataWeight,
+    bool useSearchValueSurprise
+  ) {
+    int inputsVsn = 3;
+    int nnXLen = 5;
+    int nnYLen = 5;
+    //Write every row rather than every 5th, so that the reanalyzed rows all show up in the test output.
+    TrainingDataWriter dataWriter(&cout,inputsVsn, maxRows, firstFileMinRandProp, nnXLen, nnYLen, 1, seedBase+"dwriter");
+
+    NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,inputsNHWC,useNHWC,false);
+
+    SearchParams params;
+    params.maxVisits = 80;
+    params.drawEquivalentWinsForWhite = 0.5;
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = string("test");
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = params;
+
+    Rules gameRules = Rules::getTrompTaylorish();
+    Board initialBoard(5,5);
+    Player initialPla = P_BLACK;
+    int initialEncorePhase = 0;
+    BoardHistory initialHist(initialBoard,initialPla,gameRules,initialEncorePhase);
+
+    ExtraBlackAndKomi extraBlackAndKomi;
+    extraBlackAndKomi.extraBlack = 0;
+    extraBlackAndKomi.komiMean = gameRules.komi;
+    extraBlackAndKomi.komiStdev = 0;
+    bool doEndGameIfAllPassAlive = true;
+    bool clearBotBeforeSearch = true;
+    int maxMovesPerGame = 40;
+    auto shouldStop = []() noexcept { return false; };
+    WaitableFlag* shouldPause = nullptr;
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.04;
+    playSettings.sidePositionProb = 0.10;
+    playSettings.forSelfPlay = true;
+    playSettings.cheapSearchProb = 0.6;
+    playSettings.cheapSearchVisits = 20;
+    playSettings.cheapSearchTargetWeight = 0.0f;
+    playSettings.policySurpriseDataWeight = policySurpriseDataWeight;
+    playSettings.valueSurpriseDataWeight = valueSurpriseDataWeight;
+    playSettings.useSearchValueSurprise = useSearchValueSurprise;
+    playSettings.useReanalyze = true;
+    playSettings.reanalyzeProp = 0.5;
+    playSettings.reanalyzePolicySurpriseWeight = 1.0;
+    playSettings.reanalyzeValueSurpriseWeight = 1.0;
+    playSettings.reanalyzeSurpriseExponent = 1.0;
+    playSettings.reanalyzeUseOutcomeTargets = useOutcomeTargets;
+    //Lead estimation should apply to reanalyzed positions regardless of whether they use outcome targets
+    playSettings.estimateLeadProb = 0.5;
+    playSettings.estimateLeadVisits = 5;
+
+    Rand rand(seedBase+"play");
+    OtherGameProperties otherGameProps;
+    FinishedGameData* gameData = Play::runGame(
+      initialBoard,initialPla,initialHist,extraBlackAndKomi,
+      botSpec,botSpec,
+      seedBase+"search",
+      doEndGameIfAllPassAlive, clearBotBeforeSearch,
+      logger, false, false,
+      maxMovesPerGame, shouldStop,
+      shouldPause,
+      playSettings, otherGameProps,
+      rand,
+      nullptr,
+      nullptr
+    );
+
+    cout << "seedBase: " << seedBase << endl;
+    cout << gameData->startHist.getRecentBoard(0) << endl;
+    gameData->endHist.printDebugInfo(cout,gameData->endHist.getRecentBoard(0));
+
+    //Verify the reanalysis bookkeeping is consistent
+    size_t numMoves = gameData->targetWeightByTurn.size();
+    testAssert(gameData->reanalysisByTurn.size() == numMoves);
+    int numReanalyzed = 0;
+    for(size_t i = 0; i<numMoves; i++) {
+      const ReanalysisData& reanalysisData = gameData->reanalysisByTurn[i];
+      if(reanalysisData.wasReanalyzed) {
+        numReanalyzed += 1;
+        testAssert(reanalysisData.usedOutcomeTargets == useOutcomeTargets);
+        //Reanalyzed positions redo the search from scratch with full visits
+        testAssert(gameData->policyTargetsByTurn[i].unreducedNumVisits == params.maxVisits);
+        //And get recorded with the weight a full-search turn would get
+        if(policySurpriseDataWeight == 0.0 && valueSurpriseDataWeight == 0.0)
+          testAssert(gameData->targetWeightByTurnUnrounded[i] == 1.0f);
+        else
+          testAssert(gameData->targetWeightByTurnUnrounded[i] > 0.0f);
+      }
+    }
+    cout << "Reanalyzed " << numReanalyzed << " of " << numMoves << " turns" << endl;
+    for(size_t i = 0; i<numMoves; i++) {
+      const ReanalysisData& reanalysisData = gameData->reanalysisByTurn[i];
+      cout << "turn " << i
+           << " weight " << gameData->targetWeightByTurnUnrounded[i]
+           << " visits " << gameData->policyTargetsByTurn[i].unreducedNumVisits;
+      if(reanalysisData.wasReanalyzed) {
+        cout << " reanalyzed selectionPolicySurprise " << reanalysisData.selectionPolicySurprise
+             << " selectionValueSurprise " << reanalysisData.selectionValueSurprise
+             << " originalNumVisits " << reanalysisData.originalNumVisits;
+        testAssert(reanalysisData.originalNumVisits > 0);
+        //Sanity bound: cheap searches don't clear the tree, so they can inherit a subtree of up to just
+        //under maxVisits visits from the preceding full search, and their maxPlayouts cap can add at most
+        //cheapSearchVisits new playouts on top of whatever was inherited.
+        testAssert(reanalysisData.originalNumVisits <= params.maxVisits + playSettings.cheapSearchVisits);
+      }
+      cout << endl;
+    }
+
+    //Also exercise the SGF output, which should show v=<original visits> rv=<reanalysis visits> on reanalyzed moves
+    WriteSgf::writeSgf(cout,"Black","White",gameData->endHist,gameData,false,false);
+    cout << endl;
+
+    dataWriter.writeGame(*gameData);
+    dataWriter.flushIfNonempty();
+
+    delete gameData;
+    delete nnEval;
+    cout << endl;
+  };
+
+  runReanalyze("testtrainingwrite-reanalyze-outcome",true,0.0,0.0,false);
+  runReanalyze("testtrainingwrite-reanalyze-searchonly",false,0.5,0.1,false);
+  //Same as the previous but with value surprise computed from each turn's own search rather than the
+  //smoothed future game result, for both the data weighting and the reanalyze selection.
+  runReanalyze("testtrainingwrite-reanalyze-searchvaluesurprise",false,0.5,0.1,true);
 
   NeuralNet::globalCleanup();
 }
@@ -384,7 +622,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     bool testValueSurpriseWeight,
     bool testHint,
     bool testResign,
-    bool testScaleDataWeight
+    bool testScaleDataWeight,
+    bool testSearchValueSurprise
   ) {
     nnEval->clearCache();
     nnEval->clearStats();
@@ -460,6 +699,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
       playSettings.valueSurpriseDataWeight = 0.15;
       playSettings.noResolveTargetWeights = true;
     }
+    playSettings.useSearchValueSurprise = testSearchValueSurprise;
     if(testResign) {
       playSettings.allowResignation = true;
       playSettings.resignThreshold = -0.9;
@@ -478,6 +718,8 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     cout << "====================================================================================================" << endl;
     cout << "====================================================================================================" << endl;
     cout << "seedBase: " << seedBase << endl;
+    if(testSearchValueSurprise)
+      cout << "Rerunning the same game with useSearchValueSurprise=true - only the data weights should differ" << endl;
 
     Rand rand(seedBase+"play");
     OtherGameProperties otherGameProps;
@@ -527,16 +769,183 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     cout << endl;
   };
 
-  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false,false,false);
-  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false,false,false);
+  run("testasym!",Rules::getTrompTaylorish(),true,false,false,false,false,false,false,false);
+  run("test lead!",Rules::getTrompTaylorish(),false,true,false,false,false,false,false,false);
   Rules r = Rules::getTrompTaylorish();
   r.hasButton = true;
-  run("test lead int button!",r,false,true,false,false,false,false,false);
-  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false,false,false);
-  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false,false);
-  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true,false,false);
-  run("test resign!",Rules::getTrompTaylorish(),false,false,false,false,false,true,false);
-  run("test scale data weight!",Rules::getTrompTaylorish(),false,false,false,false,false,false,true);
+  run("test lead int button!",r,false,true,false,false,false,false,false,false);
+  run("test surprise!",Rules::getTrompTaylorish(),false,false,true,false,false,false,false,false);
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false,false,false);
+  //Same seeds and settings as the previous, so it replays the identical game, but with value surprise for
+  //the data weighting computed from each turn's own search rather than the smoothed future game result.
+  //The recorded rows should be identical except for the row weights.
+  run("test value surprise!",Rules::getTrompTaylorish(),false,false,false,true,false,false,false,true);
+  run("test hint!",Rules::getTrompTaylorish(),false,false,false,false,true,false,false,false);
+  run("test resign!",Rules::getTrompTaylorish(),false,false,false,false,false,true,false,false);
+  run("test scale data weight!",Rules::getTrompTaylorish(),false,false,false,false,false,false,true,false);
+
+  //Test reanalysis of cheap-search positions interacting with reduceVisits. Requires a real neural net so that
+  //the winrate actually gets extreme enough for reduceVisits to trigger - we play with an absurd komi so that
+  //the game is lopsided from the start. With policySurpriseDataWeight > 0, also exercises that reanalyzed rows
+  //whose weight was reduced are still eligible for the excess-policy-surprise inclusion.
+  auto runReanalyzeReduceVisits = [&](const string& seedBase, double policySurpriseDataWeight) {
+    nnEval->clearCache();
+    nnEval->clearStats();
+
+    SearchParams params;
+    params.maxVisits = 100;
+    params.drawEquivalentWinsForWhite = 0.5;
+
+    MatchPairer::BotSpec botSpec;
+    botSpec.botIdx = 0;
+    botSpec.botName = string("test");
+    botSpec.nnEval = nnEval;
+    botSpec.baseParams = params;
+
+    Rules rules = Rules::getTrompTaylorish();
+    rules.komi = 60.0f;
+    Board initialBoard(11,11);
+    Player initialPla = P_BLACK;
+    int initialEncorePhase = 0;
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+
+    ExtraBlackAndKomi extraBlackAndKomi;
+    extraBlackAndKomi.extraBlack = 0;
+    extraBlackAndKomi.komiMean = rules.komi;
+    extraBlackAndKomi.komiStdev = 0;
+
+    bool doEndGameIfAllPassAlive = true;
+    bool clearBotBeforeSearch = true;
+    int maxMovesPerGame = 25;
+    auto shouldStop = []() noexcept { return false; };
+    WaitableFlag* shouldPause = nullptr;
+    PlaySettings playSettings;
+    playSettings.initGamesWithPolicy = true;
+    playSettings.policyInitAreaProp = 0.04;
+    playSettings.forSelfPlay = true;
+    playSettings.cheapSearchProb = 0.6;
+    playSettings.cheapSearchVisits = 20;
+    playSettings.cheapSearchTargetWeight = 0.0f;
+    playSettings.reduceVisits = true;
+    playSettings.reduceVisitsThreshold = 0.8;
+    playSettings.reduceVisitsThresholdLookback = 3;
+    playSettings.reducedVisitsMin = 10;
+    playSettings.reducedVisitsWeight = 0.1f;
+    playSettings.policySurpriseDataWeight = policySurpriseDataWeight;
+    playSettings.useReanalyze = true;
+    playSettings.reanalyzeProp = 0.5;
+    playSettings.reanalyzePolicySurpriseWeight = 1.0;
+    playSettings.reanalyzeValueSurpriseWeight = 1.0;
+    playSettings.reanalyzeSurpriseExponent = 1.0;
+    playSettings.reanalyzeUseOutcomeTargets = true;
+
+    string searchRandSeed = seedBase+"search";
+    Search* bot = new Search(botSpec.baseParams, botSpec.nnEval, &logger, searchRandSeed);
+
+    cout << "====================================================================================================" << endl;
+    cout << "seedBase: " << seedBase << endl;
+
+    Rand rand(seedBase+"play");
+    OtherGameProperties otherGameProps;
+    FinishedGameData* gameData = Play::runGame(
+      initialBoard,initialPla,initialHist,extraBlackAndKomi,
+      botSpec,botSpec,
+      bot,bot,
+      doEndGameIfAllPassAlive, clearBotBeforeSearch,
+      logger, false, false,
+      maxMovesPerGame, shouldStop,
+      shouldPause,
+      playSettings, otherGameProps,
+      rand,
+      nullptr,
+      nullptr
+    );
+
+    gameData->endHist.printDebugInfo(cout,gameData->endHist.getRecentBoard(0));
+
+    size_t numMoves = gameData->targetWeightByTurn.size();
+    testAssert(gameData->reanalysisByTurn.size() == numMoves);
+    int numReanalyzed = 0;
+    int numReanalyzedWithReducedVisits = 0;
+    int numReanalyzedWithStrongReduction = 0;
+    for(size_t i = 0; i<numMoves; i++) {
+      const ReanalysisData& reanalysisData = gameData->reanalysisByTurn[i];
+      if(reanalysisData.wasReanalyzed) {
+        numReanalyzed += 1;
+        int64_t visits = gameData->policyTargetsByTurn[i].unreducedNumVisits;
+        float weight = gameData->targetWeightByTurnUnrounded[i];
+        //Reanalyzed positions get the same reduceVisits treatment a full-search turn would have gotten,
+        //never dropping below the configured minimums.
+        testAssert(visits >= playSettings.reducedVisitsMin && visits <= params.maxVisits);
+        if(policySurpriseDataWeight == 0.0) {
+          //Without surprise-based redistribution, the weight is exactly the reduceVisits-attenuated weight
+          testAssert(weight >= playSettings.reducedVisitsWeight - 0.0001f && weight <= 1.0f);
+          if(visits < params.maxVisits) {
+            numReanalyzedWithReducedVisits += 1;
+            testAssert(weight < 1.0f);
+          }
+          if(visits <= params.maxVisits * 3 / 4 && weight <= 0.75f)
+            numReanalyzedWithStrongReduction += 1;
+        }
+        else {
+          //Surprise-based redistribution can move weight in either direction, including above 1, but the
+          //non-redistributed share of the reduceVisits-attenuated weight is always retained.
+          testAssert(weight >= (1.0 - policySurpriseDataWeight) * playSettings.reducedVisitsWeight - 0.0001);
+          if(visits < params.maxVisits)
+            numReanalyzedWithReducedVisits += 1;
+          if(visits <= params.maxVisits * 3 / 4)
+            numReanalyzedWithStrongReduction += 1;
+        }
+      }
+    }
+    //The game is lopsided from the start, so reduceVisits should actually trigger on some reanalyzed turns,
+    //including substantially and not just marginally.
+    testAssert(numReanalyzed > 0);
+    testAssert(numReanalyzedWithReducedVisits > 0);
+    testAssert(numReanalyzedWithStrongReduction > 0);
+
+    //The surprise-based redistribution should exactly preserve the total weight of the game's turns.
+    //Every weighted turn here was searched with a freshly cleared tree, so its pre-redistribution weight can
+    //be reconstructed by inverting the reduceVisits interpolation from its visit count; cheap non-reanalyzed
+    //turns have zero weight both before and after.
+    {
+      double sumFinalWeights = 0.0;
+      double sumPreWeights = 0.0;
+      for(size_t i = 0; i<numMoves; i++) {
+        double weight = gameData->targetWeightByTurnUnrounded[i];
+        sumFinalWeights += weight;
+        if(weight > 0.0) {
+          double visits = (double)gameData->policyTargetsByTurn[i].unreducedNumVisits;
+          double visitReductionProp = ((double)params.maxVisits - visits) / ((double)params.maxVisits - (double)playSettings.reducedVisitsMin);
+          sumPreWeights += 1.0 + visitReductionProp * ((double)playSettings.reducedVisitsWeight - 1.0);
+        }
+      }
+      //Tolerance accounts for inverting through the integer rounding of the reduced visit counts
+      testAssert(std::abs(sumFinalWeights - sumPreWeights) < 0.01 * (double)numMoves + 0.01);
+    }
+
+    cout << "Reanalyzed " << numReanalyzed << " of " << numMoves << " turns, "
+         << numReanalyzedWithReducedVisits << " with reduced visits, "
+         << numReanalyzedWithStrongReduction << " strongly reduced" << endl;
+    for(size_t i = 0; i<numMoves; i++) {
+      const ReanalysisData& reanalysisData = gameData->reanalysisByTurn[i];
+      cout << "turn " << i
+           << " weight " << gameData->targetWeightByTurnUnrounded[i]
+           << " visits " << gameData->policyTargetsByTurn[i].unreducedNumVisits;
+      if(reanalysisData.wasReanalyzed)
+        cout << " reanalyzed selectionPolicySurprise " << reanalysisData.selectionPolicySurprise
+             << " selectionValueSurprise " << reanalysisData.selectionValueSurprise
+             << " originalNumVisits " << reanalysisData.originalNumVisits;
+      cout << endl;
+    }
+
+    delete gameData;
+    delete bot;
+    cout << endl;
+  };
+
+  runReanalyzeReduceVisits("test reanalyze reducevisits!",0.0);
+  runReanalyzeReduceVisits("test reanalyze reducevisits surprise!",0.5);
 
   //Test lead specifically on a final position
   auto testLeadOnBoard = [&](

@@ -915,9 +915,15 @@ Result build(
   // Only needed when masking (variable board) and there are transformer attention blocks.
   if(!requireExactNNLen && desc.trunk.hasAnyTransformerBlocks()) {
     // (mask - 1) * BIG : on-board (1) -> 0, off-board (0) -> -BIG
+    // BIG must be exactly representable in fp16 (TensorRT runs this whole subgraph and the fused
+    // attention in fp16 in FP16 engines, a constant like 1e9 only works by luck of internal fp32
+    // constant handling and risks 0 * inf = NaN on the on-board side if a TRT version casts the
+    // constant to fp16 before multiplying). -3e4 fits fp16 (max ~65504) and masks exactly: the
+    // softmax subtracts the row max, so exp(logit - 3e4 - rowmax) underflows to exactly 0 as long
+    // as the spread of genuine attention logits is below ~3e4.
     string one = b.addScalarInitializer(b.uniq("InputMask/biasone"), -1.0f);
     string mShift = b.addNode("Add", {"InputMask", one}, b.uniq("InputMask/biasshift"), "InputMask/biasshift");
-    string big = b.addScalarInitializer(b.uniq("InputMask/biasbig"), 1.0e9f);
+    string big = b.addScalarInitializer(b.uniq("InputMask/biasbig"), 3.0e4f);
     string biasNCHW = b.addNode("Mul", {mShift, big}, b.uniq("InputMask/biasnchw"), "InputMask/biasnchw");  // [N,1,H,W]
     // reshape [N,1,H,W] -> [N,1,1,S] so it broadcasts over the key axis of [N,heads,S(query),S(key)]
     b.maskBiasName = b.reshape(biasNCHW, {0, 1, 1, nnXLen * nnYLen}, "InputMask/bias");

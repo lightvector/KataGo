@@ -10,7 +10,10 @@ PlaySettings::PlaySettings()
    sekiForkHackProb(0.0),fancyKomiVarying(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
-   policySurpriseDataWeight(0.0),valueSurpriseDataWeight(0.0),scaleDataWeight(1.0),
+   policySurpriseDataWeight(0.0),valueSurpriseDataWeight(0.0),useSearchValueSurprise(false),scaleDataWeight(1.0),
+   useReanalyze(false),reanalyzeProp(0.0),
+   reanalyzePolicySurpriseWeight(1.0),reanalyzeValueSurpriseWeight(1.0),reanalyzeSurpriseExponent(1.0),
+   reanalyzeUseOutcomeTargets(true),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
    noResolveTargetWeights(false),
    allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
@@ -102,7 +105,16 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, bool isDistributed
   playSettings.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);
   playSettings.policySurpriseDataWeight = cfg.getDouble("policySurpriseDataWeight",0.0,1.0);
   playSettings.valueSurpriseDataWeight = cfg.getDouble("valueSurpriseDataWeight",0.0,1.0);
+  playSettings.useSearchValueSurprise = cfg.contains("useSearchValueSurprise") ? cfg.getBool("useSearchValueSurprise") : false;
   playSettings.scaleDataWeight = cfg.contains("scaleDataWeight") ? cfg.getDouble("scaleDataWeight",0.01,10.0) : 1.0;
+  playSettings.useReanalyze = cfg.contains("useReanalyze") ? cfg.getBool("useReanalyze") : false;
+  if(playSettings.useReanalyze) {
+    playSettings.reanalyzeProp = cfg.getDouble("reanalyzeProp",0.0,1.0);
+    playSettings.reanalyzePolicySurpriseWeight = cfg.getDouble("reanalyzePolicySurpriseWeight",0.0,100.0);
+    playSettings.reanalyzeValueSurpriseWeight = cfg.getDouble("reanalyzeValueSurpriseWeight",0.0,100.0);
+    playSettings.reanalyzeSurpriseExponent = cfg.getDouble("reanalyzeSurpriseExponent",0.0,10.0);
+    playSettings.reanalyzeUseOutcomeTargets = cfg.getBool("reanalyzeUseOutcomeTargets");
+  }
   playSettings.handicapAsymmetricPlayoutProb = cfg.getDouble("handicapAsymmetricPlayoutProb",0.0,1.0);
   playSettings.normalAsymmetricPlayoutProb = cfg.getDouble("normalAsymmetricPlayoutProb",0.0,1.0);
   playSettings.maxAsymmetricRatio = cfg.getDouble("maxAsymmetricRatio",1.0,100.0);

@@ -2,6 +2,7 @@
 import sys
 import os
 import argparse
+import re
 import traceback
 import random
 import math
@@ -21,6 +22,7 @@ import atexit
 from collections import defaultdict
 from typing import Dict, List
 
+import threading
 from threading import BrokenBarrierError
 
 import torch
@@ -39,9 +41,10 @@ from muon.muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
 from katago.train import modelconfigs
 from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder
 from katago.train.metrics_pytorch import Metrics
-from katago.utils.push_back_generator import PushBackGenerator
+from katago.utils.training_data_generator import TrainingDataGenerator
 from katago.train import load_model
 from katago.train import data_processing_pytorch
+from katago.train import trainloop_helpers
 from katago.train.metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
@@ -80,6 +83,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
     optional_args.add_argument('-lr-scale-auto', help='LR auto scaling', required=False, action='store_true')
     optional_args.add_argument('-lr-scale-auto2', help='LR auto scaling 2', required=False, type=float)
+    optional_args.add_argument('-lr-schedule', help="Explicit piecewise-constant LR scale schedule as (global_step_samples,lr_scale) points, e.g. '(0,12.0),(20M,9.0),(40M,6.0)'. Must start at (0,...); each point sets the LR scale from that sample count onward. Counts accept K/M/B suffixes. Mutually exclusive with -lr-scale/-lr-scale-auto/-lr-scale-auto2.", required=False, type=str)
     optional_args.add_argument('-head-lr-factor', help='LR factor for output head weights', type=float, required=False, default=0.5)
     optional_args.add_argument('-noreg-lr-factor', help='LR factor for noreg params (biases, norms)', type=float, required=False, default=1.0)
     optional_args.add_argument('-muon-adam-lr-factor', help='LR factor for muon-ineligible (adam) params when using muon', type=float, required=False, default=1.0)
@@ -104,7 +108,8 @@ if __name__ == "__main__":
     optional_args.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon/normuon/aurora', required=False, action='store_true')
 
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
-    optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
+    optional_args.add_argument('-use-fp16', help='Use fp16 AMP training (with gradient scaler)', required=False, action='store_true')
+    optional_args.add_argument('-use-bf16', help='Use bf16 AMP training (no gradient scaler). Mutually exclusive with -use-fp16', required=False, action='store_true')
     optional_args.add_argument('-no-compile', help='Do not torch.compile', required=False, action='store_true')
     optional_args.add_argument('-use-tf32-matmul', help='Reduce float32 precision for speed on some gpus', required=False, action='store_true')
 
@@ -118,6 +123,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
     optional_args.add_argument('-stop-when-train-bucket-limited', help='Terminate due to train bucket rather than waiting for more', required=False, action='store_true')
     optional_args.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
+    optional_args.add_argument('-data-prefetch-depth', help='Number of training data files to prefetch ahead of the one being consumed, to hide disk+decompress latency at file boundaries. Memory scales linearly with this (each in-flight file holds its full expanded arrays in RAM, per rank).', type=int, default=1, required=False)
     optional_args.add_argument('-randomize-val', help='Randomize order of validation files', required=False, action='store_true')
     optional_args.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
     optional_args.add_argument('-no-repeat-files', help='Track what shuffled data was used and do not repeat, even when killed and resumed', required=False, action='store_true')
@@ -131,6 +137,9 @@ if __name__ == "__main__":
     optional_args.add_argument('-brenorm-target-dmax', type=float, help='Gradually adjust brenorm dmax to this value', required=False)
     optional_args.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
 
+    optional_args.add_argument('-attn-logit-penalty-cap', type=float, help='Penalize attention layers whose per-head logit upper bound (scale * max||q|| * max||k||, incl off-board positions) exceeds this. None = disabled.', required=False)
+    optional_args.add_argument('-attn-logit-penalty-coeff', type=float, default=1e-3, help='Loss coeff for the attention logit bound penalty (linear hinge, mean over heads, sum over layers, per sample)', required=False)
+    optional_args.add_argument('-attn-logit-penalty-batch-frac', type=float, default=1.0, help='Compute the attention logit penalty on only this fraction of each batch (cuts its cost proportionally, adds gradient variance)', required=False)
     optional_args.add_argument('-soft-policy-weight-scale', type=float, default=8.0, help='Soft policy loss coeff', required=False)
     optional_args.add_argument('-disable-optimistic-policy', help='Disable optimistic policy', required=False, action='store_true')
     optional_args.add_argument('-meta-kata-only-soft-policy', help='Mask soft policy on non-kata rows using sgfmeta', required=False, action='store_true')
@@ -145,8 +154,87 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
 
 
+def parse_sample_count(s):
+    """Parse a sample-count token like '0', '20M', '1.5B', '250K' into an int."""
+    s = s.strip()
+    mult = 1.0
+    if s and s[-1] in "kK":
+        mult = 1e3; s = s[:-1]
+    elif s and s[-1] in "mM":
+        mult = 1e6; s = s[:-1]
+    elif s and s[-1] in "bBgG":
+        mult = 1e9; s = s[:-1]
+    return int(round(float(s) * mult))
+
+def parse_lr_schedule(schedule_str):
+    """Parse an explicit LR schedule string into a sorted list of (samples, lr_scale) points.
+
+    Format: a sequence of '(samples,lr_scale)' points separated by ',' or ';', e.g.
+    '(0,12.0),(20M,9.0),(40M,6.0)'. Sample counts accept K/M/B suffixes. The schedule is
+    piecewise-constant: at global_step_samples >= a point's sample count, the LR scale becomes
+    that point's value, until the next point. Must start at samples == 0 and have strictly
+    increasing sample thresholds.
+    """
+    points = []
+    for m in re.finditer(r"\(\s*([0-9.eE+\-kKmMbBgG]+)\s*,\s*([0-9.eE+\-]+)\s*\)", schedule_str):
+        points.append((parse_sample_count(m.group(1)), float(m.group(2))))
+    if not points:
+        raise ValueError(f"Could not parse any (samples,lr_scale) points from -lr-schedule: {schedule_str!r}")
+    if points[0][0] != 0:
+        raise ValueError(f"-lr-schedule must start at samples 0, got first point at {points[0][0]}")
+    for i in range(1, len(points)):
+        if points[i][0] <= points[i-1][0]:
+            raise ValueError(f"-lr-schedule sample thresholds must be strictly increasing: {points}")
+    return points
+
 def get_longterm_checkpoints_dir(traindir):
     return os.path.join(traindir,"longterm_checkpoints")
+
+def load_npz_dir_num_rows_index(npz_dir):
+    """
+    Look for a consolidated "index.json" in npz_dir listing the row counts of the .npz files in that directory,
+    so the row count can be read without a per-file .json next to every .npz.
+    Expected format (tolerant of additional top-level or per-file fields):
+
+        {
+          "files": [
+            {"name": "data0.npz", "num_rows": 262144},
+            {"name": "data1.npz", "num_rows": 262144},
+            ...
+          ]
+        }
+
+    Returns a dict mapping npz basename -> num_rows if an index.json exists, or None if there is no index.json
+    in the directory (in which case callers fall back to the per-file <basename>.json convention).
+    """
+    indexpath = os.path.join(npz_dir, "index.json")
+    if not os.path.exists(indexpath):
+        return None
+    with open(indexpath) as f:
+        indexinfo = json.load(f)
+    num_rows_by_name = {}
+    for fileinfo in indexinfo["files"]:
+        num_rows_by_name[fileinfo["name"]] = fileinfo["num_rows"]
+    return num_rows_by_name
+
+def get_npz_num_rows(npz_path, index_cache):
+    """
+    Return the number of rows in the .npz file at npz_path.
+
+    Prefers a consolidated index.json in the same directory (see load_npz_dir_num_rows_index).
+    Falls back to a per-file <basename>.json containing {"num_rows": n} when no index.json is present.
+    index_cache is a dict mapping npz_dir -> index dict or None.
+    """
+    npz_dir = os.path.dirname(npz_path)
+    if npz_dir not in index_cache:
+        index_cache[npz_dir] = load_npz_dir_num_rows_index(npz_dir)
+    num_rows_by_name = index_cache[npz_dir]
+    if num_rows_by_name is not None:
+        return num_rows_by_name[os.path.basename(npz_path)]
+    jsonpath = os.path.splitext(npz_path)[0] + ".json"
+    with open(jsonpath) as f:
+        fileinfo = json.load(f)
+    return fileinfo["num_rows"]
 
 def make_dirs(args):
     traindir = args["traindir"]
@@ -171,15 +259,34 @@ def multiprocessing_setup(rank: int, world_size: int):
 
 def multiprocessing_cleanup():
     logging.info("Multiprocessing cleanup")
-    torch.distributed.destroy_process_group()
+    # destroy_process_group() does an NCCL barrier internally and can block forever
+    # if a peer has already died. Run it in a daemon thread and give it a short grace period
+    # If it doesn't return, we abandon it rather than hang the interpreter.
+    if not torch.distributed.is_initialized():
+        return
+    cleanup_thread = threading.Thread(target=torch.distributed.destroy_process_group, daemon=True)
+    cleanup_thread.start()
+    cleanup_thread.join(timeout=10.0)
+    if cleanup_thread.is_alive():
+        logging.warning("destroy_process_group did not return within 10s, abandoning it")
 
 def safe_barrier(barrier, rank):
     if barrier is not None:
         try:
             barrier.wait()
         except BrokenBarrierError:
-            logging.info("Barrier was broken, so we are exiting {rank=}")
-            safe_exit(barrier,0)
+            # A broken barrier means a peer aborted it, typically because that peer
+            # died (cleanly via safe_exit, or abnormally via the uncaught-exception
+            # handler in main). Either way this process should stop now. Hard-exit
+            # to avoid blocking in the NCCL destroy_process_group atexit handler,
+            # whose peer may already be gone.
+            logging.info(f"Barrier was broken, so we are exiting {rank=}")
+            for handler in logging.getLogger().handlers:
+                try:
+                    handler.flush()
+                except BaseException:
+                    pass
+            os._exit(0)
 
 def safe_exit(barrier, exit_code):
     if barrier is not None:
@@ -190,6 +297,37 @@ def safe_exit(barrier, exit_code):
 
 
 def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
+    try:
+        _main_impl(rank, world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)
+    except SystemExit:
+        # safe_exit() and normal clean shutdown raise SystemExit. Let it propagate.
+        raise
+    except BaseException as e:
+        # An uncaught exception in one rank must not silently hang the whole job.
+        # torch.multiprocessing.spawn's parent-side traceback re-raise is unreliable
+        # here because the NCCL destroy_process_group atexit handler can block
+        # forever waiting on the (now-stuck) peer. So we: (1) log the traceback
+        # ourselves, (2) abort the barrier to wake the other rank(s), and
+        # (3) os._exit() to bypass atexit (the hanging destroy_process_group).
+        logging.error(f"Uncaught exception in rank {rank}, aborting all processes:")
+        logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+        try:
+            if barrier is not None:
+                logging.error("Aborting barrier so other ddp processes also exit")
+                barrier.abort()
+        except BaseException:
+            logging.error("Failed to abort barrier:\n" + traceback.format_exc())
+        # Flush logs before the hard exit, since os._exit skips normal flushing.
+        for handler in logging.getLogger().handlers:
+            try:
+                handler.flush()
+            except BaseException:
+                pass
+        sys.stderr.flush()
+        os._exit(1)
+
+
+def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
     traindir = args["traindir"]
     datadir = args["datadir"]
     latestdatadir = args["latestdatadir"]
@@ -206,6 +344,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     lr_scale = args["lr_scale"]
     lr_scale_auto = args["lr_scale_auto"]
     lr_scale_auto2 = args["lr_scale_auto2"]
+    lr_schedule = parse_lr_schedule(args["lr_schedule"]) if args["lr_schedule"] is not None else None
     head_lr_factor = args["head_lr_factor"]
     noreg_lr_factor = args["noreg_lr_factor"]
     muon_adam_lr_factor = args["muon_adam_lr_factor"]
@@ -234,6 +373,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             raise ValueError("-use-polar-express can only be used with muon or normuon or aurora optimizer")
     optimizer_name = "Aurora" if use_aurora else "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
     use_fp16 = args["use_fp16"]
+    use_bf16 = args["use_bf16"]
+    if use_fp16 and use_bf16:
+        raise ValueError("-use-fp16 and -use-bf16 are mutually exclusive")
+    use_amp = use_fp16 or use_bf16
+    amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
     no_compile = args["no_compile"]
     use_tf32_matmul = args["use_tf32_matmul"]
 
@@ -248,6 +392,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     stop_when_train_bucket_limited = args["stop_when_train_bucket_limited"]
     max_val_samples = args["max_val_samples"]
     randomize_val = args["randomize_val"]
+    data_prefetch_depth = args["data_prefetch_depth"]
     no_export = args["no_export"]
     no_repeat_files = args["no_repeat_files"]
     quit_if_no_data = args["quit_if_no_data"]
@@ -260,6 +405,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     brenorm_avg_momentum = args["brenorm_avg_momentum"]
     brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
 
+    attn_logit_penalty_cap = args["attn_logit_penalty_cap"]
+    attn_logit_penalty_coeff = args["attn_logit_penalty_coeff"]
+    attn_logit_penalty_batch_frac = args["attn_logit_penalty_batch_frac"]
     soft_policy_weight_scale = args["soft_policy_weight_scale"]
     disable_optimistic_policy = args["disable_optimistic_policy"]
     meta_kata_only_soft_policy = args["meta_kata_only_soft_policy"]
@@ -275,6 +423,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         lr_scale = 1.0
     if lr_scale_auto or lr_scale_auto2 is not None:
         assert lr_scale == 1.0, "Cannot specify both lr_scale and lr_scale_auto"
+    if lr_schedule is not None:
+        assert lr_scale == 1.0, "Cannot specify both -lr-scale and -lr-schedule"
+        assert not lr_scale_auto and lr_scale_auto2 is None, "Cannot specify -lr-schedule together with -lr-scale-auto/-lr-scale-auto2"
+        logging.info("Using explicit -lr-schedule: " + ", ".join(f"(samples>={s}: scale {v})" for s, v in lr_schedule))
 
     assert not (not datadir and not latestdatadir), "Must specify one of -datadir and -latestdatadir"
     assert not (datadir and latestdatadir), "Must specify only one of -datadir and -latestdatadir"
@@ -400,6 +552,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if train_state["global_step_samples"] < 600000000:
                 return 0.08 * lr_scale_auto2
             return 0.05 * lr_scale_auto2
+        elif lr_schedule is not None:
+            # Piecewise-constant: use the value of the last point whose threshold <= current samples.
+            samples = train_state["global_step_samples"]
+            scale = lr_schedule[0][1]
+            for (thresh, val) in lr_schedule:
+                if samples >= thresh:
+                    scale = val
+                else:
+                    break
+            return scale
         else:
             return 1.0
 
@@ -414,14 +576,24 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
     NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
-    def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=None):
+    def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=None, skip_optimizer=False):
         if gnorm_stats_debug:
             logging.warning("Skipping save since debugging gnorm stats")
             return
+        optimizer_state_dict = None
+        if not skip_optimizer:
+            if hasattr(optimizer, "state_dict_for_checkpoint"):
+                # Collective: gathers the Muon states sharded across DDP ranks,
+                # so when skip_optimizer is False, every rank must call save()
+                # at the same point. Returns None on nonzero ranks.
+                optimizer_state_dict = optimizer.state_dict_for_checkpoint()
+            elif rank == 0:
+                optimizer_state_dict = optimizer.state_dict()
         if rank == 0:
             state_dict = {}
             state_dict["model"] = ddp_model.state_dict()
-            state_dict["optimizer"] = optimizer.state_dict()
+            if optimizer_state_dict is not None:
+                state_dict["optimizer"] = optimizer_state_dict
             state_dict["metrics"] = metrics_obj.state_dict()
             state_dict["running_metrics"] = {
                 k: dict(v) if isinstance(v, defaultdict) else v
@@ -632,11 +804,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             raw_model.initialize()
 
             raw_model.to(device)
-            compiled_model = raw_model if no_compile else torch.compile(raw_model, mode="default")
-            if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(compiled_model, device_ids=[device])
-            else:
-                ddp_model = compiled_model
+            if attn_logit_penalty_cap is not None:
+                raw_model.attn_logit_penalty_cap = attn_logit_penalty_cap
+                raw_model.attn_logit_penalty_batch_frac = attn_logit_penalty_batch_frac
+            # Applies torch.compile and DDP options.
+            # Must run before the optimizer is constructed since it may replace Parameter objects.
+            ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -722,11 +895,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             raw_model.load_state_dict(model_state_dict)
 
             raw_model.to(device)
-            compiled_model = raw_model if no_compile else torch.compile(raw_model, mode="default")
-            if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(compiled_model, device_ids=[device])
-            else:
-                ddp_model = compiled_model
+            if attn_logit_penalty_cap is not None:
+                raw_model.attn_logit_penalty_cap = attn_logit_penalty_cap
+                raw_model.attn_logit_penalty_batch_frac = attn_logit_penalty_batch_frac
+            # Applies torch.compile and DDP options.
+            # Must run before the optimizer is constructed since it may replace Parameter objects.
+            ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -770,16 +944,19 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 old_optimizer_name = train_state.get("optimizer_name","SGD")
                 if old_optimizer_name == optimizer_name:
                     try:
-                        optimizer.load_state_dict(state_dict["optimizer"])
+                        if hasattr(optimizer, "load_state_dict_for_checkpoint"):
+                            optimizer.load_state_dict_for_checkpoint(state_dict["optimizer"])
+                        else:
+                            optimizer.load_state_dict(state_dict["optimizer"])
                     except ValueError as e:
                         logging.info(f"WARNING: Failed to load optimizer state dict: {e}, dropping old optimizer state")
                     train_state["optimizer_name"] = optimizer_name
                 else:
                     train_state["optimizer_name"] = optimizer_name
                     logging.info(f"WARNING: Optimizer name {old_optimizer_name} in checkpoint but we are set to use {optimizer_name} now, dropping old optimizer state")
-
             else:
-                logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
+                logging.info("WARNING: Optimizer not found in state dict (e.g. a skip_optimizer save), using fresh optimizer")
+                train_state["optimizer_name"] = optimizer_name
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
@@ -801,10 +978,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_state["window_start_data_row_idx"] = 0
     if "total_num_data_rows" not in train_state:
         train_state["total_num_data_rows"] = 0
-    if "old_train_data_dirs" not in train_state:
-        train_state["old_train_data_dirs"] = []
-    if "data_files_used" not in train_state:
-        train_state["data_files_used"] = set()
     if "swa_sample_accum" not in train_state:
         train_state["swa_sample_accum"] = 0.0
 
@@ -880,7 +1053,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     # EPOCHS AND LR ---------------------------------------------------------------------
 
-    def update_and_return_lr_and_wd():
+    def update_and_return_lr_and_wd(log_if="changed"):
+        assert log_if in ("always", "changed", "never")
         # Warmup for initial training
         warmup_scale = 1.0
         if no_lr_warmup:
@@ -984,7 +1158,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
 
-            if changed:
+            if log_if == "always" or (log_if == "changed" and changed):
                 logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
@@ -1010,13 +1184,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # DATA RELOADING GENERATOR ------------------------------------------------------------
 
     # Some globals
+    # Note: last_curdatadir is a plain local, NOT part of train_state, so it is reset to None on every
+    # process start and is not checkpointed. Consequently the first maybe_reload_training_data() call after
+    # a restart always sees curdatadir != last_curdatadir and re-enters the "new shuffle" block below, even
+    # when resuming on the same data dir, which is what lets a resumed run finish the remainder of an
+    # in-progress epoch before repeating files.
     last_curdatadir = None
-    trainfilegenerator = None
     vdatadir = None
+    # Owns all "which training files have been used" logic.
+    trainingdatagenerator = TrainingDataGenerator(train_state, no_repeat_files)
 
     def maybe_reload_training_data():
         nonlocal last_curdatadir
-        nonlocal trainfilegenerator
         nonlocal vdatadir
 
         assert rank == 0, "Helper ddp training processes should not call maybe_reload_training_data"
@@ -1090,16 +1269,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 logging.info("Train steps since last reload: %.0f -> 0" % train_state["train_steps_since_last_reload"])
                 train_state["train_steps_since_last_reload"] = 0
 
-                # Load training data files
+                # Load training data files. The generator handles all "which files have been used" and no_repeat_files semantics.
                 tdatadir = os.path.join(curdatadir,"train")
-                train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".npz")]
-                epoch0_train_files = [path for path in train_files if path not in train_state["data_files_used"]]
-                if no_repeat_files:
-                    logging.info(f"Dropping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used")
-                else:
-                    logging.info(f"Skipping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used first pass")
-
-                if len(train_files) <= 0 or (no_repeat_files and len(epoch0_train_files) <= 0):
+                loaded_any_data = trainingdatagenerator.set_data_dir_if_has_remaining_files(tdatadir)
+                if not loaded_any_data:
                     if quit_if_no_data:
                         logging.info(f"No new training files found in: {tdatadir}, quitting")
                         safe_exit(barrier,0)
@@ -1107,32 +1280,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     time.sleep(30)
                     continue
 
-                # Update history of what training data we used
-                if tdatadir not in train_state["old_train_data_dirs"]:
-                    train_state["old_train_data_dirs"].append(tdatadir)
-                # Clear out tracking of sufficiently old files
-                while len(train_state["old_train_data_dirs"]) > 20:
-                    old_dir = train_state["old_train_data_dirs"][0]
-                    train_state["old_train_data_dirs"] = train_state["old_train_data_dirs"][1:]
-                    for filename in list(train_state["data_files_used"]):
-                        if filename.startswith(old_dir):
-                            train_state["data_files_used"].remove(filename)
-
-                def train_files_gen():
-                    train_files_shuffled = epoch0_train_files.copy()
-                    while True:
-                        random.shuffle(train_files_shuffled)
-                        for filename in train_files_shuffled:
-                            logging.info("Yielding training file for dataset: " + filename)
-                            train_state["data_files_used"].add(filename)
-                            yield filename
-                        if no_repeat_files:
-                            break
-                        else:
-                            train_files_shuffled = train_files.copy()
-                            train_state["data_files_used"] = set()
-
-                trainfilegenerator = PushBackGenerator(train_files_gen())
                 vdatadir = os.path.join(curdatadir,"val")
 
             # Same directory as before, no new shuffle
@@ -1148,10 +1295,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             break
 
+    # Holds per-directory index.json lookups (npz_dir -> {name: num_rows} or None)
+    # So a consolidated index.json is parsed at most once per directory rather than once per subepoch.
+    npz_num_rows_index_cache = {}
+
     # Load all the files we should train on during a subepoch
     def get_files_for_subepoch():
-        nonlocal trainfilegenerator
-
         assert rank == 0, "Helper ddp training processes should not call get_files_for_subepoch"
 
         num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
@@ -1161,27 +1310,33 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_files_to_use = []
         batches_to_use_so_far = 0
         found_enough = False
-        for filename in trainfilegenerator:
-            jsonfilename = os.path.splitext(filename)[0] + ".json"
-            with open(jsonfilename) as f:
-                trainfileinfo = json.load(f)
+        while True:
+            # peek (rather than pop) so that a file we decide not to take this subepoch is left in the generator
+            # un-consumed and unmarked, to be served at the start of the next subepoch.
+            filename = trainingdatagenerator.peek()
+            if filename is None:
+                break
+            num_rows_this_file = get_npz_num_rows(filename, npz_num_rows_index_cache)
 
-            num_batches_this_file = trainfileinfo["num_rows"] // batch_size
+            num_batches_this_file = num_rows_this_file // batch_size
             if num_batches_this_file <= 0:
+                # Useless file: consume and discard it (it counts as used), then look at the next one.
+                trainingdatagenerator.pop()
                 continue
 
             if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
                 # If we're going over the desired amount, randomly skip the file with probability equal to the
                 # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
                 if batches_to_use_so_far > 0 and random.random() <= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
-                    trainfilegenerator.push_back(filename)
+                    # Leave it un-popped for the next subepoch (do not mark it used).
                     found_enough = True
                     break
 
+            trainingdatagenerator.pop()
             train_files_to_use.append(filename)
             batches_to_use_so_far += num_batches_this_file
 
-            #Sanity check - load a max of 100000 files.
+            # Sanity check - load a max of 100000 files.
             if batches_to_use_so_far >= num_batches_per_subepoch or len(train_files_to_use) > 100000:
                 found_enough = True
                 break
@@ -1191,15 +1346,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         return None
 
     # METRICS -----------------------------------------------------------------------------------
-    def detensorify_metrics(metrics):
-        ret = {}
-        for key in metrics:
-            if isinstance(metrics[key], torch.Tensor):
-                ret[key] = metrics[key].detach().cpu().item()
-            else:
-                ret[key] = metrics[key]
-        return ret
-
     if rank == 0:
         train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
         val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
@@ -1242,10 +1388,20 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         running_metrics["weights"] = defaultdict(float,running_metrics["weights"])
 
     torch.backends.cudnn.benchmark = True
+    trainloop_helpers.maybe_enable_compiled_autograd()
 
+    model_norms_only_at_print = trainloop_helpers.get_model_norms_only_at_print()
+    logging.info(f"model_norms_only_at_print {model_norms_only_at_print}")
+    training_metrics_fn = trainloop_helpers.make_training_metrics_fn(metrics_obj, no_compile, model_norms_only_at_print)
+    step_norm_tracker = trainloop_helpers.StepNormTracker(optimizer)
+    gnorm_watcher = trainloop_helpers.GnormWatcher()
+
+    scaler = None
     if use_fp16:
         logging.info("Training in FP16! Creating scaler")
         scaler = GradScaler("cuda")
+    elif use_bf16:
+        logging.info("Training in BF16 AMP without gradient scaling.")
     else:
         logging.info("Training in FP32.")
 
@@ -1312,10 +1468,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         logging.info(f"Training dir: {traindir}")
         logging.info(f"Export dir: {exportdir}")
         logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
-        if use_fp16:
+        if scaler is not None:
             logging.info(f"Current grad scale: {scaler.get_scale()}")
 
-        lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+        lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="always")
         maybe_update_brenorm_params()
 
         # SUB EPOCH LOOP -----------
@@ -1361,15 +1517,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 device=device,
                 randomize_symmetries=True,
                 include_meta=raw_model.get_has_metadata_encoder(),
-                model_config=model_config
+                model_config=model_config,
+                prefetch_depth=data_prefetch_depth,
             ):
                 optimizer.zero_grad(set_to_none=True)
                 extra_outputs = None
                 # if raw_model.get_has_metadata_encoder():
                 #     extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
 
-                if use_fp16:
-                    with autocast("cuda"):
+                if use_amp:
+                    with autocast("cuda", dtype=amp_dtype):
                         # Note: output heads are already in fp32 despite autocast
                         model_outputs = ddp_model(
                             batch["binaryInputNCHW"],
@@ -1385,8 +1542,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         extra_outputs=extra_outputs,
                     )
 
+                # The print-batch extras below run when the post-increment batch count hits the print interval.
+                is_print_batch = (batch_count_this_epoch + 1) % print_train_loss_every_batches == 0
+
                 postprocessed = raw_model.postprocess_output(model_outputs)
-                metrics = metrics_obj.metrics_dict_batchwise(
+                metrics = training_metrics_fn(
                     raw_model,
                     postprocessed,
                     extra_outputs,
@@ -1401,13 +1561,26 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     variance_time_loss_scale=variance_time_loss_scale,
                     main_loss_scale=main_loss_scale,
                     intermediate_loss_scale=intermediate_loss_scale,
+                    include_model_norms=not model_norms_only_at_print,
                 )
+                if model_norms_only_at_print and is_print_batch:
+                    metrics.update(metrics_obj.get_model_norm_metrics(raw_model))
 
                 # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
                 loss = metrics["loss_sum"] * world_size
 
+                # Attention logit bound penalty (kept out of loss_sum so the main loss stays comparable
+                # across runs; logged as its own metrics). mean * batch_size rather than sum: with
+                # attn-logit-penalty-batch-frac < 1 the penalty is computed on a slice of the batch,
+                # and this keeps it an unbiased estimate of the full-batch sum (coeff meaning unchanged).
+                if attn_logit_penalty_cap is not None:
+                    attn_pen_sum = raw_model.attn_logit_penalty_per_sample.mean() * batch_size
+                    metrics["alogitpen_sum"] = attn_pen_sum.detach()
+                    metrics["alogitubmax_batch"] = raw_model.attn_logit_ub_batch_max
+                    loss = loss + attn_logit_penalty_coeff * attn_pen_sum * world_size
+
                 # Reduce gradients across DDP
-                if use_fp16:
+                if scaler is not None:
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
                 else:
@@ -1439,12 +1612,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # Loosen gradient clipping as we shift to smaller learning rates
                 gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,get_effective_lr_scale(train_state)))
 
-                gnorm = torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), gnorm_cap).detach().cpu().item()
-
-                if math.isfinite(gnorm) and abs(gnorm < 1e30):
-                    metrics["gnorm_batch"] = gnorm
-                    exgnorm = max(0.0, gnorm - gnorm_cap)
-                    metrics["exgnorm_sum"] = exgnorm * batch_size
+                trainloop_helpers.clip_gradients_and_record(ddp_model, gnorm_cap, metrics, batch_size)
 
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
@@ -1460,55 +1628,25 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 metrics["window_end_batch"] = train_state["total_num_data_rows"]
 
                 # Store parameters to later calculate empirical step vector length
-                old_params = {}
-                for name, param in ddp_model.named_parameters():
-                    if param.requires_grad:
-                        old_params[name] = param.data.detach().clone()
+                step_norm_tracker.capture(ddp_model, is_print_batch=is_print_batch)
 
-                if use_fp16:
+                if scaler is not None:
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     optimizer.step()
 
                 # Empirical step vector length (overall and per parameter group)
-                with torch.no_grad():
-                    step_norm_squared = 0.0
-                    step_norm_squared_per_group = defaultdict(float)
+                step_norm_tracker.record(ddp_model, metrics)
 
-                    # Build a mapping from parameter id to group name
-                    param_to_group = {}
-                    for param_group in optimizer.param_groups:
-                        group_name = param_group["group_name"]
-                        for param in param_group["params"]:
-                            param_to_group[id(param)] = group_name
-
-                    param_idx = 0
-                    for name, param in ddp_model.named_parameters():
-                        if param.requires_grad:
-                            param_diff_squared = torch.sum(torch.square(param.data - old_params[name])).cpu().item()
-                            step_norm_squared += param_diff_squared
-
-                            # Add to per-group tracking
-                            group_name = param_to_group.get(id(param), "unknown")
-                            step_norm_squared_per_group[group_name] += param_diff_squared
-
-                            param_idx += 1
-
-                    step_norm = math.sqrt(step_norm_squared)
-                    metrics["step_norm_batch"] = step_norm
-
-                    # Store per-group step norms
-                    for group_name, norm_squared in step_norm_squared_per_group.items():
-                        metrics[f"step_norm_{group_name}_batch"] = math.sqrt(norm_squared)
-
-                del model_outputs, postprocessed, loss, old_params
+                del model_outputs, postprocessed, loss
 
                 batch_count_this_epoch += 1
                 train_state["train_steps_since_last_reload"] += batch_size * world_size
                 train_state["global_step_samples"] += batch_size * world_size
 
-                metrics = detensorify_metrics(metrics)
+                metrics = trainloop_helpers.detensorify_metrics(metrics)
+                gnorm_watcher.observe(metrics, gnorm_cap=gnorm_cap)
 
                 if lookahead_k is not None and lookahead_print:
                     # Only accumulate metrics when lookahead is synced if lookahead_print is True
@@ -1521,6 +1659,21 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
 
                 if batch_count_this_epoch % print_train_loss_every_batches == 0:
+
+                    # Norms computed only on this print batch are snapshots;
+                    # store them with weight 1 so logging cannot divide 0 by 0
+                    # (e.g. when lookahead_print gives surrounding batches zero
+                    # accumulation weight).
+                    if model_norms_only_at_print:
+                        trainloop_helpers.set_snapshot_metrics(
+                            running_metrics["sums"], running_metrics["weights"], metrics,
+                            [key for key in metrics if key.startswith("norm_") and key.endswith("_batch")],
+                        )
+                    if step_norm_tracker.only_at_print:
+                        trainloop_helpers.set_snapshot_metrics(
+                            running_metrics["sums"], running_metrics["weights"], metrics,
+                            [key for key in metrics if key.startswith("step_norm_") and key.endswith("_batch")],
+                        )
 
                     if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
                         metrics["brn_rmax"] = train_state["brenorm_rmax"]
@@ -1541,10 +1694,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
-                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 20 == 0:
-                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
-                if train_state["global_step_samples"] <= 500000000 and batch_count_this_epoch % 200 == 0:
-                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+                if train_state["global_step_samples"] <= 200000000 and batch_count_this_epoch % 5 == 0:
+                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if=("changed" if batch_count_this_epoch % 50 == 0 else "never"))
+                elif batch_count_this_epoch % 50 == 0:
+                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="never")
 
                 # Update batch renorm parameters
                 if batch_count_this_epoch % 500 == 0:
@@ -1605,8 +1758,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if len(val_files) == 0:
                 logging.info("No validation files, skipping validation step")
             else:
+                validation_model = trainloop_helpers.get_local_validation_model(ddp_model, raw_model, world_size)
                 with torch.no_grad():
-                    ddp_model.eval()
+                    validation_model.eval()
                     val_metric_sums = defaultdict(float)
                     val_metric_weights = defaultdict(float)
                     val_samples = 0
@@ -1622,16 +1776,16 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         include_meta=raw_model.get_has_metadata_encoder(),
                         model_config=model_config
                     ):
-                        if use_fp16:
-                            with autocast("cuda"):
+                        if use_amp:
+                            with autocast("cuda", dtype=amp_dtype):
                                 # Note: output heads are already in fp32 despite autocast
-                                model_outputs = ddp_model(
+                                model_outputs = validation_model(
                                     batch["binaryInputNCHW"],
                                     batch["globalInputNC"],
                                     input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
                                 )
                         else:
-                            model_outputs = ddp_model(
+                            model_outputs = validation_model(
                                 batch["binaryInputNCHW"],
                                 batch["globalInputNC"],
                                 input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
@@ -1654,7 +1808,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             main_loss_scale=main_loss_scale,
                             intermediate_loss_scale=intermediate_loss_scale,
                         )
-                        metrics = detensorify_metrics(metrics)
+                        metrics = trainloop_helpers.detensorify_metrics(metrics)
                         accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0, new_weight=1.0)
                         val_samples += batch_size
                         if max_val_samples is not None and val_samples > max_val_samples:
@@ -1668,7 +1822,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
                     t1 = time.perf_counter()
                     logging.info(f"Validation took {t1-t0} seconds")
-                    ddp_model.train()
+                    validation_model.train()
 
         if rank == 0:
             logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
@@ -1701,7 +1855,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 else:
                     os.mkdir(savepathtmp)
                     logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
-                    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"))
+                    # skip_optimizer: export only needs weights, and this save runs on
+                    # rank 0 only so it must not trigger the optimizer-state collective.
+                    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"), skip_optimizer=True)
                     time.sleep(2)
                     os.rename(savepathtmp,savepath)
 
@@ -1718,7 +1874,9 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
                 last_longterm_checkpoint_save_time = now
                 dated_name = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-                save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
+                # skip_optimizer: archival checkpoint, and this save runs on rank 0
+                # only so it must not trigger the optimizer-state collective.
+                save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"), skip_optimizer=True)
 
     train_metrics_out.close()
     val_metrics_out.close()

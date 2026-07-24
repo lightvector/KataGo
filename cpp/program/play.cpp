@@ -902,6 +902,40 @@ static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const
   return nnRawStats;
 }
 
+//One turn's worth of the per-turn training targets and stats recorded for selfplay training data, extracted
+//from the search a bot just completed on a position. Extracted both for every turn during the game and when
+//reanalyzing a position after the game - if adding a new per-turn target, make sure both get it.
+struct SearchTargetsThisTurn {
+  ValueTargets whiteValueTargets;
+  QValueTargets whiteQValueTargets;
+  std::vector<PolicyTargetMove>* policyTarget; //Receiver takes ownership
+  int64_t unreducedNumVisits;
+  NNRawStats nnRawStats;
+  double policySurprise;
+  double policyEntropy;
+  double searchEntropy;
+  ReportedSearchValues rawNNValues;
+};
+
+static void extractSearchTargetsThisTurn(
+  SearchTargetsThisTurn& targets,
+  Search* toMoveBot,
+  const Board& board, const BoardHistory& hist, Player pla,
+  vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf
+) {
+  extractValueTargets(targets.whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+  targets.whiteQValueTargets.targets.clear();
+  extractQValueTargets(targets.whiteQValueTargets.targets, toMoveBot, toMoveBot->rootNode);
+  targets.policyTarget = new vector<PolicyTargetMove>();
+  Play::extractPolicyTarget(*targets.policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+  targets.unreducedNumVisits = toMoveBot->getRootVisits();
+  targets.nnRawStats = computeNNRawStats(toMoveBot, board, hist, pla);
+  bool success = toMoveBot->getPolicySurpriseAndEntropy(targets.policySurprise, targets.searchEntropy, targets.policyEntropy);
+  testAssert(success);
+  (void)success; //Avoid warning when asserts are disabled
+  targets.rawNNValues = toMoveBot->getRootRawNNValuesRequireSuccess();
+}
+
 //Recursively walk non-root-node subtree under node recording positions that have enough visits
 //We also only record positions where the player to move made best moves along the tree so far.
 //Does NOT walk down branches of excludeLoc0 and excludeLoc1 - these are used to avoid writing
@@ -1030,6 +1064,7 @@ struct SearchLimitsThisMove {
   bool clearBotBeforeSearchThisMove;
   bool removeRootNoise;
   float targetWeight;
+  bool isCheapSearch;
 
   //Note: these two behave slightly differently than the ones in searchParams - derived from OtherGameProperties
   //game, they make the playouts *actually* vary instead of only making the neural net think they do.
@@ -1039,11 +1074,18 @@ struct SearchLimitsThisMove {
   Loc hintLoc;
 };
 
+//forceFullSearch skips the hint and random cheap search branches, giving the limits that a full-search turn
+//would get, including any reduceVisits or asymmetric playout adjustments.
+//Only the first numHistoricalMctsValuesToUse entries of historicalMctsWinLossValues count as the past for this
+//turn - during the game that is all of them, while post-game reanalysis of a cheap-search position passes the
+//turn index so as to reproduce the state as of that turn.
 static SearchLimitsThisMove getSearchLimitsThisMove(
   const Search* toMoveBot, Player pla, const PlaySettings& playSettings, Rand& gameRand,
   const vector<double>& historicalMctsWinLossValues,
+  size_t numHistoricalMctsValuesToUse,
   bool clearBotBeforeSearch,
-  const OtherGameProperties& otherGameProps
+  const OtherGameProperties& otherGameProps,
+  bool forceFullSearch
 ) {
   bool doAlterVisitsPlayouts = false;
   int64_t numAlterVisits = toMoveBot->searchParams.maxVisits;
@@ -1051,13 +1093,14 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   bool clearBotBeforeSearchThisMove = clearBotBeforeSearch;
   bool removeRootNoise = false;
   float targetWeight = 1.0f;
+  bool isCheapSearch = false;
   double playoutDoublingAdvantage = 0.0;
   Player playoutDoublingAdvantagePla = C_EMPTY;
   Loc hintLoc = Board::NULL_LOC;
-  double cheapSearchProb = playSettings.cheapSearchProb;
+  double cheapSearchProb = forceFullSearch ? 0.0 : playSettings.cheapSearchProb;
 
   const BoardHistory& hist = toMoveBot->getRootHist();
-  if(otherGameProps.hintLoc != Board::NULL_LOC) {
+  if(!forceFullSearch && otherGameProps.hintLoc != Board::NULL_LOC) {
     if(otherGameProps.hintTurn == hist.moveHistory.size() &&
        otherGameProps.hintPosHash == toMoveBot->getRootBoard().pos_hash) {
       hintLoc = otherGameProps.hintLoc;
@@ -1081,6 +1124,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
       throw StringError("playSettings.cheapSearchVisits > maxVisits and/or maxPlayouts");
 
     doAlterVisitsPlayouts = true;
+    isCheapSearch = true;
     numAlterVisits = std::min(numAlterVisits,(int64_t)playSettings.cheapSearchVisits);
     numAlterPlayouts = std::min(numAlterPlayouts,(int64_t)playSettings.cheapSearchVisits);
     targetWeight *= playSettings.cheapSearchTargetWeight;
@@ -1098,11 +1142,12 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
        playSettings.reducedVisitsMin > toMoveBot->searchParams.maxPlayouts)
       throw StringError("playSettings.reducedVisitsMin > maxVisits and/or maxPlayouts");
 
-    if(historicalMctsWinLossValues.size() >= playSettings.reduceVisitsThresholdLookback) {
+    size_t numHistoricalValues = std::min(numHistoricalMctsValuesToUse, historicalMctsWinLossValues.size());
+    if(numHistoricalValues >= (size_t)playSettings.reduceVisitsThresholdLookback) {
       double minWinLossValue = 1e20;
       double maxWinLossValue = -1e20;
       for(int j = 0; j<playSettings.reduceVisitsThresholdLookback; j++) {
-        double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-1-j];
+        double winLossValue = historicalMctsWinLossValues[numHistoricalValues-1-j];
         if(winLossValue < minWinLossValue)
           minWinLossValue = winLossValue;
         if(winLossValue > maxWinLossValue)
@@ -1161,6 +1206,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   limits.clearBotBeforeSearchThisMove = clearBotBeforeSearchThisMove;
   limits.removeRootNoise = removeRootNoise;
   limits.targetWeight = targetWeight;
+  limits.isCheapSearch = isCheapSearch;
   limits.playoutDoublingAdvantage = playoutDoublingAdvantage;
   limits.playoutDoublingAdvantagePla = playoutDoublingAdvantagePla;
   limits.hintLoc = hintLoc;
@@ -1240,6 +1286,191 @@ static Loc runBotWithLimits(
   }
 
   return loc;
+}
+
+//KL divergence of a win/loss/noresult distribution from the raw neural net value prediction, capped at 1.
+static double valueSurpriseKL(double winValue, double lossValue, double noResultValue, const ReportedSearchValues& rawNNValues) {
+  double valueSurprise = 0.0;
+  if(winValue > 1e-100) valueSurprise += winValue * (log(winValue) - log(std::max((double)rawNNValues.winValue,1e-100)));
+  if(lossValue > 1e-100) valueSurprise += lossValue * (log(lossValue) - log(std::max((double)rawNNValues.lossValue,1e-100)));
+  if(noResultValue > 1e-100) valueSurprise += noResultValue * (log(noResultValue) - log(std::max((double)rawNNValues.noResultValue,1e-100)));
+
+  //Just in case, guard against float imprecision
+  if(valueSurprise < 0.0)
+    valueSurprise = 0.0;
+  //Cap value surprise at extreme value, to reduce the chance of a ridiculous weight on a move.
+  return std::min(valueSurprise,1.0);
+}
+
+//Compute how surprising the value result at each turn was (KL divergence), relative to the raw neural net
+//value prediction at that turn. By default the value result compared is the smoothed forward-looking game
+//result, which depends on how the game actually continued and ended. If useSearchValueSurprise is true, it is
+//instead the value result of that turn's own search, which depends only on information available at the time
+//of the search, so that data weighting/selection based on it does not condition on the game's realized outcome.
+//whiteValueTargetsByTurn should have one entry per turn plus a final entry for the game outcome.
+static void computeValueSurpriseByTurn(
+  vector<double>& valueSurpriseByTurn,
+  const vector<ValueTargets>& whiteValueTargetsByTurn,
+  const vector<ReportedSearchValues>& rawNNValues,
+  int boardArea,
+  bool useSearchValueSurprise
+) {
+  testAssert(whiteValueTargetsByTurn.size() == rawNNValues.size() + 1);
+  valueSurpriseByTurn.resize(rawNNValues.size());
+
+  if(useSearchValueSurprise) {
+    for(int i = 0; i < (int)rawNNValues.size(); i++) {
+      const ValueTargets& searchValues = whiteValueTargetsByTurn[i];
+      valueSurpriseByTurn[i] = valueSurpriseKL(searchValues.win, searchValues.loss, searchValues.noResult, rawNNValues[i]);
+    }
+    return;
+  }
+
+  double nowFactor = 1.0/(1.0 + boardArea * 0.016);
+
+  double winValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].win;
+  double lossValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].loss;
+  double noResultValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].noResult;
+  for(int i = (int)rawNNValues.size()-1; i >= 0; i--) {
+    winValue = winValue + nowFactor * (whiteValueTargetsByTurn[i].win - winValue);
+    lossValue = lossValue + nowFactor * (whiteValueTargetsByTurn[i].loss - lossValue);
+    noResultValue = noResultValue + nowFactor * (whiteValueTargetsByTurn[i].noResult - noResultValue);
+
+    valueSurpriseByTurn[i] = valueSurpriseKL(winValue, lossValue, noResultValue, rawNNValues[i]);
+  }
+}
+
+//After a game finishes, select some of the positions that got only cheap searches, favoring positions whose
+//cheap search was surprising, and redo them with full searches. Overwrites those turns' recorded targets and
+//stats with those of the new full searches and raises their target weights to what a full-search turn would get,
+//so that they get recorded as full-quality training positions. Does not affect the game itself in any way.
+static void reanalyzeCheapSearchPositions(
+  Search* botB, Search* botW,
+  const PlaySettings& playSettings,
+  const OtherGameProperties& otherGameProps,
+  bool clearBotBeforeSearch,
+  const vector<bool>& wasCheapSearchByTurn,
+  const vector<double>& valueSurpriseByTurn,
+  const vector<double>& historicalMctsWinLossValues,
+  Rand& gameRand,
+  const std::function<bool()>& shouldStop,
+  const WaitableFlag* shouldPause,
+  const std::function<void(int)>& maybeCheckForNewNNEval,
+  vector<ReportedSearchValues>& rawNNValues,
+  vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
+  FinishedGameData* gameData
+) {
+  int numMoves = (int)gameData->targetWeightByTurn.size();
+  testAssert((int)wasCheapSearchByTurn.size() == numMoves);
+  testAssert((int)valueSurpriseByTurn.size() == numMoves);
+  testAssert((int)gameData->policySurpriseByTurn.size() == numMoves);
+  testAssert((int)gameData->reanalysisByTurn.size() == numMoves);
+
+  vector<int> candidateTurns;
+  for(int i = 0; i<numMoves; i++)
+    if(wasCheapSearchByTurn[i])
+      candidateTurns.push_back(i);
+  if(candidateTurns.size() <= 0)
+    return;
+
+  //Binomial draw on the number of cheap search positions determines how many to reanalyze.
+  int numToReanalyze = 0;
+  for(size_t i = 0; i<candidateTurns.size(); i++)
+    if(gameRand.nextBool(playSettings.reanalyzeProp))
+      numToReanalyze += 1;
+  if(numToReanalyze <= 0)
+    return;
+
+  //Sample that many turns without replacement, proportionally to how surprising the cheap search was.
+  vector<double> relProbs(candidateTurns.size());
+  for(size_t i = 0; i<candidateTurns.size(); i++) {
+    int turn = candidateTurns[i];
+    double surprise =
+      playSettings.reanalyzePolicySurpriseWeight * gameData->policySurpriseByTurn[turn]
+      + playSettings.reanalyzeValueSurpriseWeight * valueSurpriseByTurn[turn];
+    relProbs[i] = pow(surprise, playSettings.reanalyzeSurpriseExponent);
+  }
+  vector<int> turnsToReanalyze;
+  for(int k = 0; k<numToReanalyze; k++) {
+    double probSum = 0.0;
+    for(size_t i = 0; i<relProbs.size(); i++)
+      probSum += relProbs[i];
+    size_t chosen;
+    if(probSum > 1e-30)
+      chosen = gameRand.nextUInt(relProbs.data(),relProbs.size());
+    else
+      chosen = gameRand.nextUInt((uint32_t)relProbs.size());
+    turnsToReanalyze.push_back(candidateTurns[chosen]);
+    candidateTurns.erase(candidateTurns.begin()+chosen);
+    relProbs.erase(relProbs.begin()+chosen);
+  }
+  std::sort(turnsToReanalyze.begin(),turnsToReanalyze.end());
+
+  //Replay the game forward, redoing a full search at each selected turn.
+  Board board = gameData->startBoard;
+  BoardHistory hist = gameData->startHist;
+  Player pla = gameData->startPla;
+  int startTurnIdx = (int)gameData->startHist.moveHistory.size();
+
+  size_t whichIdx = 0;
+  for(int turnAfterStart = 0; turnAfterStart<numMoves && whichIdx < turnsToReanalyze.size(); turnAfterStart++) {
+    if(turnAfterStart == turnsToReanalyze[whichIdx]) {
+      whichIdx += 1;
+      if(shouldPause != nullptr)
+        shouldPause->waitUntilFalse();
+      if(shouldStop != nullptr && shouldStop())
+        break;
+
+      Search* toMoveBot = pla == P_BLACK ? botB : botW;
+      toMoveBot->setPosition(pla,board,hist);
+
+      //Reproduce the search limits that this turn would have gotten if it had been a full-search turn,
+      //including any reduceVisits and asymmetric playout adjustments, based on the mcts winloss values
+      //of the turns leading up to this one.
+      SearchLimitsThisMove limits = getSearchLimitsThisMove(
+        toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, (size_t)turnAfterStart,
+        clearBotBeforeSearch, otherGameProps, true
+      );
+      runBotWithLimits(toMoveBot, pla, playSettings, limits);
+
+      //Record the original cheap search's surprise stats that drove the selection of this position, and its visits.
+      ReanalysisData& reanalysisData = gameData->reanalysisByTurn[turnAfterStart];
+      reanalysisData.wasReanalyzed = true;
+      reanalysisData.usedOutcomeTargets = playSettings.reanalyzeUseOutcomeTargets;
+      reanalysisData.selectionPolicySurprise = (float)gameData->policySurpriseByTurn[turnAfterStart];
+      reanalysisData.selectionValueSurprise = (float)valueSurpriseByTurn[turnAfterStart];
+      reanalysisData.originalNumVisits = gameData->policyTargetsByTurn[turnAfterStart].unreducedNumVisits;
+      reanalysisData.numNeuralNetChangesSoFar = (int)gameData->changedNeuralNets.size();
+
+      //Overwrite this turn's recorded targets and stats with those of the new full search.
+      //Note: replacing this turn's entry in whiteValueTargetsByTurn means the winloss-variance-timing training
+      //target of earlier turns will see cheap-vs-full estimator deltas at the boundaries of this turn that
+      //aren't purely game variance. Deltas of similar scale already pervade that target from consecutive
+      //cheap/full searches during play, and it is a tiny auxiliary target, so this is accepted.
+      SearchTargetsThisTurn targets;
+      extractSearchTargetsThisTurn(targets, toMoveBot, board, hist, pla, locsBuf, playSelectionValuesBuf);
+      gameData->whiteValueTargetsByTurn[turnAfterStart] = targets.whiteValueTargets;
+      gameData->whiteQValueTargetsByTurn[turnAfterStart] = targets.whiteQValueTargets;
+      delete gameData->policyTargetsByTurn[turnAfterStart].policyTargets;
+      gameData->policyTargetsByTurn[turnAfterStart].policyTargets = targets.policyTarget;
+      gameData->policyTargetsByTurn[turnAfterStart].unreducedNumVisits = targets.unreducedNumVisits;
+      gameData->nnRawStatsByTurn[turnAfterStart] = targets.nnRawStats;
+      gameData->policySurpriseByTurn[turnAfterStart] = targets.policySurprise;
+      gameData->policyEntropyByTurn[turnAfterStart] = targets.policyEntropy;
+      gameData->searchEntropyByTurn[turnAfterStart] = targets.searchEntropy;
+      rawNNValues[turnAfterStart] = targets.rawNNValues;
+      gameData->targetWeightByTurn[turnAfterStart] = limits.targetWeight;
+
+      testAssert(gameData->endHist.moveHistory.size() < 0x1FFFffff);
+      maybeCheckForNewNNEval((int)gameData->endHist.moveHistory.size());
+    }
+
+    Move move = gameData->endHist.moveHistory[turnAfterStart + startTurnIdx];
+    testAssert(move.pla == pla);
+    testAssert(hist.isLegal(board,move.loc,move.pla));
+    hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
+    pla = getOpp(pla);
+  }
 }
 
 
@@ -1494,6 +1725,7 @@ FinishedGameData* Play::runGame(
   vector<double> historicalMctsLeads;
   vector<double> historicalMctsScoreStdevs;
   vector<ReportedSearchValues> rawNNValues;
+  vector<bool> wasCheapSearchByTurn;
 
   ClockTimer timer;
 
@@ -1531,7 +1763,8 @@ FinishedGameData* Play::runGame(
     }
 
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
-      toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
+      toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, historicalMctsWinLossValues.size(),
+      clearBotBeforeSearch, otherGameProps, false
     );
     Loc loc;
     if(playSettings.recordTimePerMove) {
@@ -1559,36 +1792,32 @@ FinishedGameData* Play::runGame(
     if(logMoves)
       logger.write("Move " + Global::uint64ToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
-    ValueTargets whiteValueTargets;
-    extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
-    gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
-    QValueTargets whiteQValueTargets;
-    extractQValueTargets(whiteQValueTargets.targets, toMoveBot, toMoveBot->rootNode);
-    gameData->whiteQValueTargetsByTurn.push_back(whiteQValueTargets);
-
     if(!recordFullData) {
+      ValueTargets whiteValueTargets;
+      extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+      gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
+      QValueTargets whiteQValueTargets;
+      extractQValueTargets(whiteQValueTargets.targets, toMoveBot, toMoveBot->rootNode);
+      gameData->whiteQValueTargetsByTurn.push_back(whiteQValueTargets);
       //Go ahead and record this anyways with just the visits, as a bit of a hack so that the sgf output can also write the number of visits.
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
       gameData->policyTargetsByTurn.emplace_back(nullptr,unreducedNumVisits);
     }
     else {
-      vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
-      int64_t unreducedNumVisits = toMoveBot->getRootVisits();
-      Play::extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
-      gameData->policyTargetsByTurn.emplace_back(policyTarget,unreducedNumVisits);
-      gameData->nnRawStatsByTurn.push_back(computeNNRawStats(toMoveBot, board, hist, pla));
+      SearchTargetsThisTurn targets;
+      extractSearchTargetsThisTurn(targets, toMoveBot, board, hist, pla, locsBuf, playSelectionValuesBuf);
+      gameData->whiteValueTargetsByTurn.push_back(targets.whiteValueTargets);
+      gameData->whiteQValueTargetsByTurn.push_back(targets.whiteQValueTargets);
+      gameData->policyTargetsByTurn.emplace_back(targets.policyTarget,targets.unreducedNumVisits);
+      gameData->nnRawStatsByTurn.push_back(targets.nnRawStats);
+      gameData->policySurpriseByTurn.push_back(targets.policySurprise);
+      gameData->policyEntropyByTurn.push_back(targets.policyEntropy);
+      gameData->searchEntropyByTurn.push_back(targets.searchEntropy);
+      rawNNValues.push_back(targets.rawNNValues);
 
       gameData->targetWeightByTurn.push_back(limits.targetWeight);
-
-      double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
-      bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
-      testAssert(success);
-
-      gameData->policySurpriseByTurn.push_back(policySurprise);
-      gameData->policyEntropyByTurn.push_back(policyEntropy);
-      gameData->searchEntropyByTurn.push_back(searchEntropy);
-
-      rawNNValues.push_back(toMoveBot->getRootRawNNValuesRequireSuccess());
+      gameData->reanalysisByTurn.emplace_back();
+      wasCheapSearchByTurn.push_back(limits.isCheapSearch);
 
       //Occasionally fork off some positions to evaluate
       Loc sidePositionForkLoc = Board::NULL_LOC;
@@ -1775,36 +2004,57 @@ FinishedGameData* Play::runGame(
 
     gameData->hasFullData = true;
 
+    testAssert(gameData->whiteValueTargetsByTurn.size() == gameData->targetWeightByTurn.size() + 1);
+    testAssert(rawNNValues.size() == gameData->targetWeightByTurn.size());
+
     vector<double> valueSurpriseByTurn;
-    {
-      const vector<ValueTargets>& whiteValueTargetsByTurn = gameData->whiteValueTargetsByTurn;
-      testAssert(whiteValueTargetsByTurn.size() == gameData->targetWeightByTurn.size() + 1);
-      testAssert(rawNNValues.size() == gameData->targetWeightByTurn.size());
-      valueSurpriseByTurn.resize(rawNNValues.size());
+    computeValueSurpriseByTurn(
+      valueSurpriseByTurn, gameData->whiteValueTargetsByTurn, rawNNValues, board.x_size * board.y_size,
+      playSettings.useSearchValueSurprise
+    );
 
-      int boardArea = board.x_size * board.y_size;
-      double nowFactor = 1.0/(1.0 + boardArea * 0.016);
+    //After the game, select some of the positions that got only cheap searches and redo them with full searches,
+    //so that they get recorded as full training positions. This happens entirely after the game so it cannot
+    //affect the game's moves or outcome in any way.
+    if(playSettings.useReanalyze && playSettings.reanalyzeProp > 0.0) {
+      reanalyzeCheapSearchPositions(
+        botB, botW, playSettings, otherGameProps, clearBotBeforeSearch,
+        wasCheapSearchByTurn, valueSurpriseByTurn, historicalMctsWinLossValues,
+        gameRand, shouldStop, shouldPause, maybeCheckForNewNNEval,
+        rawNNValues, locsBuf, playSelectionValuesBuf,
+        gameData
+      );
+      //If we had a hintloc, refresh the copy of turn 1's value into turn 0 made above, in case turn 1 was
+      //reanalyzed and its value was updated.
+      if(otherGameProps.hintLoc != Board::NULL_LOC) {
+        gameData->whiteValueTargetsByTurn[0] = gameData->whiteValueTargetsByTurn[std::min((size_t)1,gameData->whiteValueTargetsByTurn.size()-1)];
+      }
 
-      double winValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].win;
-      double lossValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].loss;
-      double noResultValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].noResult;
-      for(int i = (int)rawNNValues.size()-1; i >= 0; i--) {
-        winValue = winValue + nowFactor * (whiteValueTargetsByTurn[i].win - winValue);
-        lossValue = lossValue + nowFactor * (whiteValueTargetsByTurn[i].loss - lossValue);
-        noResultValue = noResultValue + nowFactor * (whiteValueTargetsByTurn[i].noResult - noResultValue);
+      //Reanalysis overwrote the searched values at the reanalyzed turns, which feed into the value targets and
+      //the value surprise of every turn at or before them (of just those turns themselves, for search value
+      //surprise), so recompute.
+      computeValueSurpriseByTurn(
+        valueSurpriseByTurn, gameData->whiteValueTargetsByTurn, rawNNValues, board.x_size * board.y_size,
+        playSettings.useSearchValueSurprise
+      );
 
-        double valueSurprise = 0.0;
-        if(winValue > 1e-100) valueSurprise += winValue * (log(winValue) - log(std::max((double)rawNNValues[i].winValue,1e-100)));
-        if(lossValue > 1e-100) valueSurprise += lossValue * (log(lossValue) - log(std::max((double)rawNNValues[i].lossValue,1e-100)));
-        if(noResultValue > 1e-100) valueSurprise += noResultValue * (log(noResultValue) - log(std::max((double)rawNNValues[i].noResultValue,1e-100)));
-
-        //Just in case, guard against float imprecision
-        if(valueSurprise < 0.0)
-          valueSurprise = 0.0;
-        //Cap value surprise at extreme value, to reduce the chance of a ridiculous weight on a move.
-        valueSurpriseByTurn[i] = std::min(valueSurprise,1.0);
+      if(logSearchInfo || logMoves) {
+        int numCheapSearchTurns = 0;
+        for(size_t i = 0; i<wasCheapSearchByTurn.size(); i++)
+          numCheapSearchTurns += wasCheapSearchByTurn[i] ? 1 : 0;
+        int numReanalyzedTurns = 0;
+        for(size_t i = 0; i<gameData->reanalysisByTurn.size(); i++)
+          numReanalyzedTurns += gameData->reanalysisByTurn[i].wasReanalyzed ? 1 : 0;
+        logger.write(
+          "Reanalyzed " + Global::intToString(numReanalyzedTurns) + " of " +
+          Global::intToString(numCheapSearchTurns) + " cheap-search positions for training data"
+        );
       }
     }
+
+    //Record for statistical purposes (e.g. the selfplaysurprisedump command)
+    gameData->valueSurpriseByTurn = valueSurpriseByTurn;
+    gameData->wasCheapSearchByTurn = wasCheapSearchByTurn;
 
     //Compute desired expectation with which to write main game rows
     if(playSettings.policySurpriseDataWeight > 0 || playSettings.valueSurpriseDataWeight > 0) {
@@ -1839,8 +2089,25 @@ FinishedGameData* Play::runGame(
         }
 
         //We also include some rows from non-full searches, if despite the shallow search
-        //they were quite surprising to the policy.
+        //they were quite surprising to the policy. When using reanalyze, reanalysis of the most surprising
+        //cheap searches replaces this behavior for cheap searches that were not reanalyzed, so for those the
+        //excess surprise term is turned off. It still applies to all other reduced-weight rows - rows whose
+        //visits and weight were reduced due to extreme winrates, including reanalyzed rows reduced that way
+        //(judged on the reanalysis search's own policy surprise).
         double thresholdToIncludeReduced = averagePolicySurpriseWeighted * 1.5;
+        auto policySurprisePropValueOfTurn = [&](int i) {
+          float targetWeight = gameData->targetWeightByTurn[i];
+          double policySurprise = gameData->policySurpriseByTurn[i];
+          bool excludeExcessSurprise =
+            playSettings.useReanalyze && wasCheapSearchByTurn[i] && !gameData->reanalysisByTurn[i].wasReanalyzed;
+          double excessSurprise = excludeExcessSurprise ? 0.0 : std::max(0.0,policySurprise-thresholdToIncludeReduced);
+          return targetWeight * policySurprise + (1-targetWeight) * excessSurprise;
+        };
+        auto valueSurprisePropValueOfTurn = [&](int i) {
+          float targetWeight = gameData->targetWeightByTurn[i];
+          double valueSurprise = valueSurpriseByTurn[i];
+          return targetWeight * valueSurprise;
+        };
 
         //Part of the weight will be proportional to surprisePropValue which is just policySurprise on normal rows
         //and the excess policySurprise beyond threshold on shallow searches.
@@ -1848,15 +2115,8 @@ FinishedGameData* Play::runGame(
         double sumPolicySurprisePropValue = 0.0;
         double sumValueSurprisePropValue = 0.0;
         for(int i = 0; i<numWeights; i++) {
-          float targetWeight = gameData->targetWeightByTurn[i];
-          double policySurprise = gameData->policySurpriseByTurn[i];
-          double valueSurprise = valueSurpriseByTurn[i];
-          double policySurprisePropValue =
-            targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
-          double valueSurprisePropValue =
-            targetWeight * valueSurprise;
-          sumPolicySurprisePropValue += policySurprisePropValue;
-          sumValueSurprisePropValue += valueSurprisePropValue;
+          sumPolicySurprisePropValue += policySurprisePropValueOfTurn(i);
+          sumValueSurprisePropValue += valueSurprisePropValueOfTurn(i);
         }
 
         //Just in case, avoid div by 0
@@ -1864,13 +2124,11 @@ FinishedGameData* Play::runGame(
         sumValueSurprisePropValue = std::max(sumValueSurprisePropValue,1e-10);
 
         for(int i = 0; i<numWeights; i++) {
+          //Note: the prop value lambdas read targetWeightByTurn[i], so they must be called before we
+          //overwrite it below, and each iteration reads only its own index.
           float targetWeight = gameData->targetWeightByTurn[i];
-          double policySurprise = gameData->policySurpriseByTurn[i];
-          double valueSurprise = valueSurpriseByTurn[i];
-          double policySurprisePropValue =
-            targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
-          double valueSurprisePropValue =
-            targetWeight * valueSurprise;
+          double policySurprisePropValue = policySurprisePropValueOfTurn(i);
+          double valueSurprisePropValue = valueSurprisePropValueOfTurn(i);
           double newValue =
             (1.0-playSettings.policySurpriseDataWeight-valueSurpriseDataWeight) * targetWeight
             + playSettings.policySurpriseDataWeight * policySurprisePropValue * sumWeights / sumPolicySurprisePropValue

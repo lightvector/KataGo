@@ -2589,9 +2589,13 @@ void customCudaFlashAttention(
 //--------------------------------------------------------------------------------------------------------------
 // Convert mask [batchSize, seqLen] (0/1) into a fully-materialized additive attention bias of shape
 // [batchSize, seqLen, seqLen] suitable for cuDNN SDPA's `[B, 1, S, S]` bias input.
-//   bias[b, q, k] = (mask[b, k] != 0 ? 0 : -1e4).
-// Note: the q dim is fully replicated since the mask only depends on k. Using -1e4 (well within FP16
-// max ~65504) avoids -inf-minus-inf NaNs in cuDNN's softmax.
+//   bias[b, q, k] = (mask[b, k] != 0 ? 0 : -3e4).
+// Note: the q dim is fully replicated since the mask only depends on k.
+//
+// The constant must be a large finite negative to avoid any chance of misbehavior in
+// cuDNN's softmax, and it must fit in fp16 (max ~65504) since the bias tensor's dtype must match
+// Q/K/V's. We use -3e4, the largest round value that leaves fp16 headroom for the model's own
+// logits on top. Measured logit magnitudes on real models as of mid-2026 are < ~500.
 //
 // Threading: one thread per (b, q, k). Inner-most (warp) axis = k so we write contiguous bytes per
 // (b, q) row. Each thread broadcast-reads mask[b, k], so within a warp all 32 lanes read consecutive
@@ -2605,7 +2609,7 @@ void maskToAttnBiasFullKernel(const float* mask, float* outBias, int seqLen) {
   if(k >= seqLen)
     return;
   float m = mask[b * seqLen + k];
-  outBias[((size_t)b * seqLen + q) * seqLen + k] = (m != 0.0f) ? 0.0f : -1e4f;
+  outBias[((size_t)b * seqLen + q) * seqLen + k] = (m != 0.0f) ? 0.0f : -3e4f;
 }
 
 __global__
@@ -2617,7 +2621,7 @@ void maskToAttnBiasFullHalfKernel(const half* mask, half* outBias, int seqLen) {
   if(k >= seqLen)
     return;
   float m = __half2float(mask[b * seqLen + k]);
-  outBias[((size_t)b * seqLen + q) * seqLen + k] = __float2half((m != 0.0f) ? 0.0f : -1e4f);
+  outBias[((size_t)b * seqLen + q) * seqLen + k] = __float2half((m != 0.0f) ? 0.0f : -3e4f);
 #endif
 }
 

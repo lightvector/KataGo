@@ -639,6 +639,129 @@ Last moves F1 C1 M3
 
   //============================================================================
   {
+    const char* name = "Sgf board edit range (rectangle) placement test";
+    string sgfStr = "(;GM[1]FF[4]SZ[19]PL[B]AB[ja:jd][ke][ld][lf:of][pe:qe][rc:sc][rd][rf]AW[ka:kd][le:oe][mc][pd][qc][rb:sb])";
+    parseAndPrintSgfLinear(sgfStr);
+    string expected = R"%%(
+xSize 19
+ySize 19
+depth 1
+komi 7.5
+placements
+X K19
+X K18
+X K17
+X K16
+X L15
+X M16
+X M14
+X N14
+X O14
+X P14
+X Q15
+X R15
+X S17
+X T17
+X S16
+X S14
+O L19
+O L18
+O L17
+O L16
+O M15
+O N15
+O O15
+O P15
+O N17
+O Q16
+O R17
+O S18
+O T18
+moves
+Initial board hist
+pla Black
+HASH: 43E8F2D6F5D808841E17E40EBE44889D
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . X O . . . . . . . .
+18 . . . . . . . . . X O . . . . . . O O
+17 . . . . . . . . . X O . O . . . O X X
+16 . . . . . . . . . X O X . . . O . X .
+15 . . . . . . . . . . X O O O O X X . .
+14 . . . . . . . . . . . X X X X . . X .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Approx valid turns this phase 0
+Approx consec valid turns this game 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves
+Final board hist
+pla Black
+HASH: 43E8F2D6F5D808841E17E40EBE44889D
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . X O . . . . . . . .
+18 . . . . . . . . . X O . . . . . . O O
+17 . . . . . . . . . X O . O . . . O X X
+16 . . . . . . . . . X O X . . . O . X .
+15 . . . . . . . . . . X O O O O X X . .
+14 . . . . . . . . . . . X X X X . . X .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+
+Initial pla Black
+Encore phase 0
+Turns this phase 0
+Approx valid turns this phase 0
+Approx consec valid turns this game 0
+Rules koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Ko recap block hash 00000000000000000000000000000000
+White bonus score 0
+White handicap bonus score 0
+Has button 0
+Presumed next pla Black
+Past normal phase end 0
+Game result 0 Empty 0 0 0 0
+Last moves
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
     const char* name = "Sgf parsing with whitespace and placements and comments";
     string sgfStr = R"%%((;GM[1]FF[4]SZ[9]
 GN[]
@@ -1277,12 +1400,12 @@ MoveNum: 2 HASH: A2E87D2F804F9DE2376F282B74234775
 
 A2E87D2F804F9DE2376F282B74234775
 Comments: Black twice in a row.
-MoveNum: 3 HASH: 6D3FECD79FBE0D23D46B38EFCF8EAB6D
+MoveNum: 1 HASH: 6D3FECD79FBE0D23D46B38EFCF8EAB6D
    A B C D E
  5 O . . . .
  4 O . . . .
- 3 . . O1X3.
- 2 . . X2. .
+ 3 . . O X1.
+ 2 . . X . .
  1 . . . . .
 
 )%%";
@@ -1399,16 +1522,298 @@ MoveNum: 3 HASH: 6D3FECD79FBE0D23D46B38EFCF8EAB6D
 {"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":[],"movePlas":[],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
 {"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C4"],"movePlas":["B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
 {"board":"...../...../...../...../...../","hintLoc":"null","initialTurnNumber":0,"moveLocs":["C4","C3"],"movePlas":["B","W"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
-{"board":"...../..O../..X../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4"],"movePlas":["B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
-{"board":"...../..O../..X../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3"],"movePlas":["B","W"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
-{"board":"...../..O../..X../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3","D4"],"movePlas":["B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
-{"board":"...../..O../..X../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3","D4","C2"],"movePlas":["B","W","B","W"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
-{"board":"...../..O../..X../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3","D4","C2","B3"],"movePlas":["B","W","B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
-{"board":"...../.XO../..X../...../...../","hintLoc":"null","initialTurnNumber":3,"moveLocs":["D3","D4","C2","B3","D2"],"movePlas":["W","B","W","B","W"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
-{"board":"...../.XO../..XO./...../...../","hintLoc":"null","initialTurnNumber":4,"moveLocs":["D4","C2","B3","D2","B2"],"movePlas":["B","W","B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
-{"board":"...../.OXO./..OX./...../...../","hintLoc":"null","initialTurnNumber":5,"moveLocs":["C2","B3","D2","B2","pass"],"movePlas":["B","W","B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../..X../..O../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4"],"movePlas":["W"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../..X../..O../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3"],"movePlas":["W","B"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../..X../..O../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3","D4"],"movePlas":["W","B","W"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../..X../..O../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3","D4","C2"],"movePlas":["W","B","W","B"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../..X../..O../...../...../","hintLoc":"null","initialTurnNumber":2,"moveLocs":["B4","D3","D4","C2","B3"],"movePlas":["W","B","W","B","W"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../.OX../..O../...../...../","hintLoc":"null","initialTurnNumber":3,"moveLocs":["D3","D4","C2","B3","D2"],"movePlas":["B","W","B","W","B"],"nextPla":"B","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../.OX../..OX./...../...../","hintLoc":"null","initialTurnNumber":4,"moveLocs":["D4","C2","B3","D2","B2"],"movePlas":["W","B","W","B","W"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
+{"board":"...../.XOX./..XO./...../...../","hintLoc":"null","initialTurnNumber":5,"moveLocs":["C2","B3","D2","B2","pass"],"movePlas":["W","B","W","B","W"],"nextPla":"W","weight":1.0,"xSize":5,"ySize":5}
 )%%";
     expect(name,out,expected);
+  }
+
+  //============================================================================
+  //Tests for the tolerateIllegalMoves option of iterAllPositions/iterAllUniquePositions.
+  //
+  //Note: the SGF traversal always runs under hardcoded rules with multiStoneSuicideLegal=true and KO_SITUATIONAL,
+  //so the "multi-stone self-capture when multi-stone-suicide is illegal" sub-case is not reachable through these
+  //entry points (such a move is always fully legal under the rules in force). The fullyLegal classification still
+  //handles it via ruleSuicideIllegal, this test just doesn't cover it. Superko (which IS in force) is exercised instead.
+  {
+    const char* name = "Sgf tolerateIllegalMoves option";
+    (void)name;
+
+    auto countColor = [](const Board& b, Color c) {
+      int n = 0;
+      for(int y = 0; y<b.y_size; y++)
+        for(int x = 0; x<b.x_size; x++)
+          if(b.colors[Location::getLoc(x,y,b.x_size)] == c)
+            n++;
+      return n;
+    };
+    auto hasSub = [](const string& haystack, const string& needle) {
+      return haystack.find(needle) != string::npos;
+    };
+
+    //Run a traversal, capturing samples, the final (current) board at the last sampled node, any warnings printed to
+    //stderr, and whether a StringError was thrown.
+    auto runTol = [](
+      const string& sgfStr, bool tolerate,
+      vector<Sgf::PositionSample>& samples, Board& finalBoard, string& warnings, bool& threw
+    ) {
+      samples.clear();
+      threw = false;
+      finalBoard = Board();
+      std::unique_ptr<Sgf> sgf = Sgf::parse(sgfStr);
+      ostringstream errcap;
+      std::streambuf* old = cerr.rdbuf(errcap.rdbuf());
+      try {
+        bool allowGameOver = true;
+        bool flipIfPassOrWFirst = false;
+        //Use the non-uniqueness traversal so that every node is observable, including moves that recreate an
+        //earlier position (e.g. a ko/superko recapture), which the uniqueness filter would otherwise drop.
+        sgf->iterAllPositions(
+          flipIfPassOrWFirst, allowGameOver, NULL,
+          [&](Sgf::PositionSample& s, const BoardHistory& h, const string& c) {
+            (void)c;
+            samples.push_back(s);
+            finalBoard = h.getRecentBoard(0);
+          },
+          tolerate
+        );
+      }
+      catch(const StringError&) {
+        threw = true;
+      }
+      cerr.rdbuf(old);
+      warnings = errcap.str();
+    };
+
+    //---- Board::setStonesTolerant low-level correctness ----
+
+    //A legal configuration set via setStonesTolerant must match a normally-built board exactly (hash + liberties),
+    //validating the from-scratch chain/hash rebuild.
+    {
+      Board a(5,5);
+      vector<Move> pl;
+      pl.push_back(Move(Location::getLoc(2,2,5),P_BLACK));
+      pl.push_back(Move(Location::getLoc(2,3,5),P_BLACK));
+      pl.push_back(Move(Location::getLoc(3,2,5),P_WHITE));
+      int removed = a.setStonesTolerant(pl);
+      testAssert(removed == 0);
+      Board b(5,5);
+      b.setStone(Location::getLoc(2,2,5),P_BLACK);
+      b.setStone(Location::getLoc(2,3,5),P_BLACK);
+      b.setStone(Location::getLoc(3,2,5),P_WHITE);
+      testAssert(a.pos_hash == b.pos_hash);
+      testAssert(a.getNumLiberties(Location::getLoc(2,2,5)) == b.getNumLiberties(Location::getLoc(2,2,5)));
+      testAssert(a.getNumLiberties(Location::getLoc(3,2,5)) == b.getNumLiberties(Location::getLoc(3,2,5)));
+    }
+    //After simultaneously removing a zero-liberty stone, the board must match one built from just the survivors.
+    {
+      Board a(5,5);
+      vector<Move> pl;
+      pl.push_back(Move(Location::getLoc(2,2,5),P_WHITE)); //C3 (will be captured)
+      pl.push_back(Move(Location::getLoc(1,2,5),P_BLACK)); //B3
+      pl.push_back(Move(Location::getLoc(3,2,5),P_BLACK)); //D3
+      pl.push_back(Move(Location::getLoc(2,1,5),P_BLACK)); //C4
+      pl.push_back(Move(Location::getLoc(2,3,5),P_BLACK)); //C2
+      int removed = a.setStonesTolerant(pl);
+      testAssert(removed == 1);
+      Board b(5,5);
+      b.setStone(Location::getLoc(1,2,5),P_BLACK);
+      b.setStone(Location::getLoc(3,2,5),P_BLACK);
+      b.setStone(Location::getLoc(2,1,5),P_BLACK);
+      b.setStone(Location::getLoc(2,3,5),P_BLACK);
+      testAssert(a.pos_hash == b.pos_hash);
+      testAssert(a.colors[Location::getLoc(2,2,5)] == C_EMPTY);
+    }
+
+    vector<Sgf::PositionSample> samples;
+    Board finalBoard;
+    string warnings;
+    bool threw;
+
+    //---- tolerateIllegalMoves==true, setup stones ----
+
+    //A single opponent stone with zero liberties is removed, and a warning is issued.
+    //White C3 fully surrounded by black B3,C4,C2,D3 -> white removed.
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]AW[cc]AB[bc][cb][cd][dc])";
+      runTol(sgf, true, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      testAssert(hasSub(warnings, "Removed 1 zero-liberty"));
+      testAssert(countColor(finalBoard, P_WHITE) == 0);
+      testAssert(countColor(finalBoard, P_BLACK) == 4);
+    }
+
+    //Two touching opposing groups that both have zero liberties are both removed simultaneously.
+    //On a 2x2 board, black A1,A2 and white B1,B2 mutually enclose each other -> all four removed.
+    {
+      string sgf = "(;GM[1]FF[4]SZ[2]KM[7]AB[aa][ab]AW[ba][bb])";
+      runTol(sgf, true, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      testAssert(hasSub(warnings, "Removed 4 zero-liberty"));
+      testAssert(countColor(finalBoard, P_WHITE) == 0);
+      testAssert(countColor(finalBoard, P_BLACK) == 0);
+    }
+
+    //A legal setup removes nothing and warns nothing.
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]AW[cc]AB[bc][cb])";
+      runTol(sgf, true, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      testAssert(!hasSub(warnings, "zero-liberty"));
+      testAssert(countColor(finalBoard, P_WHITE) == 1);
+      testAssert(countColor(finalBoard, P_BLACK) == 2);
+    }
+
+    //---- tolerateIllegalMoves==true, played moves ----
+
+    //Fully legal moves: played, no warnings, history carried through.
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7];B[cc];W[dc];B[cd];W[dd])";
+      runTol(sgf, true, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      testAssert(warnings.size() == 0);
+      testAssert(samples.size() == 5); //empty root + 4 moves
+      testAssert(samples.back().moves.size() == 4); //history carried through, never interrupted
+      testAssert(samples.back().initialTurnNumber == 0);
+      testAssert(countColor(finalBoard, P_BLACK) == 2 && countColor(finalBoard, P_WHITE) == 2);
+    }
+
+    //Illegal even under tolerance (single-stone suicide): skipped, warns, board unchanged.
+    //White surrounds C3, then black plays C3 (single-stone self-capture).
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]AW[bc][cb][cd][dc];B[cc])";
+      runTol(sgf, true, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      testAssert(hasSub(warnings, "Skipping illegal move"));
+      //Move was skipped: board still just the four surrounding white stones, no black stone.
+      testAssert(countColor(finalBoard, P_WHITE) == 4);
+      testAssert(countColor(finalBoard, P_BLACK) == 0);
+    }
+
+    //Simple ko violation (tolerant-legal): played, warns, history interrupted.
+    //White captures at B2 making a ko, then black immediately recaptures B2.
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]PL[W]AW[bc][ad][be]AB[cc][bd][dd][ce];W[cd];B[bd])";
+      runTol(sgf, true, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      testAssert(hasSub(warnings, "Tolerating simple ko violation"));
+      testAssert(!hasSub(warnings, "Skipping illegal move"));
+      //History is interrupted *before* the ko-violating move, which is then replayed as the sole move of fresh history.
+      testAssert(samples.back().moves.size() == 1);
+    }
+
+    //Superko violation that is NOT a simple ko (tolerant-legal): played, NO warning, history interrupted.
+    //White captures at B2 (ko), both pass (clearing the simple ko ban), then black recaptures B2, which recreates
+    //an earlier whole-board position with the same player to move -> situational superko, but not simple ko.
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]PL[W]AW[bc][ad][be]AB[cc][bd][dd][ce];W[cd];B[];W[];B[bd])";
+      runTol(sgf, true, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      testAssert(warnings.size() == 0); //tolerated superko is silent
+      //History interrupted *before* the recapture, which is then replayed as the sole move of fresh history.
+      testAssert(samples.back().moves.size() == 1);
+      //The recapture restores the original setup position: black C3,B2,D2,C1 and white B3,A2,B1.
+      testAssert(countColor(finalBoard, P_BLACK) == 4 && countColor(finalBoard, P_WHITE) == 3);
+    }
+
+    //---- tolerateIllegalMoves==false, setup stones (throws on zero-liberty setup) ----
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]AW[cc]AB[bc][cb][cd][dc])";
+      runTol(sgf, false, samples, finalBoard, warnings, threw);
+      testAssert(threw);
+      testAssert(warnings.size() == 0);
+    }
+    {
+      //A legal setup does not throw.
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]AW[cc]AB[bc][cb])";
+      runTol(sgf, false, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+    }
+
+    //---- tolerateIllegalMoves==false, played moves ----
+
+    //Fully legal moves: handled normally (no throw, history carried through).
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7];B[cc];W[dc];B[cd];W[dd])";
+      runTol(sgf, false, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      testAssert(samples.back().moves.size() == 4);
+      testAssert(samples.back().initialTurnNumber == 0);
+    }
+
+    //Illegal under tolerance (single-stone suicide): throws.
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]AW[bc][cb][cd][dc];B[cc])";
+      runTol(sgf, false, samples, finalBoard, warnings, threw);
+      testAssert(threw);
+    }
+
+    //Simple ko violation: throws.
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]PL[W]AW[bc][ad][be]AB[cc][bd][dd][ce];W[cd];B[bd])";
+      runTol(sgf, false, samples, finalBoard, warnings, threw);
+      testAssert(threw);
+    }
+
+    //Superko (not simple ko) violation: does NOT throw, the move is played but interrupts history.
+    {
+      string sgf = "(;GM[1]FF[4]SZ[5]KM[7]PL[W]AW[bc][ad][be]AB[cc][bd][dd][ce];W[cd];B[];W[];B[bd])";
+      runTol(sgf, false, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      testAssert(warnings.size() == 0);
+      //History interrupted *before* the recapture, which is then replayed as the sole move of fresh history.
+      testAssert(samples.back().moves.size() == 1);
+      testAssert(countColor(finalBoard, P_BLACK) == 4 && countColor(finalBoard, P_WHITE) == 3);
+    }
+
+    //---- Discrimination: how a superko violation vs a suicide violation each reset history differ ----
+    //
+    //Both a superko violation and a self-capture are "illegal but tolerated", and both reset history. But the
+    //handling differs by design (see iterAllPositionsHelper):
+    //  * A superko (or simple-ko, or out-of-turn) violation is a normal board transition that is only illegal due
+    //    to history/turn-order, so the move IS played and recorded as the sole move of a freshly-reset history
+    //    (interrupt BEFORE): the violating move shows up in the emitted sample.
+    //  * A self-capture's board transition is degenerate (the played group vanishes), so we do not want to record
+    //    a move whose own stone disappears. Single-stone self-capture (the only self-capture reachable here, since
+    //    the traversal runs with multiStoneSuicideLegal=true) is illegal-under-tolerance and is therefore SKIPPED
+    //    entirely: the move is NOT played and NOT emitted, the board is left unchanged, and history is reset.
+    //
+    //So the discriminating observable is whether the violating move appears in the output at all.
+    {
+      //Superko violation: the recapture B[bd] is emitted as a played move on fresh history.
+      string superkoSgf = "(;GM[1]FF[4]SZ[5]KM[7]PL[W]AW[bc][ad][be]AB[cc][bd][dd][ce];W[cd];B[];W[];B[bd])";
+      runTol(superkoSgf, true, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      Loc bd = Location::ofString("B2", finalBoard); //SGF "bd": col b(=B), row index d(=3) -> display row 5-3=2 -> B2
+      bool superkoMoveEmitted = false;
+      for(const Sgf::PositionSample& s : samples)
+        if(s.moves.size() == 1 && s.moves[0].loc == bd)
+          superkoMoveEmitted = true;
+      testAssert(superkoMoveEmitted);                 //superko violation: move played + recorded
+      testAssert(countColor(finalBoard, P_BLACK) == 4 && countColor(finalBoard, P_WHITE) == 3);
+
+      //Single-stone self-capture: the suicide move C3 is skipped, never played, never emitted; board unchanged.
+      string suicideSgf = "(;GM[1]FF[4]SZ[5]KM[7]AW[bc][cb][cd][dc];B[cc])";
+      runTol(suicideSgf, true, samples, finalBoard, warnings, threw);
+      testAssert(!threw);
+      Loc cc = Location::ofString("C3", finalBoard);
+      bool suicideMoveEmitted = false;
+      for(const Sgf::PositionSample& s : samples)
+        for(const Move& m : s.moves)
+          if(m.loc == cc)
+            suicideMoveEmitted = true;
+      testAssert(!suicideMoveEmitted);                //suicide violation: move skipped, never recorded
+      testAssert(finalBoard.colors[cc] == C_EMPTY);   //board unchanged - no stone at the self-capture point
+      testAssert(countColor(finalBoard, P_WHITE) == 4 && countColor(finalBoard, P_BLACK) == 0);
+    }
+
+    cout << "Sgf tolerateIllegalMoves tests passed" << endl;
   }
 
 }
