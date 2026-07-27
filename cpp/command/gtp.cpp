@@ -1593,7 +1593,7 @@ struct GTPEngine {
     return Global::trim(policyStr + "\n" + wlStr + "\n" + leadStr);
   }
 
-  string rawNN(int whichSymmetry, double policyOptimism, bool useHumanModel) {
+  string rawNN(int whichSymmetry, double policyOptimism, bool useHumanModel, Player nextPla) {
     NNEvaluator* nnEvalToUse = useHumanModel ? humanEval : nnEval;
     if(nnEvalToUse == NULL)
       return "";
@@ -1603,7 +1603,13 @@ struct GTPEngine {
       if(whichSymmetry == NNInputs::SYMMETRY_ALL || whichSymmetry == symmetry) {
         Board board = bot->getRootBoard();
         BoardHistory hist = bot->getRootHist();
-        Player nextPla = bot->getRootPla();
+        //If evaluating from a player other than the one naturally to move, rebuild the history so that player
+        //is to move (mirrors how the analysis engine handles a player switch). The NN evaluator asserts that
+        //nextPla matches the history's presumed next mover. This resets ko/pass history for the position.
+        if(nextPla != hist.presumedNextMovePla) {
+          board.clearSimpleKoLoc();
+          hist.clear(board,nextPla,hist.rules,hist.encorePhase);
+        }
 
         MiscNNInputParams nnInputParams;
         nnInputParams.playoutDoublingAdvantage =
@@ -1889,6 +1895,71 @@ static GTPEngine::AnalyzeArgs parseAnalyzeCommand(
   args.avoidMoveUntilByLocBlack = avoidMoveUntilByLocBlack;
   args.avoidMoveUntilByLocWhite = avoidMoveUntilByLocWhite;
   return args;
+}
+
+//Parse args for kata-raw-nn / kata-raw-human-nn: an optional leading player color ("b"/"w"/"black"/"white"),
+//a required symmetry ("all" or an index 0-7), and (if allowOptimism) an optional trailing policy optimism value
+//in [0,1]. This is positional and mirrors the optional-player convention used by the analyze commands (see
+//parseAnalyzeCommand): a color, if present, must come first, and the optimism, if present, must come last.
+//'pla' and 'policyOptimism' should be pre-filled with defaults; each is overwritten only if its argument is given.
+//Returns false and fills 'error' on any missing, extra, or unparseable argument.
+//Note: only "b"/"w"/"black"/"white" parse as a player (see PlayerIO::tryParsePlayer). An integer never parses as a
+//player, so a bare symmetry index such as "kata-raw-nn 3" is unambiguously the symmetry, exactly as before.
+static bool parseRawNNArgs(
+  const vector<string>& pieces,
+  bool allowOptimism,
+  Player& pla,
+  int& whichSymmetry,
+  double& policyOptimism,
+  string& error
+) {
+  size_t idx = 0;
+
+  //Optional leading player color.
+  Player parsedPla;
+  if(idx < pieces.size() && PlayerIO::tryParsePlayer(Global::trim(Global::toLower(pieces[idx])),parsedPla)) {
+    pla = parsedPla;
+    idx += 1;
+  }
+
+  //Required symmetry.
+  if(idx >= pieces.size()) {
+    error = "Expected a symmetry argument 'all' or index [0-7]";
+    return false;
+  }
+  {
+    string s = Global::trim(Global::toLower(pieces[idx]));
+    int parsedSym;
+    if(s == "all")
+      whichSymmetry = NNInputs::SYMMETRY_ALL;
+    else if(Global::tryStringToInt(s,parsedSym) && parsedSym >= 0 && parsedSym <= SymmetryHelpers::NUM_SYMMETRIES-1)
+      whichSymmetry = parsedSym;
+    else {
+      error = "Expected a symmetry argument 'all' or index [0-7] but got '" + pieces[idx] + "'";
+      return false;
+    }
+    idx += 1;
+  }
+
+  //Optional trailing policy optimism in [0,1].
+  if(allowOptimism && idx < pieces.size()) {
+    double parsedOpt;
+    if(Global::tryStringToDouble(pieces[idx],parsedOpt) && !isnan(parsedOpt) && parsedOpt >= 0.0 && parsedOpt <= 1.0) {
+      policyOptimism = parsedOpt;
+      idx += 1;
+    }
+    else {
+      error = "Expected an optimism value in [0,1] but got '" + pieces[idx] + "'";
+      return false;
+    }
+  }
+
+  //No further arguments allowed.
+  if(idx < pieces.size()) {
+    error = "Unexpected extra argument '" + pieces[idx] + "'";
+    return false;
+  }
+  return true;
 }
 
 
@@ -3456,50 +3527,29 @@ int MainCmds::gtp(const vector<string>& args) {
 
     else if(command == "kata-raw-nn") {
       int whichSymmetry = NNInputs::SYMMETRY_ALL;
-      bool parsed = false;
-      if(pieces.size() == 1 || pieces.size() == 2) {
-        string s = Global::trim(Global::toLower(pieces[0]));
-        if(s == "all")
-          parsed = true;
-        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1)
-          parsed = true;
-      }
+      Player pla = engine->bot->getRootPla();
+      double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
+      string error;
+      bool parsed = parseRawNNArgs(pieces, true, pla, whichSymmetry, policyOptimism, error);
       if(!parsed) {
         responseIsError = true;
-        response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-nn but got '" + Global::concat(pieces," ") + "'";
+        response = error + " for kata-raw-nn (expected an optional color, a symmetry 'all' or index [0-7], and an optional optimism [0-1])";
       }
       else {
-        double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
-        if(pieces.size() == 2) {
-          parsed = false;
-          if(Global::tryStringToDouble(pieces[0],policyOptimism) && isnan(policyOptimism) && policyOptimism >= 0.0 && policyOptimism <= 1.0) {
-            parsed = true;
-          }
-        }
-        if(!parsed) {
-          responseIsError = true;
-          response = "Expected double from 0 to 1 for optimism but got '" + Global::concat(pieces," ") + "'";
-        }
-        else {
-          const bool useHumanModel = false;
-          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
-        }
+        const bool useHumanModel = false;
+        response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel, pla);
       }
     }
 
     else if(command == "kata-raw-human-nn") {
       int whichSymmetry = NNInputs::SYMMETRY_ALL;
-      bool parsed = false;
-      if(pieces.size() == 1) {
-        string s = Global::trim(Global::toLower(pieces[0]));
-        if(s == "all")
-          parsed = true;
-        else if(Global::tryStringToInt(s,whichSymmetry) && whichSymmetry >= 0 && whichSymmetry <= SymmetryHelpers::NUM_SYMMETRIES-1)
-          parsed = true;
-      }
+      Player pla = engine->bot->getRootPla();
+      double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
+      string error;
+      bool parsed = parseRawNNArgs(pieces, false, pla, whichSymmetry, policyOptimism, error);
       if(!parsed) {
         responseIsError = true;
-        response = "Expected one argument 'all' or symmetry index [0-7] for kata-raw-human-nn but got '" + Global::concat(pieces," ") + "'";
+        response = error + " for kata-raw-human-nn (expected an optional color followed by a symmetry 'all' or index [0-7])";
       }
       else {
         if(engine->humanEval == NULL) {
@@ -3511,9 +3561,8 @@ int MainCmds::gtp(const vector<string>& args) {
           response = "Cannot run kata-raw-human-nn, humanSLProfile parameter was not set";
         }
         else {
-          double policyOptimism = engine->getGenmoveParams().rootPolicyOptimism;
           const bool useHumanModel = true;
-          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel);
+          response = engine->rawNN(whichSymmetry, policyOptimism, useHumanModel, pla);
         }
       }
     }
