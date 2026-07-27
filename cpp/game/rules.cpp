@@ -357,7 +357,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.hasButton = false;
     rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
     rules.friendlyPassOk = true;
-    rules.komi = 7.5;
+    rules.komi = 7.0;
   }
   else if(lowercased == "tromp-taylor" || lowercased == "tromp_taylor" || lowercased == "tromp taylor" || lowercased == "tromptaylor") {
     rules.scoringRule = Rules::SCORING_AREA;

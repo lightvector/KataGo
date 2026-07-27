@@ -11,9 +11,9 @@ cmake_minimum_required(VERSION 3.18.2)
 # Pinning a lower value only stamps a misleading minos on the executable and
 # triggers a "linking with dylib built for newer version" linker warning;
 # letting CMake default the target to the build host keeps minos honest.
-# (A post-project set(CMAKE_OSX_DEPLOYMENT_TARGET) is a silent no-op for this
-# Swift project - the target is fixed during project()/enable_language - so it
-# is not pinned in the backend branches below either.)
+# This applies to the MLX branch only - the METAL branch below keeps its
+# existing set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0) pin unchanged.
+#
 # Normalize the backend name to uppercase BEFORE project(), so the
 # case-insensitive behavior of the post-project() string(TOUPPER ...) below
 # also applies to the pre-project() MLX version guard and the Swift language
@@ -163,6 +163,7 @@ elseif(USE_BACKEND STREQUAL "METAL")
 
   include(InitializeSwift)
   include(AddSwift)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/metalbackend.cpp
     )

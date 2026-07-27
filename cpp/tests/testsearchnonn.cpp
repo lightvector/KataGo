@@ -8,6 +8,7 @@
 #include "../dataio/sgf.h"
 #include "../neuralnet/nninputs.h"
 #include "../search/asyncbot.h"
+#include "../search/evalcache.h"
 #include "../search/searchnode.h"
 #include "../program/playutils.h"
 #include "../program/setup.h"
@@ -2538,6 +2539,84 @@ x.x.x
     params.printParams(cout);
     cout << endl;
 
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Eval cache keys depend on search params" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"evalcacheparams",7,7,0,true,false,false,true,false);
+
+    SearchParams paramsA = SearchParams::forTestsV2(); //useGraphSearch = true
+    paramsA.useEvalCache = true;
+    paramsA.evalCacheMinVisits = 5;
+    paramsA.maxVisits = 60;
+
+    SearchParams paramsB = paramsA;
+    paramsB.cpuctExploration = paramsA.cpuctExploration + 0.5;
+
+    SearchParams paramsA2 = paramsA;
+
+    testAssert(paramsA.getHash() == paramsA2.getHash());
+    testAssert(paramsA.getHash() != paramsB.getHash());
+    cout << "Equal params hash equal: " << (paramsA.getHash() == paramsA2.getHash()) << endl;
+    cout << "Differing params hash differ: " << (paramsA.getHash() != paramsB.getHash()) << endl;
+
+    Search* search = new Search(paramsA, nnEval, &logger, "evalcacheseed");
+    Rules rules = Rules::parseRules("chinese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+..x.o..
+.......
+..o.x..
+.......
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0);
+
+    // Search 1: params A.
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    testAssert(search->evalCache != nullptr);
+    const Hash128 rootGraphHash = search->rootGraphHash;
+    const Hash128 keyA = rootGraphHash ^ paramsA.getHash();
+    const Hash128 keyB = rootGraphHash ^ paramsB.getHash();
+    std::shared_ptr<EvalCacheEntry> entryA = search->evalCache->find(keyA);
+    testAssert(entryA != nullptr);
+    testAssert(search->evalCache->find(keyB) == nullptr);
+    cout << "After search A: A-slot populated, B-slot empty: "
+         << (entryA != nullptr && search->evalCache->find(keyB) == nullptr) << endl;
+
+    // Search 2: params B, same position. The eval cache persists across param changes.
+    search->setParams(paramsB);
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    testAssert(search->rootGraphHash == rootGraphHash);
+    testAssert(keyA != keyB);
+    testAssert(search->evalCache->find(keyB) != nullptr);
+    testAssert(search->evalCache->find(keyA) == entryA);
+    cout << "After search B: B-slot populated, A-slot unchanged, distinct slots: "
+         << (search->evalCache->find(keyB) != nullptr
+             && search->evalCache->find(keyA) == entryA
+             && keyA != keyB) << endl;
+
+    // Search 3: params identical to A. Must reuse the same key/slot as A.
+    search->setParams(paramsA2);
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    testAssert(search->rootGraphHash == rootGraphHash);
+    const Hash128 keyA2 = rootGraphHash ^ paramsA2.getHash();
+    testAssert(keyA2 == keyA);
+    testAssert(search->evalCache->find(keyA2) != nullptr);
+    cout << "After search A2 (identical to A): reuses A's slot: "
+         << (keyA2 == keyA && search->evalCache->find(keyA2) != nullptr) << endl;
+
+    delete search;
+    delete nnEval;
+    cout << endl;
   }
 
   {

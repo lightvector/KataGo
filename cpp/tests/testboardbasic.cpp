@@ -2147,6 +2147,16 @@ void Tests::runBoardStressTest() {
         testAssert(isLegal[i] == suc[i]);
         boards[i].checkConsistency();
 
+        //Periodically validate that regenerating all chain bookkeeping purely from colors[] reproduces a
+        //consistent board with identical stones (and, via checkConsistency, identical pos_hash/liberties).
+        if(n % 15 == 0) {
+          Board regen = boards[i];
+          regen.regenChainsFromColors();
+          for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++)
+            testAssert(regen.colors[loc] == boards[i].colors[loc]);
+          regen.checkConsistency();
+        }
+
         const Board& board = boards[i];
         const Board& copy = copies[i];
         Loc loc = locs[i];

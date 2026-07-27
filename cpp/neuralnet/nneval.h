@@ -204,6 +204,7 @@ class NNEvaluator {
   uint64_t numRowsProcessed() const;
   uint64_t numBatchesProcessed() const;
   double averageProcessedBatchSize() const;
+  uint64_t numCacheHits() const;
 
   void clearStats();
 
@@ -242,6 +243,7 @@ class NNEvaluator {
   // Counters for statistics
   std::atomic<uint64_t> m_numRowsProcessed;
   std::atomic<uint64_t> m_numBatchesProcessed;
+  std::atomic<uint64_t> m_numCacheHits;
 
   mutable std::mutex bufferMutex;
 

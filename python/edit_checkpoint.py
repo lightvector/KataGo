@@ -53,8 +53,8 @@ elif overwrite_checkpoint_from_json:
 
 else:
     data_to_write = dict(
-        running_metrics = data["running_metrics"],
-        train_state = data["train_state"],
+        running_metrics = data.get("running_metrics"),
+        train_state = data.get("train_state"),
         config = data["config"] if "config" in data else None,
     )
     print(json.dumps(data_to_write,indent=2,default=repr))

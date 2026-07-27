@@ -188,8 +188,10 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
         * A GTP controller should be prepared that when it cancels a search, it's possible that the search has just finished at the same time, and reports a real move rather than `play cancelled`. Unlike `kata-genmove_analyze`, since this command doesn't change the board state, this race should hopefully not be hard for a controller to handle.
      * The same note about pondering as for `kata-search` and `kata-search_cancellable` applies here. GTP controllers should reply with the `play` command confirming the move they wish to make as soon as possible.
 
-  * `kata-raw-nn SYMMETRY`
+  * `kata-raw-nn [COLOR] SYMMETRY [OPTIMISM]`
      * `SYMMETRY` should be an integer from 0-7 or "all".
+     * `COLOR` is optional and should be `b`/`black` or `w`/`white`. If specified, it must come before `SYMMETRY`, and the raw evaluation is performed as if it were that player's turn to move (similar to how `genmove COLOR` specifies the player). If omitted, the current player to move is used.
+     * `OPTIMISM` is optional and, if specified, must come after `SYMMETRY`. It is a value from 0 to 1 that overrides the policy optimism used for the evaluation. If omitted, the configured `rootPolicyOptimism` is used.
      * Reports the result of a raw neural net evaluation from KataGo, or multiple raw evaluations in the case of "all".
      * Output format is of the form `symmetry <integer 0-7> <key> <value(s)> <key> <value(s)> ...`, possibly with additional whitespace or newlines between any tokens. In the case of "all", multiple such outputs of this form are concatenated together.
      * Possible keys are currently
@@ -209,9 +211,10 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      ```
      Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values. The ordering of the keys is also not guaranteed - consumers should be capable of handling any permutation of them.
 
-  * `kata-raw-human-nn SYMMETRY`
+  * `kata-raw-human-nn [COLOR] SYMMETRY`
      * Similar to `kata-raw-nn`, but uses the human SL model for evaluation.
      * `SYMMETRY` should be an integer from 0-7 or "all".
+     * `COLOR` is optional and behaves as in `kata-raw-nn`.
      * This command is only available if a human SL model was provided using the `-human-model` command line option. Typically, this should be a model like `b18c384nbt-humanv0.bin.gz`.
      * **Output format differences from `kata-raw-nn`:**
         * Reports `whiteScore` instead of `whiteLead`.

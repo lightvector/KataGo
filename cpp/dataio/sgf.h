@@ -146,7 +146,9 @@ struct Sgf {
   //Loads SGF all unique positions in ALL branches of that SGF.
   //Hashes are used to filter out "identical" positions when loading many files from different SGFs that may have overlapping openings, etc.
   //The hashes are not guaranteed to correspond to position hashes, or anything else external to this function itself.
-  //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.
+  //If tolerateIllegalMoves is false, may raise an exception on illegal moves or other SGF issues, only partially appending
+  //things on to the boards and hists. If tolerateIllegalMoves is true, illegal moves are instead warned about (to stderr)
+  //and tolerated - see iterAllPositionsHelper in sgf.cpp for the precise handling.
   //If rand is provided, will randomize order of iteration through the SGF.
   //If hashParent is true, will determine uniqueness by the combination of parent hash and own hash.
   void loadAllUniquePositions(
@@ -156,7 +158,8 @@ struct Sgf {
     bool flipIfPassOrWFirst,
     bool allowGameOver,
     Rand* rand,
-    std::vector<PositionSample>& samples
+    std::vector<PositionSample>& samples,
+    bool tolerateIllegalMoves = false
   ) const;
   //f is allowed to mutate and consume sample.
   void iterAllUniquePositions(
@@ -166,7 +169,8 @@ struct Sgf {
     bool flipIfPassOrWFirst,
     bool allowGameOver,
     Rand* rand,
-    const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
+    const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f,
+    bool tolerateIllegalMoves = false
   ) const;
 
   //Same as iterAllUniquePositions, but without the uniqueness. Will re-traverse same positions if they
@@ -176,7 +180,8 @@ struct Sgf {
     bool flipIfPassOrWFirst,
     bool allowGameOver,
     Rand* rand,
-    const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
+    const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f,
+    bool tolerateIllegalMoves = false
   ) const;
 
   static std::set<Hash128> readExcludes(const std::vector<std::string>& files);
@@ -195,6 +200,7 @@ struct Sgf {
     bool hashParent,
     bool flipIfPassOrWFirst,
     bool allowGameOver,
+    bool tolerateIllegalMoves,
     bool isRoot,
     Rand* rand,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
