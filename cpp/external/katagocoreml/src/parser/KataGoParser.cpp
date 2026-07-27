@@ -52,6 +52,16 @@ bool KataGoParser::refill() {
         const char* errmsg = gzerror(m_gz.get(), &errnum);
         throw std::runtime_error("Error reading gzip stream: " + std::string(errmsg));
     }
+    if(n == 0) {
+        // gzread reports some stream problems as a 0-byte read at EOF rather than
+        // a negative return - notably a missing/truncated gzip trailer surfaces as
+        // Z_BUF_ERROR "unexpected end of file" - so an EOF must still be checked
+        // via gzerror before being treated as a clean end of stream.
+        int errnum = Z_OK;
+        const char* errmsg = gzerror(m_gz.get(), &errnum);
+        if(errnum != Z_OK)
+            throw std::runtime_error("Error reading gzip stream: " + std::string(errmsg));
+    }
     m_refillPos = 0;
     m_refillLen = (size_t)n;
     return n > 0;
@@ -94,7 +104,19 @@ KataGoModelDesc KataGoParser::parse() {
     m_formatDetected = false;   // decided at first readFloats
     m_binary_floats = true;
     // ~GzHandle closes the file on normal return OR exception — no try/catch needed.
-    return parseModel();
+    KataGoModelDesc model = parseModel();
+
+    // Drain to end-of-stream so zlib verifies the gzip integrity trailer (CRC32 +
+    // length). Streaming reads stop at the last byte the model needs, but zlib only
+    // checks the trailer when the stream is read through EOF — without this, a
+    // truncated or tail-corrupted .gz would convert "successfully". (The old
+    // buffer-the-whole-file loader read to EOF and got this check implicitly;
+    // refill() throws on the gzread error that a bad trailer produces.)
+    do {
+        m_refillPos = m_refillLen;
+    } while(refill());
+
+    return model;
 }
 
 // ============================================================================
@@ -153,7 +175,13 @@ bool KataGoParser::readBool() {
 }
 
 std::vector<float> KataGoParser::readFloats(size_t count, const std::string& name) {
-    std::vector<float> floats(count);
+    // Grow the output only as bytes actually arrive from the stream, never by trusting
+    // `count` up front: dimensions are attacker-controlled, and a crafted header (a few
+    // KB gzipped) declaring e.g. 10^11 weights would otherwise commit hundreds of GB of
+    // zero-initialized memory before the first read could fail. With incremental growth,
+    // peak memory is bounded by the actual decompressed data, and a short file fails in
+    // readExact/readFloat with a clean EOF error instead.
+    std::vector<float> floats;
     skipWhitespace();
 
     // KataGo model files are uniformly text OR uniformly binary, so detecting the
@@ -164,10 +192,14 @@ std::vector<float> KataGoParser::readFloats(size_t count, const std::string& nam
         m_formatDetected = true;
     }
 
+    // Floats per growth step (4 MB); also caps the initial reserve.
+    constexpr size_t CHUNK_FLOATS = size_t(1) << 20;
+
     if(!m_binary_floats) {
         // Text format
+        floats.reserve(std::min(count, CHUNK_FLOATS));
         for(size_t i = 0; i < count; i++)
-            floats[i] = readFloat();
+            floats.push_back(readFloat());
     } else {
         // Binary: consume the "@BIN@" marker, then read count*4 raw bytes.
         char marker[5];
@@ -175,7 +207,12 @@ std::vector<float> KataGoParser::readFloats(size_t count, const std::string& nam
         if(std::memcmp(marker, "@BIN@", 5) != 0)
             throw std::runtime_error(name + ": expected @BIN@ marker for binary float block");
 
-        readExact(reinterpret_cast<uint8_t*>(floats.data()), count * 4, name);
+        while(floats.size() < count) {
+            size_t take = std::min(CHUNK_FLOATS, count - floats.size());
+            size_t done = floats.size();
+            floats.resize(done + take);
+            readExact(reinterpret_cast<uint8_t*>(floats.data() + done), take * 4, name);
+        }
     }
 
     // Reject NaN/Inf weights: corrupted or otherwise invalid models would

@@ -724,6 +724,19 @@ ComputeHandle* NeuralNet::createComputeHandle(
       " (GPU via MPSGraph) or " + std::to_string(METAL_MUX_ANE) +
       " (ANE via CoreML).");
   }
+  // Mechanically enforce the aneOnly invariant documented in createComputeContext:
+  // an aneOnly context may have freed the model's in-memory weights, so building a
+  // GPU/MPSGraph handle (which reads them via modelDescToSwift) would read freed
+  // data. This can only trip if a caller changes a thread's device after context
+  // creation (violating the createComputeContext contract) - fail loudly here
+  // rather than corrupt silently.
+  if(context->aneOnly && gpuIdx != METAL_MUX_ANE) {
+    throw StringError(
+      "Metal backend: server thread " + std::to_string(serverThreadIdx) +
+      " requested GPU device " + std::to_string(gpuIdx) +
+      " on a context created as ANE-only. All thread device indices must be included"
+      " in the gpuIdxs passed to createComputeContext.");
+  }
   ComputeHandle* handle = nullptr;
 
   {

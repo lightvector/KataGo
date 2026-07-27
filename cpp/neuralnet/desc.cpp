@@ -365,6 +365,15 @@ void BatchNormLayerDesc::applyScale8ToReduceActivations() {
   }
 }
 
+void BatchNormLayerDesc::releaseWeights() {
+  std::vector<float>().swap(mean);
+  std::vector<float>().swap(variance);
+  std::vector<float>().swap(scale);
+  std::vector<float>().swap(bias);
+  std::vector<float>().swap(mergedScale);
+  std::vector<float>().swap(mergedBias);
+}
+
 
 //-----------------------------------------------------------------------------
 
@@ -391,15 +400,6 @@ ActivationLayerDesc::ActivationLayerDesc(istream& in, int modelVersion) {
   else {
     activation = ACTIVATION_RELU;
   }
-}
-
-void BatchNormLayerDesc::releaseWeights() {
-  std::vector<float>().swap(mean);
-  std::vector<float>().swap(variance);
-  std::vector<float>().swap(scale);
-  std::vector<float>().swap(bias);
-  std::vector<float>().swap(mergedScale);
-  std::vector<float>().swap(mergedBias);
 }
 
 ActivationLayerDesc::ActivationLayerDesc(ActivationLayerDesc&& other) {
@@ -506,6 +506,10 @@ void MatMulLayerDesc::scaleOutputChannels(const std::vector<float>& scaling) {
   }
 }
 
+void MatMulLayerDesc::releaseWeights() {
+  std::vector<float>().swap(weights);
+}
+
 
 //-----------------------------------------------------------------------------
 
@@ -528,10 +532,6 @@ MatBiasLayerDesc::MatBiasLayerDesc(istream& in, bool binaryFloats) {
 
   if(in.fail())
     throw StringError(name + ": matbiaslayer failed to parse expected number of matbias weights");
-}
-
-void MatMulLayerDesc::releaseWeights() {
-  std::vector<float>().swap(weights);
 }
 
 MatBiasLayerDesc::MatBiasLayerDesc(MatBiasLayerDesc&& other) {
