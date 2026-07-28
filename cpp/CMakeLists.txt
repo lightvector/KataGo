@@ -471,7 +471,10 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   if(NOT TENSORRT_ONNXPARSER_LIBRARY)
     message(FATAL_ERROR "${ColorBoldRed} libnvonnxparser was NOT found in the TensorRT lib dir. ${ColorReset}")
   endif()
-  target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY} ${Protobuf_LIBRARIES})
+  # Link the imported target rather than ${Protobuf_LIBRARIES}: when protobuf comes from a
+  # CMake package config (e.g. vcpkg), the variable can resolve to the DLL itself rather
+  # than the import lib, and it also omits protobuf's own dependencies such as abseil.
+  target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY} protobuf::libprotobuf)
 elseif(USE_BACKEND STREQUAL "METAL")
   target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
   target_link_libraries(katago KataGoSwift katagocoreml
