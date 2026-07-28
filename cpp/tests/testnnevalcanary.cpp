@@ -49,7 +49,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 18;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -84,7 +85,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 36;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -118,7 +120,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -153,7 +156,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
     hist.setKomi(-7);
 
     MiscNNInputParams nnInputParams;
@@ -185,7 +189,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
     hist.setKomi(21);
 
     MiscNNInputParams nnInputParams;
@@ -220,7 +225,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 7;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -654,6 +660,8 @@ bool Tests::runBackendErrorTest(
     nnInputParams.policyOptimism = policyOptimismForTest;
     nnInputParams.playoutDoublingAdvantage = pdaForTest;
     nnInputParams.nnPolicyTemperature = (float)nnPolicyTemperatureForTest;
+    //Featurize per the model's own declared pass-alive computation mode.
+    nnInputParams.passAliveSuicideRulesOverride = nnE->modelPreferPassAliveUnderSuicideRules() ? 1 : 0;
 
     NNResultBuf buf;
     bool skipCache = true;

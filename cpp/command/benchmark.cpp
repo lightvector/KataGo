@@ -307,7 +307,7 @@ int MainCmds::benchmark(const vector<string>& args) {
 static void warmStartNNEval(const CompactSgf& sgf, Logger& logger, const SearchParams& params, NNEvaluator* nnEval, Rand& seedRand) {
   Board board(sgf.xSize,sgf.ySize);
   Player nextPla = P_BLACK;
-  BoardHistory hist(board,nextPla,Rules(),0);
+  BoardHistory hist(board,nextPla,Rules(),0,false);
   SearchParams thisParams = params;
   thisParams.numThreads = 1;
   thisParams.maxVisits = 5;

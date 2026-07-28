@@ -648,6 +648,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fillDameBeforePass"+idxStr)) params.fillDameBeforePass = cfg.getBool("fillDameBeforePass"+idxStr);
     else if(cfg.contains("fillDameBeforePass"))   params.fillDameBeforePass = cfg.getBool("fillDameBeforePass");
     else                                          params.fillDameBeforePass = false;
+    if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"+idxStr)) params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules"+idxStr);
+    else if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"))   params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules");
+    else                                                               params.alwaysComputePassAliveUnderSuicideRules = enabled_t::Auto;
     //Controlled by GTP directly, not used in any other mode
     params.avoidMYTDaggerHackPla = C_EMPTY;
     if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);

@@ -440,7 +440,8 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       Player nextPla;
       BoardHistory hist;
       Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
-      compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
+      //Featurize per the model's own declaration (no user-level search params in this mode).
+      compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist, valueFluctuationNNEval->modelPreferPassAliveUnderSuicideRules());
 
       if(valueFluctuationMakeKomiFair) {
         Rand rand;
@@ -1393,7 +1394,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     Board board;
     Player nextPla;
     BoardHistory hist;
-    sgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
+    //Keep pass-alive computations and featurization consistent with how the search performs them.
+    sgf.setupInitialBoardAndHist(rules, board, nextPla, hist, search->getRootHist().alwaysComputePassAliveUnderSuicideRules);
     if(!gameInit->isAllowedBSize(board.x_size,board.y_size)) {
       numFilteredSgfs.fetch_add(1);
       return;
@@ -1687,7 +1689,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     //Now play the rest of the moves out, except the last, which we keep as the potential hintloc
     int encorePhase = 0;
     Player pla = sample.nextPla;
-    BoardHistory hist(board,pla,rules,encorePhase);
+    //Keep pass-alive computations and featurization consistent with how the search performs them.
+    BoardHistory hist(board,pla,rules,encorePhase,search->getRootHist().alwaysComputePassAliveUnderSuicideRules);
     int numSampleMoves = (int)sample.moves.size();
     for(int i = 0; i<numSampleMoves; i++) {
       if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))
@@ -2419,7 +2422,8 @@ int MainCmds::checksgfhintpolicy(const vector<string>& args) {
         for(const Rules& rules: rulesToUse) {
           Player nextPla;
           BoardHistory histBefore;
-          bool suc = priorPosSample.tryGetCurrentBoardHistory(rules,nextPla,histBefore);
+          //Featurize per the model's own declaration (this command has no search params to consult).
+          bool suc = priorPosSample.tryGetCurrentBoardHistory(rules,nextPla,histBefore,nnEval->modelPreferPassAliveUnderSuicideRules());
           if(!suc) {
             logger.write("WARNING: unable to get current history for pos, skipping: " + Sgf::PositionSample::toJsonLine(priorPosSample));
             continue;

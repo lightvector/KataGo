@@ -149,6 +149,15 @@ def main(args):
         if model.trunk_final_rmsnorm:
             logging.warn("Autoupgrading v15 or v16 model to v17 due to trunk rmsnorm")
             version = 17
+        elif model_config.get("always_compute_pass_alive_under_suicide_rules"):
+            logging.warn("Autoupgrading v15 or v16 model to v17 due to always_compute_pass_alive_under_suicide_rules")
+            version = 17
+
+    if model_config.get("always_compute_pass_alive_under_suicide_rules") and version < 17:
+        raise Exception(
+            "always_compute_pass_alive_under_suicide_rules is set but model would be exported as version "
+            + str(version) + " < 17, which can technically represent it but we're not outputting in practice"
+        )
 
     writeln(model_name)
     writeln(version)
@@ -178,8 +187,14 @@ def main(args):
         else:
             writeln(0)
 
+        # preferPassAliveUnderSuicideRules: 1 if the model expects pass-alive area input features
+        # to be computed as if multi-stone suicide were always legal, regardless of the actual
+        # suicide rule. Only version 17+ engines parse nonzero values here (checked above).
+        if model_config.get("always_compute_pass_alive_under_suicide_rules"):
+            writeln(1)
+        else:
+            writeln(0)
         # Write some dummy placeholders for future features
-        writeln(0)
         writeln(0)
         writeln(0)
         writeln(0)

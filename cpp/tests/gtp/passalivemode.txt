@@ -1,0 +1,25 @@
+boardsize 4 5
+kata-set-rules {"ko":"SIMPLE","scoring":"AREA","tax":"NONE","suicide":false,"hasButton":false,"friendlyPassOk":false,"whiteHandicapBonus":"0"}
+komi 0
+set_position b d5 b a4 b b4 w a3 b b3 b c3 b d3 w a2 w b2 b c2 b b1 b d1
+showboard
+kata-get-param alwaysComputePassAliveUnderSuicideRules
+play w pass
+genmove_debug b
+undo
+kata-set-param alwaysComputePassAliveUnderSuicideRules true
+kata-get-param alwaysComputePassAliveUnderSuicideRules
+genmove_debug b
+undo
+kata-set-param alwaysComputePassAliveUnderSuicideRules auto
+play b pass
+final_score
+final_status_list dead
+kata-set-param alwaysComputePassAliveUnderSuicideRules true
+final_score
+final_status_list dead
+kata-set-param alwaysComputePassAliveUnderSuicideRules false
+final_score
+kata-set-param alwaysComputePassAliveUnderSuicideRules auto
+final_score
+showboard

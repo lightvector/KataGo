@@ -181,6 +181,7 @@ static void maybeParseBonusFile(
   int boardSizeY,
   const Rules& rules,
   int repBound,
+  bool alwaysComputePassAliveUnderSuicideRules,
   double bonusFileScale,
   Logger& logger,
   std::map<BookHash,double>& bonusByHash,
@@ -205,7 +206,8 @@ static void maybeParseBonusFile(
              comments.find("BRANCH") != string::npos
            )
         ) {
-          BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules, sgfHist.initialEncorePhase);
+          //Replay and hash under the book's pass-alive computation mode so hashes match book nodes.
+          BoardHistory hist(sgfHist.initialBoard, sgfHist.initialPla, rules, sgfHist.initialEncorePhase, alwaysComputePassAliveUnderSuicideRules);
           Board board = hist.initialBoard;
           for(size_t i = 0; i<sgfHist.moveHistory.size(); i++) {
             bool suc = hist.makeBoardMoveTolerant(board, sgfHist.moveHistory[i].loc, sgfHist.moveHistory[i].pla);
@@ -397,7 +399,8 @@ int MainCmds::genbook(const vector<string>& args) {
   Rules rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
 
   const bool hasHumanModel = humanModelFile != "";
-  const SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP,hasHumanModel);
+  //Not const - alwaysComputePassAliveUnderSuicideRules is forced below to match the book.
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP,hasHumanModel);
 
   const int boardSizeX = cfg.getInt("boardSizeX",2,Board::MAX_LEN);
   const int boardSizeY = cfg.getInt("boardSizeY",2,Board::MAX_LEN);
@@ -432,23 +435,8 @@ int MainCmds::genbook(const vector<string>& args) {
   bonusInitialBoard = Board(boardSizeX,boardSizeY);
   bonusInitialPla = P_BLACK;
 
-  for(const std::string& bonusFile: bonusFiles) {
-    maybeParseBonusFile(
-      bonusFile,
-      boardSizeX,
-      boardSizeY,
-      rules,
-      repBound,
-      bonusFileScale,
-      logger,
-      bonusByHash,
-      expandBonusByHash,
-      visitsRequiredByHash,
-      branchRequiredByHash,
-      bonusInitialBoard,
-      bonusInitialPla
-    );
-  }
+  //Bonus sgf files are parsed further below, after the pass-alive computation mode for this run is
+  //known, since the book hashes they produce depend on it.
   for(const std::string& hashBonusFile: hashBonusFiles) {
     maybeParseHashBonusFile(
       hashBonusFile,
@@ -491,6 +479,44 @@ int MainCmds::genbook(const vector<string>& args) {
   if(humanEval != NULL)
     policyEvaluator = humanEval;
 
+  //Determine the pass-alive computation mode governing this run. A preexisting book's recorded value
+  //takes precedence; a new book records the resolution of the config param against the model. All
+  //searches, evals, and book hashes in this run are then forced to be consistent with it.
+  bool bookFileExists;
+  {
+    std::ifstream infile;
+    bookFileExists = FileUtils::tryOpen(infile,bookFile);
+  }
+  const bool bookPassAliveUnderSuicideRules =
+    bookFileExists ?
+    Book::readAlwaysComputePassAliveUnderSuicideRulesOfFileHeader(bookFile) :
+    Search::resolveAlwaysComputePassAliveUnderSuicideRules(params, nnEval);
+  if(Search::resolveAlwaysComputePassAliveUnderSuicideRules(params, nnEval) != bookPassAliveUnderSuicideRules)
+    logger.write(
+      "Note: preexisting book was made with alwaysComputePassAliveUnderSuicideRules=" +
+      Global::boolToString(bookPassAliveUnderSuicideRules) + ", forcing that value for all searches in this run"
+    );
+  params.alwaysComputePassAliveUnderSuicideRules = bookPassAliveUnderSuicideRules ? enabled_t::True : enabled_t::False;
+
+  for(const std::string& bonusFile: bonusFiles) {
+    maybeParseBonusFile(
+      bonusFile,
+      boardSizeX,
+      boardSizeY,
+      rules,
+      repBound,
+      bookPassAliveUnderSuicideRules,
+      bonusFileScale,
+      logger,
+      bonusByHash,
+      expandBonusByHash,
+      visitsRequiredByHash,
+      branchRequiredByHash,
+      bonusInitialBoard,
+      bonusInitialPla
+    );
+  }
+
   vector<Search*> searches;
   for(int i = 0; i<numGameThreads; i++) {
     string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
@@ -506,13 +532,9 @@ int MainCmds::genbook(const vector<string>& args) {
     MakeDir::make(htmlDir);
 
   Book* book;
-  bool bookFileExists;
-  {
-    std::ifstream infile;
-    bookFileExists = FileUtils::tryOpen(infile,bookFile);
-  }
   if(bookFileExists) {
     book = Book::loadFromFile(bookFile,numBookThreads);
+    testAssert(book->alwaysComputePassAliveUnderSuicideRules == bookPassAliveUnderSuicideRules);
     if(
       boardSizeX != book->getInitialHist().getRecentBoard(0).x_size ||
       boardSizeY != book->getInitialHist().getRecentBoard(0).y_size ||
@@ -592,6 +614,7 @@ int MainCmds::genbook(const vector<string>& args) {
       rules,
       bonusInitialPla,
       repBound,
+      bookPassAliveUnderSuicideRules,
       cfgParams
     );
     logger.write("Creating new book at " + bookFile);
@@ -1629,6 +1652,8 @@ int MainCmds::writebook(const vector<string>& args) {
     boardSizeY,
     rules,
     repBound,
+    //Bonus hashes must be computed under the book's recorded pass-alive computation mode.
+    Book::readAlwaysComputePassAliveUnderSuicideRulesOfFileHeader(bookFile),
     bonusFileScale,
     logger,
     bonusByHash,
@@ -2143,9 +2168,10 @@ int MainCmds::comparebooks(const vector<string>& args) {
     book1->initialBoard.x_size != book2->initialBoard.x_size ||
     book1->initialBoard.y_size != book2->initialBoard.y_size ||
     book1->repBound != book2->repBound ||
-    book1->initialRules != book2->initialRules
+    book1->initialRules != book2->initialRules ||
+    book1->alwaysComputePassAliveUnderSuicideRules != book2->alwaysComputePassAliveUnderSuicideRules
   ) {
-    logger.write("ERROR: Books have different board sizes, rep bounds, or rules");
+    logger.write("ERROR: Books have different board sizes, rep bounds, rules, or pass-alive computation modes");
     delete book1;
     delete book2;
     return 1;
