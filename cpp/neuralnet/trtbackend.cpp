@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cstdint>
 #include <fstream>
+#include <limits>
 #include <random>
 #include <set>
 
@@ -37,6 +38,14 @@ static void checkCudaError(const cudaError_t status, const char* opName, const c
 }
 #define CUDA_ERR(opName, x) \
   { checkCudaError((x), opName, __FILE__, #x, __LINE__); }
+
+struct CudaMemoryDeleter {
+  void operator()(void* ptr) const noexcept {
+    if(ptr != nullptr)
+      cudaFree(ptr);
+  }
+};
+using CudaMemory = unique_ptr<void, CudaMemoryDeleter>;
 
 // Write `data` to `path` atomically, so a reader either sees the complete
 // old file or the complete new one, never a torn/truncated write from a crash or a racing process.
@@ -80,6 +89,8 @@ struct ComputeContext {
   string homeDataDirOverride;
   bool useOnnx;          // build via the ONNX emitter (default true); false = hand-built ModelParser
   bool transformerNHWC;  // ONNX emitter: run transformer blocks channel-last (default true)
+  bool useCudaGraph;
+  int cudaGraphMaxBatchSize;
   string dumpDebugPlanToDir;  // if non-empty, dump emitted ONNX + built-engine layer info here (debug)
 };
 
@@ -110,6 +121,12 @@ ComputeContext* NeuralNet::createComputeContext(
   // KataGo runs at, and it's the simpler graph. trtTransformerNHWC=true opts into the NHWC path (whole
   // trunk channel-last with NCHW<->NHWC conversions around it), which wins on single-stream latency.
   context->transformerNHWC = cfg.contains("trtTransformerNHWC") ? cfg.getBool("trtTransformerNHWC") : false;
+  // CUDA Graphs reduce CPU launch overhead, but each captured batch size needs a persistent TensorRT
+  // execution context per NN server thread. Keep this opt-in and cap the default cache so memory use
+  // remains predictable.
+  context->useCudaGraph = cfg.contains("trtUseCudaGraph") ? cfg.getBool("trtUseCudaGraph") : false;
+  context->cudaGraphMaxBatchSize =
+    cfg.contains("trtCudaGraphMaxBatchSize") ? cfg.getInt("trtCudaGraphMaxBatchSize", 1, 65536) : 16;
   // Debugging: if set, the ONNX-emitter path dumps the emitted ONNX model and the built engine's
   // per-layer info (precision/format/tactic, via a detailed-profiling build + IEngineInspector) into
   // this directory. Files are disambiguated by board size, FP16/FP32, and exact/max NN-length so the
@@ -1136,7 +1153,26 @@ struct TRTErrorRecorder : IErrorRecorder {
 
 
 struct ComputeHandle {
+  struct CudaGraphEntry {
+    unique_ptr<IExecutionContext> exec;
+    cudaGraphExec_t graphExec;
+
+    explicit CudaGraphEntry(unique_ptr<IExecutionContext>&& exec_)
+      : exec(std::move(exec_)), graphExec(nullptr) {}
+
+    ~CudaGraphEntry() noexcept {
+      // Captured nodes retain launch state owned by the TensorRT execution context.
+      if(graphExec != nullptr)
+        cudaGraphExecDestroy(graphExec);
+    }
+
+    CudaGraphEntry() = delete;
+    CudaGraphEntry(const CudaGraphEntry&) = delete;
+    CudaGraphEntry& operator=(const CudaGraphEntry&) = delete;
+  };
+
   ComputeContext* ctx;
+  Logger* externalLogger;
 
   bool usingFP16;
   int maxBatchSize;
@@ -1145,10 +1181,15 @@ struct ComputeHandle {
 
   TRTLogger trtLogger;
   TRTErrorRecorder trtErrorRecorder;
-  map<string, void*> buffers;
   unique_ptr<IRuntime> runtime;
   unique_ptr<ICudaEngine> engine;
+  CudaMemory executionDeviceMemory;
+  size_t executionDeviceMemoryBytes;
+  map<string, CudaMemory> buffers;
   unique_ptr<IExecutionContext> exec;
+  bool cudaGraphsEnabled;
+  int graphMaxBatchSize;
+  map<int, unique_ptr<CudaGraphEntry>> cudaGraphs;
 
   ComputeHandle(
     Logger* logger,
@@ -1158,8 +1199,22 @@ struct ComputeHandle {
     int maxBatchSz,
     bool requireExactNNLen) {
     ctx = context;
+    externalLogger = logger;
+    executionDeviceMemoryBytes = 0;
+    cudaGraphsEnabled = ctx->useCudaGraph;
+
+#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR < 6
+    if(cudaGraphsEnabled) {
+      cudaGraphsEnabled = false;
+      if(externalLogger != nullptr) {
+        externalLogger->write(
+          "TensorRT backend: trtUseCudaGraph requires TensorRT 8.6 or newer; using enqueueV3");
+      }
+    }
+#endif
 
     maxBatchSize = maxBatchSz;
+    graphMaxBatchSize = std::min(maxBatchSize, ctx->cudaGraphMaxBatchSize);
     modelVersion = loadedModel->modelDesc.modelVersion;
 
     // Certain minor versions of TensorRT uses a global logger, which is bad.
@@ -1321,6 +1376,17 @@ struct ComputeHandle {
     debugOutputs = model->debugOutputs;
     config->addOptimizationProfile(profile);
 
+#if (NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR >= 6) || NV_TENSORRT_MAJOR == 9
+    // TensorRT 8.6 and 9 require this preview feature before multiple execution contexts may
+    // share optimization profile 0. Profile sharing became the default behavior in TensorRT 10.
+    if(cudaGraphsEnabled) {
+      config->setPreviewFeature(PreviewFeature::kPROFILE_SHARING_0806, true);
+      if(!config->getPreviewFeature(PreviewFeature::kPROFILE_SHARING_0806)) {
+        throw StringError("TensorRT backend: failed to enable optimization-profile sharing");
+      }
+    }
+#endif
+
     // Honor per-layer precision constraints. The ONNX path pins some layers to FP32 and needs a hard
     // constraint (kOBEY) so TensorRT cannot fall back to FP16; the ModelParser path uses kPREFER.
     config->setFlag(forceObeyPrecision ? BuilderFlag::kOBEY_PRECISION_CONSTRAINTS : BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
@@ -1379,10 +1445,18 @@ struct ComputeHandle {
       // every knob that changes the built engine: lib/device/salt, board+batch+precision, and the
       // backend build mode (ONNX vs ModelParser, and NHWC vs NCHW for the ONNX path). The
       // build-mode tag is folded into both the filename (for human readability) and paramStr.
+      string cudaGraphBuildModeStr;
+#if (NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR >= 6) || NV_TENSORRT_MAJOR == 9
+      // Only TensorRT 8.6 and 9 change the serialized engine when CUDA Graphs are enabled:
+      // TensorRT 10+ shares profiles by default, while 8.5 cannot use this path.
+      if(cudaGraphsEnabled)
+        cudaGraphBuildModeStr = "cg";
+#endif
       string buildModeStr = Global::strprintf(
-        "%s%s",
+        "%s%s%s",
         ctx->useOnnx ? "onnx" : "prsr",
-        (ctx->useOnnx && ctx->transformerNHWC) ? "nh" : "");
+        (ctx->useOnnx && ctx->transformerNHWC) ? "nh" : "",
+        cudaGraphBuildModeStr.c_str());
       const char* lenStr = requireExactNNLen ? "ex" : "mx";
       auto planCacheFile = Global::strprintf(
         "%s/trt-%d_gpu-%s_net-%s_s%d_%s_%s%dx%d_b%d_fp%d",
@@ -1541,7 +1615,35 @@ struct ComputeHandle {
     if(!engine) {
       throw StringError("TensorRT backend: failed to create cuda engine");
     }
-    exec.reset(engine->createExecutionContext());
+
+    if(cudaGraphsEnabled) {
+#if NV_TENSORRT_MAJOR > 10 || (NV_TENSORRT_MAJOR == 10 && NV_TENSORRT_MINOR >= 1)
+      const int64_t requiredMemory = engine->getDeviceMemorySizeV2();
+      if(requiredMemory < 0 ||
+         static_cast<uint64_t>(requiredMemory) > numeric_limits<size_t>::max()) {
+        throw StringError("TensorRT backend: invalid execution-context device-memory size");
+      }
+      executionDeviceMemoryBytes = static_cast<size_t>(requiredMemory);
+#else
+      executionDeviceMemoryBytes = engine->getDeviceMemorySize();
+#endif
+      if(executionDeviceMemoryBytes > 0) {
+        void* memory = nullptr;
+        CUDA_ERR("ComputeHandle", cudaMalloc(&memory, executionDeviceMemoryBytes));
+        executionDeviceMemory.reset(memory);
+      }
+
+#if NV_TENSORRT_MAJOR >= 10
+      exec.reset(engine->createExecutionContext(ExecutionContextAllocationStrategy::kUSER_MANAGED));
+#else
+      exec.reset(engine->createExecutionContextWithoutDeviceMemory());
+#endif
+      if(exec != nullptr)
+        setExecutionDeviceMemory(exec.get());
+    }
+    else {
+      exec.reset(engine->createExecutionContext());
+    }
     if(!exec) {
       throw StringError("TensorRT backend: failed to create execution context");
     }
@@ -1565,24 +1667,54 @@ struct ComputeHandle {
 
     for(int i = 0; i < engine->getNbIOTensors(); i++) {
       void* buffer = nullptr;
-      auto name = engine->getIOTensorName(i);
+      const char* name = engine->getIOTensorName(i);
       auto dims = engine->getTensorShape(name);
       size_t bytes = accumulate(dims.d + 1, dims.d + dims.nbDims, maxBatchSize * sizeof(float), multiplies<size_t>());
       CUDA_ERR("ComputeHandle", cudaMalloc(&buffer, bytes));
-      buffers.emplace(make_pair(name, buffer));
-      exec->setTensorAddress(name, buffer);
+      auto inserted = buffers.emplace(name, CudaMemory(buffer));
+      if(!inserted.second)
+        throw StringError("TensorRT backend: duplicate I/O tensor name " + string(name));
+      if(!exec->setTensorAddress(name, inserted.first->second.get()))
+        throw StringError("TensorRT backend: failed to bind I/O tensor " + string(name));
     }
 
-    exec->setOptimizationProfileAsync(0, cudaStreamPerThread);
-    cudaStreamSynchronize(cudaStreamPerThread);
+    if(!exec->setOptimizationProfileAsync(0, cudaStreamPerThread))
+      throw StringError("TensorRT backend: failed to select optimization profile");
+    CUDA_ERR("ComputeHandle", cudaStreamSynchronize(cudaStreamPerThread));
+
+    if(cudaGraphsEnabled) {
+      // Each capture first runs a shape-flush inference. Initialize the full input allocations so
+      // prewarming never reads uninitialized device memory.
+      for(int i = 0; i < engine->getNbIOTensors(); i++) {
+        const char* name = engine->getIOTensorName(i);
+        if(engine->getTensorIOMode(name) == TensorIOMode::kINPUT) {
+          CUDA_ERR(
+            "ComputeHandle",
+            cudaMemsetAsync(getBuffer(name), 0, getBufferBytes(name), cudaStreamPerThread));
+        }
+      }
+      CUDA_ERR("ComputeHandle", cudaStreamSynchronize(cudaStreamPerThread));
+
+      string failureReason;
+      for(int batchSize = 1; batchSize <= graphMaxBatchSize; batchSize++) {
+        if(!captureCudaGraph(batchSize, failureReason)) {
+          disableCudaGraphs(failureReason);
+          break;
+        }
+      }
+      if(cudaGraphsEnabled && externalLogger != nullptr) {
+        externalLogger->write(Global::strprintf(
+          "TensorRT backend: prewarmed CUDA Graphs for batch sizes 1-%d "
+          "(shared execution memory %llu bytes)",
+          graphMaxBatchSize,
+          (unsigned long long)executionDeviceMemoryBytes));
+      }
+    }
+
     trtErrorRecorder.clear();
   }
 
-  ~ComputeHandle() {
-    for(auto ptr: buffers) {
-      CUDA_ERR("~ComputeHandle", cudaFree(ptr.second));
-    }
-  }
+  ~ComputeHandle() = default;
 
   ComputeHandle() = delete;
   ComputeHandle(const ComputeHandle&) = delete;
@@ -1591,7 +1723,7 @@ struct ComputeHandle {
   void* getBuffer(const char* name) {
     auto search = buffers.find(name);
     if(search != buffers.end()) {
-      return search->second;
+      return search->second.get();
     } else {
       throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
@@ -1623,6 +1755,144 @@ struct ComputeHandle {
     } else {
       throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
+  }
+
+  void setExecutionDeviceMemory(IExecutionContext* executionContext) {
+#if NV_TENSORRT_MAJOR > 10 || (NV_TENSORRT_MAJOR == 10 && NV_TENSORRT_MINOR >= 1)
+    executionContext->setDeviceMemoryV2(
+      executionDeviceMemory.get(), static_cast<int64_t>(executionDeviceMemoryBytes));
+#else
+    executionContext->setDeviceMemory(executionDeviceMemory.get());
+#endif
+  }
+
+  unique_ptr<IExecutionContext> createGraphExecutionContext(string& failureReason) {
+#if NV_TENSORRT_MAJOR >= 10
+    auto graphContext = unique_ptr<IExecutionContext>(
+      engine->createExecutionContext(ExecutionContextAllocationStrategy::kUSER_MANAGED));
+#else
+    auto graphContext = unique_ptr<IExecutionContext>(engine->createExecutionContextWithoutDeviceMemory());
+#endif
+    if(!graphContext) {
+      failureReason = "could not create a per-batch execution context";
+      return nullptr;
+    }
+
+    setExecutionDeviceMemory(graphContext.get());
+    for(int i = 0; i < engine->getNbIOTensors(); i++) {
+      const char* name = engine->getIOTensorName(i);
+      if(!graphContext->setTensorAddress(name, getBuffer(name))) {
+        failureReason = "could not bind I/O tensor " + string(name);
+        return nullptr;
+      }
+    }
+    if(!graphContext->setOptimizationProfileAsync(0, cudaStreamPerThread)) {
+      failureReason = "could not select optimization profile 0";
+      return nullptr;
+    }
+    CUDA_ERR("createGraphExecutionContext", cudaStreamSynchronize(cudaStreamPerThread));
+    return graphContext;
+  }
+
+  bool setInputShapes(IExecutionContext* executionContext, int batchSize) {
+    for(int i = 0; i < engine->getNbIOTensors(); i++) {
+      const char* name = engine->getIOTensorName(i);
+      if(engine->getTensorIOMode(name) == TensorIOMode::kINPUT &&
+         !executionContext->setInputShape(name, getBufferDynamicShape(name, batchSize))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool enqueueWithoutCudaGraph(int batchSize) {
+    return setInputShapes(exec.get(), batchSize) && exec->enqueueV3(cudaStreamPerThread);
+  }
+
+  void disableCudaGraphs(const string& reason) {
+    cudaGraphsEnabled = false;
+    cudaGraphs.clear();
+    if(externalLogger != nullptr) {
+      externalLogger->write(
+        "TensorRT backend: disabling CUDA Graphs and using enqueueV3: " + reason);
+    }
+  }
+
+  bool captureCudaGraph(int batchSize, string& failureReason) {
+    // A ComputeHandle is owned by one NN server thread, so these contexts execute serially and may
+    // safely share one user-managed activation allocation. TensorRT requires a distinct context for
+    // each captured dynamic shape.
+    auto graphContext = createGraphExecutionContext(failureReason);
+    if(!graphContext)
+      return false;
+    auto entry = make_unique<CudaGraphEntry>(std::move(graphContext));
+
+    if(!setInputShapes(entry->exec.get(), batchSize)) {
+      failureReason = "could not set dynamic input shapes";
+      return false;
+    }
+
+    // The first enqueue after changing a dynamic shape may perform deferred, non-capturable work.
+    if(!entry->exec->enqueueV3(cudaStreamPerThread)) {
+      throw StringError("TensorRT backend: shape-flush enqueueV3 failed");
+    }
+    CUDA_ERR("captureCudaGraph", cudaStreamSynchronize(cudaStreamPerThread));
+
+    cudaError_t status =
+      cudaStreamBeginCapture(cudaStreamPerThread, cudaStreamCaptureModeThreadLocal);
+    if(status != cudaSuccess) {
+      failureReason = string("cudaStreamBeginCapture failed: ") + cudaGetErrorString(status);
+      (void)cudaGetLastError();
+      return false;
+    }
+
+    const bool enqueueSucceeded = entry->exec->enqueueV3(cudaStreamPerThread);
+    cudaGraph_t graph = nullptr;
+    const cudaError_t endStatus = cudaStreamEndCapture(cudaStreamPerThread, &graph);
+    if(!enqueueSucceeded || endStatus != cudaSuccess || graph == nullptr) {
+      if(graph != nullptr)
+        cudaGraphDestroy(graph);
+      failureReason = !enqueueSucceeded
+        ? "enqueueV3 was not capturable"
+        : string("cudaStreamEndCapture failed: ") + cudaGetErrorString(endStatus);
+      (void)cudaGetLastError();
+      return false;
+    }
+
+#if CUDART_VERSION >= 11040
+    status = cudaGraphInstantiateWithFlags(&entry->graphExec, graph, 0);
+#else
+    status = cudaGraphInstantiate(&entry->graphExec, graph, nullptr, nullptr, 0);
+#endif
+    cudaGraphDestroy(graph);
+    if(status != cudaSuccess || entry->graphExec == nullptr) {
+      failureReason = string("cudaGraphInstantiate failed: ") + cudaGetErrorString(status);
+      (void)cudaGetLastError();
+      return false;
+    }
+
+    const auto inserted = cudaGraphs.emplace(batchSize, std::move(entry));
+    if(!inserted.second) {
+      failureReason = "duplicate per-batch CUDA Graph cache entry";
+      return false;
+    }
+    return true;
+  }
+
+  bool enqueueWithOptionalCudaGraph(int batchSize) {
+    // Requests above the cap retain the ordinary enqueueV3 path. Larger batches already amortize
+    // launch overhead well, while every captured size carries persistent TensorRT context memory.
+    if(!cudaGraphsEnabled || batchSize > graphMaxBatchSize)
+      return enqueueWithoutCudaGraph(batchSize);
+
+    auto cached = cudaGraphs.find(batchSize);
+    if(cached == cudaGraphs.end()) {
+      disableCudaGraphs("missing prewarmed graph for batch size " + Global::intToString(batchSize));
+      return enqueueWithoutCudaGraph(batchSize);
+    }
+
+    CUDA_ERR("enqueueWithOptionalCudaGraph", cudaGraphLaunch(cached->second->graphExec, cudaStreamPerThread));
+    return true;
   }
 
   // DEBUG (kept commented out): when KATAGO_TRT_DUMP_ACTS is set, dump every DBG__ output tensor (added
@@ -1991,20 +2261,8 @@ void NeuralNet::getOutput(
         cudaMemcpyHostToDevice));
   }
 
-  auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
-  auto spatialInputDims = gpuHandle->getBufferDynamicShape("InputSpatial", batchSize);
-  auto globalInputDims = gpuHandle->getBufferDynamicShape("InputGlobal", batchSize);
-
-  gpuHandle->exec->setInputShape("InputMask", maskInputDims);
-  gpuHandle->exec->setInputShape("InputSpatial", spatialInputDims);
-  gpuHandle->exec->setInputShape("InputGlobal", globalInputDims);
-
-  if(numMetaFeatures > 0) {
-    auto metaInputDims = gpuHandle->getBufferDynamicShape("InputMeta", batchSize);
-    gpuHandle->exec->setInputShape("InputMeta", metaInputDims);
-  }
-
-  gpuHandle->exec->enqueueV3(cudaStreamPerThread);
+  if(!gpuHandle->enqueueWithOptionalCudaGraph(batchSize))
+    throw StringError("TensorRT backend: enqueueV3 failed");
 
   CUDA_ERR(
     "getOutput",
