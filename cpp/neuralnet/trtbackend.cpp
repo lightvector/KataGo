@@ -1313,388 +1313,388 @@ struct ComputeHandle {
       TRTLogger& trtLogger = newSharedEngine->trtLogger;
       trtLogger.setLogger(logger);
 
-    const bool useOnnxEmit = ctx->useOnnx;
+      const bool useOnnxEmit = ctx->useOnnx;
 
-    auto builder = unique_ptr<IBuilder>(createInferBuilder(trtLogger));
-    if(!builder) {
-      throw StringError("TensorRT backend: failed to create builder");
-    }
-    auto config = unique_ptr<IBuilderConfig>(builder->createBuilderConfig());
-    if(!config) {
-      throw StringError("TensorRT backend: failed to create builder config");
-    }
-
-    if(builder->platformHasFastFp16()) {
-      if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
-        config->setFlag(BuilderFlag::kFP16);
-        usingFP16 = true;
+      auto builder = unique_ptr<IBuilder>(createInferBuilder(trtLogger));
+      if(!builder) {
+        throw StringError("TensorRT backend: failed to create builder");
       }
-    } else if(ctx->useFP16Mode == enabled_t::True) {
-      throw StringError("CUDA device does not support useFP16=true");
-    }
-    // The ONNX path may pin specific layers to FP32 below and needs the constraint to be hard
-    // (kOBEY) so TensorRT cannot silently fall back to an FP16 path. The ModelParser path uses the
-    // softer kPREFER. We set the flag after building the network, once forceObeyPrecision is known.
-    bool forceObeyPrecision = false;
-
-    // Debug plan/engine dump (trtDumpDebugPlanToDir). Build a base path inside that dir, disambiguated
-    // by board size + precision + exact/max so the multiple engines built in one process don't collide.
-    initializeDebugDumpPath();
-
-    auto network = unique_ptr<INetworkDefinition>(
-      builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
-    if(!network) {
-      throw StringError("TensorRT backend: failed to create network definition");
-    }
-    auto profile = builder->createOptimizationProfile();
-    if(!profile) {
-      throw StringError("TensorRT backend: failed to create optimization profile");
-    }
-    // Build the network by emitting ONNX from the ModelDesc and parsing it with nvonnxparser (the
-    // default; supports convnets and transformers), or via the hand-built ModelParser when
-    // trtDisableOnnx is set (convnets only). Both produce the same raw-head outputs, so downstream
-    // getOutput decoding is identical.
-    unique_ptr<TRTModel> model;
-    // These must outlive buildSerializedNetwork below: nvonnxparser::parse() does not necessarily
-    // deep-copy initializer weights, so the parsed INetworkDefinition may reference data inside
-    // onnxBytes (and the parser object) until the engine is actually built. Keeping them at this
-    // scope avoids a use-after-free that manifests as all-NaN engine outputs.
-    string onnxBytes;
-    unique_ptr<nvonnxparser::IParser> onnxParser;
-    if(useOnnxEmit) {
-      logger->write("TensorRT backend: building network via ONNX emitter");
-      const ModelDesc& desc = loadedModel->modelDesc;
-      OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
-      onnxBytes = std::move(onnxResult.serializedModel);
-
-      if(dumpDebugPlan) {
-        string onnxPath = dumpDebugBasePath + ".onnx";
-        ofstream dumpOut;
-        FileUtils::open(dumpOut, onnxPath, ios::binary);
-        dumpOut.write(onnxBytes.data(), (std::streamsize)onnxBytes.size());
-        dumpOut.close();
-        logger->write("TensorRT backend: dumped emitted ONNX to " + onnxPath);
+      auto config = unique_ptr<IBuilderConfig>(builder->createBuilderConfig());
+      if(!config) {
+        throw StringError("TensorRT backend: failed to create builder config");
       }
 
-      onnxParser.reset(nvonnxparser::createParser(*network, trtLogger));
-      if(!onnxParser)
-        throw StringError("TensorRT backend: failed to create ONNX parser");
-      if(!onnxParser->parse(onnxBytes.data(), onnxBytes.size())) {
-        string msg = "TensorRT backend: failed to parse emitted ONNX model:";
-        for(int i = 0; i < onnxParser->getNbErrors(); i++)
-          msg += "\n  " + string(onnxParser->getError(i)->desc());
-        throw StringError(msg);
-      }
-
-      // Constrain all graph outputs to linear FP32, matching what ModelParser sets on its outputs.
-      // getOutput does a flat cudaMemcpy of each output buffer assuming linear layout, so without
-      // this the parser may leave outputs in a reformatted layout and the copy reads garbage.
-      for(int i = 0; i < network->getNbOutputs(); i++) {
-        ITensor* out = network->getOutput(i);
-        out->setType(DataType::kFLOAT);
-        out->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
-      }
-
-      // Force the numerically-sensitive regions to FP32: every RMSNorm reduction (square->reduce->
-      // sqrt, which sums over many elements and loses too much precision in FP16) plus the trunk-tip
-      // norm and policy/value heads. The emitter records these layer names; we pin them via per-layer
-      // setPrecision + kOBEY_PRECISION_CONSTRAINTS (a hard constraint) so correctness does not depend
-      // on TensorRT declining to fuse a numerically-equivalent FP16 path back in. This matches the
-      // FP32-forcing the hand-built ModelParser path already does for its heads/gpool.
-      std::set<string> fp32Names;
-      fp32Names.insert(onnxResult.trunkTipAndHeadNodeNames.begin(), onnxResult.trunkTipAndHeadNodeNames.end());
-      fp32Names.insert(onnxResult.rmsNormNodeNames.begin(), onnxResult.rmsNormNodeNames.end());
-      int pinned = 0;
-      for(int i = 0; i < network->getNbLayers(); i++) {
-        ILayer* layer = network->getLayer(i);
-        const char* lname = layer->getName();
-        if(lname != nullptr && fp32Names.count(string(lname))) {
-          layer->setPrecision(DataType::kFLOAT);
-          for(int o = 0; o < layer->getNbOutputs(); o++)
-            layer->setOutputType(o, DataType::kFLOAT);
-          pinned++;
+      if(builder->platformHasFastFp16()) {
+        if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
+          config->setFlag(BuilderFlag::kFP16);
+          usingFP16 = true;
         }
+      } else if(ctx->useFP16Mode == enabled_t::True) {
+        throw StringError("CUDA device does not support useFP16=true");
       }
-      forceObeyPrecision = true;
-      logger->write(Global::strprintf("TensorRT backend: pinned %d layers to FP32 (rmsnorm + heads)", pinned));
+      // The ONNX path may pin specific layers to FP32 below and needs the constraint to be hard
+      // (kOBEY) so TensorRT cannot silently fall back to an FP16 path. The ModelParser path uses the
+      // softer kPREFER. We set the flag after building the network, once forceObeyPrecision is known.
+      bool forceObeyPrecision = false;
 
-      // Set optimization profile dims for each input the parser created.
-      auto setProfile = [&](const char* name, Dims4 minDims, Dims4 optMaxDims) {
-        profile->setDimensions(name, OptProfileSelector::kMIN, minDims);
-        profile->setDimensions(name, OptProfileSelector::kOPT, optMaxDims);
-        profile->setDimensions(name, OptProfileSelector::kMAX, optMaxDims);
-      };
-      setProfile("InputMask", Dims4(1, 1, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, 1, ctx->nnYLen, ctx->nnXLen));
-      setProfile("InputSpatial", Dims4(1, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen));
-      setProfile("InputGlobal", Dims4(1, desc.numInputGlobalChannels, 1, 1), Dims4(maxBatchSize, desc.numInputGlobalChannels, 1, 1));
+      // Debug plan/engine dump (trtDumpDebugPlanToDir). Build a base path inside that dir, disambiguated
+      // by board size + precision + exact/max so the multiple engines built in one process don't collide.
+      initializeDebugDumpPath();
 
-      model = make_unique<TRTModel>();
-      model->nnXLen = ctx->nnXLen;
-      model->nnYLen = ctx->nnYLen;
-      model->profile = profile;
-      model->network = move(network);
-      model->rawModel = loadedModel;
-      model->maxBatchSize = maxBatchSize;
-      model->requireExactNNLen = requireExactNNLen;
-      model->modelVersion = desc.modelVersion;
-      // tuneHash buckets the timing cache. This is the ONNX path's descriptor: the "onnxsalt" prefix
-      // already separates it from the ModelParser path (which builds its own "salt"-prefixed tuneDesc),
-      // and the "nhwc" field distinguishes the NHWC vs NCHW trunk layout (different layer signatures),
-      // so the two layouts don't share a timing-cache file full of mutual misses.
-      string tuneDesc = Global::strprintf(
-        "\"onnxsalt\"(%d)\"nhwc\"(%d)\"model\"(%d,%d,%d)",
-        ModelParser::tuneSalt, ctx->transformerNHWC ? 1 : 0,
-        desc.modelVersion, desc.numInputChannels, desc.numInputGlobalChannels);
-      SHA2::get256(tuneDesc.c_str(), model->tuneHash);
-    }
-    else {
-      auto modelParser = make_unique<ModelParser>();
-      model = modelParser->build(
-        move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
-    }
-    debugOutputs = model->debugOutputs;
-    config->addOptimizationProfile(profile);
-
-#if (NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR >= 6) || NV_TENSORRT_MAJOR == 9
-    // TensorRT 8.6 and 9 require this preview feature before multiple execution contexts may
-    // share optimization profile 0. Profile sharing became the default behavior in TensorRT 10.
-    if(cudaGraphsEnabled) {
-      config->setPreviewFeature(PreviewFeature::kPROFILE_SHARING_0806, true);
-      if(!config->getPreviewFeature(PreviewFeature::kPROFILE_SHARING_0806)) {
-        throw StringError("TensorRT backend: failed to enable optimization-profile sharing");
+      auto network = unique_ptr<INetworkDefinition>(
+        builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
+      if(!network) {
+        throw StringError("TensorRT backend: failed to create network definition");
       }
-    }
-#endif
-
-    // Honor per-layer precision constraints. The ONNX path pins some layers to FP32 and needs a hard
-    // constraint (kOBEY) so TensorRT cannot fall back to FP16; the ModelParser path uses kPREFER.
-    config->setFlag(forceObeyPrecision ? BuilderFlag::kOBEY_PRECISION_CONSTRAINTS : BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
-
-#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
-    // This is to avoid external tactic sources and tactics that have shape switching overhead
-    if(prop->major < 8) {
-      config->setTacticSources(
-        1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
-        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
-    } else {
-      config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
-    }
-#else
-    if(prop->major >= 8) {
-      // This is to avoid tactics that have shape switching overhead
-      config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
-      config->setBuilderOptimizationLevel(2);
-    }
-#endif
-
-    // For the debug plan dump, build with detailed profiling so the engine inspector can report
-    // per-layer precision/format/tactic (see the inspector dump after deserialize).
-    if(dumpDebugPlan)
-      config->setProfilingVerbosity(ProfilingVerbosity::kDETAILED);
-
-    // So that there are no concurrent kernel executions probably from other parts of code while profiling
-    // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
-    config->setProfileStream(cudaStreamLegacy);
-
-    // Typical runtime allocation is much less than the 1 GiB specified below
-    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
-
-    string plan;
-    {
-      static mutex tuneMutex;
-      tuneMutex.lock();
-
-      auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
-      cacheDir += "/trtcache";
-      MakeDir::make(cacheDir);
-
-      uint8_t deviceHash[32];
-      SHA2::get256(prop->name, deviceHash);
-
-      // Truncated to 4 bytes
-      char deviceIdent[4 * 2 + 1];
-      for(int i = 0; i < 4; i++) {
-        sprintf(deviceIdent + i * 2, "%02x", static_cast<unsigned char>(deviceHash[i]));
+      auto profile = builder->createOptimizationProfile();
+      if(!profile) {
+        throw StringError("TensorRT backend: failed to create optimization profile");
       }
-      deviceIdent[sizeof(deviceIdent) - 1] = 0;
+      // Build the network by emitting ONNX from the ModelDesc and parsing it with nvonnxparser (the
+      // default; supports convnets and transformers), or via the hand-built ModelParser when
+      // trtDisableOnnx is set (convnets only). Both produce the same raw-head outputs, so downstream
+      // getOutput decoding is identical.
+      unique_ptr<TRTModel> model;
+      // These must outlive buildSerializedNetwork below: nvonnxparser::parse() does not necessarily
+      // deep-copy initializer weights, so the parsed INetworkDefinition may reference data inside
+      // onnxBytes (and the parser object) until the engine is actually built. Keeping them at this
+      // scope avoids a use-after-free that manifests as all-NaN engine outputs.
+      string onnxBytes;
+      unique_ptr<nvonnxparser::IParser> onnxParser;
+      if(useOnnxEmit) {
+        logger->write("TensorRT backend: building network via ONNX emitter");
+        const ModelDesc& desc = loadedModel->modelDesc;
+        OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
+        onnxBytes = std::move(onnxResult.serializedModel);
 
-#ifdef CACHE_TENSORRT_PLAN
-      // The plan cache stores a fully serialized engine, reused only when the model SHA256 (appended
-      // to the blob and verified on read) AND paramStr both match. paramStr must therefore encode
-      // every knob that changes the built engine: lib/device/salt, board+batch+precision, and the
-      // backend build mode (ONNX vs ModelParser, and NHWC vs NCHW for the ONNX path). The
-      // build-mode tag is folded into both the filename (for human readability) and paramStr.
-      string cudaGraphBuildModeStr;
-#if (NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR >= 6) || NV_TENSORRT_MAJOR == 9
-      // Only TensorRT 8.6 and 9 change the serialized engine when CUDA Graphs are enabled:
-      // TensorRT 10+ shares profiles by default, while 8.5 cannot use this path.
-      if(cudaGraphsEnabled)
-        cudaGraphBuildModeStr = "cg";
-#endif
-      string buildModeStr = Global::strprintf(
-        "%s%s%s",
-        ctx->useOnnx ? "onnx" : "prsr",
-        (ctx->useOnnx && ctx->transformerNHWC) ? "nh" : "",
-        cudaGraphBuildModeStr.c_str());
-      const char* lenStr = requireExactNNLen ? "ex" : "mx";
-      auto planCacheFile = Global::strprintf(
-        "%s/trt-%d_gpu-%s_net-%s_s%d_%s_%s%dx%d_b%d_fp%d",
-        cacheDir.c_str(),
-        getInferLibVersion(),
-        deviceIdent,
-        loadedModel->modelDesc.name.c_str(),
-        ModelParser::tuneSalt,
-        buildModeStr.c_str(),
-        lenStr,
-        ctx->nnYLen,
-        ctx->nnXLen,
-        maxBatchSize,
-        usingFP16 ? 16 : 32);
-      string paramStr = Global::strprintf(
-        "_%d_%s_s%d_%s_%s_%d_%d_%d_%d",
-        getInferLibVersion(),
-        deviceIdent,
-        ModelParser::tuneSalt,
-        buildModeStr.c_str(),
-        lenStr,
-        ctx->nnYLen,
-        ctx->nnXLen,
-        maxBatchSize,
-        usingFP16 ? 16 : 32);
-      try {
-        plan = FileUtils::readFileBinary(planCacheFile);
-      } catch(const StringError& e) {
-        (void)e;
-      };
+        if(dumpDebugPlan) {
+          string onnxPath = dumpDebugBasePath + ".onnx";
+          ofstream dumpOut;
+          FileUtils::open(dumpOut, onnxPath, ios::binary);
+          dumpOut.write(onnxBytes.data(), (std::streamsize)onnxBytes.size());
+          dumpOut.close();
+          logger->write("TensorRT backend: dumped emitted ONNX to " + onnxPath);
+        }
 
-      if(plan.size() > 0) {
-        if(plan.size() < 64 + paramStr.size()) {
-          logger->write("Could not parse plan, unexpected size in " + planCacheFile);
-          plan.clear();
-        } else {
-          string cachedParamStr = plan.substr(plan.size() - paramStr.size());
-          string modelHash = plan.substr(plan.size() - 64 - paramStr.size(), 64);
-          if(modelHash != loadedModel->modelDesc.sha256) {
-            logger->write("Plan cache is corrupted or is for the wrong model in " + planCacheFile);
-            plan.clear();
-          } else if(cachedParamStr != paramStr) {
-            logger->write("Plan cache is corrupted or is for the wrong parameters in " + planCacheFile);
-            plan.clear();
-          } else {
-            plan.erase(plan.size() - 64 - paramStr.size());
+        onnxParser.reset(nvonnxparser::createParser(*network, trtLogger));
+        if(!onnxParser)
+          throw StringError("TensorRT backend: failed to create ONNX parser");
+        if(!onnxParser->parse(onnxBytes.data(), onnxBytes.size())) {
+          string msg = "TensorRT backend: failed to parse emitted ONNX model:";
+          for(int i = 0; i < onnxParser->getNbErrors(); i++)
+            msg += "\n  " + string(onnxParser->getError(i)->desc());
+          throw StringError(msg);
+        }
+
+        // Constrain all graph outputs to linear FP32, matching what ModelParser sets on its outputs.
+        // getOutput does a flat cudaMemcpy of each output buffer assuming linear layout, so without
+        // this the parser may leave outputs in a reformatted layout and the copy reads garbage.
+        for(int i = 0; i < network->getNbOutputs(); i++) {
+          ITensor* out = network->getOutput(i);
+          out->setType(DataType::kFLOAT);
+          out->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+        }
+
+        // Force the numerically-sensitive regions to FP32: every RMSNorm reduction (square->reduce->
+        // sqrt, which sums over many elements and loses too much precision in FP16) plus the trunk-tip
+        // norm and policy/value heads. The emitter records these layer names; we pin them via per-layer
+        // setPrecision + kOBEY_PRECISION_CONSTRAINTS (a hard constraint) so correctness does not depend
+        // on TensorRT declining to fuse a numerically-equivalent FP16 path back in. This matches the
+        // FP32-forcing the hand-built ModelParser path already does for its heads/gpool.
+        std::set<string> fp32Names;
+        fp32Names.insert(onnxResult.trunkTipAndHeadNodeNames.begin(), onnxResult.trunkTipAndHeadNodeNames.end());
+        fp32Names.insert(onnxResult.rmsNormNodeNames.begin(), onnxResult.rmsNormNodeNames.end());
+        int pinned = 0;
+        for(int i = 0; i < network->getNbLayers(); i++) {
+          ILayer* layer = network->getLayer(i);
+          const char* lname = layer->getName();
+          if(lname != nullptr && fp32Names.count(string(lname))) {
+            layer->setPrecision(DataType::kFLOAT);
+            for(int o = 0; o < layer->getNbOutputs(); o++)
+              layer->setOutputType(o, DataType::kFLOAT);
+            pinned++;
           }
         }
-      }
+        forceObeyPrecision = true;
+        logger->write(Global::strprintf("TensorRT backend: pinned %d layers to FP32 (rmsnorm + heads)", pinned));
 
-      if(plan.size() <= 0) {
-        logger->write("Creating new plan cache");
-        auto planBuffer = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
-        if(!planBuffer) {
-          throw StringError("TensorRT backend: failed to create plan");
+        // Set optimization profile dims for each input the parser created.
+        auto setProfile = [&](const char* name, Dims4 minDims, Dims4 optMaxDims) {
+          profile->setDimensions(name, OptProfileSelector::kMIN, minDims);
+          profile->setDimensions(name, OptProfileSelector::kOPT, optMaxDims);
+          profile->setDimensions(name, OptProfileSelector::kMAX, optMaxDims);
+        };
+        setProfile("InputMask", Dims4(1, 1, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, 1, ctx->nnYLen, ctx->nnXLen));
+        setProfile("InputSpatial", Dims4(1, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen));
+        setProfile("InputGlobal", Dims4(1, desc.numInputGlobalChannels, 1, 1), Dims4(maxBatchSize, desc.numInputGlobalChannels, 1, 1));
+
+        model = make_unique<TRTModel>();
+        model->nnXLen = ctx->nnXLen;
+        model->nnYLen = ctx->nnYLen;
+        model->profile = profile;
+        model->network = move(network);
+        model->rawModel = loadedModel;
+        model->maxBatchSize = maxBatchSize;
+        model->requireExactNNLen = requireExactNNLen;
+        model->modelVersion = desc.modelVersion;
+        // tuneHash buckets the timing cache. This is the ONNX path's descriptor: the "onnxsalt" prefix
+        // already separates it from the ModelParser path (which builds its own "salt"-prefixed tuneDesc),
+        // and the "nhwc" field distinguishes the NHWC vs NCHW trunk layout (different layer signatures),
+        // so the two layouts don't share a timing-cache file full of mutual misses.
+        string tuneDesc = Global::strprintf(
+          "\"onnxsalt\"(%d)\"nhwc\"(%d)\"model\"(%d,%d,%d)",
+          ModelParser::tuneSalt, ctx->transformerNHWC ? 1 : 0,
+          desc.modelVersion, desc.numInputChannels, desc.numInputGlobalChannels);
+        SHA2::get256(tuneDesc.c_str(), model->tuneHash);
+      }
+      else {
+        auto modelParser = make_unique<ModelParser>();
+        model = modelParser->build(
+          move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
+      }
+      debugOutputs = model->debugOutputs;
+      config->addOptimizationProfile(profile);
+
+#if (NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR >= 6) || NV_TENSORRT_MAJOR == 9
+      // TensorRT 8.6 and 9 require this preview feature before multiple execution contexts may
+      // share optimization profile 0. Profile sharing became the default behavior in TensorRT 10.
+      if(cudaGraphsEnabled) {
+        config->setPreviewFeature(PreviewFeature::kPROFILE_SHARING_0806, true);
+        if(!config->getPreviewFeature(PreviewFeature::kPROFILE_SHARING_0806)) {
+          throw StringError("TensorRT backend: failed to enable optimization-profile sharing");
+        }
+      }
+#endif
+
+      // Honor per-layer precision constraints. The ONNX path pins some layers to FP32 and needs a hard
+      // constraint (kOBEY) so TensorRT cannot fall back to FP16; the ModelParser path uses kPREFER.
+      config->setFlag(forceObeyPrecision ? BuilderFlag::kOBEY_PRECISION_CONSTRAINTS : BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
+
+#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
+      // This is to avoid external tactic sources and tactics that have shape switching overhead
+      if(prop->major < 8) {
+        config->setTacticSources(
+          1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
+          1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
+      } else {
+        config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
+      }
+#else
+      if(prop->major >= 8) {
+        // This is to avoid tactics that have shape switching overhead
+        config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
+        config->setBuilderOptimizationLevel(2);
+      }
+#endif
+
+      // For the debug plan dump, build with detailed profiling so the engine inspector can report
+      // per-layer precision/format/tactic (see the inspector dump after deserialize).
+      if(dumpDebugPlan)
+        config->setProfilingVerbosity(ProfilingVerbosity::kDETAILED);
+
+      // So that there are no concurrent kernel executions probably from other parts of code while profiling
+      // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
+      config->setProfileStream(cudaStreamLegacy);
+
+      // Typical runtime allocation is much less than the 1 GiB specified below
+      config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
+
+      string plan;
+      {
+        static mutex tuneMutex;
+        tuneMutex.lock();
+
+        auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
+        cacheDir += "/trtcache";
+        MakeDir::make(cacheDir);
+
+        uint8_t deviceHash[32];
+        SHA2::get256(prop->name, deviceHash);
+
+        // Truncated to 4 bytes
+        char deviceIdent[4 * 2 + 1];
+        for(int i = 0; i < 4; i++) {
+          sprintf(deviceIdent + i * 2, "%02x", static_cast<unsigned char>(deviceHash[i]));
+        }
+        deviceIdent[sizeof(deviceIdent) - 1] = 0;
+
+#ifdef CACHE_TENSORRT_PLAN
+        // The plan cache stores a fully serialized engine, reused only when the model SHA256 (appended
+        // to the blob and verified on read) AND paramStr both match. paramStr must therefore encode
+        // every knob that changes the built engine: lib/device/salt, board+batch+precision, and the
+        // backend build mode (ONNX vs ModelParser, and NHWC vs NCHW for the ONNX path). The
+        // build-mode tag is folded into both the filename (for human readability) and paramStr.
+        string cudaGraphBuildModeStr;
+#if (NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR >= 6) || NV_TENSORRT_MAJOR == 9
+        // Only TensorRT 8.6 and 9 change the serialized engine when CUDA Graphs are enabled:
+        // TensorRT 10+ shares profiles by default, while 8.5 cannot use this path.
+        if(cudaGraphsEnabled)
+          cudaGraphBuildModeStr = "cg";
+#endif
+        string buildModeStr = Global::strprintf(
+          "%s%s%s",
+          ctx->useOnnx ? "onnx" : "prsr",
+          (ctx->useOnnx && ctx->transformerNHWC) ? "nh" : "",
+          cudaGraphBuildModeStr.c_str());
+        const char* lenStr = requireExactNNLen ? "ex" : "mx";
+        auto planCacheFile = Global::strprintf(
+          "%s/trt-%d_gpu-%s_net-%s_s%d_%s_%s%dx%d_b%d_fp%d",
+          cacheDir.c_str(),
+          getInferLibVersion(),
+          deviceIdent,
+          loadedModel->modelDesc.name.c_str(),
+          ModelParser::tuneSalt,
+          buildModeStr.c_str(),
+          lenStr,
+          ctx->nnYLen,
+          ctx->nnXLen,
+          maxBatchSize,
+          usingFP16 ? 16 : 32);
+        string paramStr = Global::strprintf(
+          "_%d_%s_s%d_%s_%s_%d_%d_%d_%d",
+          getInferLibVersion(),
+          deviceIdent,
+          ModelParser::tuneSalt,
+          buildModeStr.c_str(),
+          lenStr,
+          ctx->nnYLen,
+          ctx->nnXLen,
+          maxBatchSize,
+          usingFP16 ? 16 : 32);
+        try {
+          plan = FileUtils::readFileBinary(planCacheFile);
+        } catch(const StringError& e) {
+          (void)e;
+        };
+
+        if(plan.size() > 0) {
+          if(plan.size() < 64 + paramStr.size()) {
+            logger->write("Could not parse plan, unexpected size in " + planCacheFile);
+            plan.clear();
+          } else {
+            string cachedParamStr = plan.substr(plan.size() - paramStr.size());
+            string modelHash = plan.substr(plan.size() - 64 - paramStr.size(), 64);
+            if(modelHash != loadedModel->modelDesc.sha256) {
+              logger->write("Plan cache is corrupted or is for the wrong model in " + planCacheFile);
+              plan.clear();
+            } else if(cachedParamStr != paramStr) {
+              logger->write("Plan cache is corrupted or is for the wrong parameters in " + planCacheFile);
+              plan.clear();
+            } else {
+              plan.erase(plan.size() - 64 - paramStr.size());
+            }
+          }
+        }
+
+        if(plan.size() <= 0) {
+          logger->write("Creating new plan cache");
+          auto planBuffer = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
+          if(!planBuffer) {
+            throw StringError("TensorRT backend: failed to create plan");
+          }
+          plan.insert(
+            plan.end(),
+            static_cast<char*>(planBuffer->data()),
+            static_cast<char*>(planBuffer->data()) + planBuffer->size());
+          if(loadedModel->modelDesc.sha256.size() != 64) {
+            throw StringError("Unexpected model hash size");
+          }
+          plan.insert(plan.end(), loadedModel->modelDesc.sha256.begin(), loadedModel->modelDesc.sha256.end());
+          plan.insert(plan.end(), paramStr.begin(), paramStr.end());
+          writeFileAtomically(planCacheFile, plan.data(), plan.size());
+          logger->write("Saved new plan cache to " + planCacheFile);
+          plan.erase(plan.size() - 64 - paramStr.size());
+          tuneMutex.unlock();
+        } else {
+          tuneMutex.unlock();
+          logger->write("Using existing plan cache at " + planCacheFile);
+        }
+#else
+        // Truncated to 6 bytes
+        char tuneIdent[6 * 2 + 1];
+        for(int i = 0; i < 6; i++) {
+          sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
+        }
+        tuneIdent[sizeof(tuneIdent) - 1] = 0;
+
+        auto timingCacheFile = Global::strprintf(
+          "%s/trt-%d_gpu-%s_tune-%s_%s%dx%d_b%d_fp%d",
+          cacheDir.c_str(),
+          getInferLibVersion(),
+          deviceIdent,
+          tuneIdent,
+          requireExactNNLen ? "ex" : "mx",
+          ctx->nnYLen,
+          ctx->nnXLen,
+          maxBatchSize,
+          usingFP16 ? 16 : 32);
+
+        string timingCacheBlob;
+        try {
+          timingCacheBlob = FileUtils::readFileBinary(timingCacheFile);
+        } catch(const StringError& e) {
+          (void)e;
+        };
+        if(timingCacheBlob.size() > 0)
+          logger->write("Using existing timing cache at " + timingCacheFile);
+        else
+          logger->write("Creating new timing cache (usingFP16=" + Global::boolToString(usingFP16) + " " + Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) + " maxBatchSizeLimit=" + Global::intToString(maxBatchSize) + ")");
+
+        auto timingCache =
+          unique_ptr<ITimingCache>(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
+        auto invalidTimingCache = !config->setTimingCache(*timingCache, false);
+        if(invalidTimingCache) {
+          logger->write("Invalid timing cache, using new one instead");
+          timingCache.reset(config->createTimingCache(nullptr, 0));
+          config->setTimingCache(*timingCache, false);
+        }
+
+        unique_ptr<IHostMemory> planBuffer;
+        if(invalidTimingCache || !timingCacheBlob.size()) {
+          planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+          if(!planBuffer) {
+            throw StringError("TensorRT backend: failed to create plan");
+          }
+          auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
+          writeFileAtomically(
+            timingCacheFile, static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
+          logger->write("Saved new timing cache to " + timingCacheFile);
+          tuneMutex.unlock();
+        } else {
+          tuneMutex.unlock();
+          planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+          if(!planBuffer) {
+            throw StringError("TensorRT backend: failed to create plan");
+          }
         }
         plan.insert(
           plan.end(),
           static_cast<char*>(planBuffer->data()),
           static_cast<char*>(planBuffer->data()) + planBuffer->size());
-        if(loadedModel->modelDesc.sha256.size() != 64) {
-          throw StringError("Unexpected model hash size");
-        }
-        plan.insert(plan.end(), loadedModel->modelDesc.sha256.begin(), loadedModel->modelDesc.sha256.end());
-        plan.insert(plan.end(), paramStr.begin(), paramStr.end());
-        writeFileAtomically(planCacheFile, plan.data(), plan.size());
-        logger->write("Saved new plan cache to " + planCacheFile);
-        plan.erase(plan.size() - 64 - paramStr.size());
-        tuneMutex.unlock();
-      } else {
-        tuneMutex.unlock();
-        logger->write("Using existing plan cache at " + planCacheFile);
-      }
-#else
-      // Truncated to 6 bytes
-      char tuneIdent[6 * 2 + 1];
-      for(int i = 0; i < 6; i++) {
-        sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
-      }
-      tuneIdent[sizeof(tuneIdent) - 1] = 0;
-
-      auto timingCacheFile = Global::strprintf(
-        "%s/trt-%d_gpu-%s_tune-%s_%s%dx%d_b%d_fp%d",
-        cacheDir.c_str(),
-        getInferLibVersion(),
-        deviceIdent,
-        tuneIdent,
-        requireExactNNLen ? "ex" : "mx",
-        ctx->nnYLen,
-        ctx->nnXLen,
-        maxBatchSize,
-        usingFP16 ? 16 : 32);
-
-      string timingCacheBlob;
-      try {
-        timingCacheBlob = FileUtils::readFileBinary(timingCacheFile);
-      } catch(const StringError& e) {
-        (void)e;
-      };
-      if(timingCacheBlob.size() > 0)
-        logger->write("Using existing timing cache at " + timingCacheFile);
-      else
-        logger->write("Creating new timing cache (usingFP16=" + Global::boolToString(usingFP16) + " " + Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) + " maxBatchSizeLimit=" + Global::intToString(maxBatchSize) + ")");
-
-      auto timingCache =
-        unique_ptr<ITimingCache>(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
-      auto invalidTimingCache = !config->setTimingCache(*timingCache, false);
-      if(invalidTimingCache) {
-        logger->write("Invalid timing cache, using new one instead");
-        timingCache.reset(config->createTimingCache(nullptr, 0));
-        config->setTimingCache(*timingCache, false);
-      }
-
-      unique_ptr<IHostMemory> planBuffer;
-      if(invalidTimingCache || !timingCacheBlob.size()) {
-        planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
-        if(!planBuffer) {
-          throw StringError("TensorRT backend: failed to create plan");
-        }
-        auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
-        writeFileAtomically(
-          timingCacheFile, static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
-        logger->write("Saved new timing cache to " + timingCacheFile);
-        tuneMutex.unlock();
-      } else {
-        tuneMutex.unlock();
-        planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
-        if(!planBuffer) {
-          throw StringError("TensorRT backend: failed to create plan");
-        }
-      }
-      plan.insert(
-        plan.end(),
-        static_cast<char*>(planBuffer->data()),
-        static_cast<char*>(planBuffer->data()) + planBuffer->size());
 #endif
-    }
+      }
 
-    if(dumpDebugPlan) {
-      string planPath = dumpDebugBasePath + ".plan";
-      ofstream pofs;
-      FileUtils::open(pofs, planPath, ios::out | ios::binary);
-      pofs.write(plan.data(), (std::streamsize)plan.size());
-      pofs.close();
-      logger->write("TensorRT backend: dumped serialized plan to " + planPath);
-    }
+      if(dumpDebugPlan) {
+        string planPath = dumpDebugBasePath + ".plan";
+        ofstream pofs;
+        FileUtils::open(pofs, planPath, ios::out | ios::binary);
+        pofs.write(plan.data(), (std::streamsize)plan.size());
+        pofs.close();
+        logger->write("TensorRT backend: dumped serialized plan to " + planPath);
+      }
 
-    newSharedEngine->runtime.reset(createInferRuntime(trtLogger));
-    if(!newSharedEngine->runtime) {
-      throw StringError("TensorRT backend: failed to create runtime");
-    }
-    newSharedEngine->trtErrorRecorder.setLogger(logger);
-    newSharedEngine->runtime->setErrorRecorder(&newSharedEngine->trtErrorRecorder);
+      newSharedEngine->runtime.reset(createInferRuntime(trtLogger));
+      if(!newSharedEngine->runtime) {
+        throw StringError("TensorRT backend: failed to create runtime");
+      }
+      newSharedEngine->trtErrorRecorder.setLogger(logger);
+      newSharedEngine->runtime->setErrorRecorder(&newSharedEngine->trtErrorRecorder);
 
-    newSharedEngine->engine.reset(newSharedEngine->runtime->deserializeCudaEngine(plan.data(), plan.size()));
-    if(!newSharedEngine->engine) {
-      throw StringError("TensorRT backend: failed to create cuda engine");
-    }
-    newSharedEngine->trtErrorRecorder.clear();
+      newSharedEngine->engine.reset(newSharedEngine->runtime->deserializeCudaEngine(plan.data(), plan.size()));
+      if(!newSharedEngine->engine) {
+        throw StringError("TensorRT backend: failed to create cuda engine");
+      }
+      newSharedEngine->trtErrorRecorder.clear();
 
       newSharedEngine->usingFP16 = usingFP16;
       newSharedEngine->debugOutputs = debugOutputs;
