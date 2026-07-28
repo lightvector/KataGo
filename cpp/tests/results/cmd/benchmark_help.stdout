@@ -47,6 +47,10 @@ Where:
    -fixed-batch-size <NUM>
      Set max batch size to this fixed value
 
+   -max-batch-sizes <BATCHES>
+     Test the Cartesian product of these exact max batch sizes and
+     explicitly specified -threads, comma-separated (cannot use -tune)
+
    -half-batch-size
      Set max batch size to half of the number of threads
 

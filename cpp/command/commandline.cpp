@@ -185,6 +185,29 @@ KataGoCommandLine::~KataGoCommandLine() {
   delete helpOutput;
 }
 
+vector<int> KataGoCommandLine::parseCommaSeparatedUniqueInts(
+  const string& values,
+  int minValue,
+  int maxValue,
+  const string& valueDescription
+) {
+  testAssert(minValue <= maxValue);
+  vector<string> pieces = Global::split(values,',');
+  vector<int> parsedValues;
+  for(const string& piece: pieces) {
+    const string s = Global::trim(piece);
+    int parsed;
+    if(s == "" || !Global::tryStringToInt(s,parsed) || parsed < minValue || parsed > maxValue)
+      throw StringError(valueDescription + ": invalid value: " + s);
+    if(std::find(parsedValues.begin(),parsedValues.end(),parsed) != parsedValues.end())
+      throw StringError(valueDescription + ": duplicate value: " + s);
+    parsedValues.push_back(parsed);
+  }
+  if(parsedValues.size() <= 0)
+    throw StringError("Must specify at least one " + valueDescription);
+  return parsedValues;
+}
+
 
 string KataGoCommandLine::defaultGtpConfigFileName() {
   return "default_gtp.cfg";

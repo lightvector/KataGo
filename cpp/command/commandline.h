@@ -24,6 +24,12 @@ class KataGoCommandLine : public TCLAP::CmdLine
   ~KataGoCommandLine();
 
   static std::string defaultGtpConfigFileName();
+  static std::vector<int> parseCommaSeparatedUniqueInts(
+    const std::string& values,
+    int minValue,
+    int maxValue,
+    const std::string& valueDescription
+  );
 
   void parseArgs(const std::vector<std::string>& args);
 

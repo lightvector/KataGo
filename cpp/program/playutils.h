@@ -142,8 +142,16 @@ namespace PlayUtils {
     std::string toString() const;
     std::string toStringWithElo(const BenchmarkResults* baseline, double secondsPerGameMove) const;
 
+    double getNNEvalsPerSecond() const;
     double computeEloEffect(double secondsPerGameMove) const;
 
+    //Break equal-throughput ties by smaller max batch size, then fewer search threads.
+    static bool isBetterNNEvalsPerSecond(
+      const BenchmarkResults& candidate,
+      int candidateMaxBatchSize,
+      const BenchmarkResults& incumbent,
+      int incumbentMaxBatchSize
+    );
     static void printEloComparison(const std::vector<BenchmarkResults>& results, double secondsPerGameMove);
   };
 

@@ -832,7 +832,7 @@ string PlayUtils::BenchmarkResults::toString() const {
   out << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
       << " " << totalPositionsSearched << " / " << totalPositions << " positions,"
       << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
-      << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
+      << " nnEvals/s = " << Global::strprintf("%.2f",getNNEvalsPerSecond())
       << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
       << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
       << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
@@ -843,7 +843,7 @@ string PlayUtils::BenchmarkResults::toStringWithElo(const BenchmarkResults* base
   out << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
       << " " << totalPositionsSearched << " / " << totalPositions << " positions,"
       << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
-      << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
+      << " nnEvals/s = " << Global::strprintf("%.2f",getNNEvalsPerSecond())
       << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
       << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
       << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
@@ -855,6 +855,25 @@ string PlayUtils::BenchmarkResults::toStringWithElo(const BenchmarkResults* base
     out << " (EloDiff " << Global::strprintf("%+.0f",diff) << ")";
   }
   return out.str();
+}
+
+double PlayUtils::BenchmarkResults::getNNEvalsPerSecond() const {
+  return totalSeconds > 0.0 ? numNNEvals / totalSeconds : 0.0;
+}
+
+bool PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+  const BenchmarkResults& candidate,
+  int candidateMaxBatchSize,
+  const BenchmarkResults& incumbent,
+  int incumbentMaxBatchSize
+) {
+  const double candidateNNEvalsPerSecond = candidate.getNNEvalsPerSecond();
+  const double incumbentNNEvalsPerSecond = incumbent.getNNEvalsPerSecond();
+  if(candidateNNEvalsPerSecond != incumbentNNEvalsPerSecond)
+    return candidateNNEvalsPerSecond > incumbentNNEvalsPerSecond;
+  if(candidateMaxBatchSize != incumbentMaxBatchSize)
+    return candidateMaxBatchSize < incumbentMaxBatchSize;
+  return candidate.numThreads < incumbent.numThreads;
 }
 
 //From some test matches by lightvector using g170

@@ -37,6 +37,7 @@ int MainCmds::runtests(const vector<string>& args) {
   ComputeElos::runTests();
   Base64::runTests();
   ThreadTest::runTests();
+  Tests::runBenchmarkResultsTests();
 
   Tests::runBoardIOTests();
   Tests::runBoardBasicTests();

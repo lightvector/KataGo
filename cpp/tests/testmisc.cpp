@@ -1,8 +1,10 @@
 #include "../tests/tests.h"
 
 #include "../core/fileutils.h"
+#include "../command/commandline.h"
 #include "../dataio/files.h"
 #include "../dataio/loadmodel.h"
+#include "../program/playutils.h"
 
 #include <chrono>
 #include <thread>
@@ -11,6 +13,64 @@
 #include "../core/using.h"
 //------------------------
 using namespace TestCommon;
+
+void Tests::runBenchmarkResultsTests() {
+  PlayUtils::BenchmarkResults result;
+  testAssert(result.getNNEvalsPerSecond() == 0.0);
+
+  result.numNNEvals = 4321;
+  result.totalSeconds = 2.0;
+  testAssert(result.getNNEvalsPerSecond() == 2160.5);
+
+  PlayUtils::BenchmarkResults moreEvalsButSlower;
+  moreEvalsButSlower.numNNEvals = 5000;
+  moreEvalsButSlower.totalSeconds = 4.0;
+  PlayUtils::BenchmarkResults fewerEvalsButFaster;
+  fewerEvalsButFaster.numNNEvals = 3000;
+  fewerEvalsButFaster.totalSeconds = 2.0;
+  testAssert(PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+    fewerEvalsButFaster,20,moreEvalsButSlower,18
+  ));
+  testAssert(!PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+    moreEvalsButSlower,18,fewerEvalsButFaster,20
+  ));
+
+  PlayUtils::BenchmarkResults equalRateMoreThreads;
+  equalRateMoreThreads.numNNEvals = 3000;
+  equalRateMoreThreads.totalSeconds = 2.0;
+  equalRateMoreThreads.numThreads = 64;
+  PlayUtils::BenchmarkResults equalRateFewerThreads = equalRateMoreThreads;
+  equalRateFewerThreads.numThreads = 60;
+  testAssert(PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+    equalRateMoreThreads,18,equalRateFewerThreads,20
+  ));
+  testAssert(PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+    equalRateFewerThreads,18,equalRateMoreThreads,18
+  ));
+  testAssert(!PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+    equalRateMoreThreads,18,equalRateFewerThreads,18
+  ));
+
+  const vector<int> parsed = KataGoCommandLine::parseCommaSeparatedUniqueInts(
+    "18, 20,22",1,65536,"Test value"
+  );
+  testAssert(parsed == vector<int>({18,20,22}));
+  const vector<string> invalidLists = {"", "18,,20", "0", "65537", "abc", "18,18"};
+  for(const string& invalidList: invalidLists) {
+    bool threw = false;
+    try {
+      (void)KataGoCommandLine::parseCommaSeparatedUniqueInts(
+        invalidList,1,65536,"Test value"
+      );
+    }
+    catch(const StringError&) {
+      threw = true;
+    }
+    testAssert(threw);
+  }
+
+  cout << "testbenchmarkresults okay" << endl;
+}
 
 void Tests::runCollectFilesTests() {
   {
