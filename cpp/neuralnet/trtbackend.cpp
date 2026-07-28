@@ -47,6 +47,26 @@ struct CudaMemoryDeleter {
 };
 using CudaMemory = unique_ptr<void, CudaMemoryDeleter>;
 
+struct CudaHostMemoryDeleter {
+  void operator()(float* ptr) const noexcept {
+    if(ptr != nullptr)
+      cudaFreeHost(ptr);
+  }
+};
+using CudaHostFloatArray = unique_ptr<float[], CudaHostMemoryDeleter>;
+
+static CudaHostFloatArray allocateCudaHostFloats(size_t numFloats) {
+  if(numFloats == 0)
+    return CudaHostFloatArray(nullptr);
+  void* rawPtr = nullptr;
+  // InputBuffers is allocated before its NN server thread selects a GPU. Portable registration
+  // keeps the allocation pinned when different server threads target different CUDA contexts.
+  CUDA_ERR(
+    "allocateCudaHostFloats",
+    cudaHostAlloc(&rawPtr, numFloats * sizeof(float), cudaHostAllocPortable));
+  return CudaHostFloatArray(static_cast<float*>(rawPtr));
+}
+
 // Write `data` to `path` atomically, so a reader either sees the complete
 // old file or the complete new one, never a torn/truncated write from a crash or a racing process.
 static void writeFileAtomically(const string& path, const char* data, size_t size) {
@@ -82,6 +102,8 @@ void NeuralNet::globalCleanup() {
   // Empty for TensorRT backend
 }
 
+struct SharedTRTEngine;
+
 struct ComputeContext {
   int nnXLen;
   int nnYLen;
@@ -92,6 +114,8 @@ struct ComputeContext {
   bool useCudaGraph;
   int cudaGraphMaxBatchSize;
   string dumpDebugPlanToDir;  // if non-empty, dump emitted ONNX + built-engine layer info here (debug)
+  mutex sharedEnginesMutex;
+  map<string, weak_ptr<SharedTRTEngine>> sharedEngines;
 };
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -1151,6 +1175,27 @@ struct TRTErrorRecorder : IErrorRecorder {
   }
 };
 
+struct SharedTRTEngine {
+  TRTLogger trtLogger;
+  TRTErrorRecorder trtErrorRecorder;
+  unique_ptr<IRuntime> runtime;
+  unique_ptr<ICudaEngine> engine;
+  bool usingFP16;
+  vector<pair<string, string>> debugOutputs;
+
+  SharedTRTEngine()
+    :trtLogger(),
+     trtErrorRecorder(),
+     runtime(),
+     engine(),
+     usingFP16(false),
+     debugOutputs()
+  {}
+
+  SharedTRTEngine(const SharedTRTEngine&) = delete;
+  SharedTRTEngine& operator=(const SharedTRTEngine&) = delete;
+};
+
 
 struct ComputeHandle {
   struct CudaGraphEntry {
@@ -1179,10 +1224,9 @@ struct ComputeHandle {
   int modelVersion;
   vector<pair<string, string>> debugOutputs;
 
-  TRTLogger trtLogger;
   TRTErrorRecorder trtErrorRecorder;
-  unique_ptr<IRuntime> runtime;
-  unique_ptr<ICudaEngine> engine;
+  shared_ptr<SharedTRTEngine> sharedEngine;
+  ICudaEngine* engine;
   CudaMemory executionDeviceMemory;
   size_t executionDeviceMemoryBytes;
   map<string, CudaMemory> buffers;
@@ -1200,6 +1244,8 @@ struct ComputeHandle {
     bool requireExactNNLen) {
     ctx = context;
     externalLogger = logger;
+    usingFP16 = false;
+    engine = nullptr;
     executionDeviceMemoryBytes = 0;
     cudaGraphsEnabled = ctx->useCudaGraph;
 
@@ -1224,7 +1270,48 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: detected incompatible version of TensorRT library");
     }
 
-    trtLogger.setLogger(logger);
+    trtErrorRecorder.setLogger(logger);
+
+    const bool dumpDebugPlan = !ctx->dumpDebugPlanToDir.empty();
+    string dumpDebugBasePath;
+    auto initializeDebugDumpPath = [&]() {
+      if(!dumpDebugPlan || !dumpDebugBasePath.empty())
+        return;
+      MakeDir::make(ctx->dumpDebugPlanToDir);
+      dumpDebugBasePath = ctx->dumpDebugPlanToDir + "/plan_" +
+        Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) +
+        (usingFP16 ? "_fp16" : "_fp32") + (requireExactNNLen ? "_exact" : "_max");
+    };
+
+    // TensorRT 10 supports the standard concurrency model of one shared, immutable engine with a
+    // separate execution context per host thread. Reuse the engine for handles targeting the same
+    // GPU, while retaining private contexts, activation memory, I/O buffers, and CUDA Graphs.
+#if NV_TENSORRT_MAJOR >= 10
+    unique_lock<mutex> sharedEngineLock;
+    string sharedEngineKey;
+    int currentDevice = -1;
+    CUDA_ERR("ComputeHandle", cudaGetDevice(&currentDevice));
+    sharedEngineKey = Global::strprintf(
+      "%d:%d:%d:%s",
+      currentDevice,
+      maxBatchSize,
+      requireExactNNLen ? 1 : 0,
+      loadedModel->modelDesc.sha256.c_str());
+    sharedEngineLock = unique_lock<mutex>(ctx->sharedEnginesMutex);
+    auto cachedEngine = ctx->sharedEngines.find(sharedEngineKey);
+    if(cachedEngine != ctx->sharedEngines.end())
+      sharedEngine = cachedEngine->second.lock();
+    if(sharedEngine != nullptr && logger != nullptr) {
+      logger->write(
+        "TensorRT backend: reusing shared engine for concurrent execution contexts on GPU " +
+        Global::intToString(currentDevice));
+    }
+#endif
+
+    if(sharedEngine == nullptr) {
+      auto newSharedEngine = make_shared<SharedTRTEngine>();
+      TRTLogger& trtLogger = newSharedEngine->trtLogger;
+      trtLogger.setLogger(logger);
 
     const bool useOnnxEmit = ctx->useOnnx;
 
@@ -1237,7 +1324,6 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: failed to create builder config");
     }
 
-    usingFP16 = false;
     if(builder->platformHasFastFp16()) {
       if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
         config->setFlag(BuilderFlag::kFP16);
@@ -1253,14 +1339,7 @@ struct ComputeHandle {
 
     // Debug plan/engine dump (trtDumpDebugPlanToDir). Build a base path inside that dir, disambiguated
     // by board size + precision + exact/max so the multiple engines built in one process don't collide.
-    const bool dumpDebugPlan = !ctx->dumpDebugPlanToDir.empty();
-    string dumpDebugBasePath;
-    if(dumpDebugPlan) {
-      MakeDir::make(ctx->dumpDebugPlanToDir);
-      dumpDebugBasePath = ctx->dumpDebugPlanToDir + "/plan_" +
-        Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) +
-        (usingFP16 ? "_fp16" : "_fp32") + (requireExactNNLen ? "_exact" : "_max");
-    }
+    initializeDebugDumpPath();
 
     auto network = unique_ptr<INetworkDefinition>(
       builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
@@ -1604,17 +1683,34 @@ struct ComputeHandle {
       logger->write("TensorRT backend: dumped serialized plan to " + planPath);
     }
 
-    runtime.reset(createInferRuntime(trtLogger));
-    if(!runtime) {
+    newSharedEngine->runtime.reset(createInferRuntime(trtLogger));
+    if(!newSharedEngine->runtime) {
       throw StringError("TensorRT backend: failed to create runtime");
     }
-    trtErrorRecorder.setLogger(logger);
-    runtime->setErrorRecorder(&trtErrorRecorder);
+    newSharedEngine->trtErrorRecorder.setLogger(logger);
+    newSharedEngine->runtime->setErrorRecorder(&newSharedEngine->trtErrorRecorder);
 
-    engine.reset(runtime->deserializeCudaEngine(plan.data(), plan.size()));
-    if(!engine) {
+    newSharedEngine->engine.reset(newSharedEngine->runtime->deserializeCudaEngine(plan.data(), plan.size()));
+    if(!newSharedEngine->engine) {
       throw StringError("TensorRT backend: failed to create cuda engine");
     }
+    newSharedEngine->trtErrorRecorder.clear();
+
+      newSharedEngine->usingFP16 = usingFP16;
+      newSharedEngine->debugOutputs = debugOutputs;
+      sharedEngine = std::move(newSharedEngine);
+#if NV_TENSORRT_MAJOR >= 10
+      ctx->sharedEngines[sharedEngineKey] = sharedEngine;
+#endif
+    }
+#if NV_TENSORRT_MAJOR >= 10
+    sharedEngineLock.unlock();
+#endif
+
+    usingFP16 = sharedEngine->usingFP16;
+    debugOutputs = sharedEngine->debugOutputs;
+    engine = sharedEngine->engine.get();
+    initializeDebugDumpPath();
 
     if(cudaGraphsEnabled) {
 #if NV_TENSORRT_MAJOR > 10 || (NV_TENSORRT_MAJOR == 10 && NV_TENSORRT_MINOR >= 1)
@@ -1647,6 +1743,7 @@ struct ComputeHandle {
     if(!exec) {
       throw StringError("TensorRT backend: failed to create execution context");
     }
+    exec->setErrorRecorder(&trtErrorRecorder);
 
     // For the debug plan dump, write the built engine's per-layer info (precision, format, tactic) as
     // JSON. This shows the realized graph: which ops fused (Myelin kgen/gemm kernels), the per-tensor
@@ -1778,6 +1875,7 @@ struct ComputeHandle {
       return nullptr;
     }
 
+    graphContext->setErrorRecorder(&trtErrorRecorder);
     setExecutionDeviceMemory(graphContext.get());
     for(int i = 0; i < engine->getNbIOTensors(); i++) {
       const char* name = engine->getIOTensorName(i);
@@ -2079,15 +2177,15 @@ struct InputBuffers {
   size_t scoreValueResultBufferBytes;
   size_t ownershipResultBufferBytes;
 
-  unique_ptr<float[]> maskInputs;           // Host pointer
-  unique_ptr<float[]> spatialInputs;        // Host pointer
-  unique_ptr<float[]> globalInputs;  // Host pointer
-  unique_ptr<float[]> metaInputs;  // Host pointer
-  unique_ptr<float[]> policyPassResults;    // Host pointer
-  unique_ptr<float[]> policyResults;        // Host pointer
-  unique_ptr<float[]> valueResults;         // Host pointer
-  unique_ptr<float[]> scoreValueResults;    // Host pointer
-  unique_ptr<float[]> ownershipResults;     // Host pointer
+  CudaHostFloatArray maskInputs;
+  CudaHostFloatArray spatialInputs;
+  CudaHostFloatArray globalInputs;
+  CudaHostFloatArray metaInputs;
+  CudaHostFloatArray policyPassResults;
+  CudaHostFloatArray policyResults;
+  CudaHostFloatArray valueResults;
+  CudaHostFloatArray scoreValueResults;
+  CudaHostFloatArray ownershipResults;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
@@ -2135,15 +2233,15 @@ struct InputBuffers {
     scoreValueResultBufferBytes = maxBatchSize * singleScoreValueResultBytes;
     ownershipResultBufferBytes = maxBatchSize * singleOwnershipResultBytes;
 
-    maskInputs = make_unique<float[]>(maxBatchSize * singleMaskElts);
-    spatialInputs = make_unique<float[]>(maxBatchSize * singleInputElts);
-    globalInputs = make_unique<float[]>(maxBatchSize * singleInputGlobalElts);
-    metaInputs = make_unique<float[]>(maxBatchSize * singleInputMetaElts);
-    policyPassResults = make_unique<float[]>(maxBatchSize * singlePolicyPassResultElts);
-    policyResults = make_unique<float[]>(maxBatchSize * singlePolicyResultElts);
-    valueResults = make_unique<float[]>(maxBatchSize * singleValueResultElts);
-    scoreValueResults = make_unique<float[]>(maxBatchSize * singleScoreValueResultElts);
-    ownershipResults = make_unique<float[]>(maxBatchSize * singleOwnershipResultElts);
+    maskInputs = allocateCudaHostFloats(maxBatchSize * singleMaskElts);
+    spatialInputs = allocateCudaHostFloats(maxBatchSize * singleInputElts);
+    globalInputs = allocateCudaHostFloats(maxBatchSize * singleInputGlobalElts);
+    metaInputs = allocateCudaHostFloats(maxBatchSize * singleInputMetaElts);
+    policyPassResults = allocateCudaHostFloats(maxBatchSize * singlePolicyPassResultElts);
+    policyResults = allocateCudaHostFloats(maxBatchSize * singlePolicyResultElts);
+    valueResults = allocateCudaHostFloats(maxBatchSize * singleValueResultElts);
+    scoreValueResults = allocateCudaHostFloats(maxBatchSize * singleScoreValueResultElts);
+    ownershipResults = allocateCudaHostFloats(maxBatchSize * singleOwnershipResultElts);
   }
 
   InputBuffers() = delete;
@@ -2183,17 +2281,16 @@ void NeuralNet::getOutput(
     float* rowMaskInput = &inputBuffers->maskInputs[inputBuffers->singleMaskElts * nIdx];
     float* rowSpatialInput = &inputBuffers->spatialInputs[inputBuffers->singleInputElts * nIdx];
     float* rowGlobalInput = &inputBuffers->globalInputs[inputBuffers->singleInputGlobalElts * nIdx];
-    float* rowMetaInput = &inputBuffers->metaInputs[inputBuffers->singleInputMetaElts * nIdx];
 
     const float* rowGlobal = inputBufs[nIdx]->rowGlobalBuf.data();
     const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();
     const float* rowMeta = inputBufs[nIdx]->rowMetaBuf.data();
     const bool hasRowMeta = inputBufs[nIdx]->hasRowMeta;
-    copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
     std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
     if(numMetaFeatures > 0) {
       testAssert(rowMeta != NULL);
       testAssert(hasRowMeta);
+      float* rowMetaInput = inputBuffers->metaInputs.get() + inputBuffers->singleInputMetaElts * nIdx;
       std::copy(rowMeta,rowMeta+numMetaFeatures,rowMetaInput);
     }
     else {
@@ -2229,28 +2326,32 @@ void NeuralNet::getOutput(
   const int numPolicyChannels = inputBuffers->singlePolicyPassResultElts;
   assert(inputBuffers->singlePolicyResultElts == numPolicyChannels * nnXLen * nnYLen);
 
-  // Transfers from host memory to device memory are asynchronous with respect to the host
+  // InputBuffers uses pinned host allocations, so all transfers can remain asynchronous on this
+  // NN server thread's CUDA stream. Queue all output copies before one synchronization below.
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
       gpuHandle->getBuffer("InputMask"),
       inputBuffers->maskInputs.get(),
       inputBuffers->singleMaskBytes * batchSize,
-      cudaMemcpyHostToDevice));
+      cudaMemcpyHostToDevice,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
       gpuHandle->getBuffer("InputSpatial"),
       inputBuffers->spatialInputs.get(),
       inputBuffers->singleInputBytes * batchSize,
-      cudaMemcpyHostToDevice));
+      cudaMemcpyHostToDevice,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
       gpuHandle->getBuffer("InputGlobal"),
       inputBuffers->globalInputs.get(),
       inputBuffers->singleInputGlobalBytes * batchSize,
-      cudaMemcpyHostToDevice));
+      cudaMemcpyHostToDevice,
+      cudaStreamPerThread));
   if(numMetaFeatures > 0) {
     CUDA_ERR(
       "getOutput",
@@ -2258,7 +2359,8 @@ void NeuralNet::getOutput(
         gpuHandle->getBuffer("InputMeta"),
         inputBuffers->metaInputs.get(),
         inputBuffers->singleInputMetaBytes * batchSize,
-        cudaMemcpyHostToDevice));
+        cudaMemcpyHostToDevice,
+        cudaStreamPerThread));
   }
 
   if(!gpuHandle->enqueueWithOptionalCudaGraph(batchSize))
@@ -2266,39 +2368,46 @@ void NeuralNet::getOutput(
 
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->policyPassResults.get(),
       gpuHandle->getBuffer("OutputPolicyPass"),
       inputBuffers->singlePolicyPassResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->policyResults.get(),
       gpuHandle->getBuffer("OutputPolicy"),
       inputBuffers->singlePolicyResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->valueResults.get(),
       gpuHandle->getBuffer("OutputValue"),
       inputBuffers->singleValueResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->scoreValueResults.get(),
       gpuHandle->getBuffer("OutputScoreValue"),
       inputBuffers->singleScoreValueResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->ownershipResults.get(),
       gpuHandle->getBuffer("OutputOwnership"),
       inputBuffers->singleOwnershipResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
+
+  CUDA_ERR("getOutput", cudaStreamSynchronize(cudaStreamPerThread));
 
   gpuHandle->printDebugOutput(batchSize);
   gpuHandle->trtErrorRecorder.clear();
