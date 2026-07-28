@@ -15,8 +15,8 @@ using namespace std;
 namespace {
 
 // Builder that accumulates ONNX nodes and initializers into a single GraphProto, handing back
-// tensor names as it goes. Tensors are float32; the trunk runs NCHW by
-// default, or channel-last NHWC when transformerNHWC is set (see buildBlockStack / buildConv).
+// tensor names as it goes. Tensors are float32; transformerNHWC selects a channel-last NHWC trunk
+// instead of NCHW (see buildBlockStack / buildConv).
 struct Builder {
   onnx::GraphProto* graph;
   int nnXLen;

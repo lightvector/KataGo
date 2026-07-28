@@ -94,7 +94,6 @@ ComputeContext* NeuralNet::createComputeContext(
   ConfigParser& cfg) {
   (void)gpuIdxs;
   (void)logger;
-  (void)loadedModel;
 
   ComputeContext* context = new ComputeContext();
   context->nnXLen = nnXLen;
@@ -105,11 +104,12 @@ ComputeContext* NeuralNet::createComputeContext(
   // nvonnxparser (the default). trtDisableOnnx=true falls back to the hand-built ModelParser, which
   // supports convnets only (transformer models will error in createComputeHandle).
   context->useOnnx = !(cfg.contains("trtDisableOnnx") ? cfg.getBool("trtDisableOnnx") : false);
-  // ONNX transformer emitter layout. Default is NCHW (genuine channel-major attention/FFN): benchmarks
-  // show it matches or slightly beats the NHWC bubble path at the saturated throughput operating point
-  // KataGo runs at, and it's the simpler graph. trtTransformerNHWC=true opts into the NHWC path (whole
-  // trunk channel-last with NCHW<->NHWC conversions around it), which wins on single-stream latency.
-  context->transformerNHWC = cfg.contains("trtTransformerNHWC") ? cfg.getBool("trtTransformerNHWC") : false;
+  // Transformer trunks default to NHWC, which benchmarks at least as fast as NCHW across tested GPUs
+  // and TensorRT versions. Explicit false remains available for hardware-specific tuning. Normalize
+  // convnets to false since the ONNX builder ignores this setting for models without transformers.
+  context->transformerNHWC =
+    (cfg.contains("trtTransformerNHWC") ? cfg.getBool("trtTransformerNHWC") : true) &&
+    NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks();
   // Debugging: if set, the ONNX-emitter path dumps the emitted ONNX model and the built engine's
   // per-layer info (precision/format/tactic, via a detailed-profiling build + IEngineInspector) into
   // this directory. Files are disambiguated by board size, FP16/FP32, and exact/max NN-length so the
