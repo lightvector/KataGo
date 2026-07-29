@@ -5,6 +5,12 @@
 #include <NvOnnxParser.h>
 #include <cuda_runtime_api.h>
 
+// TensorRT versions before 10 cannot parse the ONNX this backend emits (verified failure on
+// TensorRT 8.6: "Kernel weight dimension failed to broadcast to input" at parse time).
+#if NV_TENSORRT_MAJOR < 10
+#error "The TensorRT backend requires TensorRT 10.0 or newer"
+#endif
+
 #include <atomic>
 #include <cstdint>
 #include <fstream>
@@ -1024,12 +1030,7 @@ struct ModelParser {
   }
 
   ILayer* applyCastLayer(ILayer* inputLayer, DataType dataType) {
-#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
-    auto castLayer = model->network->addIdentity(*inputLayer->getOutput(0));
-    castLayer->setOutputType(0, dataType);
-#else
     auto castLayer = model->network->addCast(*inputLayer->getOutput(0), dataType);
-#endif
     auto castLayerName = string(inputLayer->getName()) + "/cast";
     castLayer->setName(castLayerName.c_str());
     return castLayer;
@@ -1327,22 +1328,11 @@ struct ComputeHandle {
     // constraint (kOBEY) so TensorRT cannot fall back to FP16; the ModelParser path uses kPREFER.
     config->setFlag(forceObeyPrecision ? BuilderFlag::kOBEY_PRECISION_CONSTRAINTS : BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
 
-#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
-    // This is to avoid external tactic sources and tactics that have shape switching overhead
-    if(prop->major < 8) {
-      config->setTacticSources(
-        1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
-        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
-    } else {
-      config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
-    }
-#else
     if(prop->major >= 8) {
       // This is to avoid tactics that have shape switching overhead
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
       config->setBuilderOptimizationLevel(2);
     }
-#endif
 
     // For the debug plan dump, build with detailed profiling so the engine inspector can report
     // per-layer precision/format/tactic (see the inspector dump after deserialize).
