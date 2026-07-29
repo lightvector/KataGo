@@ -82,10 +82,17 @@ void Tests::runBenchmarkResultsTests() {
     false,false,false,true,false,false,true
   ) == PlayUtils::BENCHMARK_TUNE_AUTO_BATCH);
   const vector<vector<bool>> invalidModes = {
+    {false,false,false,false,true,true,false},
+    {true,true,false,false,false,false,false},
     {true,false,false,true,false,false,false},
     {false,true,false,true,false,false,false},
     {false,false,true,true,false,false,false},
     {false,false,false,true,true,false,false},
+    {false,false,false,true,false,true,false},
+    {true,false,true,false,false,false,false},
+    {false,true,true,false,true,false,false},
+    {false,true,true,false,false,true,false},
+    {false,false,true,false,false,false,false},
     {false,false,false,false,false,false,true},
   };
   for(const vector<bool>& mode: invalidModes) {
