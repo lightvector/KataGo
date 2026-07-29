@@ -51,6 +51,14 @@ Where:
      Test the Cartesian product of these exact max batch sizes and
      explicitly specified -threads, comma-separated (cannot use -tune)
 
+   -tune-max-batch-size <MAX>
+     Efficiently tune raw NN throughput over exact max batch sizes and
+     thread counts, up to this memory-safe max batch size
+
+   -tune-max-batch-profile-budget <N>
+     Maximum number of unique exact max batch profiles to build during
+     -tune-max-batch-size (default 6)
+
    -half-batch-size
      Set max batch size to half of the number of threads
 

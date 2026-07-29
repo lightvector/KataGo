@@ -155,6 +155,63 @@ namespace PlayUtils {
     static void printEloComparison(const std::vector<BenchmarkResults>& results, double secondsPerGameMove);
   };
 
+  enum BenchmarkTuneMode {
+    BENCHMARK_TUNE_AUTO_THREADS,
+    BENCHMARK_TUNE_FIXED_THREADS,
+    BENCHMARK_TUNE_EXPLICIT_BATCH_GRID,
+    BENCHMARK_TUNE_AUTO_BATCH,
+  };
+
+  struct AutoBatchProfileResult {
+    int maxBatchSize;
+    double medianNNEvalsPerSecond;
+    BenchmarkResults finalist;
+    std::vector<BenchmarkResults> trials;
+  };
+
+  // Pure helpers for the raw-throughput max-batch tuner.
+  BenchmarkTuneMode getBenchmarkTuneMode(
+    bool autoTuneThreadsExplicitly,
+    bool threadsSpecified,
+    bool explicitBatchGridSpecified,
+    bool autoBatchSpecified,
+    bool fixedBatchSpecified,
+    bool halfBatchSpecified,
+    bool profileBudgetSpecified
+  );
+  std::vector<int> getAutoBatchScoutThreads(int numServerThreads, int maxBatchSize);
+  int getAutoBatchScoutBatchSize(
+    const std::vector<BenchmarkResults>& results,
+    int maxBatchSize
+  );
+  std::vector<int> getAutoBatchProfileCandidates(
+    int maxBatchSize,
+    int centerBatchSize,
+    int profileBudget
+  );
+  std::vector<int> getAutoBatchThreadStencil(int maxBatchSize, int numServerThreads);
+  AutoBatchProfileResult summarizeAutoBatchProfile(
+    int maxBatchSize,
+    const std::vector<BenchmarkResults>& results
+  );
+  bool isBetterAutoBatchProfile(
+    const AutoBatchProfileResult& candidate,
+    const AutoBatchProfileResult& incumbent
+  );
+  double getPooledNNEvalsPerSecond(const std::vector<BenchmarkResults>& results);
+  bool isBetterAutoBatchConfirmation(
+    int candidateMaxBatchSize,
+    int candidateNumThreads,
+    const std::vector<BenchmarkResults>& candidateResults,
+    int incumbentMaxBatchSize,
+    int incumbentNumThreads,
+    const std::vector<BenchmarkResults>& incumbentResults
+  );
+  int getMaxUntestedBatchSizeGap(
+    const std::vector<int>& testedBatchSizes,
+    int maxBatchSize
+  );
+
   //Run benchmark on sgf positions. ALSO prints to stdout the ongoing result as it benchmarks.
   BenchmarkResults benchmarkSearchOnPositionsAndPrint(
     const SearchParams& params,
