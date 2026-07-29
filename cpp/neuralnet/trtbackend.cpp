@@ -1180,6 +1180,7 @@ struct SharedTRTEngine {
   TRTErrorRecorder trtErrorRecorder;
   unique_ptr<IRuntime> runtime;
   unique_ptr<ICudaEngine> engine;
+  mutex executionContextInitMutex;
   bool usingFP16;
   vector<pair<string, string>> debugOutputs;
 
@@ -1711,6 +1712,14 @@ struct ComputeHandle {
     debugOutputs = sharedEngine->debugOutputs;
     engine = sharedEngine->engine.get();
     initializeDebugDumpPath();
+
+    // TensorRT 10.16 can intermittently fail in Myelin syncStreams when two graph-enabled handles
+    // concurrently initialize contexts and prewarm CUDA Graphs on one shared engine. Serialize only
+    // that initialization; graph-free initialization and all inference remain concurrent.
+    unique_lock<mutex> executionContextInitLock(
+      sharedEngine->executionContextInitMutex, std::defer_lock);
+    if(cudaGraphsEnabled)
+      executionContextInitLock.lock();
 
     if(cudaGraphsEnabled) {
 #if NV_TENSORRT_MAJOR > 10 || (NV_TENSORRT_MAJOR == 10 && NV_TENSORRT_MINOR >= 1)
