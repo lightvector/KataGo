@@ -104,9 +104,11 @@ ComputeContext* NeuralNet::createComputeContext(
   // nvonnxparser (the default). trtDisableOnnx=true falls back to the hand-built ModelParser, which
   // supports convnets only (transformer models will error in createComputeHandle).
   context->useOnnx = !(cfg.contains("trtDisableOnnx") ? cfg.getBool("trtDisableOnnx") : false);
-  // Transformer trunks default to NHWC, which benchmarks at least as fast as NCHW across tested GPUs
-  // and TensorRT versions. Explicit false remains available for hardware-specific tuning. Normalize
-  // convnets to false since the ONNX builder ignores this setting for models without transformers.
+  // ONNX transformer emitter layout. Default is NHWC (whole trunk channel-last with NCHW<->NHWC
+  // conversions around it). Equal or very slightly better than NCHW in accuracy and in throughput
+  // on TensorRT 10.9, but noticeably faster on many nvidia GPUs on TensorRT 10.16.
+  // Normalize convnets to false so their timing/plan cache keys don't change with this setting
+  // (the ONNX builder ignores it for models without transformers anyway).
   context->transformerNHWC =
     (cfg.contains("trtTransformerNHWC") ? cfg.getBool("trtTransformerNHWC") : true) &&
     NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks();
