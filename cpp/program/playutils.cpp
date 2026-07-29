@@ -832,7 +832,7 @@ string PlayUtils::BenchmarkResults::toString() const {
   out << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
       << " " << totalPositionsSearched << " / " << totalPositions << " positions,"
       << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
-      << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
+      << " nnEvals/s = " << Global::strprintf("%.2f",getNNEvalsPerSecond())
       << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
       << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
       << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
@@ -843,7 +843,7 @@ string PlayUtils::BenchmarkResults::toStringWithElo(const BenchmarkResults* base
   out << "numSearchThreads = " << Global::strprintf("%2d",numThreads) << ":"
       << " " << totalPositionsSearched << " / " << totalPositions << " positions,"
       << " visits/s = " << Global::strprintf("%.2f",totalVisits / totalSeconds)
-      << " nnEvals/s = " << Global::strprintf("%.2f",numNNEvals / totalSeconds)
+      << " nnEvals/s = " << Global::strprintf("%.2f",getNNEvalsPerSecond())
       << " nnBatches/s = " << Global::strprintf("%.2f",numNNBatches / totalSeconds)
       << " avgBatchSize = " << Global::strprintf("%.2f",avgBatchSize)
       << " (" << Global::strprintf("%.1f", totalSeconds) << " secs)";
@@ -855,6 +855,268 @@ string PlayUtils::BenchmarkResults::toStringWithElo(const BenchmarkResults* base
     out << " (EloDiff " << Global::strprintf("%+.0f",diff) << ")";
   }
   return out.str();
+}
+
+double PlayUtils::BenchmarkResults::getNNEvalsPerSecond() const {
+  return totalSeconds > 0.0 ? numNNEvals / totalSeconds : 0.0;
+}
+
+bool PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+  const BenchmarkResults& candidate,
+  int candidateMaxBatchSize,
+  const BenchmarkResults& incumbent,
+  int incumbentMaxBatchSize
+) {
+  const double candidateNNEvalsPerSecond = candidate.getNNEvalsPerSecond();
+  const double incumbentNNEvalsPerSecond = incumbent.getNNEvalsPerSecond();
+  if(candidateNNEvalsPerSecond != incumbentNNEvalsPerSecond)
+    return candidateNNEvalsPerSecond > incumbentNNEvalsPerSecond;
+  if(candidateMaxBatchSize != incumbentMaxBatchSize)
+    return candidateMaxBatchSize < incumbentMaxBatchSize;
+  return candidate.numThreads < incumbent.numThreads;
+}
+
+PlayUtils::BenchmarkTuneMode PlayUtils::getBenchmarkTuneMode(
+  bool autoTuneThreadsExplicitly,
+  bool threadsSpecified,
+  bool explicitBatchGridSpecified,
+  bool autoBatchSpecified,
+  bool fixedBatchSpecified,
+  bool halfBatchSpecified,
+  bool profileBudgetSpecified
+) {
+  if(fixedBatchSpecified && halfBatchSpecified)
+    throw StringError("Cannot specify both fixed batch size and use half batch size");
+  if(threadsSpecified && autoTuneThreadsExplicitly)
+    throw StringError("Cannot both automatically tune threads and specify fixed exact numbers of threads to test");
+  if(autoBatchSpecified && autoTuneThreadsExplicitly)
+    throw StringError("Cannot combine automatic max batch size tuning with -tune");
+  if(autoBatchSpecified && threadsSpecified)
+    throw StringError("Automatic max batch size tuning chooses its own thread counts; do not specify -threads");
+  if(autoBatchSpecified && explicitBatchGridSpecified)
+    throw StringError("Cannot combine automatic and explicit max batch size tuning");
+  if(autoBatchSpecified && (fixedBatchSpecified || halfBatchSpecified))
+    throw StringError("Cannot combine automatic max batch size tuning with fixed batch size or half batch size");
+  if(explicitBatchGridSpecified && autoTuneThreadsExplicitly)
+    throw StringError("Cannot combine max batch size tuning with automatic thread tuning");
+  if(explicitBatchGridSpecified && (fixedBatchSpecified || halfBatchSpecified))
+    throw StringError("Cannot combine max batch size tuning with fixed batch size or half batch size");
+  if(explicitBatchGridSpecified && !threadsSpecified)
+    throw StringError("Max batch size tuning requires an explicit list of thread counts using -threads");
+  if(profileBudgetSpecified && !autoBatchSpecified)
+    throw StringError("-tune-max-batch-profile-budget requires -tune-max-batch-size");
+
+  if(autoBatchSpecified)
+    return BENCHMARK_TUNE_AUTO_BATCH;
+  if(explicitBatchGridSpecified)
+    return BENCHMARK_TUNE_EXPLICIT_BATCH_GRID;
+  if(autoTuneThreadsExplicitly || !threadsSpecified)
+    return BENCHMARK_TUNE_AUTO_THREADS;
+  return BENCHMARK_TUNE_FIXED_THREADS;
+}
+
+static int clampAutoBatchValue(int x, int minValue, int maxValue) {
+  return std::max(minValue,std::min(maxValue,x));
+}
+
+vector<int> PlayUtils::getAutoBatchScoutThreads(int numServerThreads, int maxBatchSize) {
+  testAssert(numServerThreads > 0);
+  testAssert(maxBatchSize > 0);
+  const int maxThreads = 4096;
+  vector<int> threads;
+  auto add = [&](int value) {
+    value = clampAutoBatchValue(value,1,maxThreads);
+    if(std::find(threads.begin(),threads.end(),value) == threads.end())
+      threads.push_back(value);
+  };
+
+  // Global exponential landmarks are all measured, not narrowed by a unimodal
+  // assumption. For two server threads these include 32, 64, and 128.
+  add(8 * numServerThreads);
+  add(16 * numServerThreads);
+  add(32 * numServerThreads);
+  add(64 * numServerThreads);
+  add((numServerThreads+1) * std::min(maxBatchSize,128));
+
+  // Rounding can collapse logarithmic points for very small limits.
+  for(int candidate = 1; threads.size() < 5 && candidate <= maxThreads; candidate++) {
+    add(candidate);
+  }
+  sort(threads.begin(),threads.end());
+  return threads;
+}
+
+int PlayUtils::getAutoBatchScoutBatchSize(
+  const vector<BenchmarkResults>& results,
+  int maxBatchSize
+) {
+  testAssert(results.size() > 0);
+  testAssert(maxBatchSize > 0);
+  int bestIdx = 0;
+  for(int i = 1; i<results.size(); i++) {
+    if(BenchmarkResults::isBetterNNEvalsPerSecond(results[i],maxBatchSize,results[bestIdx],maxBatchSize))
+      bestIdx = i;
+  }
+  return clampAutoBatchValue((int)round(results[bestIdx].avgBatchSize),1,maxBatchSize);
+}
+
+vector<int> PlayUtils::getAutoBatchProfileCandidates(
+  int maxBatchSize,
+  int centerBatchSize,
+  int profileBudget
+) {
+  testAssert(maxBatchSize > 0);
+  testAssert(profileBudget > 0);
+  centerBatchSize = clampAutoBatchValue(centerBatchSize,1,maxBatchSize);
+  const int actualBudget = std::min(profileBudget,maxBatchSize);
+  vector<int> batches;
+  auto add = [&](int value) {
+    value = clampAutoBatchValue(value,1,maxBatchSize);
+    if(std::find(batches.begin(),batches.end(),value) == batches.end() && batches.size() < actualBudget)
+      batches.push_back(value);
+  };
+
+  // The MAX-profile wide scout consumes one unique profile from the hard budget.
+  add(maxBatchSize);
+  add(centerBatchSize);
+  add(centerBatchSize-1);
+  add(centerBatchSize+1);
+  add(centerBatchSize-2);
+  add(centerBatchSize+2);
+
+  // Larger budgets buy a few global checks before filling the largest untested gaps.
+  add((centerBatchSize+1)/2);
+  add(2*centerBatchSize);
+  while(batches.size() < actualBudget) {
+    vector<int> sortedBatches = batches;
+    sort(sortedBatches.begin(),sortedBatches.end());
+    int bestGap = -1;
+    int bestValue = -1;
+    int previous = 0;
+    for(int value: sortedBatches) {
+      const int gap = value - previous - 1;
+      if(gap > bestGap) {
+        bestGap = gap;
+        bestValue = previous + (gap+1)/2;
+      }
+      previous = value;
+    }
+    const int finalGap = maxBatchSize - previous;
+    if(finalGap > bestGap) {
+      bestGap = finalGap;
+      bestValue = previous + (finalGap+1)/2;
+    }
+    if(bestGap <= 0)
+      break;
+    add(bestValue);
+  }
+  return batches;
+}
+
+vector<int> PlayUtils::getAutoBatchThreadStencil(int maxBatchSize, int numServerThreads) {
+  testAssert(maxBatchSize > 0);
+  testAssert(numServerThreads > 0);
+  const int maxThreads = 4096;
+  const int delta = std::min(2047,std::max(2,(int)round(maxBatchSize/5.0)));
+  const int center = clampAutoBatchValue(
+    (int)std::min<int64_t>((int64_t)(numServerThreads+1) * maxBatchSize,maxThreads),
+    1,
+    maxThreads
+  );
+  vector<int> threads;
+  auto add = [&](int value) {
+    value = clampAutoBatchValue(value,1,maxThreads);
+    if(std::find(threads.begin(),threads.end(),value) == threads.end())
+      threads.push_back(value);
+  };
+  add(center-delta);
+  add(center);
+  add(center+delta);
+  for(int offset = 1; threads.size() < 3 && offset < maxThreads; offset++) {
+    add(center-offset);
+    add(center+offset);
+  }
+  sort(threads.begin(),threads.end());
+  return threads;
+}
+
+PlayUtils::AutoBatchProfileResult PlayUtils::summarizeAutoBatchProfile(
+  int maxBatchSize,
+  const vector<BenchmarkResults>& results
+) {
+  testAssert(maxBatchSize > 0);
+  testAssert(results.size() > 0);
+  vector<double> rates;
+  rates.reserve(results.size());
+  int bestIdx = 0;
+  for(int i = 0; i<results.size(); i++) {
+    rates.push_back(results[i].getNNEvalsPerSecond());
+    if(i > 0 && BenchmarkResults::isBetterNNEvalsPerSecond(results[i],maxBatchSize,results[bestIdx],maxBatchSize))
+      bestIdx = i;
+  }
+  sort(rates.begin(),rates.end());
+  const int mid = (int)rates.size()/2;
+  const double median = rates.size() % 2 == 1 ? rates[mid] : 0.5*(rates[mid-1]+rates[mid]);
+  return {maxBatchSize,median,results[bestIdx],results};
+}
+
+bool PlayUtils::isBetterAutoBatchProfile(
+  const AutoBatchProfileResult& candidate,
+  const AutoBatchProfileResult& incumbent
+) {
+  if(candidate.medianNNEvalsPerSecond != incumbent.medianNNEvalsPerSecond)
+    return candidate.medianNNEvalsPerSecond > incumbent.medianNNEvalsPerSecond;
+  if(candidate.maxBatchSize != incumbent.maxBatchSize)
+    return candidate.maxBatchSize < incumbent.maxBatchSize;
+  return candidate.finalist.numThreads < incumbent.finalist.numThreads;
+}
+
+double PlayUtils::getPooledNNEvalsPerSecond(const vector<BenchmarkResults>& results) {
+  int64_t totalNNEvals = 0;
+  double totalSeconds = 0.0;
+  for(const BenchmarkResults& result: results) {
+    totalNNEvals += result.numNNEvals;
+    totalSeconds += result.totalSeconds;
+  }
+  return totalSeconds > 0.0 ? totalNNEvals / totalSeconds : 0.0;
+}
+
+bool PlayUtils::isBetterAutoBatchConfirmation(
+  int candidateMaxBatchSize,
+  int candidateNumThreads,
+  const vector<BenchmarkResults>& candidateResults,
+  int incumbentMaxBatchSize,
+  int incumbentNumThreads,
+  const vector<BenchmarkResults>& incumbentResults
+) {
+  const double candidateRate = getPooledNNEvalsPerSecond(candidateResults);
+  const double incumbentRate = getPooledNNEvalsPerSecond(incumbentResults);
+  if(candidateRate != incumbentRate)
+    return candidateRate > incumbentRate;
+  if(candidateMaxBatchSize != incumbentMaxBatchSize)
+    return candidateMaxBatchSize < incumbentMaxBatchSize;
+  return candidateNumThreads < incumbentNumThreads;
+}
+
+int PlayUtils::getMaxUntestedBatchSizeGap(
+  const vector<int>& testedBatchSizes,
+  int maxBatchSize
+) {
+  testAssert(maxBatchSize > 0);
+  vector<int> sortedBatches;
+  for(int value: testedBatchSizes) {
+    if(value >= 1 && value <= maxBatchSize && std::find(sortedBatches.begin(),sortedBatches.end(),value) == sortedBatches.end())
+      sortedBatches.push_back(value);
+  }
+  sort(sortedBatches.begin(),sortedBatches.end());
+  int maxGap = 0;
+  int previous = 0;
+  for(int value: sortedBatches) {
+    maxGap = std::max(maxGap,value-previous-1);
+    previous = value;
+  }
+  maxGap = std::max(maxGap,maxBatchSize-previous);
+  return maxGap;
 }
 
 //From some test matches by lightvector using g170

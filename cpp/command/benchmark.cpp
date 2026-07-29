@@ -18,7 +18,20 @@
 
 using namespace std;
 
-static NNEvaluator* createNNEval(int maxNumThreads, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params);
+struct BatchSizeBenchmarkResult {
+  int maxBatchSize;
+  PlayUtils::BenchmarkResults benchmarkResult;
+};
+
+static NNEvaluator* createNNEval(
+  int requestedMaxBatchSize,
+  bool useExactMaxBatchSize,
+  const CompactSgf& sgf,
+  const string& modelFile,
+  Logger& logger,
+  ConfigParser& cfg,
+  const SearchParams& params
+);
 
 static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   const SearchParams& params,
@@ -41,6 +54,28 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
   const std::function<void(int)>& reallocateNNEvalWithEnoughBatchSize,
   const std::function<int(int)>& getDesiredBatchSize
 );
+static vector<BatchSizeBenchmarkResult> doFixedTuneBatchSizes(
+  const SearchParams& params,
+  const CompactSgf& sgf,
+  int numPositionsPerGame,
+  NNEvaluator*& nnEval,
+  Logger& logger,
+  double secondsPerGameMove,
+  const vector<int>& maxBatchSizesToTest,
+  const vector<int>& numThreadsToTest,
+  const std::function<void(int)>& reallocateNNEvalForExactBatchSize
+);
+static void doAutoTuneBatchSize(
+  const SearchParams& params,
+  const CompactSgf& sgf,
+  int numPositionsPerGame,
+  NNEvaluator*& nnEval,
+  Logger& logger,
+  double secondsPerGameMove,
+  int maxBatchSize,
+  int profileBudget,
+  const std::function<void(int)>& reallocateNNEvalForExactBatchSize
+);
 
 #ifdef USE_EIGEN_BACKEND
 static const int64_t defaultMaxVisits = 80;
@@ -61,8 +96,12 @@ int MainCmds::benchmark(const vector<string>& args) {
   int boardSize;
   int64_t maxVisits;
   vector<int> numThreadsToTest;
+  vector<int> maxBatchSizesToTest;
   int numPositionsPerGame;
   bool autoTuneThreads;
+  int autoTuneMaxBatchSize;
+  int autoTuneMaxBatchProfileBudget;
+  PlayUtils::BenchmarkTuneMode benchmarkTuneMode;
   int fixedBatchSize;
   bool useHalfBatchSize;
   double secondsPerGameMove;
@@ -84,6 +123,21 @@ int MainCmds::benchmark(const vector<string>& args) {
     );
     TCLAP::SwitchArg autoTuneThreadsArg("s","tune","Automatically search for the optimal number of threads (default if not specifying specific numbers of threads)");
     TCLAP::ValueArg<int> fixedBatchSizeArg("","fixed-batch-size","Set max batch size to this fixed value",false,-1,"NUM");
+    TCLAP::ValueArg<string> maxBatchSizesArg(
+      "","max-batch-sizes",
+      "Test the Cartesian product of these exact max batch sizes and explicitly specified -threads, comma-separated (cannot use -tune)",
+      false,"","BATCHES"
+    );
+    TCLAP::ValueArg<int> autoTuneMaxBatchSizeArg(
+      "","tune-max-batch-size",
+      "Efficiently tune raw NN throughput over exact max batch sizes and thread counts, up to this memory-safe max batch size",
+      false,-1,"MAX"
+    );
+    TCLAP::ValueArg<int> autoTuneMaxBatchProfileBudgetArg(
+      "","tune-max-batch-profile-budget",
+      "Maximum number of unique exact max batch profiles to build during -tune-max-batch-size (default 6)",
+      false,6,"N"
+    );
     TCLAP::SwitchArg halfBatchSizeArg("","half-batch-size","Set max batch size to half of the number of threads");
     TCLAP::ValueArg<double> secondsPerGameMoveArg(
       "i","time",
@@ -103,6 +157,9 @@ int MainCmds::benchmark(const vector<string>& args) {
     cmd.add(boardSizeArg);
     cmd.add(autoTuneThreadsArg);
     cmd.add(fixedBatchSizeArg);
+    cmd.add(maxBatchSizesArg);
+    cmd.add(autoTuneMaxBatchSizeArg);
+    cmd.add(autoTuneMaxBatchProfileBudgetArg);
     cmd.add(halfBatchSizeArg);
     cmd.add(secondsPerGameMoveArg);
     cmd.parseArgs(args);
@@ -114,7 +171,14 @@ int MainCmds::benchmark(const vector<string>& args) {
     string desiredThreadsStr = threadsArg.getValue();
     numPositionsPerGame = numPositionsPerGameArg.getValue();
     autoTuneThreads = autoTuneThreadsArg.getValue();
+    const bool autoTuneThreadsExplicitly = autoTuneThreadsArg.getValue();
     fixedBatchSize = fixedBatchSizeArg.getValue();
+    string maxBatchSizesStr = maxBatchSizesArg.getValue();
+    const bool maxBatchSizesSpecified = maxBatchSizesArg.isSet();
+    autoTuneMaxBatchSize = autoTuneMaxBatchSizeArg.getValue();
+    const bool autoTuneMaxBatchSizeSpecified = autoTuneMaxBatchSizeArg.isSet();
+    autoTuneMaxBatchProfileBudget = autoTuneMaxBatchProfileBudgetArg.getValue();
+    const bool autoTuneMaxBatchProfileBudgetSpecified = autoTuneMaxBatchProfileBudgetArg.isSet();
     useHalfBatchSize = halfBatchSizeArg.getValue();
     secondsPerGameMove = secondsPerGameMoveArg.getValue();
 
@@ -128,18 +192,33 @@ int MainCmds::benchmark(const vector<string>& args) {
       throw StringError("Number of positions per game to use: invalid value " + Global::intToString(numPositionsPerGame));
     if(secondsPerGameMove <= 0 || secondsPerGameMove > 1000000)
       throw StringError("Number of seconds per game move to assume: invalid value " + Global::doubleToString(secondsPerGameMove));
-    if(desiredThreadsStr != "" && autoTuneThreads)
-      throw StringError("Cannot both automatically tune threads and specify fixed exact numbers of threads to test");
     if(fixedBatchSize != -1 && (fixedBatchSize <= 0 || fixedBatchSize > 65536))
       throw StringError("Invalid value for fixed batch size");
-    if(fixedBatchSize != -1 && useHalfBatchSize)
-      throw StringError("Cannot specify both fixed batch size and use half batch size");
+    if(autoTuneMaxBatchSizeSpecified && (autoTuneMaxBatchSize < 2 || autoTuneMaxBatchSize > 65536))
+      throw StringError("Automatic max batch size tuning requires MAX to be between 2 and 65536");
+    if(autoTuneMaxBatchProfileBudget < 2 || autoTuneMaxBatchProfileBudget > 256)
+      throw StringError("Automatic max batch profile budget must be between 2 and 256");
 
-    //Apply default
-    if(desiredThreadsStr == "")
-      autoTuneThreads = true;
+    benchmarkTuneMode = PlayUtils::getBenchmarkTuneMode(
+      autoTuneThreadsExplicitly,
+      threadsArg.isSet(),
+      maxBatchSizesSpecified,
+      autoTuneMaxBatchSizeSpecified,
+      fixedBatchSize != -1,
+      useHalfBatchSize,
+      autoTuneMaxBatchProfileBudgetSpecified
+    );
+    autoTuneThreads = benchmarkTuneMode == PlayUtils::BENCHMARK_TUNE_AUTO_THREADS;
 
-    if(!autoTuneThreads) {
+    if(maxBatchSizesSpecified)
+      maxBatchSizesToTest = KataGoCommandLine::parseCommaSeparatedUniqueInts(
+        maxBatchSizesStr,1,65536,"Max batch size to test"
+      );
+
+    if(
+      benchmarkTuneMode == PlayUtils::BENCHMARK_TUNE_FIXED_THREADS ||
+      benchmarkTuneMode == PlayUtils::BENCHMARK_TUNE_EXPLICIT_BATCH_GRID
+    ) {
       vector<string> desiredThreadsPieces = Global::split(desiredThreadsStr,',');
       for(int i = 0; i<desiredThreadsPieces.size(); i++) {
         string s = Global::trim(desiredThreadsPieces[i]);
@@ -193,8 +272,17 @@ int MainCmds::benchmark(const vector<string>& args) {
 
   Setup::initializeSession(cfg);
 
+  const bool tuneMaxBatchSize = benchmarkTuneMode == PlayUtils::BENCHMARK_TUNE_EXPLICIT_BATCH_GRID;
+  const bool autoTuneBatchSize = benchmarkTuneMode == PlayUtils::BENCHMARK_TUNE_AUTO_BATCH;
+#ifdef USE_EIGEN_BACKEND
+  if(tuneMaxBatchSize || autoTuneBatchSize)
+    throw StringError("Max batch size tuning is not supported by the Eigen backend");
+#endif
+
   if(cfg.contains("nnMaxBatchSize")) {
-    if(fixedBatchSize != -1)
+    if(tuneMaxBatchSize || autoTuneBatchSize)
+      cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", ignoring it while tuning max batch size for this benchmark." << endl;
+    else if(fixedBatchSize != -1)
       cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", ignoring it and assuming it is " + Global::intToString(fixedBatchSize) + ", for this benchmark." << endl;
     else if(useHalfBatchSize)
       cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", ignoring it and assuming it is = threads/2, for this benchmark." << endl;
@@ -203,9 +291,20 @@ int MainCmds::benchmark(const vector<string>& args) {
   }
 
   NNEvaluator* nnEval = NULL;
-  auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
+  auto reallocateNNEval = [&](int batchSizeLimit, bool useExactMaxBatchSize) {
     if(nnEval != NULL)
       delete nnEval;
+    nnEval = createNNEval(
+      batchSizeLimit,
+      useExactMaxBatchSize,
+      *sgf,
+      modelFile,
+      logger,
+      cfg,
+      params
+    );
+  };
+  auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
     int batchSizeLimit;
     if(fixedBatchSize != -1)
       batchSizeLimit = fixedBatchSize;
@@ -213,7 +312,10 @@ int MainCmds::benchmark(const vector<string>& args) {
       batchSizeLimit = (maxNumThreads+1)/2;
     else
       batchSizeLimit = maxNumThreads;
-    nnEval = createNNEval(batchSizeLimit, *sgf, modelFile, logger, cfg, params);
+    reallocateNNEval(batchSizeLimit,false);
+  };
+  auto reallocateNNEvalForExactBatchSize = [&](int maxBatchSize) {
+    reallocateNNEval(maxBatchSize,true);
   };
   auto getDesiredBatchSize = [&](int currentNumThreads) {
     testAssert(nnEval != NULL);
@@ -224,7 +326,11 @@ int MainCmds::benchmark(const vector<string>& args) {
     return nnEval->getMaxBatchSize();
   };
 
-  if(!autoTuneThreads) {
+  if(tuneMaxBatchSize)
+    reallocateNNEvalForExactBatchSize(maxBatchSizesToTest[0]);
+  else if(autoTuneBatchSize)
+    reallocateNNEvalForExactBatchSize(autoTuneMaxBatchSize);
+  else if(!autoTuneThreads) {
     int maxThreads = 1;
     for(int i = 0; i<numThreadsToTest.size(); i++) {
       maxThreads = std::max(maxThreads,numThreadsToTest[i]);
@@ -271,14 +377,76 @@ int MainCmds::benchmark(const vector<string>& args) {
   cout << "Your GTP config is currently set to use numSearchThreads = " << params.numThreads << endl;
 
   vector<PlayUtils::BenchmarkResults> results;
-  if(!autoTuneThreads) {
+  vector<BatchSizeBenchmarkResult> batchSizeResults;
+  if(autoTuneBatchSize) {
+    doAutoTuneBatchSize(
+      params,
+      *sgf,
+      numPositionsPerGame,
+      nnEval,
+      logger,
+      secondsPerGameMove,
+      autoTuneMaxBatchSize,
+      autoTuneMaxBatchProfileBudget,
+      reallocateNNEvalForExactBatchSize
+    );
+  }
+  else if(tuneMaxBatchSize) {
+    batchSizeResults = doFixedTuneBatchSizes(
+      params,
+      *sgf,
+      numPositionsPerGame,
+      nnEval,
+      logger,
+      secondsPerGameMove,
+      maxBatchSizesToTest,
+      numThreadsToTest,
+      reallocateNNEvalForExactBatchSize
+    );
+  }
+  else if(!autoTuneThreads) {
     results = doFixedTuneThreads(params,*sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,numThreadsToTest,true,getDesiredBatchSize);
   }
   else {
     results = doAutoTuneThreads(params,*sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,reallocateNNEvalWithEnoughBatchSize,getDesiredBatchSize);
   }
 
-  if(numThreadsToTest.size() > 1 || autoTuneThreads) {
+  if(tuneMaxBatchSize) {
+    testAssert(batchSizeResults.size() > 0);
+    int bestIdx = 0;
+    for(int i = 1; i<batchSizeResults.size(); i++) {
+      if(PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+        batchSizeResults[i].benchmarkResult,
+        batchSizeResults[i].maxBatchSize,
+        batchSizeResults[bestIdx].benchmarkResult,
+        batchSizeResults[bestIdx].maxBatchSize
+      ))
+        bestIdx = i;
+    }
+
+    cout << "Ordered summary of max batch size and search thread combinations:" << endl;
+    cout << endl;
+    for(int i = 0; i<batchSizeResults.size(); i++) {
+      const BatchSizeBenchmarkResult& result = batchSizeResults[i];
+      cout << "nnMaxBatchSize = " << Global::strprintf("%2d",result.maxBatchSize) << ", "
+           << result.benchmarkResult.toString()
+           << (i == bestIdx ? " (highest nnEvals/s)" : "")
+           << endl;
+    }
+    cout << endl;
+
+    const BatchSizeBenchmarkResult& best = batchSizeResults[bestIdx];
+    cout << "Highest NN throughput among the tested combinations: nnMaxBatchSize = "
+         << best.maxBatchSize
+         << ", numSearchThreads = " << best.benchmarkResult.numThreads
+         << ", nnEvals/s = " << Global::strprintf("%.2f",best.benchmarkResult.getNNEvalsPerSecond())
+         << endl;
+    cout << "Exact ties prefer smaller nnMaxBatchSize, then fewer numSearchThreads." << endl;
+    cout << "This selection maximizes nnEvals/s only; it is not a playing-strength recommendation." << endl;
+    cout << "To use it, set nnMaxBatchSize and numSearchThreads in " << cfg.getFileName() << "." << endl;
+    cout << endl;
+  }
+  else if(numThreadsToTest.size() > 1 || autoTuneThreads) {
     PlayUtils::BenchmarkResults::printEloComparison(results,secondsPerGameMove);
 
     cout << "If you care about performance, you may want to edit numSearchThreads in " << cfg.getFileName() << " based on the above results!" << endl;
@@ -319,9 +487,19 @@ static void warmStartNNEval(const CompactSgf& sgf, Logger& logger, const SearchP
   delete bot;
 }
 
-static NNEvaluator* createNNEval(int maxNumThreads, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
-  int expectedConcurrentEvals = maxNumThreads;
-  const int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
+static NNEvaluator* createNNEval(
+  int requestedMaxBatchSize,
+  bool useExactMaxBatchSize,
+  const CompactSgf& sgf,
+  const string& modelFile,
+  Logger& logger,
+  ConfigParser& cfg,
+  const SearchParams& params
+) {
+  int expectedConcurrentEvals = requestedMaxBatchSize;
+  const int defaultMaxBatchSize = useExactMaxBatchSize ?
+    std::max(1,requestedMaxBatchSize) :
+    std::max(8,((requestedMaxBatchSize+3)/4)*4);
 
   Rand seedRand;
 
@@ -415,6 +593,309 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   }
   cout << endl;
   return results;
+}
+
+static vector<BatchSizeBenchmarkResult> doFixedTuneBatchSizes(
+  const SearchParams& params,
+  const CompactSgf& sgf,
+  int numPositionsPerGame,
+  NNEvaluator*& nnEval,
+  Logger& logger,
+  double secondsPerGameMove,
+  const vector<int>& maxBatchSizesToTest,
+  const vector<int>& numThreadsToTest,
+  const std::function<void(int)>& reallocateNNEvalForExactBatchSize
+) {
+  vector<BatchSizeBenchmarkResult> results;
+
+  cout << "Jointly testing exact max batch sizes and search thread counts "
+       << "(board size " << sgf.xSize << "x" << sgf.ySize << "):" << endl;
+  cout << endl;
+
+  for(int batchIdx = 0; batchIdx<maxBatchSizesToTest.size(); batchIdx++) {
+    const int maxBatchSize = maxBatchSizesToTest[batchIdx];
+    if(batchIdx > 0)
+      reallocateNNEvalForExactBatchSize(maxBatchSize);
+    testAssert(nnEval != NULL);
+    testAssert(nnEval->getMaxBatchSize() == maxBatchSize);
+
+    cout << "Testing exact nnMaxBatchSize = " << maxBatchSize
+         << " (evaluator max batch size = " << nnEval->getMaxBatchSize() << "):" << endl;
+    auto getDesiredBatchSize = [maxBatchSize](int numThreads) {
+      (void)numThreads;
+      return maxBatchSize;
+    };
+    vector<PlayUtils::BenchmarkResults> batchResults = doFixedTuneThreads(
+      params,
+      sgf,
+      numPositionsPerGame,
+      nnEval,
+      logger,
+      secondsPerGameMove,
+      numThreadsToTest,
+      false,
+      getDesiredBatchSize
+    );
+    for(const PlayUtils::BenchmarkResults& result: batchResults)
+      results.push_back({maxBatchSize,result});
+  }
+
+  return results;
+}
+
+static PlayUtils::BenchmarkResults runRawBenchmarkCase(
+  const SearchParams& params,
+  const CompactSgf& sgf,
+  int numPositionsPerGame,
+  NNEvaluator* nnEval,
+  Logger& logger,
+  double secondsPerGameMove,
+  int maxBatchSize,
+  int numThreads
+) {
+  testAssert(nnEval != NULL);
+  testAssert(nnEval->getMaxBatchSize() == maxBatchSize);
+  SearchParams thisParams = params;
+  setNumThreads(thisParams,nnEval,logger,numThreads,maxBatchSize,sgf);
+  return PlayUtils::benchmarkSearchOnPositionsAndPrint(
+    thisParams,
+    sgf,
+    numPositionsPerGame,
+    nnEval,
+    NULL,
+    secondsPerGameMove,
+    false
+  );
+}
+
+static void doAutoTuneBatchSize(
+  const SearchParams& params,
+  const CompactSgf& sgf,
+  int numPositionsPerGame,
+  NNEvaluator*& nnEval,
+  Logger& logger,
+  double secondsPerGameMove,
+  int maxBatchSize,
+  int profileBudget,
+  const std::function<void(int)>& reallocateNNEvalForExactBatchSize
+) {
+  testAssert(nnEval != NULL);
+  testAssert(nnEval->getMaxBatchSize() == maxBatchSize);
+  const int numServerThreads = nnEval->getNumServerThreads();
+  testAssert(numServerThreads > 0);
+  const vector<int> scoutThreads = PlayUtils::getAutoBatchScoutThreads(numServerThreads,maxBatchSize);
+  const int actualProfileBudget = std::min(profileBudget,maxBatchSize);
+  const int estimatedCases = (int)scoutThreads.size() + 3*(actualProfileBudget-1) + 4;
+
+  cout << "Automatically tuning exact max batch size and search threads for raw NN throughput "
+       << "(board size " << sgf.xSize << "x" << sgf.ySize << "):" << endl;
+  cout << "  Memory-safe maximum nnMaxBatchSize: " << maxBatchSize << endl;
+  cout << "  Hard limit: at most " << actualProfileBudget << " unique exact profiles and "
+       << estimatedCases << " measured benchmark cases (including four A-B-B-A confirmations)." << endl;
+  cout << "  Wide scout thread counts: ";
+  for(int i = 0; i<scoutThreads.size(); i++)
+    cout << (i == 0 ? "" : ",") << scoutThreads[i];
+  cout << endl;
+  cout << endl;
+
+  auto maxBatchGetter = [maxBatchSize](int numThreads) noexcept {
+    (void)numThreads;
+    return maxBatchSize;
+  };
+  cout << "Wide scout using the exact MAX profile nnMaxBatchSize = " << maxBatchSize << ":" << endl;
+  vector<PlayUtils::BenchmarkResults> scoutResults = doFixedTuneThreads(
+    params,
+    sgf,
+    numPositionsPerGame,
+    nnEval,
+    logger,
+    secondsPerGameMove,
+    scoutThreads,
+    false,
+    maxBatchGetter
+  );
+  const int centerBatchSize = PlayUtils::getAutoBatchScoutBatchSize(scoutResults,maxBatchSize);
+
+  int bestScoutIdx = 0;
+  for(int i = 1; i<scoutResults.size(); i++) {
+    if(PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+      scoutResults[i],maxBatchSize,scoutResults[bestScoutIdx],maxBatchSize
+    ))
+      bestScoutIdx = i;
+  }
+  int scoutWindowStart = std::max(0,bestScoutIdx-1);
+  if(scoutWindowStart+3 > scoutResults.size())
+    scoutWindowStart = std::max(0,(int)scoutResults.size()-3);
+  vector<PlayUtils::BenchmarkResults> scoutMedianResults;
+  for(int i = scoutWindowStart; i<scoutResults.size() && i<scoutWindowStart+3; i++)
+    scoutMedianResults.push_back(scoutResults[i]);
+
+  vector<PlayUtils::AutoBatchProfileResult> profileResults;
+  profileResults.push_back(
+    PlayUtils::summarizeAutoBatchProfile(maxBatchSize,scoutMedianResults)
+  );
+  const vector<int> profileCandidates = PlayUtils::getAutoBatchProfileCandidates(
+    maxBatchSize,
+    centerBatchSize,
+    profileBudget
+  );
+  cout << "Scout peak average batch size rounded to B0 = " << centerBatchSize << "." << endl;
+  cout << "Unique exact profiles within budget: ";
+  for(int i = 0; i<profileCandidates.size(); i++)
+    cout << (i == 0 ? "" : ",") << profileCandidates[i];
+  cout << endl;
+  cout << endl;
+
+  for(int i = 1; i<profileCandidates.size(); i++) {
+    const int batchSize = profileCandidates[i];
+    reallocateNNEvalForExactBatchSize(batchSize);
+    testAssert(nnEval != NULL);
+    testAssert(nnEval->getMaxBatchSize() == batchSize);
+    const vector<int> stencil = PlayUtils::getAutoBatchThreadStencil(batchSize,numServerThreads);
+    cout << "Testing exact nnMaxBatchSize = " << batchSize << " at three local thread counts: ";
+    for(int j = 0; j<stencil.size(); j++)
+      cout << (j == 0 ? "" : ",") << stencil[j];
+    cout << endl;
+    vector<PlayUtils::BenchmarkResults> trials;
+    for(int numThreads: stencil)
+      trials.push_back(runRawBenchmarkCase(
+        params,sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,batchSize,numThreads
+      ));
+    profileResults.push_back(PlayUtils::summarizeAutoBatchProfile(batchSize,trials));
+    cout << endl;
+  }
+
+  testAssert(profileResults.size() >= 2);
+  vector<int> rankedProfileIdxs(profileResults.size());
+  for(int i = 0; i<rankedProfileIdxs.size(); i++)
+    rankedProfileIdxs[i] = i;
+  std::stable_sort(
+    rankedProfileIdxs.begin(),
+    rankedProfileIdxs.end(),
+    [&](int x, int y) {
+      return PlayUtils::isBetterAutoBatchProfile(profileResults[x],profileResults[y]);
+    }
+  );
+
+  cout << "Profile ranking by median raw nnEvals/s (the best raw thread is retained as finalist):" << endl;
+  for(int rank = 0; rank<rankedProfileIdxs.size(); rank++) {
+    const PlayUtils::AutoBatchProfileResult& profile = profileResults[rankedProfileIdxs[rank]];
+    cout << "  nnMaxBatchSize = " << profile.maxBatchSize
+         << ", median nnEvals/s = " << Global::strprintf("%.2f",profile.medianNNEvalsPerSecond)
+         << ", finalist threads = " << profile.finalist.numThreads
+         << ", finalist nnEvals/s = " << Global::strprintf("%.2f",profile.finalist.getNNEvalsPerSecond())
+         << endl;
+  }
+  cout << endl;
+
+  const PlayUtils::AutoBatchProfileResult& finalistA = profileResults[rankedProfileIdxs[0]];
+  const PlayUtils::AutoBatchProfileResult& finalistB = profileResults[rankedProfileIdxs[1]];
+  vector<PlayUtils::BenchmarkResults> confirmationsA;
+  vector<PlayUtils::BenchmarkResults> confirmationsB;
+  auto confirm = [&](const PlayUtils::AutoBatchProfileResult& finalist, char label) {
+    // Give every confirmation the same evaluator warmup state. In particular,
+    // do not let the middle B-B pair alone reuse CUDA Graphs or other context state.
+    reallocateNNEvalForExactBatchSize(finalist.maxBatchSize);
+    testAssert(nnEval->getMaxBatchSize() == finalist.maxBatchSize);
+    cout << "Confirmation " << label
+         << ": nnMaxBatchSize = " << finalist.maxBatchSize
+         << ", numSearchThreads = " << finalist.finalist.numThreads << endl;
+    return runRawBenchmarkCase(
+      params,
+      sgf,
+      numPositionsPerGame,
+      nnEval,
+      logger,
+      secondsPerGameMove,
+      finalist.maxBatchSize,
+      finalist.finalist.numThreads
+    );
+  };
+
+  cout << "Confirming the top two different max batch sizes in A-B-B-A order:" << endl;
+  confirmationsA.push_back(confirm(finalistA,'A'));
+  confirmationsB.push_back(confirm(finalistB,'B'));
+  confirmationsB.push_back(confirm(finalistB,'B'));
+  confirmationsA.push_back(confirm(finalistA,'A'));
+  cout << endl;
+
+  const bool aWins = PlayUtils::isBetterAutoBatchConfirmation(
+    finalistA.maxBatchSize,
+    finalistA.finalist.numThreads,
+    confirmationsA,
+    finalistB.maxBatchSize,
+    finalistB.finalist.numThreads,
+    confirmationsB
+  );
+  const PlayUtils::AutoBatchProfileResult& winner = aWins ? finalistA : finalistB;
+  const vector<PlayUtils::BenchmarkResults>& winnerConfirmations = aWins ? confirmationsA : confirmationsB;
+  const double pooledA = PlayUtils::getPooledNNEvalsPerSecond(confirmationsA);
+  const double pooledB = PlayUtils::getPooledNNEvalsPerSecond(confirmationsB);
+  auto jitterPercent = [](const vector<PlayUtils::BenchmarkResults>& confirmations) {
+    testAssert(confirmations.size() == 2);
+    const double rate0 = confirmations[0].getNNEvalsPerSecond();
+    const double rate1 = confirmations[1].getNNEvalsPerSecond();
+    const double mean = 0.5*(rate0+rate1);
+    return mean > 0.0 ? 100.0 * fabs(rate0-rate1) / mean : 0.0;
+  };
+
+  cout << "A-B-B-A confirmation (pooled sum(nnEvals) / sum(seconds), not an average of rates):" << endl;
+  cout << "  A: nnMaxBatchSize = " << finalistA.maxBatchSize
+       << ", numSearchThreads = " << finalistA.finalist.numThreads
+       << ", pooled nnEvals/s = " << Global::strprintf("%.2f",pooledA)
+       << ", two-run jitter = " << Global::strprintf("%.2f%%",jitterPercent(confirmationsA))
+       << endl;
+  cout << "  B: nnMaxBatchSize = " << finalistB.maxBatchSize
+       << ", numSearchThreads = " << finalistB.finalist.numThreads
+       << ", pooled nnEvals/s = " << Global::strprintf("%.2f",pooledB)
+       << ", two-run jitter = " << Global::strprintf("%.2f%%",jitterPercent(confirmationsB))
+       << endl;
+  cout << "Selected raw-throughput result: nnMaxBatchSize = " << winner.maxBatchSize
+       << ", numSearchThreads = " << winner.finalist.numThreads
+       << ", confirmed nnEvals/s = "
+       << Global::strprintf("%.2f",PlayUtils::getPooledNNEvalsPerSecond(winnerConfirmations))
+       << endl;
+  cout << "Exact confirmation ties prefer smaller nnMaxBatchSize, then fewer numSearchThreads." << endl;
+
+  vector<int> testedBatchSizes;
+  for(const PlayUtils::AutoBatchProfileResult& profile: profileResults)
+    testedBatchSizes.push_back(profile.maxBatchSize);
+  sort(testedBatchSizes.begin(),testedBatchSizes.end());
+  cout << "Tested nnMaxBatchSize values: ";
+  for(int i = 0; i<testedBatchSizes.size(); i++)
+    cout << (i == 0 ? "" : ",") << testedBatchSizes[i];
+  cout << endl;
+  const int maxUntestedGap = PlayUtils::getMaxUntestedBatchSizeGap(testedBatchSizes,maxBatchSize);
+  cout << "Largest untested integer max-batch gap within 1.." << maxBatchSize
+       << ": " << maxUntestedGap << endl;
+  if(winner.maxBatchSize == 1 || winner.maxBatchSize == maxBatchSize)
+    cout << "WARNING: The winner is on the tested batch-size boundary; consider raising MAX or checking the boundary explicitly." << endl;
+  if(maxUntestedGap > 0)
+    cout << "WARNING: A finite profile budget cannot guarantee finding an isolated non-smooth tactic or backend spike inside untested gaps." << endl;
+
+  vector<PlayUtils::BenchmarkResults> winnerInitialTrials = winner.trials;
+  std::stable_sort(
+    winnerInitialTrials.begin(),
+    winnerInitialTrials.end(),
+    [&](const PlayUtils::BenchmarkResults& x, const PlayUtils::BenchmarkResults& y) {
+      return PlayUtils::BenchmarkResults::isBetterNNEvalsPerSecond(
+        x,winner.maxBatchSize,y,winner.maxBatchSize
+      );
+    }
+  );
+  if(winnerInitialTrials.size() >= 2) {
+    const double bestRate = winnerInitialTrials[0].getNNEvalsPerSecond();
+    const double secondRate = winnerInitialTrials[1].getNNEvalsPerSecond();
+    if(bestRate > 0.0 && secondRate >= 0.995*bestRate) {
+      cout << "The runner-up thread count for the winning batch size was within 0.5%. "
+           << "For a finer decision, explicitly benchmark -max-batch-sizes "
+           << winner.maxBatchSize << " -threads "
+           << winnerInitialTrials[0].numThreads << "," << winnerInitialTrials[1].numThreads
+           << " in balanced order." << endl;
+    }
+  }
+  cout << "This selection maximizes raw nnEvals/s only; it is not a playing-strength recommendation." << endl;
+  cout << endl;
 }
 
 static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
@@ -916,7 +1397,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
         return;
       if(nnEval != NULL)
         delete nnEval;
-      nnEval = createNNEval(maxNumThreads, *sgf, modelFile, logger, cfg, params);
+      nnEval = createNNEval(maxNumThreads,false,*sgf,modelFile,logger,cfg,params);
       maxNumThreadsForCurrentNNEval = maxNumThreads;
     };
     auto getDesiredBatchSize = [&](int currentNumThreads) {

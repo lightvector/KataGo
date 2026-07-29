@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cstdint>
 #include <fstream>
+#include <limits>
 #include <random>
 #include <set>
 
@@ -37,6 +38,34 @@ static void checkCudaError(const cudaError_t status, const char* opName, const c
 }
 #define CUDA_ERR(opName, x) \
   { checkCudaError((x), opName, __FILE__, #x, __LINE__); }
+
+struct CudaMemoryDeleter {
+  void operator()(void* ptr) const noexcept {
+    if(ptr != nullptr)
+      cudaFree(ptr);
+  }
+};
+using CudaMemory = unique_ptr<void, CudaMemoryDeleter>;
+
+struct CudaHostMemoryDeleter {
+  void operator()(float* ptr) const noexcept {
+    if(ptr != nullptr)
+      cudaFreeHost(ptr);
+  }
+};
+using CudaHostFloatArray = unique_ptr<float[], CudaHostMemoryDeleter>;
+
+static CudaHostFloatArray allocateCudaHostFloats(size_t numFloats) {
+  if(numFloats == 0)
+    return CudaHostFloatArray(nullptr);
+  void* rawPtr = nullptr;
+  // InputBuffers is allocated before its NN server thread selects a GPU. Portable registration
+  // keeps the allocation pinned when different server threads target different CUDA contexts.
+  CUDA_ERR(
+    "allocateCudaHostFloats",
+    cudaHostAlloc(&rawPtr, numFloats * sizeof(float), cudaHostAllocPortable));
+  return CudaHostFloatArray(static_cast<float*>(rawPtr));
+}
 
 // Write `data` to `path` atomically, so a reader either sees the complete
 // old file or the complete new one, never a torn/truncated write from a crash or a racing process.
@@ -73,6 +102,8 @@ void NeuralNet::globalCleanup() {
   // Empty for TensorRT backend
 }
 
+struct SharedTRTEngine;
+
 struct ComputeContext {
   int nnXLen;
   int nnYLen;
@@ -80,7 +111,11 @@ struct ComputeContext {
   string homeDataDirOverride;
   bool useOnnx;          // build via the ONNX emitter (default true); false = hand-built ModelParser
   bool transformerNHWC;  // ONNX emitter: run transformer blocks channel-last (default true)
+  bool useCudaGraph;
+  int cudaGraphMaxBatchSize;
   string dumpDebugPlanToDir;  // if non-empty, dump emitted ONNX + built-engine layer info here (debug)
+  mutex sharedEnginesMutex;
+  map<string, weak_ptr<SharedTRTEngine>> sharedEngines;
 };
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -110,6 +145,12 @@ ComputeContext* NeuralNet::createComputeContext(
   // KataGo runs at, and it's the simpler graph. trtTransformerNHWC=true opts into the NHWC path (whole
   // trunk channel-last with NCHW<->NHWC conversions around it), which wins on single-stream latency.
   context->transformerNHWC = cfg.contains("trtTransformerNHWC") ? cfg.getBool("trtTransformerNHWC") : false;
+  // CUDA Graphs reduce CPU launch overhead, but each captured batch size needs a persistent TensorRT
+  // execution context per NN server thread. Keep this opt-in and cap the default cache so memory use
+  // remains predictable.
+  context->useCudaGraph = cfg.contains("trtUseCudaGraph") ? cfg.getBool("trtUseCudaGraph") : false;
+  context->cudaGraphMaxBatchSize =
+    cfg.contains("trtCudaGraphMaxBatchSize") ? cfg.getInt("trtCudaGraphMaxBatchSize", 1, 65536) : 16;
   // Debugging: if set, the ONNX-emitter path dumps the emitted ONNX model and the built engine's
   // per-layer info (precision/format/tactic, via a detailed-profiling build + IEngineInspector) into
   // this directory. Files are disambiguated by board size, FP16/FP32, and exact/max NN-length so the
@@ -1134,21 +1175,65 @@ struct TRTErrorRecorder : IErrorRecorder {
   }
 };
 
+struct SharedTRTEngine {
+  TRTLogger trtLogger;
+  TRTErrorRecorder trtErrorRecorder;
+  unique_ptr<IRuntime> runtime;
+  unique_ptr<ICudaEngine> engine;
+  bool usingFP16;
+  vector<pair<string, string>> debugOutputs;
+
+  SharedTRTEngine()
+    :trtLogger(),
+     trtErrorRecorder(),
+     runtime(),
+     engine(),
+     usingFP16(false),
+     debugOutputs()
+  {}
+
+  SharedTRTEngine(const SharedTRTEngine&) = delete;
+  SharedTRTEngine& operator=(const SharedTRTEngine&) = delete;
+};
+
 
 struct ComputeHandle {
+  struct CudaGraphEntry {
+    unique_ptr<IExecutionContext> exec;
+    cudaGraphExec_t graphExec;
+
+    explicit CudaGraphEntry(unique_ptr<IExecutionContext>&& exec_)
+      : exec(std::move(exec_)), graphExec(nullptr) {}
+
+    ~CudaGraphEntry() noexcept {
+      // Captured nodes retain launch state owned by the TensorRT execution context.
+      if(graphExec != nullptr)
+        cudaGraphExecDestroy(graphExec);
+    }
+
+    CudaGraphEntry() = delete;
+    CudaGraphEntry(const CudaGraphEntry&) = delete;
+    CudaGraphEntry& operator=(const CudaGraphEntry&) = delete;
+  };
+
   ComputeContext* ctx;
+  Logger* externalLogger;
 
   bool usingFP16;
   int maxBatchSize;
   int modelVersion;
   vector<pair<string, string>> debugOutputs;
 
-  TRTLogger trtLogger;
   TRTErrorRecorder trtErrorRecorder;
-  map<string, void*> buffers;
-  unique_ptr<IRuntime> runtime;
-  unique_ptr<ICudaEngine> engine;
+  shared_ptr<SharedTRTEngine> sharedEngine;
+  ICudaEngine* engine;
+  CudaMemory executionDeviceMemory;
+  size_t executionDeviceMemoryBytes;
+  map<string, CudaMemory> buffers;
   unique_ptr<IExecutionContext> exec;
+  bool cudaGraphsEnabled;
+  int graphMaxBatchSize;
+  map<int, unique_ptr<CudaGraphEntry>> cudaGraphs;
 
   ComputeHandle(
     Logger* logger,
@@ -1158,8 +1243,24 @@ struct ComputeHandle {
     int maxBatchSz,
     bool requireExactNNLen) {
     ctx = context;
+    externalLogger = logger;
+    usingFP16 = false;
+    engine = nullptr;
+    executionDeviceMemoryBytes = 0;
+    cudaGraphsEnabled = ctx->useCudaGraph;
+
+#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR < 6
+    if(cudaGraphsEnabled) {
+      cudaGraphsEnabled = false;
+      if(externalLogger != nullptr) {
+        externalLogger->write(
+          "TensorRT backend: trtUseCudaGraph requires TensorRT 8.6 or newer; using enqueueV3");
+      }
+    }
+#endif
 
     maxBatchSize = maxBatchSz;
+    graphMaxBatchSize = std::min(maxBatchSize, ctx->cudaGraphMaxBatchSize);
     modelVersion = loadedModel->modelDesc.modelVersion;
 
     // Certain minor versions of TensorRT uses a global logger, which is bad.
@@ -1169,382 +1270,480 @@ struct ComputeHandle {
       throw StringError("TensorRT backend: detected incompatible version of TensorRT library");
     }
 
-    trtLogger.setLogger(logger);
+    trtErrorRecorder.setLogger(logger);
 
-    const bool useOnnxEmit = ctx->useOnnx;
-
-    auto builder = unique_ptr<IBuilder>(createInferBuilder(trtLogger));
-    if(!builder) {
-      throw StringError("TensorRT backend: failed to create builder");
-    }
-    auto config = unique_ptr<IBuilderConfig>(builder->createBuilderConfig());
-    if(!config) {
-      throw StringError("TensorRT backend: failed to create builder config");
-    }
-
-    usingFP16 = false;
-    if(builder->platformHasFastFp16()) {
-      if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
-        config->setFlag(BuilderFlag::kFP16);
-        usingFP16 = true;
-      }
-    } else if(ctx->useFP16Mode == enabled_t::True) {
-      throw StringError("CUDA device does not support useFP16=true");
-    }
-    // The ONNX path may pin specific layers to FP32 below and needs the constraint to be hard
-    // (kOBEY) so TensorRT cannot silently fall back to an FP16 path. The ModelParser path uses the
-    // softer kPREFER. We set the flag after building the network, once forceObeyPrecision is known.
-    bool forceObeyPrecision = false;
-
-    // Debug plan/engine dump (trtDumpDebugPlanToDir). Build a base path inside that dir, disambiguated
-    // by board size + precision + exact/max so the multiple engines built in one process don't collide.
     const bool dumpDebugPlan = !ctx->dumpDebugPlanToDir.empty();
     string dumpDebugBasePath;
-    if(dumpDebugPlan) {
+    auto initializeDebugDumpPath = [&]() {
+      if(!dumpDebugPlan || !dumpDebugBasePath.empty())
+        return;
       MakeDir::make(ctx->dumpDebugPlanToDir);
       dumpDebugBasePath = ctx->dumpDebugPlanToDir + "/plan_" +
         Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) +
         (usingFP16 ? "_fp16" : "_fp32") + (requireExactNNLen ? "_exact" : "_max");
-    }
+    };
 
-    auto network = unique_ptr<INetworkDefinition>(
-      builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
-    if(!network) {
-      throw StringError("TensorRT backend: failed to create network definition");
-    }
-    auto profile = builder->createOptimizationProfile();
-    if(!profile) {
-      throw StringError("TensorRT backend: failed to create optimization profile");
-    }
-    // Build the network by emitting ONNX from the ModelDesc and parsing it with nvonnxparser (the
-    // default; supports convnets and transformers), or via the hand-built ModelParser when
-    // trtDisableOnnx is set (convnets only). Both produce the same raw-head outputs, so downstream
-    // getOutput decoding is identical.
-    unique_ptr<TRTModel> model;
-    // These must outlive buildSerializedNetwork below: nvonnxparser::parse() does not necessarily
-    // deep-copy initializer weights, so the parsed INetworkDefinition may reference data inside
-    // onnxBytes (and the parser object) until the engine is actually built. Keeping them at this
-    // scope avoids a use-after-free that manifests as all-NaN engine outputs.
-    string onnxBytes;
-    unique_ptr<nvonnxparser::IParser> onnxParser;
-    if(useOnnxEmit) {
-      logger->write("TensorRT backend: building network via ONNX emitter");
-      const ModelDesc& desc = loadedModel->modelDesc;
-      OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
-      onnxBytes = std::move(onnxResult.serializedModel);
-
-      if(dumpDebugPlan) {
-        string onnxPath = dumpDebugBasePath + ".onnx";
-        ofstream dumpOut;
-        FileUtils::open(dumpOut, onnxPath, ios::binary);
-        dumpOut.write(onnxBytes.data(), (std::streamsize)onnxBytes.size());
-        dumpOut.close();
-        logger->write("TensorRT backend: dumped emitted ONNX to " + onnxPath);
-      }
-
-      onnxParser.reset(nvonnxparser::createParser(*network, trtLogger));
-      if(!onnxParser)
-        throw StringError("TensorRT backend: failed to create ONNX parser");
-      if(!onnxParser->parse(onnxBytes.data(), onnxBytes.size())) {
-        string msg = "TensorRT backend: failed to parse emitted ONNX model:";
-        for(int i = 0; i < onnxParser->getNbErrors(); i++)
-          msg += "\n  " + string(onnxParser->getError(i)->desc());
-        throw StringError(msg);
-      }
-
-      // Constrain all graph outputs to linear FP32, matching what ModelParser sets on its outputs.
-      // getOutput does a flat cudaMemcpy of each output buffer assuming linear layout, so without
-      // this the parser may leave outputs in a reformatted layout and the copy reads garbage.
-      for(int i = 0; i < network->getNbOutputs(); i++) {
-        ITensor* out = network->getOutput(i);
-        out->setType(DataType::kFLOAT);
-        out->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
-      }
-
-      // Force the numerically-sensitive regions to FP32: every RMSNorm reduction (square->reduce->
-      // sqrt, which sums over many elements and loses too much precision in FP16) plus the trunk-tip
-      // norm and policy/value heads. The emitter records these layer names; we pin them via per-layer
-      // setPrecision + kOBEY_PRECISION_CONSTRAINTS (a hard constraint) so correctness does not depend
-      // on TensorRT declining to fuse a numerically-equivalent FP16 path back in. This matches the
-      // FP32-forcing the hand-built ModelParser path already does for its heads/gpool.
-      std::set<string> fp32Names;
-      fp32Names.insert(onnxResult.trunkTipAndHeadNodeNames.begin(), onnxResult.trunkTipAndHeadNodeNames.end());
-      fp32Names.insert(onnxResult.rmsNormNodeNames.begin(), onnxResult.rmsNormNodeNames.end());
-      int pinned = 0;
-      for(int i = 0; i < network->getNbLayers(); i++) {
-        ILayer* layer = network->getLayer(i);
-        const char* lname = layer->getName();
-        if(lname != nullptr && fp32Names.count(string(lname))) {
-          layer->setPrecision(DataType::kFLOAT);
-          for(int o = 0; o < layer->getNbOutputs(); o++)
-            layer->setOutputType(o, DataType::kFLOAT);
-          pinned++;
-        }
-      }
-      forceObeyPrecision = true;
-      logger->write(Global::strprintf("TensorRT backend: pinned %d layers to FP32 (rmsnorm + heads)", pinned));
-
-      // Set optimization profile dims for each input the parser created.
-      auto setProfile = [&](const char* name, Dims4 minDims, Dims4 optMaxDims) {
-        profile->setDimensions(name, OptProfileSelector::kMIN, minDims);
-        profile->setDimensions(name, OptProfileSelector::kOPT, optMaxDims);
-        profile->setDimensions(name, OptProfileSelector::kMAX, optMaxDims);
-      };
-      setProfile("InputMask", Dims4(1, 1, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, 1, ctx->nnYLen, ctx->nnXLen));
-      setProfile("InputSpatial", Dims4(1, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen));
-      setProfile("InputGlobal", Dims4(1, desc.numInputGlobalChannels, 1, 1), Dims4(maxBatchSize, desc.numInputGlobalChannels, 1, 1));
-
-      model = make_unique<TRTModel>();
-      model->nnXLen = ctx->nnXLen;
-      model->nnYLen = ctx->nnYLen;
-      model->profile = profile;
-      model->network = move(network);
-      model->rawModel = loadedModel;
-      model->maxBatchSize = maxBatchSize;
-      model->requireExactNNLen = requireExactNNLen;
-      model->modelVersion = desc.modelVersion;
-      // tuneHash buckets the timing cache. This is the ONNX path's descriptor: the "onnxsalt" prefix
-      // already separates it from the ModelParser path (which builds its own "salt"-prefixed tuneDesc),
-      // and the "nhwc" field distinguishes the NHWC vs NCHW trunk layout (different layer signatures),
-      // so the two layouts don't share a timing-cache file full of mutual misses.
-      string tuneDesc = Global::strprintf(
-        "\"onnxsalt\"(%d)\"nhwc\"(%d)\"model\"(%d,%d,%d)",
-        ModelParser::tuneSalt, ctx->transformerNHWC ? 1 : 0,
-        desc.modelVersion, desc.numInputChannels, desc.numInputGlobalChannels);
-      SHA2::get256(tuneDesc.c_str(), model->tuneHash);
-    }
-    else {
-      auto modelParser = make_unique<ModelParser>();
-      model = modelParser->build(
-        move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
-    }
-    debugOutputs = model->debugOutputs;
-    config->addOptimizationProfile(profile);
-
-    // Honor per-layer precision constraints. The ONNX path pins some layers to FP32 and needs a hard
-    // constraint (kOBEY) so TensorRT cannot fall back to FP16; the ModelParser path uses kPREFER.
-    config->setFlag(forceObeyPrecision ? BuilderFlag::kOBEY_PRECISION_CONSTRAINTS : BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
-
-#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
-    // This is to avoid external tactic sources and tactics that have shape switching overhead
-    if(prop->major < 8) {
-      config->setTacticSources(
-        1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
-        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
-    } else {
-      config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
-    }
-#else
-    if(prop->major >= 8) {
-      // This is to avoid tactics that have shape switching overhead
-      config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
-      config->setBuilderOptimizationLevel(2);
+    // TensorRT 10 supports the standard concurrency model of one shared, immutable engine with a
+    // separate execution context per host thread. Reuse the engine for handles targeting the same
+    // GPU, while retaining private contexts, activation memory, I/O buffers, and CUDA Graphs.
+#if NV_TENSORRT_MAJOR >= 10
+    unique_lock<mutex> sharedEngineLock;
+    string sharedEngineKey;
+    int currentDevice = -1;
+    CUDA_ERR("ComputeHandle", cudaGetDevice(&currentDevice));
+    sharedEngineKey = Global::strprintf(
+      "%d:%d:%d:%s",
+      currentDevice,
+      maxBatchSize,
+      requireExactNNLen ? 1 : 0,
+      loadedModel->modelDesc.sha256.c_str());
+    sharedEngineLock = unique_lock<mutex>(ctx->sharedEnginesMutex);
+    auto cachedEngine = ctx->sharedEngines.find(sharedEngineKey);
+    if(cachedEngine != ctx->sharedEngines.end())
+      sharedEngine = cachedEngine->second.lock();
+    if(sharedEngine != nullptr && logger != nullptr) {
+      logger->write(
+        "TensorRT backend: reusing shared engine for concurrent execution contexts on GPU " +
+        Global::intToString(currentDevice));
     }
 #endif
 
-    // For the debug plan dump, build with detailed profiling so the engine inspector can report
-    // per-layer precision/format/tactic (see the inspector dump after deserialize).
-    if(dumpDebugPlan)
-      config->setProfilingVerbosity(ProfilingVerbosity::kDETAILED);
+    if(sharedEngine == nullptr) {
+      auto newSharedEngine = make_shared<SharedTRTEngine>();
+      TRTLogger& trtLogger = newSharedEngine->trtLogger;
+      trtLogger.setLogger(logger);
 
-    // So that there are no concurrent kernel executions probably from other parts of code while profiling
-    // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
-    config->setProfileStream(cudaStreamLegacy);
+      const bool useOnnxEmit = ctx->useOnnx;
 
-    // Typical runtime allocation is much less than the 1 GiB specified below
-    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
-
-    string plan;
-    {
-      static mutex tuneMutex;
-      tuneMutex.lock();
-
-      auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
-      cacheDir += "/trtcache";
-      MakeDir::make(cacheDir);
-
-      uint8_t deviceHash[32];
-      SHA2::get256(prop->name, deviceHash);
-
-      // Truncated to 4 bytes
-      char deviceIdent[4 * 2 + 1];
-      for(int i = 0; i < 4; i++) {
-        sprintf(deviceIdent + i * 2, "%02x", static_cast<unsigned char>(deviceHash[i]));
+      auto builder = unique_ptr<IBuilder>(createInferBuilder(trtLogger));
+      if(!builder) {
+        throw StringError("TensorRT backend: failed to create builder");
       }
-      deviceIdent[sizeof(deviceIdent) - 1] = 0;
+      auto config = unique_ptr<IBuilderConfig>(builder->createBuilderConfig());
+      if(!config) {
+        throw StringError("TensorRT backend: failed to create builder config");
+      }
 
-#ifdef CACHE_TENSORRT_PLAN
-      // The plan cache stores a fully serialized engine, reused only when the model SHA256 (appended
-      // to the blob and verified on read) AND paramStr both match. paramStr must therefore encode
-      // every knob that changes the built engine: lib/device/salt, board+batch+precision, and the
-      // backend build mode (ONNX vs ModelParser, and NHWC vs NCHW for the ONNX path). The
-      // build-mode tag is folded into both the filename (for human readability) and paramStr.
-      string buildModeStr = Global::strprintf(
-        "%s%s",
-        ctx->useOnnx ? "onnx" : "prsr",
-        (ctx->useOnnx && ctx->transformerNHWC) ? "nh" : "");
-      const char* lenStr = requireExactNNLen ? "ex" : "mx";
-      auto planCacheFile = Global::strprintf(
-        "%s/trt-%d_gpu-%s_net-%s_s%d_%s_%s%dx%d_b%d_fp%d",
-        cacheDir.c_str(),
-        getInferLibVersion(),
-        deviceIdent,
-        loadedModel->modelDesc.name.c_str(),
-        ModelParser::tuneSalt,
-        buildModeStr.c_str(),
-        lenStr,
-        ctx->nnYLen,
-        ctx->nnXLen,
-        maxBatchSize,
-        usingFP16 ? 16 : 32);
-      string paramStr = Global::strprintf(
-        "_%d_%s_s%d_%s_%s_%d_%d_%d_%d",
-        getInferLibVersion(),
-        deviceIdent,
-        ModelParser::tuneSalt,
-        buildModeStr.c_str(),
-        lenStr,
-        ctx->nnYLen,
-        ctx->nnXLen,
-        maxBatchSize,
-        usingFP16 ? 16 : 32);
-      try {
-        plan = FileUtils::readFileBinary(planCacheFile);
-      } catch(const StringError& e) {
-        (void)e;
-      };
+      if(builder->platformHasFastFp16()) {
+        if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
+          config->setFlag(BuilderFlag::kFP16);
+          usingFP16 = true;
+        }
+      } else if(ctx->useFP16Mode == enabled_t::True) {
+        throw StringError("CUDA device does not support useFP16=true");
+      }
+      // The ONNX path may pin specific layers to FP32 below and needs the constraint to be hard
+      // (kOBEY) so TensorRT cannot silently fall back to an FP16 path. The ModelParser path uses the
+      // softer kPREFER. We set the flag after building the network, once forceObeyPrecision is known.
+      bool forceObeyPrecision = false;
 
-      if(plan.size() > 0) {
-        if(plan.size() < 64 + paramStr.size()) {
-          logger->write("Could not parse plan, unexpected size in " + planCacheFile);
-          plan.clear();
-        } else {
-          string cachedParamStr = plan.substr(plan.size() - paramStr.size());
-          string modelHash = plan.substr(plan.size() - 64 - paramStr.size(), 64);
-          if(modelHash != loadedModel->modelDesc.sha256) {
-            logger->write("Plan cache is corrupted or is for the wrong model in " + planCacheFile);
-            plan.clear();
-          } else if(cachedParamStr != paramStr) {
-            logger->write("Plan cache is corrupted or is for the wrong parameters in " + planCacheFile);
-            plan.clear();
-          } else {
-            plan.erase(plan.size() - 64 - paramStr.size());
+      // Debug plan/engine dump (trtDumpDebugPlanToDir). Build a base path inside that dir, disambiguated
+      // by board size + precision + exact/max so the multiple engines built in one process don't collide.
+      initializeDebugDumpPath();
+
+      auto network = unique_ptr<INetworkDefinition>(
+        builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
+      if(!network) {
+        throw StringError("TensorRT backend: failed to create network definition");
+      }
+      auto profile = builder->createOptimizationProfile();
+      if(!profile) {
+        throw StringError("TensorRT backend: failed to create optimization profile");
+      }
+      // Build the network by emitting ONNX from the ModelDesc and parsing it with nvonnxparser (the
+      // default; supports convnets and transformers), or via the hand-built ModelParser when
+      // trtDisableOnnx is set (convnets only). Both produce the same raw-head outputs, so downstream
+      // getOutput decoding is identical.
+      unique_ptr<TRTModel> model;
+      // These must outlive buildSerializedNetwork below: nvonnxparser::parse() does not necessarily
+      // deep-copy initializer weights, so the parsed INetworkDefinition may reference data inside
+      // onnxBytes (and the parser object) until the engine is actually built. Keeping them at this
+      // scope avoids a use-after-free that manifests as all-NaN engine outputs.
+      string onnxBytes;
+      unique_ptr<nvonnxparser::IParser> onnxParser;
+      if(useOnnxEmit) {
+        logger->write("TensorRT backend: building network via ONNX emitter");
+        const ModelDesc& desc = loadedModel->modelDesc;
+        OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
+        onnxBytes = std::move(onnxResult.serializedModel);
+
+        if(dumpDebugPlan) {
+          string onnxPath = dumpDebugBasePath + ".onnx";
+          ofstream dumpOut;
+          FileUtils::open(dumpOut, onnxPath, ios::binary);
+          dumpOut.write(onnxBytes.data(), (std::streamsize)onnxBytes.size());
+          dumpOut.close();
+          logger->write("TensorRT backend: dumped emitted ONNX to " + onnxPath);
+        }
+
+        onnxParser.reset(nvonnxparser::createParser(*network, trtLogger));
+        if(!onnxParser)
+          throw StringError("TensorRT backend: failed to create ONNX parser");
+        if(!onnxParser->parse(onnxBytes.data(), onnxBytes.size())) {
+          string msg = "TensorRT backend: failed to parse emitted ONNX model:";
+          for(int i = 0; i < onnxParser->getNbErrors(); i++)
+            msg += "\n  " + string(onnxParser->getError(i)->desc());
+          throw StringError(msg);
+        }
+
+        // Constrain all graph outputs to linear FP32, matching what ModelParser sets on its outputs.
+        // getOutput does a flat cudaMemcpy of each output buffer assuming linear layout, so without
+        // this the parser may leave outputs in a reformatted layout and the copy reads garbage.
+        for(int i = 0; i < network->getNbOutputs(); i++) {
+          ITensor* out = network->getOutput(i);
+          out->setType(DataType::kFLOAT);
+          out->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+        }
+
+        // Force the numerically-sensitive regions to FP32: every RMSNorm reduction (square->reduce->
+        // sqrt, which sums over many elements and loses too much precision in FP16) plus the trunk-tip
+        // norm and policy/value heads. The emitter records these layer names; we pin them via per-layer
+        // setPrecision + kOBEY_PRECISION_CONSTRAINTS (a hard constraint) so correctness does not depend
+        // on TensorRT declining to fuse a numerically-equivalent FP16 path back in. This matches the
+        // FP32-forcing the hand-built ModelParser path already does for its heads/gpool.
+        std::set<string> fp32Names;
+        fp32Names.insert(onnxResult.trunkTipAndHeadNodeNames.begin(), onnxResult.trunkTipAndHeadNodeNames.end());
+        fp32Names.insert(onnxResult.rmsNormNodeNames.begin(), onnxResult.rmsNormNodeNames.end());
+        int pinned = 0;
+        for(int i = 0; i < network->getNbLayers(); i++) {
+          ILayer* layer = network->getLayer(i);
+          const char* lname = layer->getName();
+          if(lname != nullptr && fp32Names.count(string(lname))) {
+            layer->setPrecision(DataType::kFLOAT);
+            for(int o = 0; o < layer->getNbOutputs(); o++)
+              layer->setOutputType(o, DataType::kFLOAT);
+            pinned++;
           }
         }
-      }
+        forceObeyPrecision = true;
+        logger->write(Global::strprintf("TensorRT backend: pinned %d layers to FP32 (rmsnorm + heads)", pinned));
 
-      if(plan.size() <= 0) {
-        logger->write("Creating new plan cache");
-        auto planBuffer = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
-        if(!planBuffer) {
-          throw StringError("TensorRT backend: failed to create plan");
+        // Set optimization profile dims for each input the parser created.
+        auto setProfile = [&](const char* name, Dims4 minDims, Dims4 optMaxDims) {
+          profile->setDimensions(name, OptProfileSelector::kMIN, minDims);
+          profile->setDimensions(name, OptProfileSelector::kOPT, optMaxDims);
+          profile->setDimensions(name, OptProfileSelector::kMAX, optMaxDims);
+        };
+        setProfile("InputMask", Dims4(1, 1, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, 1, ctx->nnYLen, ctx->nnXLen));
+        setProfile("InputSpatial", Dims4(1, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen));
+        setProfile("InputGlobal", Dims4(1, desc.numInputGlobalChannels, 1, 1), Dims4(maxBatchSize, desc.numInputGlobalChannels, 1, 1));
+
+        model = make_unique<TRTModel>();
+        model->nnXLen = ctx->nnXLen;
+        model->nnYLen = ctx->nnYLen;
+        model->profile = profile;
+        model->network = move(network);
+        model->rawModel = loadedModel;
+        model->maxBatchSize = maxBatchSize;
+        model->requireExactNNLen = requireExactNNLen;
+        model->modelVersion = desc.modelVersion;
+        // tuneHash buckets the timing cache. This is the ONNX path's descriptor: the "onnxsalt" prefix
+        // already separates it from the ModelParser path (which builds its own "salt"-prefixed tuneDesc),
+        // and the "nhwc" field distinguishes the NHWC vs NCHW trunk layout (different layer signatures),
+        // so the two layouts don't share a timing-cache file full of mutual misses.
+        string tuneDesc = Global::strprintf(
+          "\"onnxsalt\"(%d)\"nhwc\"(%d)\"model\"(%d,%d,%d)",
+          ModelParser::tuneSalt, ctx->transformerNHWC ? 1 : 0,
+          desc.modelVersion, desc.numInputChannels, desc.numInputGlobalChannels);
+        SHA2::get256(tuneDesc.c_str(), model->tuneHash);
+      }
+      else {
+        auto modelParser = make_unique<ModelParser>();
+        model = modelParser->build(
+          move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
+      }
+      debugOutputs = model->debugOutputs;
+      config->addOptimizationProfile(profile);
+
+#if (NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR >= 6) || NV_TENSORRT_MAJOR == 9
+      // TensorRT 8.6 and 9 require this preview feature before multiple execution contexts may
+      // share optimization profile 0. Profile sharing became the default behavior in TensorRT 10.
+      if(cudaGraphsEnabled) {
+        config->setPreviewFeature(PreviewFeature::kPROFILE_SHARING_0806, true);
+        if(!config->getPreviewFeature(PreviewFeature::kPROFILE_SHARING_0806)) {
+          throw StringError("TensorRT backend: failed to enable optimization-profile sharing");
+        }
+      }
+#endif
+
+      // Honor per-layer precision constraints. The ONNX path pins some layers to FP32 and needs a hard
+      // constraint (kOBEY) so TensorRT cannot fall back to FP16; the ModelParser path uses kPREFER.
+      config->setFlag(forceObeyPrecision ? BuilderFlag::kOBEY_PRECISION_CONSTRAINTS : BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
+
+#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
+      // This is to avoid external tactic sources and tactics that have shape switching overhead
+      if(prop->major < 8) {
+        config->setTacticSources(
+          1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
+          1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
+      } else {
+        config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
+      }
+#else
+      if(prop->major >= 8) {
+        // This is to avoid tactics that have shape switching overhead
+        config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
+        config->setBuilderOptimizationLevel(2);
+      }
+#endif
+
+      // For the debug plan dump, build with detailed profiling so the engine inspector can report
+      // per-layer precision/format/tactic (see the inspector dump after deserialize).
+      if(dumpDebugPlan)
+        config->setProfilingVerbosity(ProfilingVerbosity::kDETAILED);
+
+      // So that there are no concurrent kernel executions probably from other parts of code while profiling
+      // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
+      config->setProfileStream(cudaStreamLegacy);
+
+      // Typical runtime allocation is much less than the 1 GiB specified below
+      config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
+
+      string plan;
+      {
+        static mutex tuneMutex;
+        tuneMutex.lock();
+
+        auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
+        cacheDir += "/trtcache";
+        MakeDir::make(cacheDir);
+
+        uint8_t deviceHash[32];
+        SHA2::get256(prop->name, deviceHash);
+
+        // Truncated to 4 bytes
+        char deviceIdent[4 * 2 + 1];
+        for(int i = 0; i < 4; i++) {
+          sprintf(deviceIdent + i * 2, "%02x", static_cast<unsigned char>(deviceHash[i]));
+        }
+        deviceIdent[sizeof(deviceIdent) - 1] = 0;
+
+#ifdef CACHE_TENSORRT_PLAN
+        // The plan cache stores a fully serialized engine, reused only when the model SHA256 (appended
+        // to the blob and verified on read) AND paramStr both match. paramStr must therefore encode
+        // every knob that changes the built engine: lib/device/salt, board+batch+precision, and the
+        // backend build mode (ONNX vs ModelParser, and NHWC vs NCHW for the ONNX path). The
+        // build-mode tag is folded into both the filename (for human readability) and paramStr.
+        string cudaGraphBuildModeStr;
+#if (NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR >= 6) || NV_TENSORRT_MAJOR == 9
+        // Only TensorRT 8.6 and 9 change the serialized engine when CUDA Graphs are enabled:
+        // TensorRT 10+ shares profiles by default, while 8.5 cannot use this path.
+        if(cudaGraphsEnabled)
+          cudaGraphBuildModeStr = "cg";
+#endif
+        string buildModeStr = Global::strprintf(
+          "%s%s%s",
+          ctx->useOnnx ? "onnx" : "prsr",
+          (ctx->useOnnx && ctx->transformerNHWC) ? "nh" : "",
+          cudaGraphBuildModeStr.c_str());
+        const char* lenStr = requireExactNNLen ? "ex" : "mx";
+        auto planCacheFile = Global::strprintf(
+          "%s/trt-%d_gpu-%s_net-%s_s%d_%s_%s%dx%d_b%d_fp%d",
+          cacheDir.c_str(),
+          getInferLibVersion(),
+          deviceIdent,
+          loadedModel->modelDesc.name.c_str(),
+          ModelParser::tuneSalt,
+          buildModeStr.c_str(),
+          lenStr,
+          ctx->nnYLen,
+          ctx->nnXLen,
+          maxBatchSize,
+          usingFP16 ? 16 : 32);
+        string paramStr = Global::strprintf(
+          "_%d_%s_s%d_%s_%s_%d_%d_%d_%d",
+          getInferLibVersion(),
+          deviceIdent,
+          ModelParser::tuneSalt,
+          buildModeStr.c_str(),
+          lenStr,
+          ctx->nnYLen,
+          ctx->nnXLen,
+          maxBatchSize,
+          usingFP16 ? 16 : 32);
+        try {
+          plan = FileUtils::readFileBinary(planCacheFile);
+        } catch(const StringError& e) {
+          (void)e;
+        };
+
+        if(plan.size() > 0) {
+          if(plan.size() < 64 + paramStr.size()) {
+            logger->write("Could not parse plan, unexpected size in " + planCacheFile);
+            plan.clear();
+          } else {
+            string cachedParamStr = plan.substr(plan.size() - paramStr.size());
+            string modelHash = plan.substr(plan.size() - 64 - paramStr.size(), 64);
+            if(modelHash != loadedModel->modelDesc.sha256) {
+              logger->write("Plan cache is corrupted or is for the wrong model in " + planCacheFile);
+              plan.clear();
+            } else if(cachedParamStr != paramStr) {
+              logger->write("Plan cache is corrupted or is for the wrong parameters in " + planCacheFile);
+              plan.clear();
+            } else {
+              plan.erase(plan.size() - 64 - paramStr.size());
+            }
+          }
+        }
+
+        if(plan.size() <= 0) {
+          logger->write("Creating new plan cache");
+          auto planBuffer = unique_ptr<IHostMemory>(builder->buildSerializedNetwork(*model->network, *config));
+          if(!planBuffer) {
+            throw StringError("TensorRT backend: failed to create plan");
+          }
+          plan.insert(
+            plan.end(),
+            static_cast<char*>(planBuffer->data()),
+            static_cast<char*>(planBuffer->data()) + planBuffer->size());
+          if(loadedModel->modelDesc.sha256.size() != 64) {
+            throw StringError("Unexpected model hash size");
+          }
+          plan.insert(plan.end(), loadedModel->modelDesc.sha256.begin(), loadedModel->modelDesc.sha256.end());
+          plan.insert(plan.end(), paramStr.begin(), paramStr.end());
+          writeFileAtomically(planCacheFile, plan.data(), plan.size());
+          logger->write("Saved new plan cache to " + planCacheFile);
+          plan.erase(plan.size() - 64 - paramStr.size());
+          tuneMutex.unlock();
+        } else {
+          tuneMutex.unlock();
+          logger->write("Using existing plan cache at " + planCacheFile);
+        }
+#else
+        // Truncated to 6 bytes
+        char tuneIdent[6 * 2 + 1];
+        for(int i = 0; i < 6; i++) {
+          sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
+        }
+        tuneIdent[sizeof(tuneIdent) - 1] = 0;
+
+        auto timingCacheFile = Global::strprintf(
+          "%s/trt-%d_gpu-%s_tune-%s_%s%dx%d_b%d_fp%d",
+          cacheDir.c_str(),
+          getInferLibVersion(),
+          deviceIdent,
+          tuneIdent,
+          requireExactNNLen ? "ex" : "mx",
+          ctx->nnYLen,
+          ctx->nnXLen,
+          maxBatchSize,
+          usingFP16 ? 16 : 32);
+
+        string timingCacheBlob;
+        try {
+          timingCacheBlob = FileUtils::readFileBinary(timingCacheFile);
+        } catch(const StringError& e) {
+          (void)e;
+        };
+        if(timingCacheBlob.size() > 0)
+          logger->write("Using existing timing cache at " + timingCacheFile);
+        else
+          logger->write("Creating new timing cache (usingFP16=" + Global::boolToString(usingFP16) + " " + Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) + " maxBatchSizeLimit=" + Global::intToString(maxBatchSize) + ")");
+
+        auto timingCache =
+          unique_ptr<ITimingCache>(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
+        auto invalidTimingCache = !config->setTimingCache(*timingCache, false);
+        if(invalidTimingCache) {
+          logger->write("Invalid timing cache, using new one instead");
+          timingCache.reset(config->createTimingCache(nullptr, 0));
+          config->setTimingCache(*timingCache, false);
+        }
+
+        unique_ptr<IHostMemory> planBuffer;
+        if(invalidTimingCache || !timingCacheBlob.size()) {
+          planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+          if(!planBuffer) {
+            throw StringError("TensorRT backend: failed to create plan");
+          }
+          auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
+          writeFileAtomically(
+            timingCacheFile, static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
+          logger->write("Saved new timing cache to " + timingCacheFile);
+          tuneMutex.unlock();
+        } else {
+          tuneMutex.unlock();
+          planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
+          if(!planBuffer) {
+            throw StringError("TensorRT backend: failed to create plan");
+          }
         }
         plan.insert(
           plan.end(),
           static_cast<char*>(planBuffer->data()),
           static_cast<char*>(planBuffer->data()) + planBuffer->size());
-        if(loadedModel->modelDesc.sha256.size() != 64) {
-          throw StringError("Unexpected model hash size");
-        }
-        plan.insert(plan.end(), loadedModel->modelDesc.sha256.begin(), loadedModel->modelDesc.sha256.end());
-        plan.insert(plan.end(), paramStr.begin(), paramStr.end());
-        writeFileAtomically(planCacheFile, plan.data(), plan.size());
-        logger->write("Saved new plan cache to " + planCacheFile);
-        plan.erase(plan.size() - 64 - paramStr.size());
-        tuneMutex.unlock();
-      } else {
-        tuneMutex.unlock();
-        logger->write("Using existing plan cache at " + planCacheFile);
-      }
-#else
-      // Truncated to 6 bytes
-      char tuneIdent[6 * 2 + 1];
-      for(int i = 0; i < 6; i++) {
-        sprintf(tuneIdent + i * 2, "%02x", static_cast<unsigned char>(model->tuneHash[i]));
-      }
-      tuneIdent[sizeof(tuneIdent) - 1] = 0;
-
-      auto timingCacheFile = Global::strprintf(
-        "%s/trt-%d_gpu-%s_tune-%s_%s%dx%d_b%d_fp%d",
-        cacheDir.c_str(),
-        getInferLibVersion(),
-        deviceIdent,
-        tuneIdent,
-        requireExactNNLen ? "ex" : "mx",
-        ctx->nnYLen,
-        ctx->nnXLen,
-        maxBatchSize,
-        usingFP16 ? 16 : 32);
-
-      string timingCacheBlob;
-      try {
-        timingCacheBlob = FileUtils::readFileBinary(timingCacheFile);
-      } catch(const StringError& e) {
-        (void)e;
-      };
-      if(timingCacheBlob.size() > 0)
-        logger->write("Using existing timing cache at " + timingCacheFile);
-      else
-        logger->write("Creating new timing cache (usingFP16=" + Global::boolToString(usingFP16) + " " + Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) + " maxBatchSizeLimit=" + Global::intToString(maxBatchSize) + ")");
-
-      auto timingCache =
-        unique_ptr<ITimingCache>(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
-      auto invalidTimingCache = !config->setTimingCache(*timingCache, false);
-      if(invalidTimingCache) {
-        logger->write("Invalid timing cache, using new one instead");
-        timingCache.reset(config->createTimingCache(nullptr, 0));
-        config->setTimingCache(*timingCache, false);
+#endif
       }
 
-      unique_ptr<IHostMemory> planBuffer;
-      if(invalidTimingCache || !timingCacheBlob.size()) {
-        planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
-        if(!planBuffer) {
-          throw StringError("TensorRT backend: failed to create plan");
-        }
-        auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
-        writeFileAtomically(
-          timingCacheFile, static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
-        logger->write("Saved new timing cache to " + timingCacheFile);
-        tuneMutex.unlock();
-      } else {
-        tuneMutex.unlock();
-        planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
-        if(!planBuffer) {
-          throw StringError("TensorRT backend: failed to create plan");
-        }
+      if(dumpDebugPlan) {
+        string planPath = dumpDebugBasePath + ".plan";
+        ofstream pofs;
+        FileUtils::open(pofs, planPath, ios::out | ios::binary);
+        pofs.write(plan.data(), (std::streamsize)plan.size());
+        pofs.close();
+        logger->write("TensorRT backend: dumped serialized plan to " + planPath);
       }
-      plan.insert(
-        plan.end(),
-        static_cast<char*>(planBuffer->data()),
-        static_cast<char*>(planBuffer->data()) + planBuffer->size());
+
+      newSharedEngine->runtime.reset(createInferRuntime(trtLogger));
+      if(!newSharedEngine->runtime) {
+        throw StringError("TensorRT backend: failed to create runtime");
+      }
+      newSharedEngine->trtErrorRecorder.setLogger(logger);
+      newSharedEngine->runtime->setErrorRecorder(&newSharedEngine->trtErrorRecorder);
+
+      newSharedEngine->engine.reset(newSharedEngine->runtime->deserializeCudaEngine(plan.data(), plan.size()));
+      if(!newSharedEngine->engine) {
+        throw StringError("TensorRT backend: failed to create cuda engine");
+      }
+      newSharedEngine->trtErrorRecorder.clear();
+
+      newSharedEngine->usingFP16 = usingFP16;
+      newSharedEngine->debugOutputs = debugOutputs;
+      sharedEngine = std::move(newSharedEngine);
+#if NV_TENSORRT_MAJOR >= 10
+      ctx->sharedEngines[sharedEngineKey] = sharedEngine;
 #endif
     }
+#if NV_TENSORRT_MAJOR >= 10
+    sharedEngineLock.unlock();
+#endif
 
-    if(dumpDebugPlan) {
-      string planPath = dumpDebugBasePath + ".plan";
-      ofstream pofs;
-      FileUtils::open(pofs, planPath, ios::out | ios::binary);
-      pofs.write(plan.data(), (std::streamsize)plan.size());
-      pofs.close();
-      logger->write("TensorRT backend: dumped serialized plan to " + planPath);
-    }
+    usingFP16 = sharedEngine->usingFP16;
+    debugOutputs = sharedEngine->debugOutputs;
+    engine = sharedEngine->engine.get();
+    initializeDebugDumpPath();
 
-    runtime.reset(createInferRuntime(trtLogger));
-    if(!runtime) {
-      throw StringError("TensorRT backend: failed to create runtime");
-    }
-    trtErrorRecorder.setLogger(logger);
-    runtime->setErrorRecorder(&trtErrorRecorder);
+    if(cudaGraphsEnabled) {
+#if NV_TENSORRT_MAJOR > 10 || (NV_TENSORRT_MAJOR == 10 && NV_TENSORRT_MINOR >= 1)
+      const int64_t requiredMemory = engine->getDeviceMemorySizeV2();
+      if(requiredMemory < 0 ||
+         static_cast<uint64_t>(requiredMemory) > numeric_limits<size_t>::max()) {
+        throw StringError("TensorRT backend: invalid execution-context device-memory size");
+      }
+      executionDeviceMemoryBytes = static_cast<size_t>(requiredMemory);
+#else
+      executionDeviceMemoryBytes = engine->getDeviceMemorySize();
+#endif
+      if(executionDeviceMemoryBytes > 0) {
+        void* memory = nullptr;
+        CUDA_ERR("ComputeHandle", cudaMalloc(&memory, executionDeviceMemoryBytes));
+        executionDeviceMemory.reset(memory);
+      }
 
-    engine.reset(runtime->deserializeCudaEngine(plan.data(), plan.size()));
-    if(!engine) {
-      throw StringError("TensorRT backend: failed to create cuda engine");
+#if NV_TENSORRT_MAJOR >= 10
+      exec.reset(engine->createExecutionContext(ExecutionContextAllocationStrategy::kUSER_MANAGED));
+#else
+      exec.reset(engine->createExecutionContextWithoutDeviceMemory());
+#endif
+      if(exec != nullptr)
+        setExecutionDeviceMemory(exec.get());
     }
-    exec.reset(engine->createExecutionContext());
+    else {
+      exec.reset(engine->createExecutionContext());
+    }
     if(!exec) {
       throw StringError("TensorRT backend: failed to create execution context");
     }
+    exec->setErrorRecorder(&trtErrorRecorder);
 
     // For the debug plan dump, write the built engine's per-layer info (precision, format, tactic) as
     // JSON. This shows the realized graph: which ops fused (Myelin kgen/gemm kernels), the per-tensor
@@ -1565,24 +1764,54 @@ struct ComputeHandle {
 
     for(int i = 0; i < engine->getNbIOTensors(); i++) {
       void* buffer = nullptr;
-      auto name = engine->getIOTensorName(i);
+      const char* name = engine->getIOTensorName(i);
       auto dims = engine->getTensorShape(name);
       size_t bytes = accumulate(dims.d + 1, dims.d + dims.nbDims, maxBatchSize * sizeof(float), multiplies<size_t>());
       CUDA_ERR("ComputeHandle", cudaMalloc(&buffer, bytes));
-      buffers.emplace(make_pair(name, buffer));
-      exec->setTensorAddress(name, buffer);
+      auto inserted = buffers.emplace(name, CudaMemory(buffer));
+      if(!inserted.second)
+        throw StringError("TensorRT backend: duplicate I/O tensor name " + string(name));
+      if(!exec->setTensorAddress(name, inserted.first->second.get()))
+        throw StringError("TensorRT backend: failed to bind I/O tensor " + string(name));
     }
 
-    exec->setOptimizationProfileAsync(0, cudaStreamPerThread);
-    cudaStreamSynchronize(cudaStreamPerThread);
+    if(!exec->setOptimizationProfileAsync(0, cudaStreamPerThread))
+      throw StringError("TensorRT backend: failed to select optimization profile");
+    CUDA_ERR("ComputeHandle", cudaStreamSynchronize(cudaStreamPerThread));
+
+    if(cudaGraphsEnabled) {
+      // Each capture first runs a shape-flush inference. Initialize the full input allocations so
+      // prewarming never reads uninitialized device memory.
+      for(int i = 0; i < engine->getNbIOTensors(); i++) {
+        const char* name = engine->getIOTensorName(i);
+        if(engine->getTensorIOMode(name) == TensorIOMode::kINPUT) {
+          CUDA_ERR(
+            "ComputeHandle",
+            cudaMemsetAsync(getBuffer(name), 0, getBufferBytes(name), cudaStreamPerThread));
+        }
+      }
+      CUDA_ERR("ComputeHandle", cudaStreamSynchronize(cudaStreamPerThread));
+
+      string failureReason;
+      for(int batchSize = 1; batchSize <= graphMaxBatchSize; batchSize++) {
+        if(!captureCudaGraph(batchSize, failureReason)) {
+          disableCudaGraphs(failureReason);
+          break;
+        }
+      }
+      if(cudaGraphsEnabled && externalLogger != nullptr) {
+        externalLogger->write(Global::strprintf(
+          "TensorRT backend: prewarmed CUDA Graphs for batch sizes 1-%d "
+          "(shared execution memory %llu bytes)",
+          graphMaxBatchSize,
+          (unsigned long long)executionDeviceMemoryBytes));
+      }
+    }
+
     trtErrorRecorder.clear();
   }
 
-  ~ComputeHandle() {
-    for(auto ptr: buffers) {
-      CUDA_ERR("~ComputeHandle", cudaFree(ptr.second));
-    }
-  }
+  ~ComputeHandle() = default;
 
   ComputeHandle() = delete;
   ComputeHandle(const ComputeHandle&) = delete;
@@ -1591,7 +1820,7 @@ struct ComputeHandle {
   void* getBuffer(const char* name) {
     auto search = buffers.find(name);
     if(search != buffers.end()) {
-      return search->second;
+      return search->second.get();
     } else {
       throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
@@ -1623,6 +1852,145 @@ struct ComputeHandle {
     } else {
       throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
+  }
+
+  void setExecutionDeviceMemory(IExecutionContext* executionContext) {
+#if NV_TENSORRT_MAJOR > 10 || (NV_TENSORRT_MAJOR == 10 && NV_TENSORRT_MINOR >= 1)
+    executionContext->setDeviceMemoryV2(
+      executionDeviceMemory.get(), static_cast<int64_t>(executionDeviceMemoryBytes));
+#else
+    executionContext->setDeviceMemory(executionDeviceMemory.get());
+#endif
+  }
+
+  unique_ptr<IExecutionContext> createGraphExecutionContext(string& failureReason) {
+#if NV_TENSORRT_MAJOR >= 10
+    auto graphContext = unique_ptr<IExecutionContext>(
+      engine->createExecutionContext(ExecutionContextAllocationStrategy::kUSER_MANAGED));
+#else
+    auto graphContext = unique_ptr<IExecutionContext>(engine->createExecutionContextWithoutDeviceMemory());
+#endif
+    if(!graphContext) {
+      failureReason = "could not create a per-batch execution context";
+      return nullptr;
+    }
+
+    graphContext->setErrorRecorder(&trtErrorRecorder);
+    setExecutionDeviceMemory(graphContext.get());
+    for(int i = 0; i < engine->getNbIOTensors(); i++) {
+      const char* name = engine->getIOTensorName(i);
+      if(!graphContext->setTensorAddress(name, getBuffer(name))) {
+        failureReason = "could not bind I/O tensor " + string(name);
+        return nullptr;
+      }
+    }
+    if(!graphContext->setOptimizationProfileAsync(0, cudaStreamPerThread)) {
+      failureReason = "could not select optimization profile 0";
+      return nullptr;
+    }
+    CUDA_ERR("createGraphExecutionContext", cudaStreamSynchronize(cudaStreamPerThread));
+    return graphContext;
+  }
+
+  bool setInputShapes(IExecutionContext* executionContext, int batchSize) {
+    for(int i = 0; i < engine->getNbIOTensors(); i++) {
+      const char* name = engine->getIOTensorName(i);
+      if(engine->getTensorIOMode(name) == TensorIOMode::kINPUT &&
+         !executionContext->setInputShape(name, getBufferDynamicShape(name, batchSize))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool enqueueWithoutCudaGraph(int batchSize) {
+    return setInputShapes(exec.get(), batchSize) && exec->enqueueV3(cudaStreamPerThread);
+  }
+
+  void disableCudaGraphs(const string& reason) {
+    cudaGraphsEnabled = false;
+    cudaGraphs.clear();
+    if(externalLogger != nullptr) {
+      externalLogger->write(
+        "TensorRT backend: disabling CUDA Graphs and using enqueueV3: " + reason);
+    }
+  }
+
+  bool captureCudaGraph(int batchSize, string& failureReason) {
+    // A ComputeHandle is owned by one NN server thread, so these contexts execute serially and may
+    // safely share one user-managed activation allocation. TensorRT requires a distinct context for
+    // each captured dynamic shape.
+    auto graphContext = createGraphExecutionContext(failureReason);
+    if(!graphContext)
+      return false;
+    auto entry = make_unique<CudaGraphEntry>(std::move(graphContext));
+
+    if(!setInputShapes(entry->exec.get(), batchSize)) {
+      failureReason = "could not set dynamic input shapes";
+      return false;
+    }
+
+    // The first enqueue after changing a dynamic shape may perform deferred, non-capturable work.
+    if(!entry->exec->enqueueV3(cudaStreamPerThread)) {
+      throw StringError("TensorRT backend: shape-flush enqueueV3 failed");
+    }
+    CUDA_ERR("captureCudaGraph", cudaStreamSynchronize(cudaStreamPerThread));
+
+    cudaError_t status =
+      cudaStreamBeginCapture(cudaStreamPerThread, cudaStreamCaptureModeThreadLocal);
+    if(status != cudaSuccess) {
+      failureReason = string("cudaStreamBeginCapture failed: ") + cudaGetErrorString(status);
+      (void)cudaGetLastError();
+      return false;
+    }
+
+    const bool enqueueSucceeded = entry->exec->enqueueV3(cudaStreamPerThread);
+    cudaGraph_t graph = nullptr;
+    const cudaError_t endStatus = cudaStreamEndCapture(cudaStreamPerThread, &graph);
+    if(!enqueueSucceeded || endStatus != cudaSuccess || graph == nullptr) {
+      if(graph != nullptr)
+        cudaGraphDestroy(graph);
+      failureReason = !enqueueSucceeded
+        ? "enqueueV3 was not capturable"
+        : string("cudaStreamEndCapture failed: ") + cudaGetErrorString(endStatus);
+      (void)cudaGetLastError();
+      return false;
+    }
+
+#if CUDART_VERSION >= 11040
+    status = cudaGraphInstantiateWithFlags(&entry->graphExec, graph, 0);
+#else
+    status = cudaGraphInstantiate(&entry->graphExec, graph, nullptr, nullptr, 0);
+#endif
+    cudaGraphDestroy(graph);
+    if(status != cudaSuccess || entry->graphExec == nullptr) {
+      failureReason = string("cudaGraphInstantiate failed: ") + cudaGetErrorString(status);
+      (void)cudaGetLastError();
+      return false;
+    }
+
+    const auto inserted = cudaGraphs.emplace(batchSize, std::move(entry));
+    if(!inserted.second) {
+      failureReason = "duplicate per-batch CUDA Graph cache entry";
+      return false;
+    }
+    return true;
+  }
+
+  bool enqueueWithOptionalCudaGraph(int batchSize) {
+    // Requests above the cap retain the ordinary enqueueV3 path. Larger batches already amortize
+    // launch overhead well, while every captured size carries persistent TensorRT context memory.
+    if(!cudaGraphsEnabled || batchSize > graphMaxBatchSize)
+      return enqueueWithoutCudaGraph(batchSize);
+
+    auto cached = cudaGraphs.find(batchSize);
+    if(cached == cudaGraphs.end()) {
+      disableCudaGraphs("missing prewarmed graph for batch size " + Global::intToString(batchSize));
+      return enqueueWithoutCudaGraph(batchSize);
+    }
+
+    CUDA_ERR("enqueueWithOptionalCudaGraph", cudaGraphLaunch(cached->second->graphExec, cudaStreamPerThread));
+    return true;
   }
 
   // DEBUG (kept commented out): when KATAGO_TRT_DUMP_ACTS is set, dump every DBG__ output tensor (added
@@ -1809,15 +2177,15 @@ struct InputBuffers {
   size_t scoreValueResultBufferBytes;
   size_t ownershipResultBufferBytes;
 
-  unique_ptr<float[]> maskInputs;           // Host pointer
-  unique_ptr<float[]> spatialInputs;        // Host pointer
-  unique_ptr<float[]> globalInputs;  // Host pointer
-  unique_ptr<float[]> metaInputs;  // Host pointer
-  unique_ptr<float[]> policyPassResults;    // Host pointer
-  unique_ptr<float[]> policyResults;        // Host pointer
-  unique_ptr<float[]> valueResults;         // Host pointer
-  unique_ptr<float[]> scoreValueResults;    // Host pointer
-  unique_ptr<float[]> ownershipResults;     // Host pointer
+  CudaHostFloatArray maskInputs;
+  CudaHostFloatArray spatialInputs;
+  CudaHostFloatArray globalInputs;
+  CudaHostFloatArray metaInputs;
+  CudaHostFloatArray policyPassResults;
+  CudaHostFloatArray policyResults;
+  CudaHostFloatArray valueResults;
+  CudaHostFloatArray scoreValueResults;
+  CudaHostFloatArray ownershipResults;
 
   InputBuffers(const LoadedModel* loadedModel, int maxBatchSz, int nnXLen, int nnYLen) {
     const ModelDesc& m = loadedModel->modelDesc;
@@ -1865,15 +2233,15 @@ struct InputBuffers {
     scoreValueResultBufferBytes = maxBatchSize * singleScoreValueResultBytes;
     ownershipResultBufferBytes = maxBatchSize * singleOwnershipResultBytes;
 
-    maskInputs = make_unique<float[]>(maxBatchSize * singleMaskElts);
-    spatialInputs = make_unique<float[]>(maxBatchSize * singleInputElts);
-    globalInputs = make_unique<float[]>(maxBatchSize * singleInputGlobalElts);
-    metaInputs = make_unique<float[]>(maxBatchSize * singleInputMetaElts);
-    policyPassResults = make_unique<float[]>(maxBatchSize * singlePolicyPassResultElts);
-    policyResults = make_unique<float[]>(maxBatchSize * singlePolicyResultElts);
-    valueResults = make_unique<float[]>(maxBatchSize * singleValueResultElts);
-    scoreValueResults = make_unique<float[]>(maxBatchSize * singleScoreValueResultElts);
-    ownershipResults = make_unique<float[]>(maxBatchSize * singleOwnershipResultElts);
+    maskInputs = allocateCudaHostFloats(maxBatchSize * singleMaskElts);
+    spatialInputs = allocateCudaHostFloats(maxBatchSize * singleInputElts);
+    globalInputs = allocateCudaHostFloats(maxBatchSize * singleInputGlobalElts);
+    metaInputs = allocateCudaHostFloats(maxBatchSize * singleInputMetaElts);
+    policyPassResults = allocateCudaHostFloats(maxBatchSize * singlePolicyPassResultElts);
+    policyResults = allocateCudaHostFloats(maxBatchSize * singlePolicyResultElts);
+    valueResults = allocateCudaHostFloats(maxBatchSize * singleValueResultElts);
+    scoreValueResults = allocateCudaHostFloats(maxBatchSize * singleScoreValueResultElts);
+    ownershipResults = allocateCudaHostFloats(maxBatchSize * singleOwnershipResultElts);
   }
 
   InputBuffers() = delete;
@@ -1913,17 +2281,16 @@ void NeuralNet::getOutput(
     float* rowMaskInput = &inputBuffers->maskInputs[inputBuffers->singleMaskElts * nIdx];
     float* rowSpatialInput = &inputBuffers->spatialInputs[inputBuffers->singleInputElts * nIdx];
     float* rowGlobalInput = &inputBuffers->globalInputs[inputBuffers->singleInputGlobalElts * nIdx];
-    float* rowMetaInput = &inputBuffers->metaInputs[inputBuffers->singleInputMetaElts * nIdx];
 
     const float* rowGlobal = inputBufs[nIdx]->rowGlobalBuf.data();
     const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();
     const float* rowMeta = inputBufs[nIdx]->rowMetaBuf.data();
     const bool hasRowMeta = inputBufs[nIdx]->hasRowMeta;
-    copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
     std::copy(rowGlobal,rowGlobal+numGlobalFeatures,rowGlobalInput);
     if(numMetaFeatures > 0) {
       testAssert(rowMeta != NULL);
       testAssert(hasRowMeta);
+      float* rowMetaInput = inputBuffers->metaInputs.get() + inputBuffers->singleInputMetaElts * nIdx;
       std::copy(rowMeta,rowMeta+numMetaFeatures,rowMetaInput);
     }
     else {
@@ -1959,28 +2326,32 @@ void NeuralNet::getOutput(
   const int numPolicyChannels = inputBuffers->singlePolicyPassResultElts;
   assert(inputBuffers->singlePolicyResultElts == numPolicyChannels * nnXLen * nnYLen);
 
-  // Transfers from host memory to device memory are asynchronous with respect to the host
+  // InputBuffers uses pinned host allocations, so all transfers can remain asynchronous on this
+  // NN server thread's CUDA stream. Queue all output copies before one synchronization below.
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
       gpuHandle->getBuffer("InputMask"),
       inputBuffers->maskInputs.get(),
       inputBuffers->singleMaskBytes * batchSize,
-      cudaMemcpyHostToDevice));
+      cudaMemcpyHostToDevice,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
       gpuHandle->getBuffer("InputSpatial"),
       inputBuffers->spatialInputs.get(),
       inputBuffers->singleInputBytes * batchSize,
-      cudaMemcpyHostToDevice));
+      cudaMemcpyHostToDevice,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
     cudaMemcpyAsync(
       gpuHandle->getBuffer("InputGlobal"),
       inputBuffers->globalInputs.get(),
       inputBuffers->singleInputGlobalBytes * batchSize,
-      cudaMemcpyHostToDevice));
+      cudaMemcpyHostToDevice,
+      cudaStreamPerThread));
   if(numMetaFeatures > 0) {
     CUDA_ERR(
       "getOutput",
@@ -1988,59 +2359,55 @@ void NeuralNet::getOutput(
         gpuHandle->getBuffer("InputMeta"),
         inputBuffers->metaInputs.get(),
         inputBuffers->singleInputMetaBytes * batchSize,
-        cudaMemcpyHostToDevice));
+        cudaMemcpyHostToDevice,
+        cudaStreamPerThread));
   }
 
-  auto maskInputDims = gpuHandle->getBufferDynamicShape("InputMask", batchSize);
-  auto spatialInputDims = gpuHandle->getBufferDynamicShape("InputSpatial", batchSize);
-  auto globalInputDims = gpuHandle->getBufferDynamicShape("InputGlobal", batchSize);
-
-  gpuHandle->exec->setInputShape("InputMask", maskInputDims);
-  gpuHandle->exec->setInputShape("InputSpatial", spatialInputDims);
-  gpuHandle->exec->setInputShape("InputGlobal", globalInputDims);
-
-  if(numMetaFeatures > 0) {
-    auto metaInputDims = gpuHandle->getBufferDynamicShape("InputMeta", batchSize);
-    gpuHandle->exec->setInputShape("InputMeta", metaInputDims);
-  }
-
-  gpuHandle->exec->enqueueV3(cudaStreamPerThread);
+  if(!gpuHandle->enqueueWithOptionalCudaGraph(batchSize))
+    throw StringError("TensorRT backend: enqueueV3 failed");
 
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->policyPassResults.get(),
       gpuHandle->getBuffer("OutputPolicyPass"),
       inputBuffers->singlePolicyPassResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->policyResults.get(),
       gpuHandle->getBuffer("OutputPolicy"),
       inputBuffers->singlePolicyResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->valueResults.get(),
       gpuHandle->getBuffer("OutputValue"),
       inputBuffers->singleValueResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->scoreValueResults.get(),
       gpuHandle->getBuffer("OutputScoreValue"),
       inputBuffers->singleScoreValueResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
   CUDA_ERR(
     "getOutput",
-    cudaMemcpy(
+    cudaMemcpyAsync(
       inputBuffers->ownershipResults.get(),
       gpuHandle->getBuffer("OutputOwnership"),
       inputBuffers->singleOwnershipResultBytes * batchSize,
-      cudaMemcpyDeviceToHost));
+      cudaMemcpyDeviceToHost,
+      cudaStreamPerThread));
+
+  CUDA_ERR("getOutput", cudaStreamSynchronize(cudaStreamPerThread));
 
   gpuHandle->printDebugOutput(batchSize);
   gpuHandle->trtErrorRecorder.clear();

@@ -108,6 +108,7 @@ namespace Tests {
   //testmisc.cpp
   void runCollectFilesTests();
   void runLoadModelTests();
+  void runBenchmarkResultsTests();
 
   //testbook.cpp
   void runBookTests();
