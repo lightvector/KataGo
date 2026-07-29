@@ -6,7 +6,11 @@
 #ifdef NO_GIT_REVISION
 #define GIT_REVISION "<omitted>"
 #else
-#include "program/gitinfo.h"
+// Angle-bracket (not quoted) include so this resolves ONLY via the -I search
+// paths, where the build dir's freshly-generated program/gitinfo.h lives. A
+// quoted include would search main.cpp's own directory first and pick up a
+// stale in-source cpp/program/gitinfo.h left over from an in-source build.
+#include <program/gitinfo.h>
 #endif
 
 #include <sstream>
