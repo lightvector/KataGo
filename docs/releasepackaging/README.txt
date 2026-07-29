@@ -47,11 +47,6 @@ path/to/katago gtp -model path/to/<NEURALNET>.bin.gz -config path/to/gtp_custom.
 
 KataGo should be able to work with any GUI program that supports GTP, as well as any analysis program that supports Leela Zero's `lz-analyze` command, such as Lizzie (https://github.com/featurecat/lizzie) or Sabaki (https://sabaki.yichuanshen.de/).
 
-NOTE for Windows users:
-If you encounter errors due to a missing "msvcp140.dll" or "msvcp140_1.dll" or "msvcp140_2.dll" or "vcruntime140.dll" or similar, you need to download and install the Microsoft Visual C++ Redistributable, here:
-https://www.microsoft.com/en-us/download/details.aspx?id=48145
-If this is for a 64-bit Windows version of KataGo, these dll files have already been included for you, otherwise you will need to install them yourself. On a 64-bit Windows version, there is a rare chance that you may need to delete them if you already have it installed yourself separately and the pre-included files are actually causing problems running KataGo.
-
 -----------------------------------------------------
 HUMAN-STYLE PLAY AND ANALYSIS:
 -----------------------------------------------------
@@ -85,23 +80,6 @@ Print version:
 
 ./katago version
 
-
------------------------------------------------------
-OPENCL VS CUDA VS TENSORRT VS EIGEN VS METAL:
------------------------------------------------------
-Explanation of the various versions available at https://github.com/lightvector/KataGo/releases
-
-OpenCL - Use this if you have a modern GPU and want the easiest setup.
-
-TensorRT, CUDA11 - Try one of these if you have a top-end NVIDIA GPU, are willing to do some more technical setup work, and care about getting every bit of performance. It MIGHT OR MIGHT NOT be faster than OpenCL! You have to test it on your specific GPU. TensorRT requires CUDA11 as well, and is likely to be the fastest.
-
-Eigen AVX2 - Use this if you have no good GPU, but you have an Intel or AMD CPU from the last several years. This is a pure CPU version of KataGo.
-
-Eigen - Use this if you don't have a GPU or your GPU is too old to work, and your CPU turns out not to support AVX2 or FMA. This is a pure CPU version for KataGo for
-This is the pure CPU version of KataGo, with no special instructions, which should hopefully run just about anywhere.
-
-Metal - Specific to MacOS, try this with Apple system gpus/accelerators.
-
 -----------------------------------------------------
 TUNING FOR PERFORMANCE:
 -----------------------------------------------------
@@ -115,7 +93,7 @@ TROUBLESHOOTING:
 Some common issues are described here:
 https://github.com/lightvector/KataGo#common-causes-of-errors
 
-Or, feel free to hop into the Leela Zero discord chat, which has become a general chatroom for a variety of computer Go hobbyists and users, and which you can often find people willing to help.
+Or, feel free to hop into the Computer Go discord chat, which has become a general chatroom for a variety of computer Go hobbyists and users, and which you can often find people willing to help.
 https://discord.gg/fhDHgfk
 
 
