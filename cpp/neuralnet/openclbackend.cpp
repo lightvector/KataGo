@@ -2392,6 +2392,7 @@ struct TransformerAttentionKernelSet {
       int blockKV = handle->tuneParams.transformer.ATTN_BLOCK_KV;
       compileOpts += " -DATTN_BLOCK_Q=" + Global::intToString(attnBlockQ);
       compileOpts += " -DATTN_BLOCK_KV=" + Global::intToString(blockKV);
+      compileOpts += " -DQ_PER_THREAD=" + Global::intToString(handle->tuneParams.transformer.Q_PER_THREAD);
       program = OpenCLHelpers::compileProgram(
         "transformerAttentionProgram", handle->clContext, deviceIdsToUse,
         OpenCLKernels::transformerScaledDotProductAttention,
