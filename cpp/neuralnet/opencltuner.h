@@ -261,20 +261,20 @@ namespace OpenCLTuner {
   constexpr int DEFAULT_WINOGRAD_3X3_TILE_SIZE = 4;
 
   struct ModelInfoForTuning {
-    int maxConvChannels1x1;
-    int maxConvChannels3x3;
-    int trunkNumChannels;
-    int midNumChannels;
-    int regularNumChannels;
-    int gpoolNumChannels;
-    int modelVersion;
+    int maxConvChannels1x1 = 0;
+    int maxConvChannels3x3 = 0;
+    int trunkNumChannels = 0;
+    int midNumChannels = 0;
+    int regularNumChannels = 0;
+    int gpoolNumChannels = 0;
+    int modelVersion = 0;
 
     // Transformer-specific info (0 if no transformer blocks)
-    int transformerHeadDim;
-    int transformerVHeadDim;
-    int transformerNumHeads;
-    int transformerNumKVHeads;
-    int transformerFFNChannels;
+    int transformerHeadDim = 0;
+    int transformerVHeadDim = 0;
+    int transformerNumHeads = 0;
+    int transformerNumKVHeads = 0;
+    int transformerFFNChannels = 0;
 
     static ModelInfoForTuning ofDesc(const ModelDesc* desc);
   };
