@@ -633,6 +633,16 @@ if(MSVC)
   # things. They might be useful in some cases, but also are noisy.
   target_compile_definitions(katago PRIVATE _CRT_SECURE_NO_WARNINGS)
 
+  # MSVC toolset 14.40+ (VS 2022 17.10 and later, including VS 2026) made std::mutex's
+  # constructor constexpr, so mutexes are zero-initialized at compile time instead of being
+  # initialized at runtime via _Mtx_init_in_situ. If the process then loads a copy of
+  # msvcp140.dll older than 14.40 (outdated VC++ redistributable, or a stale msvcp140.dll
+  # sitting next to the exe or shipped by a GUI frontend, which takes precedence over the
+  # system one), the old _Mtx_lock misreads the zero-initialized mutex and crashes on the
+  # first lock. This define restores the old runtime initialization, which is compatible
+  # with both old and new runtimes. See https://github.com/microsoft/STL/issues/4978
+  target_compile_definitions(katago PRIVATE _DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR)
+
   if(USE_AVX2)
     set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} /arch:AVX2 -D__FMA__")
     target_compile_definitions(katago PRIVATE USE_AVX2)
