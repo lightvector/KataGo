@@ -32,13 +32,20 @@ namespace OnnxModelBuilder {
   };
 
   // Build a serialized ONNX ModelProto for the given model.
+  // alignInputsToConsumptionOrder reorders the graph's declared inputs to match the order
+  // in which the graph first consumes them (InputSpatial, InputGlobal, InputMask) instead of
+  // the default declaration order (InputMask, InputSpatial, InputGlobal). This is a no-op for
+  // backends that bind inputs by name (TensorRT) but is required for the OpenVINO execution
+  // provider under ONNX Runtime, which builds its name->index map from declaration order while
+  // the runtime feeds the EP kernel input ports in consumption order. See onnxmodelbuilder.cpp.
   Result build(
     const ModelDesc& desc,
     int nnXLen,
     int nnYLen,
     bool requireExactNNLen,
     bool transformerNHWC,
-    Logger* logger
+    Logger* logger,
+    bool alignInputsToConsumptionOrder = false
   );
 }
 

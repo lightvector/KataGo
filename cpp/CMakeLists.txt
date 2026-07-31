@@ -44,7 +44,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL ONNX)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -164,8 +164,13 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
+elseif(USE_BACKEND STREQUAL "ONNX")
+  message(STATUS "-DUSE_BACKEND=ONNX, using ONNX Runtime backend.")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/onnxbackend.cpp
+    )
 elseif(USE_BACKEND STREQUAL "")
-  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
+  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=ONNX to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
 else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
@@ -534,6 +539,58 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
       include_directories(SYSTEM ${EIGEN3_INCLUDE_DIRS})
       message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
     endif()
+  endif()
+elseif(USE_BACKEND STREQUAL "ONNX")
+  target_compile_definitions(katago PRIVATE USE_ONNX_BACKEND)
+
+  # ONNX Runtime install tree (include/ lib/ bin/). The official prebuilt ORT packages do
+  # NOT ship the OpenVINO execution provider, so for Intel GPU acceleration ORT must be
+  # built from source with --use_openvino GPU (see the project's build notes).
+  set(ONNXRUNTIME_ROOT "" CACHE PATH "Path to ONNX Runtime package root (containing include/, lib/, bin/)")
+  if(NOT IS_DIRECTORY "${ONNXRUNTIME_ROOT}")
+    message(FATAL_ERROR "ONNXRUNTIME_ROOT does not exist: ${ONNXRUNTIME_ROOT}. Set -DONNXRUNTIME_ROOT=<ort install dir>.")
+  endif()
+  set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include/onnxruntime")
+  if(NOT IS_DIRECTORY "${ONNXRUNTIME_INCLUDE_DIR}")
+    message(FATAL_ERROR "ONNX Runtime include directory not found: ${ONNXRUNTIME_INCLUDE_DIR}")
+  endif()
+  target_include_directories(katago SYSTEM PRIVATE "${ONNXRUNTIME_INCLUDE_DIR}")
+  if(WIN32)
+    set(ONNXRUNTIME_LIB "${ONNXRUNTIME_ROOT}/lib/onnxruntime.lib")
+    file(GLOB ONNXRUNTIME_DLLS "${ONNXRUNTIME_ROOT}/lib/*.dll" "${ONNXRUNTIME_ROOT}/bin/*.dll")
+  else()
+    find_library(ONNXRUNTIME_LIB onnxruntime HINTS "${ONNXRUNTIME_ROOT}/lib" "${ONNXRUNTIME_ROOT}/bin" "${ONNXRUNTIME_ROOT}")
+  endif()
+  if(NOT ONNXRUNTIME_LIB OR ONNXRUNTIME_LIB STREQUAL "ONNXRUNTIME_LIB-NOTFOUND" OR NOT EXISTS "${ONNXRUNTIME_LIB}")
+    message(FATAL_ERROR "Could not find onnxruntime library under ${ONNXRUNTIME_ROOT}. Looked for: ${ONNXRUNTIME_LIB}")
+  endif()
+  target_link_libraries(katago ${ONNXRUNTIME_LIB})
+
+  # The ONNX backend emits an ONNX ModelProto via the same OnnxModelBuilder as the
+  # TensorRT backend and hands the serialized bytes to Ort::Session. Generate onnx.pb.h
+  # from the vendored external/onnx/onnx.proto and link our own protobuf; the handoff to
+  # ORT is serialized bytes, so there is no ABI contact with whatever protobuf lives
+  # inside the ORT DLL. (Protobuf and protoc must be findable by find_package(Protobuf);
+  # for an ORT built from source these live under its _deps/protobuf-build.)
+  find_package(Protobuf REQUIRED)
+  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
+  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
+  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
+  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
+  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
+  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
+  target_link_libraries(katago ${Protobuf_LIBRARIES})
+
+  # Deploy the ORT runtime DLLs next to katago.exe so the build dir is self-contained.
+  # NOTE: OpenVINO's own runtime DLLs are not shipped by ORT and must be copied
+  # separately (see the project's build notes).
+  if(WIN32 AND ONNXRUNTIME_DLLS)
+    foreach(_onnxruntime_dll IN LISTS ONNXRUNTIME_DLLS)
+      add_custom_command(TARGET katago POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${_onnxruntime_dll}"
+          $<TARGET_FILE_DIR:katago>)
+    endforeach()
   endif()
 endif()
 
