@@ -1037,6 +1037,16 @@ struct ModelParser {
   }
 };
 
+// The builder's autotuner reports tactics that fail to compile or execute as ERROR-severity
+// "Skipping tactic ... due to exception ..." messages, but these are recoverable: the autotuner
+// moves on to other tactics, and if none work the build fails afterward with its own error.
+// Such messages can mention cask convolution execution failures that would otherwise match the
+// genuine GPU-health fatal checks below (observed on TensorRT 10.16 building on multiple
+// heterogeneous GPUs), so exempt them rather than killing the process mid-build.
+static bool isRecoverableTacticSkipMessage(const string& msg) {
+  return msg.find("Skipping tactic") != string::npos && msg.find("due to exception") != string::npos;
+}
+
 struct TRTLogger : ILogger {
   Logger* logger;
   Severity level;
@@ -1055,7 +1065,7 @@ struct TRTLogger : ILogger {
     if(severity == Severity::kERROR && logger && !logger->isLoggingToStderr() && !logger->isLoggingToStdout()) {
       std::cerr << ("TensorRT backend: " + string(msg)) << std::endl;
     }
-    if(severity == Severity::kERROR) {
+    if(severity == Severity::kERROR && !isRecoverableTacticSkipMessage(string(msg))) {
       if((string(msg).find("Cask convolution") != std::string::npos) ||
          (string(msg).find("Cask Convolution") != std::string::npos) ||
          (string(msg).find("elementWiseRunner.cpp") != std::string::npos) ||
@@ -1114,12 +1124,15 @@ struct TRTErrorRecorder : IErrorRecorder {
     std::lock_guard<std::mutex> lock(mutex);
     errors.emplace_back(val,string(desc));
     if(
-      (val != ErrorCode::kUNSPECIFIED_ERROR && val != ErrorCode::kSUCCESS)
-      || (errors[errors.size()-1].second.find("Cask convolution") != std::string::npos)
-      || (errors[errors.size()-1].second.find("Cask Convolution") != std::string::npos)
-      || (errors[errors.size()-1].second.find("elementWiseRunner.cpp") != std::string::npos)
-      || (errors[errors.size()-1].second.find("convBaseRunner.cpp") != std::string::npos)
-      || (errors[errors.size()-1].second.find("Cuda Runtime") != std::string::npos)
+      !isRecoverableTacticSkipMessage(errors[errors.size()-1].second)
+      && (
+        (val != ErrorCode::kUNSPECIFIED_ERROR && val != ErrorCode::kSUCCESS)
+        || (errors[errors.size()-1].second.find("Cask convolution") != std::string::npos)
+        || (errors[errors.size()-1].second.find("Cask Convolution") != std::string::npos)
+        || (errors[errors.size()-1].second.find("elementWiseRunner.cpp") != std::string::npos)
+        || (errors[errors.size()-1].second.find("convBaseRunner.cpp") != std::string::npos)
+        || (errors[errors.size()-1].second.find("Cuda Runtime") != std::string::npos)
+      )
     ) {
       Global::fatalError("Fatal error reported from TensorRT: " + Global::intToString((int)val) + " " + std::string(desc));
     }
