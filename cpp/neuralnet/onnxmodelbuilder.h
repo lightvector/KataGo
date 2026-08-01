@@ -31,13 +31,17 @@ namespace OnnxModelBuilder {
     std::vector<std::string> rmsNormNodeNames;          // every RMSNorm (transformer + trunk-tip) op
   };
 
-  // Build a serialized ONNX ModelProto for the given model.
+  // Build a serialized ONNX ModelProto for the given model. When useFP16 is set, the finished graph
+  // is rewritten to run the trunk in FP16 with the numerically-sensitive regions (RMSNorm reductions,
+  // trunk tip, policy/value heads) and the graph inputs/outputs kept in FP32 (see convertGraphToFloat16
+  // in the .cpp). This is what makes FP16 possible under TensorRT 11's strongly-typed networks.
   Result build(
     const ModelDesc& desc,
     int nnXLen,
     int nnYLen,
     bool requireExactNNLen,
     bool transformerNHWC,
+    bool useFP16,
     Logger* logger
   );
 }

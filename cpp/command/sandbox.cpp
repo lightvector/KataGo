@@ -273,8 +273,9 @@ int MainCmds::sandbox() {
   if(!builder)
     throw StringError("sandbox: failed to create TensorRT builder");
 
-  const auto explicitBatch = 1U << static_cast<uint32_t>(nvinfer1::NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
-  auto network = unique_ptr<nvinfer1::INetworkDefinition>(builder->createNetworkV2(explicitBatch));
+  // TensorRT 11 networks are always explicit-batch and strongly typed; createNetworkV2 takes no
+  // flags (the kEXPLICIT_BATCH NetworkDefinitionCreationFlag was removed).
+  auto network = unique_ptr<nvinfer1::INetworkDefinition>(builder->createNetworkV2(0U));
   if(!network)
     throw StringError("sandbox: failed to create TensorRT network");
 
