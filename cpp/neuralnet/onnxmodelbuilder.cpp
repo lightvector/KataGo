@@ -405,7 +405,12 @@ struct Builder {
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
     // meanSq over channels (axis 1), keepdims -> [N,1,H,W]
-    string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
+    // Pow(x, 2.0) instead of Mul(x, x): OpenVINO RMSFusion matcher requires
+    // Power(x, const(2)) (rms_fusion.cpp:38) and silently skips Mul(x,x).
+    // Without this, all 66 RMSNorm nodes run as unfused ReduceMean→Sqrt→Div
+    // chains, costing ~0.5–1.0 ms/frame on GPU.
+    string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
+    string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {1})},
                             uniq(desc.name + "/meansq"), desc.name + "/meansq");
     { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }
@@ -440,7 +445,9 @@ struct Builder {
     int C = desc.numChannels;
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
-    string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
+    // Pow(x, 2.0) instead of Mul(x, x): see NCHW variant above.
+    string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
+    string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {3})},  // C is axis 3 of [N,H,W,C]
                             uniq(desc.name + "/meansq"), desc.name + "/meansq");
     { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }

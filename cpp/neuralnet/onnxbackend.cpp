@@ -28,6 +28,8 @@
 #endif
 
 #include <unordered_map>
+#include <fstream>
+#include <cstdlib>
 
 using namespace std;
 
@@ -205,6 +207,23 @@ struct ComputeHandle {
 
     if(logger != NULL)
       logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
+
+    // Dump the ONNX model to a file when KATAGO_DUMP_ONNX is set (debug aid).
+    {
+      const char* dumpPath = getenv("KATAGO_DUMP_ONNX");
+      if(dumpPath != nullptr && dumpPath[0] != '\0') {
+        ofstream dumpFile(dumpPath, ios::binary);
+        if(dumpFile.is_open()) {
+          dumpFile.write(onnxBytes.data(), (streamsize)onnxBytes.size());
+          dumpFile.close();
+          if(logger != NULL)
+            logger->write(string("ONNX backend: dumped ONNX model to ") + dumpPath +
+                          " (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
+        } else if(logger != NULL) {
+          logger->write(string("ONNX backend: WARNING - could not open dump path ") + dumpPath);
+        }
+      }
+    }
 
     Ort::SessionOptions sessionOpts;
     sessionOpts.SetIntraOpNumThreads(1);
