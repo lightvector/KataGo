@@ -45,7 +45,11 @@ struct LoadedModel {
         "Feed a standard KataGo .bin.gz model instead (this backend builds the ONNX "
         "graph from the model weights internally).");
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-    modelDesc.applyScale8ToReduceActivations();
+    // Skip applyScale8ToReduceActivations() for ONNX backend:
+    // NPU/ONNX Runtime execution providers don't benefit from the fp16
+    // dynamic-range workaround; removing this avoids MISH_SCALE8 subgraphs
+    // that block operator fusion and cost ~25% extra ops per activation.
+    // modelDesc.applyScale8ToReduceActivations();
   }
 
   LoadedModel() = delete;
