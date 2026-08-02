@@ -66,7 +66,8 @@ NNEvaluator::NNEvaluator(
   bool doRandomize,
   int defaultSymmetry,
   bool disableWarmup_,
-  ConfigParser& cfg
+  ConfigParser& cfg,
+  const vector<int>& maxBatchSizeByServerThr
 )
   :modelName(mName),
    modelFileName(mFileName),
@@ -78,6 +79,9 @@ NNEvaluator::NNEvaluator(
    usingFP16Mode(useFP16Mode),
    numThreads(numThr),
    gpuIdxByServerThread(gpuIdxByServerThr),
+   maxBatchSizeByServerThread(
+     maxBatchSizeByServerThr.empty() ? vector<int>(numThr, maxBatchSz) : maxBatchSizeByServerThr
+   ),
    randSeed(rSeed),
    debugSkipNeuralNet(skipNeuralNet),
    disableWarmup(disableWarmup_),
@@ -117,6 +121,12 @@ NNEvaluator::NNEvaluator(
     throw StringError("maxBatchSize is negative: " + Global::intToString(maxBatchSize));
   if(gpuIdxByServerThread.size() != numThreads)
     throw StringError("gpuIdxByServerThread.size() != numThreads");
+  if(maxBatchSizeByServerThread.size() != numThreads)
+    throw StringError("maxBatchSizeByServerThread.size() != numThreads");
+  for(int threadMaxBatchSize : maxBatchSizeByServerThread) {
+    if(threadMaxBatchSize <= 0 || threadMaxBatchSize > maxBatchSize)
+      throw StringError("Invalid per-server-thread max batch size: " + Global::intToString(threadMaxBatchSize));
+  }
 
   if(logger != NULL) {
     logger->write(
@@ -382,6 +392,7 @@ void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
     throw StringError("NNEvaluator::setNumThreads called when threads were already running!");
   numThreads = (int)gpuIdxByServerThr.size();
   gpuIdxByServerThread = gpuIdxByServerThr;
+  maxBatchSizeByServerThread.assign(numThreads, maxBatchSize);
 }
 
 void NNEvaluator::spawnServerThreads() {
@@ -566,6 +577,8 @@ void NNEvaluator::serve(
 ) {
   int64_t numBatchesHandledThisThread = 0;
   int64_t numRowsHandledThisThread = 0;
+  testAssert(serverThreadIdx >= 0 && serverThreadIdx < (int)maxBatchSizeByServerThread.size());
+  const int maxBatchSizeForThisThread = maxBatchSizeByServerThread[serverThreadIdx];
 
   ComputeHandle* gpuHandle = NULL;
   if(loadedModel != NULL) {
@@ -573,7 +586,7 @@ void NNEvaluator::serve(
       computeContext,
       loadedModel,
       logger,
-      maxBatchSize,
+      maxBatchSizeForThisThread,
       requireExactNNLen,
       inputsUseNHWC,
       gpuIdxForThisThread,
@@ -594,14 +607,14 @@ void NNEvaluator::serve(
   }
 
   vector<NNResultBuf*> resultBufs;
-  resultBufs.reserve(maxBatchSize);
+  resultBufs.reserve(maxBatchSizeForThisThread);
 
   vector<NNOutput*> outputBuf;
 
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
     resultBufs.clear();
-    int desiredBatchSize = std::min(maxBatchSize, currentBatchSize.load(std::memory_order_acquire));
+    int desiredBatchSize = std::min(maxBatchSizeForThisThread, currentBatchSize.load(std::memory_order_acquire));
     bool gotAnything = queryQueue.waitPopUpToN(resultBufs,desiredBatchSize);
     // Queue being closed is a signal that we're done.
     if(!gotAnything)

@@ -100,7 +100,10 @@ class NNEvaluator {
     int defaultSymmetry,
     bool disableWarmup,
     // Consulted by the compute backend for its own custom options; not stored.
-    ConfigParser& cfg
+    ConfigParser& cfg,
+    // Per-server-thread max batch sizes (index = serverThreadIdx).
+    // Empty = every thread uses the global maxBatchSize.
+    const std::vector<int>& maxBatchSizeByServerThread = std::vector<int>()
   );
   ~NNEvaluator();
 
@@ -224,6 +227,7 @@ class NNEvaluator {
   const enabled_t usingFP16Mode;
   int numThreads;
   std::vector<int> gpuIdxByServerThread;
+  std::vector<int> maxBatchSizeByServerThread;
   const std::string randSeed;
   const bool debugSkipNeuralNet;
   const bool disableWarmup;
