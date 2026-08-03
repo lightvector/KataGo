@@ -1362,7 +1362,10 @@ struct ComputeHandle {
     string plan;
     {
       static mutex tuneMutex;
-      tuneMutex.lock();
+      // TensorRT 10.16 has been observed to segfault when builders on different devices call
+      // buildSerializedNetwork concurrently, particularly with timing-cache hits. Keep both cache
+      // access and engine building serialized, and use RAII so exceptions cannot leave the mutex held.
+      lock_guard<mutex> tuneLock(tuneMutex);
 
       auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
       cacheDir += "/trtcache";
@@ -1456,9 +1459,7 @@ struct ComputeHandle {
         writeFileAtomically(planCacheFile, plan.data(), plan.size());
         logger->write("Saved new plan cache to " + planCacheFile);
         plan.erase(plan.size() - 64 - paramStr.size());
-        tuneMutex.unlock();
       } else {
-        tuneMutex.unlock();
         logger->write("Using existing plan cache at " + planCacheFile);
       }
 #else
@@ -1511,9 +1512,7 @@ struct ComputeHandle {
         writeFileAtomically(
           timingCacheFile, static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
         logger->write("Saved new timing cache to " + timingCacheFile);
-        tuneMutex.unlock();
       } else {
-        tuneMutex.unlock();
         planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
