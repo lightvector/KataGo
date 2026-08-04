@@ -1362,9 +1362,8 @@ struct ComputeHandle {
     // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
     config->setProfileStream(cudaStreamLegacy);
 
-    // TensorRT filters out tactics requiring more than this workspace. Large transformer
-    // optimization profiles can require more than 1 GiB even though typical runtime use is lower.
-    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 2ULL << 30);
+    // Leave workspace at TensorRT's device-dependent default (the GPU's total memory). This is a
+    // tactic-selection cap, not a preallocation; fixed caps can reject all tactics for larger profiles.
 
     string plan;
     {
