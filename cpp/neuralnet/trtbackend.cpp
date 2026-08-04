@@ -1362,8 +1362,8 @@ struct ComputeHandle {
     // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
     config->setProfileStream(cudaStreamLegacy);
 
-    // Typical runtime allocation is much less than the 1 GiB specified below
-    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
+    // Leave workspace at TensorRT's device-dependent default (the GPU's total memory). This is a
+    // tactic-selection cap, not a preallocation; fixed caps can reject all tactics for larger profiles.
 
     string plan;
     {
