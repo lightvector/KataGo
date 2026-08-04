@@ -819,8 +819,7 @@ Result build(
   int nnYLen,
   bool requireExactNNLen,
   bool transformerNHWC,
-  Logger* logger,
-  bool alignInputsToConsumptionOrder
+  Logger* logger
 ) {
   if(desc.metaEncoderVersion > 0)
     throw StringError("OnnxModelBuilder: SGF metadata encoder not yet supported");
@@ -880,28 +879,20 @@ Result build(
     shape->add_dim()->set_dim_value(1);
     shape->add_dim()->set_dim_value(1);
   };
-  // Declaration order matters for the OpenVINO execution provider under ONNX Runtime: ORT
-  // feeds the EP kernel's input ports in consumption order (the order the graph first
-  // references each input), but the EP's own name->index map is built from this declaration
-  // order. With master's default order (InputMask first), the two disagree and the EP
-  // misroutes the [N,1,H,W] mask tensor into the InputSpatial port, failing at runtime:
+  // Declaration order matters for the OpenVINO execution provider under ONNX Runtime: the
+  // EP builds its name->index map from declaration order while the runtime feeds the EP
+  // kernel input ports in a different order. With the default master order (InputMask
+  // first), the two disagree and the EP misroutes the [N,1,H,W] mask tensor into the
+  // InputSpatial port, failing at runtime:
   //   "can't handle input tensor ...:InputSpatial, because model input (shape=[?,22,19,19])
   //    and tensor (shape=[1,1,19,19]) are incompatible"
-  // (measured on ORT 1.29 + OpenVINO 2026.2, Intel Arc B580). Declaring inputs in
-  // consumption order -- InputSpatial (trunk conv), InputMask (first applyMask), InputGlobal
-  // (gpool merge) -- aligns the two and is verified to fix it (~60-74 visits/s recovered).
-  // This is purely cosmetic for backends that bind inputs by name (TensorRT, CUDA, CoreML),
-  // so it is opt-in: only the ONNX backend requests it, and only for the OpenVINO provider.
-  if(alignInputsToConsumptionOrder) {
-    addInput("InputSpatial", numInputChannels);
-    addInputNC11("InputGlobal", numInputGlobalChannels);
-    addInput("InputMask", 1);
-  }
-  else {
-    addInput("InputMask", 1);
-    addInput("InputSpatial", numInputChannels);
-    addInputNC11("InputGlobal", numInputGlobalChannels);
-  }
+  // (measured on ORT 1.29 + OpenVINO 2026.2, Intel Arc B580). Declaring inputs in the
+  // order InputSpatial, InputGlobal, InputMask fixes it. Note this is NOT the graph's
+  // first-reference order (InputMask is referenced first in the !requireExactNNLen branch);
+  // it is an empirical, EP-specific requirement; see PR #1222 for the investigation.
+  addInput("InputSpatial", numInputChannels);
+  addInputNC11("InputGlobal", numInputGlobalChannels);
+  addInput("InputMask", 1);
 
   // ---- Mask-derived features ----
   if(!requireExactNNLen) {

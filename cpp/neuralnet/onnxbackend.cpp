@@ -282,10 +282,7 @@ struct ComputeHandle {
     // a standard ONNX graph that Ort::Session can parse directly; the TRT-only FP32
     // node-name lists in the Result are ignored (ORT has no per-node precision API).
     OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(
-      loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger,
-      // OpenVINO EP misroutes the mask tensor unless graph inputs are declared in consumption
-      // order (see onnxmodelbuilder.cpp). Other ORT providers bind by name and are unaffected.
-      ctx->providerName == "openvino");
+      loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
     const string& onnxBytes = onnxResult.serializedModel;
     (void)onnxResult.trunkTipAndHeadNodeNames;
     (void)onnxResult.rmsNormNodeNames;
