@@ -1362,8 +1362,9 @@ struct ComputeHandle {
     // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
     config->setProfileStream(cudaStreamLegacy);
 
-    // Typical runtime allocation is much less than the 1 GiB specified below
-    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
+    // TensorRT filters out tactics requiring more than this workspace. Large transformer
+    // optimization profiles can require more than 1 GiB even though typical runtime use is lower.
+    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 2ULL << 30);
 
     string plan;
     {
