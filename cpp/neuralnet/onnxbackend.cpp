@@ -79,7 +79,6 @@ struct ComputeContext {
   string providerName;
   string openvinoDeviceType;
   string openvinoDeviceId;
-  bool openvinoEnableNPUFastCompile;
   string openvinoCacheDir;
   // Optional OpenVINO provider options (empty = not passed to ORT)
   string openvinoPrecision;      // FP16 / FP32 / ACCURACY
@@ -105,7 +104,6 @@ struct ComputeContext {
       providerName("cpu"),
       openvinoDeviceType("GPU"),
       openvinoDeviceId(""),
-      openvinoEnableNPUFastCompile(false),
       openvinoCacheDir(""),
       openvinoPrecision(""),
       openvinoNumStreams(""),
@@ -141,10 +139,6 @@ ComputeContext* NeuralNet::createComputeContext(
   // OpenVINO EP options.
   ctx->openvinoDeviceType = cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
   ctx->openvinoDeviceId = cfg.contains("onnxOpenVINODeviceId") ? cfg.getString("onnxOpenVINODeviceId") : "";
-  if(cfg.contains("onnxOpenVINOEnableNPUFastCompile")) {
-    string v = Global::toLower(cfg.getString("onnxOpenVINOEnableNPUFastCompile"));
-    ctx->openvinoEnableNPUFastCompile = (v == "1" || v == "true" || v == "yes" || v == "on");
-  }
   ctx->openvinoCacheDir = cfg.contains("onnxOpenVINOCacheDir") ? cfg.getString("onnxOpenVINOCacheDir") : "";
   ctx->openvinoPrecision = cfg.contains("onnxOpenVINOPrecision") ? cfg.getString("onnxOpenVINOPrecision") : "";
   ctx->openvinoNumStreams = cfg.contains("onnxOpenVINONumStreams") ? cfg.getString("onnxOpenVINONumStreams") : "";
@@ -396,13 +390,6 @@ struct ComputeHandle {
       setIfNotEmpty("num_streams",    ctx->openvinoNumStreams);
       setIfNotEmpty("num_of_threads", ctx->openvinoNumOfThreads);
       setIfNotEmpty("model_priority", ctx->openvinoModelPriority);
-
-      if(ctx->openvinoEnableNPUFastCompile && logger != NULL) {
-        logger->write(
-          "ONNX backend: onnxOpenVINOEnableNPUFastCompile requested, but this ORT build may not "
-          "accept 'enable_npu_fast_compile'; currently ignoring this option for compatibility."
-        );
-      }
 
       // Some ORT OpenVINO builds reject optional keys (cache_dir, precision, num_streams,
       // num_of_threads, model_priority). Retry with only the core device keys if optional keys
