@@ -29,6 +29,16 @@
 #ifdef __APPLE__
 #include <coreml_provider_factory.h>
 #endif
+#ifdef _WIN32
+// dml_provider_factory.h is only shipped by DirectML-enabled ONNX Runtime packages (e.g.
+// Microsoft.ML.OnnxRuntime.DirectML); the stock CPU prebuilt does not include it. Guard on
+// availability so builds against such an ORT still compile - the DirectML provider then
+// fails at runtime with a clear error instead of at compile time.
+#if __has_include(<dml_provider_factory.h>)
+#include <dml_provider_factory.h>
+#define KATAGO_ONNX_HAS_DML_PROVIDER_FACTORY 1
+#endif
+#endif
 
 #include <unordered_map>
 #include <fstream>
@@ -44,7 +54,7 @@ using namespace std;
 // (see Compiling.md "Execution provider support matrix"). Exposing a new EP = add its
 // name here plus an AppendExecutionProvider_* branch in ComputeHandle.
 static const char* const kKnownProviders[] = {
-  "cpu", "openvino", "cuda", "tensorrt", "migraphx", "coreml",
+  "cpu", "openvino", "cuda", "tensorrt", "migraphx", "coreml", "directml",
 };
 
 //--------------------------------------------------------------
@@ -239,7 +249,7 @@ ComputeContext* NeuralNet::createComputeContext(
     if(!knownProvider)
       throw StringError(
         "ONNX backend: unknown onnxProvider '" + ctx->providerName +
-        "'. Known providers: cpu, openvino, cuda, tensorrt, migraphx, coreml "
+        "'. Known providers: cpu, openvino, cuda, tensorrt, migraphx, coreml, directml "
         "(verification status and build requirements: see Compiling.md "
         "'Execution provider support matrix').");
   }
@@ -494,6 +504,39 @@ struct ComputeHandle {
           ", device_type=" + deviceType + extras
         );
       }
+    }
+    else if(provider == "directml") {
+#ifdef _WIN32
+#if defined(KATAGO_ONNX_HAS_DML_PROVIDER_FACTORY)
+      // DirectML does not support memory-pattern optimization and requires sequential
+      // execution mode (see the ORT DirectML EP docs). With one session per nn-server
+      // thread the single-Run restriction of a DML session is satisfied naturally.
+      sessionOpts.DisableMemPattern();
+      sessionOpts.SetExecutionMode(ORT_SEQUENTIAL);
+
+      // Prefer the OrtDmlApi route: the plain OrtSessionOptionsAppendExecutionProvider_DML
+      // export in dml_provider_factory.h is deprecated.
+      const OrtDmlApi* dmlApi = nullptr;
+      {
+        const OrtApi* ortApi = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+        Ort::ThrowOnError(ortApi->GetExecutionProviderApi("DML", ORT_API_VERSION, (const void**)&dmlApi));
+      }
+      if(dmlApi == nullptr)
+        throw StringError("ONNX backend: DirectML execution provider is not available in this ONNX Runtime build");
+
+      int dmlDeviceId = deviceIdxForThread >= 0 ? deviceIdxForThread : 0;
+      Ort::ThrowOnError(dmlApi->SessionOptionsAppendExecutionProvider_DML(sessionOpts, dmlDeviceId));
+      if(logger != NULL)
+        logger->write("ONNX backend: DirectML execution provider enabled, device_id=" + Global::intToString(dmlDeviceId));
+#else
+      throw StringError(
+        "ONNX backend: DirectML is not available in this ONNX Runtime build: the ORT install "
+        "tree does not ship dml_provider_factory.h. Compile against the "
+        "Microsoft.ML.OnnxRuntime.DirectML package to use the DirectML execution provider.");
+#endif
+#else
+      throw StringError("ONNX backend: DirectML is only available on Windows");
+#endif
     }
     else if(provider == "cpu" || provider.empty()) {
       if(logger != NULL)
