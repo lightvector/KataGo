@@ -89,7 +89,7 @@ struct ModelInfo {
     /// Model name from file header
     std::string name;
 
-    /// KataGo model version (8-16)
+    /// KataGo model version (8-17)
     int version = 0;
 
     /// Number of spatial input channels (typically 22)

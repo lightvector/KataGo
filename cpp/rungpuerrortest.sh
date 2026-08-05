@@ -1,16 +1,11 @@
 #!/bin/bash -eux
 
-# Usage: $0 [gpu|ane]
-#   gpu (default) — run against the MPSGraph/GPU path of the Metal backend
-#   ane           — run against the CoreML/ANE path of the Metal backend
-# Result files are suffixed (_ane) so the two runs can coexist; reference files
-# under $REFERENCEDIR are backend-independent and shared.
-MODE="${1:-gpu}"
-case "$MODE" in
-    gpu) EXTRA_OVERRIDE=""; SUFFIX="" ;;
-    ane) EXTRA_OVERRIDE=", metalDeviceToUseThread0=100"; SUFFIX="_ane" ;;
-    *)   echo "Usage: $0 [gpu|ane]" >&2; exit 1 ;;
-esac
+# Optional first argument: extra config overrides appended (comma-separated) to the
+# -override-config of every test entry below. E.g. ./rungpuerrortest.sh "useFP16=true, useNHWC=true"
+EXTRA_OVERRIDE=""
+if [ -n "${1:-}" ]; then
+    EXTRA_OVERRIDE=", $1"
+fi
 
 REFERENCEDIR="tests/results/gpu_error_reference_files"
 RESULTSDIR="tests/results/gpu_error_results"
@@ -34,6 +29,9 @@ MODEL6=models/kata1-b18c384nbt-s9996604416-d4316597426.bin.gz  # version 14
 MODEL7=models/kata1-b28c512nbt-s8326494464-d4628051565.bin.gz  # version 15
 MODEL8=models/b18c384nbt-humanv0.bin.gz # human SL model
 MODEL9=models/b5c192nbt-v16test.bin.gz  # version 16 model very slightly trained
+MODEL10=tests/models/b7c96h3tfrs-test5-cnorm.bin.gz  # small transformer, rope, rmsnorm tip
+MODEL11=tests/models/b4c256h4nbttflrs-fson-silu-rsnh.bin.gz # small nbt transformer, learnable rope, spatial rmsnorm tip
+MODEL12=tests/models/b7c96h6kv3qk32v16tflrs-fson-bnh.bin.gz # small gqa transformer, relu, learnable rope, batchnorm tip
 
 MODELBASE1=$(basename "$MODEL1")
 MODELBASE2=$(basename "$MODEL2")
@@ -44,108 +42,169 @@ MODELBASE6=$(basename "$MODEL6")
 MODELBASE7=$(basename "$MODEL7")
 MODELBASE8=$(basename "$MODEL8")
 MODELBASE9=$(basename "$MODEL9")
+MODELBASE10=$(basename "$MODEL10")
+MODELBASE11=$(basename "$MODEL11")
+MODELBASE12=$(basename "$MODEL12")
 
 ./katago testgpuerror -model "$MODEL1" -config configs/gtp_example.cfg -boardsize 9 \
          -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE1"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE1"_size9${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE1"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE1"_size9.txt
 ./katago testgpuerror -model "$MODEL1" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=False, maxBatchSize=16${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE1"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE1"_size19${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE1"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE1"_size19.txt
 
 ./katago testgpuerror -model "$MODEL2" -config configs/gtp_example.cfg -boardsize 13 \
          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE2"_size13.txt | tee "$RESULTSDIR"/"$MODELBASE2"_size13${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE2"_size13.txt | tee "$RESULTSDIR"/"$MODELBASE2"_size13.txt
 ./katago testgpuerror -model "$MODEL2" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=True, maxBatchSize=19${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE2"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE2"_size19${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE2"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE2"_size19.txt
 
 ./katago testgpuerror -model "$MODEL3" -config configs/gtp_example.cfg -boardsize 9 \
          -override-config "requireMaxBoardSize=False, maxBatchSize=32${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE3"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE3"_size9${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE3"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE3"_size9.txt
 ./katago testgpuerror -model "$MODEL3" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=False, maxBatchSize=2${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE3"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE3"_size19${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE3"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE3"_size19.txt
 
 ./katago testgpuerror -model "$MODEL4" -config configs/gtp_example.cfg -boardsize 9 \
          -override-config "requireMaxBoardSize=True, maxBatchSize=3${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size9${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size9.txt
 ./katago testgpuerror -model "$MODEL4" -config configs/gtp_example.cfg -boardsize 13 \
          -override-config "requireMaxBoardSize=False, maxBatchSize=27${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size13.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size13${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size13.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size13.txt
 ./katago testgpuerror -model "$MODEL4" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size19${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size19.txt
 ./katago testgpuerror -model "$MODEL4" -config configs/gtp_example.cfg -boardsize 10x14 \
          -override-config "requireMaxBoardSize=True, maxBatchSize=13${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size10x14.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size10x14${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size10x14.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size10x14.txt
 ./katago testgpuerror -model "$MODEL4" -config configs/gtp_example.cfg -boardsize rectangle \
          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE4"_sizerect${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE4"_sizerect.txt
 
 ./katago testgpuerror -model "$MODEL4" -config configs/gtp_example.cfg -boardsize 13 \
          -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=18,maxBoardYSizeForNNBuffer=19${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size13_rectbuffer.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size13_rectbuffer${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE4"_size13_rectbuffer.txt | tee "$RESULTSDIR"/"$MODELBASE4"_size13_rectbuffer.txt
 
 ./katago testgpuerror -model "$MODEL5" -config configs/gtp_example.cfg -boardsize rectangle \
          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE5"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE5"_sizerect${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE5"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE5"_sizerect.txt
 ./katago testgpuerror -model "$MODEL5" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=True, maxBatchSize=16${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE5"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE5"_size19${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE5"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE5"_size19.txt
 
 ./katago testgpuerror -model "$MODEL6" -config configs/gtp_example.cfg -boardsize 9 \
          -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE6"_size9${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE6"_size9.txt
 ./katago testgpuerror -model "$MODEL6" -config configs/gtp_example.cfg -boardsize 13 \
          -override-config "requireMaxBoardSize=False, maxBatchSize=28${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_size13.txt | tee "$RESULTSDIR"/"$MODELBASE6"_size13${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_size13.txt | tee "$RESULTSDIR"/"$MODELBASE6"_size13.txt
 ./katago testgpuerror -model "$MODEL6" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=False, maxBatchSize=8${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE6"_size19${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE6"_size19.txt
 ./katago testgpuerror -model "$MODEL6" -config configs/gtp_example.cfg -boardsize 10x14 \
          -override-config "requireMaxBoardSize=False, maxBatchSize=15${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_size10x14.txt | tee "$RESULTSDIR"/"$MODELBASE6"_size10x14${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_size10x14.txt | tee "$RESULTSDIR"/"$MODELBASE6"_size10x14.txt
 ./katago testgpuerror -model "$MODEL6" -config configs/gtp_example.cfg -boardsize rectangle \
          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE6"_sizerect${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE6"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE6"_sizerect.txt
 
 ./katago testgpuerror -model "$MODEL7" -config configs/gtp_example.cfg -boardsize 9 \
          -override-config "requireMaxBoardSize=False, maxBatchSize=4${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size9${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size9.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size9.txt
 ./katago testgpuerror -model "$MODEL7" -config configs/gtp_example.cfg -boardsize 13 \
          -override-config "requireMaxBoardSize=True, maxBatchSize=29${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size13.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size13${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size13.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size13.txt
 ./katago testgpuerror -model "$MODEL7" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size19${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size19.txt
 ./katago testgpuerror -model "$MODEL7" -config configs/gtp_example.cfg -boardsize 10x14 \
          -override-config "requireMaxBoardSize=True, maxBatchSize=5${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size10x14.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size10x14${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size10x14.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size10x14.txt
 ./katago testgpuerror -model "$MODEL7" -config configs/gtp_example.cfg -boardsize rectangle \
          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE7"_sizerect${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE7"_sizerect.txt
 
 ./katago testgpuerror -model "$MODEL7" -config configs/gtp_example.cfg -boardsize 9 \
          -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=16,maxBoardYSizeForNNBuffer=11, maxBatchSize=9${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size9_rectbuffer.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size9_rectbuffer${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_size9_rectbuffer.txt | tee "$RESULTSDIR"/"$MODELBASE7"_size9_rectbuffer.txt
 
 ./katago testgpuerror -model "$MODEL8" -config configs/gtp_example.cfg -boardsize rectangle \
          -override-config "requireMaxBoardSize=False, maxBatchSize=11${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE8"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE8"_sizerect${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE8"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE8"_sizerect.txt
 ./katago testgpuerror -model "$MODEL8" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE8"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE8"_size19${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE8"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE8"_size19.txt
 
 
 ./katago testgpuerror -model "$MODEL7" -config configs/gtp_example.cfg -boardsize rectangle \
          -override-config "requireMaxBoardSize=False,policyOptimism=0.65,playoutDoublingAdvantage=0.3,nnPolicyTemperature=1.1${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_sizerect_weirdsettings.txt | tee "$RESULTSDIR"/"$MODELBASE7"_sizerect_weirdsettings${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE7"_sizerect_weirdsettings.txt | tee "$RESULTSDIR"/"$MODELBASE7"_sizerect_weirdsettings.txt
 
 ./katago testgpuerror -model "$MODEL9" -config configs/gtp_example.cfg -boardsize rectangle \
          -override-config "requireMaxBoardSize=False, maxBatchSize=11${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE9"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE9"_sizerect${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE9"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE9"_sizerect.txt
 ./katago testgpuerror -model "$MODEL9" -config configs/gtp_example.cfg -boardsize 19 \
          -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
-         -reference-file "$REFERENCEDIR"/"$MODELBASE9"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE9"_size19${SUFFIX}.txt
+         -reference-file "$REFERENCEDIR"/"$MODELBASE9"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE9"_size19.txt
+
+./katago testgpuerror -model "$MODEL10" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False, maxBatchSize=11${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE10"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE10"_sizerect.txt
+./katago testgpuerror -model "$MODEL10" -config configs/gtp_example.cfg -boardsize 19 \
+         -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE10"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE10"_size19.txt
+
+./katago testgpuerror -model "$MODEL11" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False, maxBatchSize=11${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE11"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE11"_sizerect.txt
+./katago testgpuerror -model "$MODEL11" -config configs/gtp_example.cfg -boardsize 19 \
+         -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE11"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE11"_size19.txt
+
+./katago testgpuerror -model "$MODEL12" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False, maxBatchSize=12${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE12"_sizerect.txt | tee "$RESULTSDIR"/"$MODELBASE12"_sizerect.txt
+./katago testgpuerror -model "$MODEL12" -config configs/gtp_example.cfg -boardsize 19 \
+         -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE12"_size19.txt | tee "$RESULTSDIR"/"$MODELBASE12"_size19.txt
+
+./katago testgpuerror -model "$MODEL11" -config configs/gtp_example.cfg -boardsize 9 \
+         -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=16,maxBoardYSizeForNNBuffer=11,maxBatchSize=15,policyOptimism=0.70${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE11"_size9_rectbuffer.txt | tee "$RESULTSDIR"/"$MODELBASE11"_size9_rectbuffer.txt
+
+# Larger transformer models (not publicly downloadable, so these entries are commented out;
+# place the model files in models/ manually to run them). Like all reference files, the
+# references are machine-local (tests/results/gpu_error_reference_files/ is not in git):
+# generate them by running these same commands with an Eigen-backend build of katago, which
+# writes the reference file instead of checking against it. The _quick suffix marks the
+# -quick position subsample (large models are slow on CPU) - the flag must match between
+# reference generation and checking.
+#
+# MODEL13=models/b10c384h6nbttflrs.bin.gz  # v17 transformer, 6 heads, learnable rope, rmsnorm trunk tip
+# MODEL14=models/b15c512h8nbttflrs-fson-silu.bin.gz  # v17 transformer, 8 heads, learnable rope, silu
+# MODEL15=models/b11c768h12nbt3tflrs-fson-silu.bin.gz  # v17 transformer, 12 heads, learnable rope, silu, largest
+# MODELBASE13=$(basename "$MODEL13")
+# MODELBASE14=$(basename "$MODEL14")
+# MODELBASE15=$(basename "$MODEL15")
+#
+# ./katago testgpuerror -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 19 -quick \
+#          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
+#          -reference-file "$REFERENCEDIR"/"$MODELBASE13"_size19_quick.txt | tee "$RESULTSDIR"/"$MODELBASE13"_size19_quick.txt
+# ./katago testgpuerror -model "$MODEL13" -config configs/gtp_example.cfg -boardsize rectangle -quick \
+#          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
+#          -reference-file "$REFERENCEDIR"/"$MODELBASE13"_sizerect_quick.txt | tee "$RESULTSDIR"/"$MODELBASE13"_sizerect_quick.txt
+# ./katago testgpuerror -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 9 -quick \
+#          -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=16,maxBoardYSizeForNNBuffer=11,maxBatchSize=9${EXTRA_OVERRIDE}" \
+#          -reference-file "$REFERENCEDIR"/"$MODELBASE13"_size9_rectbuffer_quick.txt | tee "$RESULTSDIR"/"$MODELBASE13"_size9_rectbuffer_quick.txt
+#
+# ./katago testgpuerror -model "$MODEL14" -config configs/gtp_example.cfg -boardsize 19 -quick \
+#          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
+#          -reference-file "$REFERENCEDIR"/"$MODELBASE14"_size19_quick.txt | tee "$RESULTSDIR"/"$MODELBASE14"_size19_quick.txt
+#
+# ./katago testgpuerror -model "$MODEL15" -config configs/gtp_example.cfg -boardsize 19 -quick \
+#          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
+#          -reference-file "$REFERENCEDIR"/"$MODELBASE15"_size19_quick.txt | tee "$RESULTSDIR"/"$MODELBASE15"_size19_quick.txt
 
 

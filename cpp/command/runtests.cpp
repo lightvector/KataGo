@@ -44,6 +44,7 @@ int MainCmds::runtests(const vector<string>& args) {
   Tests::runBoardAreaTests();
 
   Tests::runRulesTests();
+  Tests::runPassAliveSuicideModeTests();
 
   Tests::runBoardUndoTest();
   Tests::runBoardHandicapTest();
@@ -78,6 +79,7 @@ int MainCmds::runoutputtests(const vector<string>& args) {
   Tests::runNNInputsV3V4Tests();
   Tests::runNNLessSearchTests();
   Tests::runTrainingWriteTests();
+  Tests::runPassAliveSuicideGameTests();
   Tests::runTimeControlsTests();
   Tests::runScoreTests();
   Tests::runNNSymmetryTests();
@@ -404,18 +406,36 @@ int MainCmds::runtinynntests(const vector<string>& args) {
 }
 
 int MainCmds::runnnevalcanarytests(const vector<string>& args) {
-  if(args.size() != 4) {
-    cerr << "Must supply exactly three arguments: GTP_CONFIG MODEL_FILE SYMMETRY" << endl;
-    return 1;
-  }
-  const string& cfgFile = args[1];
-  const string& modelFile = args[2];
-  const int symmetry = Global::stringToInt(args[3]);
-
   Board::initHash();
   ScoreValue::initTables();
 
-  ConfigParser cfg(cfgFile);
+  ConfigParser cfg;
+  string modelFile;
+  int symmetry;
+  try {
+    KataGoCommandLine cmd("Run neural net eval canary sanity-check tests on a model.");
+    cmd.addConfigFileArg("","gtp_example.cfg");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    TCLAP::ValueArg<int> symmetryArg(
+      "","symmetry","Symmetry 0-7 to test, or -1 to test all 8 symmetries (default -1).",false,-1,"SYM");
+    cmd.add(symmetryArg);
+
+    cmd.parseArgs(args);
+
+    cmd.getConfig(cfg);
+    modelFile = cmd.getModelFile();
+    symmetry = symmetryArg.getValue();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+  if(symmetry < -1 || symmetry > 7) {
+    cerr << "symmetry must be -1 (all) or in [0,7]" << endl;
+    return 1;
+  }
 
   const bool logToStdoutDefault = true;
   const bool logToStderrDefault = false;
@@ -525,7 +545,7 @@ int MainCmds::runbeginsearchspeedtest(const vector<string>& args) {
 
   Player nextPla = P_BLACK;
   rules.komi = 6.5;
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules,0,false);
 
   bot->setPosition(nextPla,board,hist);
 
@@ -649,7 +669,7 @@ int MainCmds::runownershipspeedtest(const vector<string>& args) {
 
   Player nextPla = P_BLACK;
   rules.komi = 7.0;
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules,0,false);
 
   bot->setPosition(nextPla,board,hist);
   bot->setAlwaysIncludeOwnerMap(true);

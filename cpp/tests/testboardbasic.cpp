@@ -1971,7 +1971,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,false);
 
     testAssert(hist.computeNumHandicapStones() == 0);
     testAssert(hist.computeWhiteHandicapBonus() == 0);
@@ -1993,7 +1993,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,false);
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2012,7 +2012,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("aga");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,false);
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2031,7 +2031,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("aga");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,false);
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2062,7 +2062,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,false);
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2146,6 +2146,16 @@ void Tests::runBoardStressTest() {
       for(int i = 0; i<numBoards; i++) {
         testAssert(isLegal[i] == suc[i]);
         boards[i].checkConsistency();
+
+        //Periodically validate that regenerating all chain bookkeeping purely from colors[] reproduces a
+        //consistent board with identical stones (and, via checkConsistency, identical pos_hash/liberties).
+        if(n % 15 == 0) {
+          Board regen = boards[i];
+          regen.regenChainsFromColors();
+          for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++)
+            testAssert(regen.colors[loc] == boards[i].colors[loc]);
+          regen.checkConsistency();
+        }
 
         const Board& board = boards[i];
         const Board& copy = copies[i];
@@ -2447,7 +2457,7 @@ oxxxxx.xo
       rules.koRule = rand.nextBool(0.5) ? Rules::KO_SITUATIONAL : Rules::KO_POSITIONAL;
     if(rand.nextBool(0.2))
       rules.taxRule = rand.nextBool(0.5) ? Rules::TAX_SEKI : rand.nextBool(0.5) ? Rules::TAX_NONE : Rules::TAX_ALL;
-    BoardHistory hist(board,pla,rules,initialEncorePhase);
+    BoardHistory hist(board,pla,rules,initialEncorePhase,false);
     hist.setInitialTurnNumber(rand.nextInt(0,40));
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(rand.nextBool(0.5));
 
@@ -2460,7 +2470,7 @@ oxxxxx.xo
     double passProb = rand.nextDouble(0.05,0.80);
     int numSteps = rand.nextInt(6,15);
     for(int i = 0; i<numSteps; i++) {
-      BoardHistory tmpHist(board,pla,rules,hist.encorePhase);
+      BoardHistory tmpHist(board,pla,rules,hist.encorePhase,hist.alwaysComputePassAliveUnderSuicideRules);
       Loc moveLoc;
       if(rand.nextBool(passProb))
         moveLoc = Board::PASS_LOC;

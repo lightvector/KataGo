@@ -65,6 +65,7 @@ CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
+cpp/builds/
 
 .DS_Store
 GPATH

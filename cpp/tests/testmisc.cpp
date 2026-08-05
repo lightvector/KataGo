@@ -3,8 +3,10 @@
 #include "../core/fileutils.h"
 #include "../dataio/files.h"
 #include "../dataio/loadmodel.h"
+#include "../neuralnet/desc.h"
 
 #include <chrono>
+#include <sstream>
 #include <thread>
 
 //------------------------
@@ -152,4 +154,57 @@ void Tests::runLoadModelTests() {
     testAssert(Global::isPrefix(FileUtils::weaklyCanonical(modelDir), FileUtils::weaklyCanonical(modelsDir)));
   }
   cout << "testloadmodel okay" << endl;
+
+  //A real v17 model file whose header slot after metaEncoderVersion is patched to 1 parses as
+  //declaring preferPassAliveUnderSuicideRules - the engine side of the model-declaration handshake
+  //that lets the alwaysComputePassAliveUnderSuicideRules auto mode turn on. The same slot layout is
+  //what export_model_pytorch.py writes.
+  {
+    const string modelFile = "tests/models/b7c96h6kv3qk32v16tflrs-fson-bnh.bin.gz";
+    string uncompressed;
+    FileUtils::uncompressAndLoadFileIntoString(modelFile,"",uncompressed);
+
+    size_t binStart = uncompressed.find("@BIN@");
+    testAssert(binStart != string::npos);
+    const string headerPrefix = uncompressed.substr(0,binStart);
+    const string rest = uncompressed.substr(binStart);
+    vector<string> tokens = Global::split(headerPrefix);
+    //Header layout: name, version, numInputChannels, numInputGlobalChannels, 7 postprocess params,
+    //metaEncoderVersion, preferPassAliveUnderSuicideRules, 6 unused option slots, then the trunk.
+    testAssert(tokens.size() > 19);
+    testAssert(tokens[1] == "17");
+    testAssert(tokens[11] == "0");
+    testAssert(tokens[12] == "0");
+    testAssert(tokens[19] == "trunk");
+
+    auto parseWithSlot = [&](const string& slotValue) {
+      vector<string> patched = tokens;
+      patched[12] = slotValue;
+      string contents = Global::concat(patched," ") + " " + rest;
+      std::istringstream in(contents);
+      return ModelDesc(in,"",true);
+    };
+
+    {
+      ModelDesc desc = parseWithSlot("0");
+      testAssert(desc.modelVersion == 17);
+      testAssert(!desc.preferPassAliveUnderSuicideRules);
+    }
+    {
+      ModelDesc desc = parseWithSlot("1");
+      testAssert(desc.modelVersion == 17);
+      testAssert(desc.preferPassAliveUnderSuicideRules);
+    }
+    {
+      bool threw = false;
+      try {
+        ModelDesc desc = parseWithSlot("2");
+      }
+      catch(const StringError&) {
+        threw = true;
+      }
+      testAssert(threw);
+    }
+    cout << "model declaration parsing okay" << endl;
+  }
 }

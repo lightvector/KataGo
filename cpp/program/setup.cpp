@@ -239,41 +239,10 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     string homeDataDirOverride = loadHomeDataDirOverride(cfg);
 
-    string backendExtraParam;
-#if defined(USE_ONNX_BACKEND)
-    string onnxProvider = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
-    backendExtraParam = "provider=" + onnxProvider;
-    if(cfg.contains("onnxInputSpatial"))
-      backendExtraParam += ";inputSpatial=" + cfg.getString("onnxInputSpatial");
-    if(cfg.contains("onnxInputGlobal"))
-      backendExtraParam += ";inputGlobal=" + cfg.getString("onnxInputGlobal");
-    if(cfg.contains("onnxInputMeta"))
-      backendExtraParam += ";inputMeta=" + cfg.getString("onnxInputMeta");
-    if(cfg.contains("onnxOutputPolicy"))
-      backendExtraParam += ";outputPolicy=" + cfg.getString("onnxOutputPolicy");
-    if(cfg.contains("onnxOutputValue"))
-      backendExtraParam += ";outputValue=" + cfg.getString("onnxOutputValue");
-    if(cfg.contains("onnxOutputMiscvalue"))
-      backendExtraParam += ";outputMiscvalue=" + cfg.getString("onnxOutputMiscvalue");
-    if(cfg.contains("onnxOutputOwnership"))
-      backendExtraParam += ";outputOwnership=" + cfg.getString("onnxOutputOwnership");
-    if(cfg.contains("onnxModelVersion"))
-      backendExtraParam += ";modelVersion=" + cfg.getString("onnxModelVersion");
-    if(cfg.contains("onnxOpenVINODeviceType"))
-      backendExtraParam += ";openvinoDeviceType=" + cfg.getString("onnxOpenVINODeviceType");
-    if(cfg.contains("onnxOpenVINODeviceId"))
-      backendExtraParam += ";openvinoDeviceId=" + cfg.getString("onnxOpenVINODeviceId");
-    if(cfg.contains("onnxOpenVINOEnableNPUFastCompile"))
-      backendExtraParam += ";openvinoEnableNPUFastCompile=" + cfg.getString("onnxOpenVINOEnableNPUFastCompile");
-    if(cfg.contains("onnxOpenVINOCacheDir"))
-      backendExtraParam += ";openvinoCacheDir=" + cfg.getString("onnxOpenVINOCacheDir");
-#else
-    if(cfg.contains("openclTunerFile"))
-      backendExtraParam = cfg.getString("openclTunerFile");
-#endif
-    bool openCLReTunePerBoardSize = false;
-    if(cfg.contains("openclReTunePerBoardSize"))
-      openCLReTunePerBoardSize = cfg.getBool("openclReTunePerBoardSize");
+    // Backend-specific options (e.g. openclTunerFile, cudaDisableGraphSDPA) are read directly by the
+    // relevant compute backend off of cfg (see createComputeContext). Because they follow the backend
+    // prefix convention, the getBackendPrefixes() loop above already marks them used for the backends
+    // that don't read them, so no explicit mark-used is needed here.
 
     enabled_t useFP16Mode = enabled_t::Auto;
     if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
@@ -285,16 +254,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     else if(cfg.contains("useFP16"))
       useFP16Mode = cfg.getEnabled("useFP16");
 
-    enabled_t useNHWCMode = enabled_t::Auto;
-    if(cfg.contains(backendPrefix+"UseNHWC"+idxStr))
-      useNHWCMode = cfg.getEnabled(backendPrefix+"UseNHWC"+idxStr);
-    else if(cfg.contains("useNHWC"+idxStr))
-      useNHWCMode = cfg.getEnabled("useNHWC"+idxStr);
-    else if(cfg.contains(backendPrefix+"UseNHWC"))
-      useNHWCMode = cfg.getEnabled(backendPrefix+"UseNHWC");
-    else if(cfg.contains("useNHWC"))
-      useNHWCMode = cfg.getEnabled("useNHWC");
-
     int forcedSymmetry = -1;
     if(setupFor != SETUP_FOR_DISTRIBUTED && cfg.contains("nnForcedSymmetry"))
       forcedSymmetry = cfg.getInt("nnForcedSymmetry",0,SymmetryHelpers::NUM_SYMMETRIES-1);
@@ -302,7 +261,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     logger.write(
       "After dedups: nnModelFile" + idxStr + " = " + nnModelFile
       + " useFP16 " + useFP16Mode.toString()
-      + " useNHWC " + useNHWCMode.toString()
     );
 
     int nnCacheSizePowerOfTwo =
@@ -350,6 +308,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     if(disableFP16)
       useFP16Mode = enabled_t::False;
 
+    //Pre-warm lazily-compiled backend graphs (e.g. cuDNN SDPA plans for transformer models) when each
+    //server thread's handle is created, so the first searches aren't stalled. On by default.
+    bool disableWarmup =
+      cfg.contains("cudaDisableWarmup") ? cfg.getBool("cudaDisableWarmup") : false;
+
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
@@ -363,16 +326,15 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
       debugSkipNeuralNet,
-      backendExtraParam,
       homeDataDirOverride,
-      openCLReTunePerBoardSize,
       useFP16Mode,
-      useNHWCMode,
       numNNServerThreadsPerModel,
       gpuIdxByServerThread,
       nnRandSeed,
       (forcedSymmetry >= 0 ? false : nnRandomize),
-      defaultSymmetry
+      defaultSymmetry,
+      disableWarmup,
+      cfg
     );
 
     nnEval->spawnServerThreads();
@@ -704,6 +666,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fillDameBeforePass"+idxStr)) params.fillDameBeforePass = cfg.getBool("fillDameBeforePass"+idxStr);
     else if(cfg.contains("fillDameBeforePass"))   params.fillDameBeforePass = cfg.getBool("fillDameBeforePass");
     else                                          params.fillDameBeforePass = false;
+    if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"+idxStr)) params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules"+idxStr);
+    else if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"))   params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules");
+    else                                                               params.alwaysComputePassAliveUnderSuicideRules = enabled_t::Auto;
     //Controlled by GTP directly, not used in any other mode
     params.avoidMYTDaggerHackPla = C_EMPTY;
     if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);

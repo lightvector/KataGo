@@ -1,0 +1,70 @@
+= 
+
+= 
+
+= 
+
+= 
+
+= MoveNum: 0 HASH: 296C7FD2F430C547A7F740C78DBA7C20
+   A B C D
+ 5 . . . X
+ 4 X X . .
+ 3 O X X X
+ 2 O O X .
+ 1 . X . X
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"SIMPLE","komi":0.0,"scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+
+= "auto"
+
+= 
+
+= A1
+
+= 
+
+= 
+
+= "true"
+
+= A1
+
+= 
+
+= 
+
+= 
+
+= B+20.0
+
+= A3 A2 B2
+
+= 
+
+= B+13.0
+
+= 
+
+= 
+
+= B+20.0
+
+= 
+
+= B+20.0
+
+= MoveNum: 2 HASH: 296C7FD2F430C547A7F740C78DBA7C20
+   A B C D
+ 5 . . . X
+ 4 X X . .
+ 3 O X X X
+ 2 O O X .
+ 1 . X . X
+Next player: White
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"SIMPLE","komi":0.0,"scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+

@@ -200,7 +200,7 @@ void Tests::runNNInputsV3V4Tests() {
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, false);
       vector<Move>& moves = sgf->moves;
 
       for(size_t i = 0; i<moves.size(); i++) {
@@ -259,7 +259,7 @@ void Tests::runNNInputsV3V4Tests() {
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, false);
       vector<Move>& moves = sgf->moves;
 
       for(size_t i = 0; i<moves.size(); i++) {
@@ -319,7 +319,7 @@ void Tests::runNNInputsV3V4Tests() {
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, false);
       vector<Move>& moves = sgf->moves;
 
       for(size_t i = 0; i<moves.size(); i++) {
@@ -378,7 +378,7 @@ void Tests::runNNInputsV3V4Tests() {
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, false);
       vector<Move>& moves = sgf->moves;
 
       for(size_t i = 0; i<moves.size(); i++) {
@@ -443,7 +443,7 @@ xxx..xx
       Player nextPla = P_BLACK;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules.komi = 2;
-      BoardHistory hist(board,nextPla,initialRules,0);
+      BoardHistory hist(board,nextPla,initialRules,0,false);
 
       int nnXLen = 7;
       int nnYLen = 7;
@@ -595,7 +595,7 @@ xxx..xx
           for(int c = 0; c<numFeaturesGlobal; c++) {
             for(int j = 0; j<24; j++) {
               testAssert(i + j < rules.size());
-              BoardHistory hist(board,nextPla,rules[i+j],0);
+              BoardHistory hist(board,nextPla,rules[i+j],0,false);
               bool inputsUseNHWC = true;
               Hash128 hash;
               MiscNNInputParams nnInputParams;
@@ -637,7 +637,7 @@ xxx..xx
       BoardHistory hist;
       Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, false, 0.0f);
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, false);
 
       int nnXLen = 6;
       int nnYLen = 6;
@@ -714,7 +714,7 @@ xxx..xx
       BoardHistory hist;
       Rules initialRules;
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, false);
       vector<Move>& moves = sgf->moves;
 
       int nnXLen = 13;
@@ -789,7 +789,7 @@ o.xoo.x
           rules.komi = 6.5f;
           rules.multiStoneSuicideLegal = false;
           rules.taxRule = taxRules[whichRules];
-          BoardHistory hist(board,P_WHITE,rules,0);
+          BoardHistory hist(board,P_WHITE,rules,0,false);
 
           auto run = [&](bool inputsUseNHWC) {
             Player nextPla = hist.moveHistory.size() > 0 ? getOpp(hist.moveHistory[hist.moveHistory.size()-1].pla) : hist.initialPla;
@@ -890,7 +890,7 @@ o.xoo.x
       Board board = Board(9,1);
       Player nextPla = P_BLACK;
       Rules initialRules = Rules::getSimpleTerritory();
-      BoardHistory hist(board,nextPla,initialRules,0);
+      BoardHistory hist(board,nextPla,initialRules,0,false);
 
       auto run = [&](bool inputsUseNHWC) {
         Hash128 hash;
@@ -974,7 +974,7 @@ o.xoo.x
         Board board = Board(size,size);
         Player nextPla = P_BLACK;
         Rules initialRules = rules[i];
-        BoardHistory hist(board,nextPla,initialRules,0);
+        BoardHistory hist(board,nextPla,initialRules,0,false);
         cout << "----------------------------------------" << endl;
         cout << "Black makes 3 moves in a row" << endl;
         if(i >= 3) {
@@ -1188,7 +1188,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,false);
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1206,7 +1206,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,false);
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1225,7 +1225,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,false);
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1243,7 +1243,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,false);
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1262,7 +1262,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,false);
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1296,7 +1296,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,false);
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1332,7 +1332,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,false);
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1412,7 +1412,7 @@ ooxooxo
             Player nextPla;
             BoardHistory hist;
             Rules rules = sgf->getRulesOrFailAllowUnspecified(rulesToUse);
-            sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
+            sgf->setupInitialBoardAndHist(rules, board, nextPla, hist, false);
 
             int nnXLen = 9;
             int nnYLen = 9;

@@ -247,10 +247,9 @@ int MainCmds::benchmark(const vector<string>& args) {
   cout << endl;
 
 #ifdef USE_CUDA_BACKEND
-  cout << "Your GTP config is currently set to cudaUseFP16 = " << nnEval->getUsingFP16Mode().toString()
-       << " and cudaUseNHWC = " << nnEval->getUsingNHWCMode().toString() << endl;
+  cout << "Your GTP config is currently set to cudaUseFP16 = " << nnEval->getUsingFP16Mode().toString() << endl;
   if(nnEval->getUsingFP16Mode() == enabled_t::False)
-    cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080) setting these both to true may give a large performance boost." << endl;
+    cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080) setting this to true may give a large performance boost." << endl;
 #endif
 #ifdef USE_TENSORRT_BACKEND
   cout << "Your GTP config is currently set to trtUseFP16 = " << nnEval->getUsingFP16Mode().toString() << endl;
@@ -323,7 +322,7 @@ int MainCmds::benchmark(const vector<string>& args) {
 static void warmStartNNEval(const CompactSgf& sgf, Logger& logger, const SearchParams& params, NNEvaluator* nnEval, Rand& seedRand) {
   Board board(sgf.xSize,sgf.ySize);
   Player nextPla = P_BLACK;
-  BoardHistory hist(board,nextPla,Rules(),0);
+  BoardHistory hist(board,nextPla,Rules(),0,false);
   SearchParams thisParams = params;
   thisParams.numThreads = 1;
   thisParams.maxVisits = 5;

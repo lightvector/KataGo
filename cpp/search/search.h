@@ -86,6 +86,10 @@ struct Search {
   Board rootBoard;
   BoardHistory rootHistory;
   Hash128 rootGraphHash;
+  //Hash of the search params, folded into the eval cache key so that cached search results are not shared
+  //across different params (the eval cache persists across param changes and, in the analysis engine, is
+  //shared across threads that may be running with different params). Recomputed at the start of each search.
+  Hash128 evalCacheParamsHash;
   Loc rootHintLoc;
 
   //External user-specified moves that are illegal or that should be nontrivially searched, and the number of turns for which they should
@@ -230,6 +234,9 @@ struct Search {
   void setRootSymmetryPruningOnly(const std::vector<int>& rootPruneOnlySymmetries);
   void setParams(const SearchParams& params);
   void setParamsNoClearing(const SearchParams& params); //Does not clear search
+  //Resolve a false/auto/true alwaysComputePassAliveUnderSuicideRules setting against what a neural net
+  //declares that it expects. Auto resolves to the net's declaration (false if nnEval is NULL).
+  static bool resolveAlwaysComputePassAliveUnderSuicideRules(const SearchParams& params, const NNEvaluator* nnEval);
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
   void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
   void setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache);
@@ -648,6 +655,10 @@ private:
   // search.cpp
   //----------------------------------------------------------------------------------------
   uint32_t createMutexIdxForNode(SearchThread& thread) const;
+
+  // Key to look up or store a node in the eval cache so that distinct params never share cached search results.
+  Hash128 getEvalCacheKey(Hash128 graphHash) const { return graphHash ^ evalCacheParamsHash; }
+
   SearchNode* allocateOrFindNode(SearchThread& thread, Player nextPla, Loc bestChildMoveLoc, bool forceNonTerminal, Hash128 graphHash);
   void clearOldNNOutputs();
   void transferOldNNOutputs(SearchThread& thread);
@@ -659,6 +670,14 @@ private:
   // Initialization and core search logic
   // search.cpp
   //----------------------------------------------------------------------------------------
+  //Enforce the invariant that rootHistory's alwaysComputePassAliveUnderSuicideRules always matches
+  //what searchParams and nnEvaluator resolve to, regardless of any history set into this Search.
+  //Clears search if this changes the flag, since all graph hashes and in-tree adjudication change.
+  //Called by every setter that installs or rebuilds rootHistory or changes params or nnEvaluator.
+  void applyPassAliveModeToRootHistory();
+  //Copy of nnInputParams for querying humanEvaluator, overriding the pass-alive featurization mode
+  //with the human net's own resolution, which may differ from the mode the search is using.
+  MiscNNInputParams paramsForHumanEvaluator(const MiscNNInputParams& nnInputParams) const;
   void computeRootValues(); // Helper for begin search
   void recursivelyRecomputeStats(SearchNode& node); // Helper for search initialization
   void recursivelyRecordEvalCache(SearchNode& n);

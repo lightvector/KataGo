@@ -767,16 +767,9 @@ cl_int OpenCLHelpers::doHGemmWmma_NCHW_ICOC(
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
   int batchSize, int cSize, int hwSize, int ocSize,
-  cl_mem A, cl_mem B, cl_mem C,
+  cl_mem paddedA, cl_mem B, cl_mem C,
   cl_event* eventBuf
 ) {
-  clSetKernelArg(kernel, 0, sizeof(int), (void *)&cSize);
-  clSetKernelArg(kernel, 1, sizeof(int), (void *)&hwSize);
-  clSetKernelArg(kernel, 2, sizeof(int), (void *)&ocSize);
-  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&A);
-  clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&B);
-  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&C);
-
   // Always check these
   testAssert(ocSize % tuneParams.hGemmWmmaNCHW.NWG == 0);
   testAssert(cSize % tuneParams.hGemmWmmaNCHW.KWG == 0);
@@ -798,9 +791,18 @@ cl_int OpenCLHelpers::doHGemmWmma_NCHW_ICOC(
   const size_t NWG = tuneParams.hGemmWmmaNCHW.NWG;
   const size_t WARP_SIZE = 32;
 
-  int hwSizeRoundedUp = (int)roundUpToMultiple(hwSize,MWG);
+  int hwSizePadded = (int)roundUpToMultiple(hwSize, MWG);
 
-  size_t globalSizes[nKernelDims] = {hwSizeRoundedUp * MWAVE / MWG / MWARP * WARP_SIZE, ocSize * NWAVE / NWG / NWARP, (size_t)batchSize};
+  clSetKernelArg(kernel, 0, sizeof(int), (void *)&cSize);
+  clSetKernelArg(kernel, 1, sizeof(int), (void *)&hwSize);
+  clSetKernelArg(kernel, 2, sizeof(int), (void *)&ocSize);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&paddedA);
+  clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&B);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&C);
+
+  // Dispatch enough workgroups to cover hwSizePadded (rounded up to MWG).
+  // The kernel skips WMMA fragments that extend past hwSize.
+  size_t globalSizes[nKernelDims] = {(size_t)hwSizePadded * MWAVE / MWG / MWARP * WARP_SIZE, ocSize * NWAVE / NWG / NWARP, (size_t)batchSize};
   size_t localSizes[nKernelDims] = {MWAVE/MWARP * WARP_SIZE, NWAVE/NWARP, 1};
 
   cl_int err;
@@ -939,7 +941,7 @@ cl_int OpenCLHelpers::doWinogradTransform(
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
   cl_mem input, cl_mem convWorkspace,
-  int nnXLen, int nnYLen,
+  int nnXLen, int nnYLen, int xyStride,
   int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
   int inChannels, int inChannelsPadMultiple,
   int convSize,
@@ -958,6 +960,7 @@ cl_int OpenCLHelpers::doWinogradTransform(
   clSetKernelArg(kernel, 7, sizeof(int), (void *)&inChannels);
   clSetKernelArg(kernel, 8, sizeof(int), (void *)&inChannelsPadded);
   clSetKernelArg(kernel, 9, sizeof(int), (void *)&batchNumTilesPadded);
+  clSetKernelArg(kernel, 10, sizeof(int), (void *)&xyStride);
 
   static constexpr int nKernelDims = 2;
   size_t localSizes[nKernelDims] = {
@@ -983,7 +986,7 @@ cl_int OpenCLHelpers::doWinogradTransformWithBNAct(
   const OpenCLTuneParams& tuneParams,
   cl_mem input, cl_mem convWorkspace,
   cl_mem scaleBuf, cl_mem biasBuf, cl_mem mask,
-  int nnXLen, int nnYLen,
+  int nnXLen, int nnYLen, int xyStride,
   int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
   int inChannels, int inChannelsPadMultiple,
   int convSize,
@@ -1005,6 +1008,7 @@ cl_int OpenCLHelpers::doWinogradTransformWithBNAct(
   clSetKernelArg(kernel, 10, sizeof(int), (void *)&inChannels);
   clSetKernelArg(kernel, 11, sizeof(int), (void *)&inChannelsPadded);
   clSetKernelArg(kernel, 12, sizeof(int), (void *)&batchNumTilesPadded);
+  clSetKernelArg(kernel, 13, sizeof(int), (void *)&xyStride);
 
   static constexpr int nKernelDims = 2;
   size_t localSizes[nKernelDims] = {
@@ -1029,7 +1033,7 @@ cl_int OpenCLHelpers::doWinogradUntransform(
   cl_command_queue commandQueue,
   const OpenCLTuneParams& tuneParams,
   cl_mem convWorkspace2, cl_mem output,
-  int nnXLen, int nnYLen,
+  int nnXLen, int nnYLen, int xyStride,
   int batchSize, int numTilesX, int numTilesY, int batchNumTilesPadMultiple,
   int outChannels, int outChannelsPadMultiple,
   int convSize,
@@ -1048,6 +1052,7 @@ cl_int OpenCLHelpers::doWinogradUntransform(
   clSetKernelArg(kernel, 7, sizeof(int), (void *)&outChannels);
   clSetKernelArg(kernel, 8, sizeof(int), (void *)&outChannelsPadded);
   clSetKernelArg(kernel, 9, sizeof(int), (void *)&batchNumTilesPadded);
+  clSetKernelArg(kernel, 10, sizeof(int), (void *)&xyStride);
 
   static constexpr int nKernelDims = 3;
   size_t localSizes[nKernelDims] = {
@@ -1146,8 +1151,7 @@ cl_int OpenCLHelpers::computeMaskSums(
   cl_mem mask,
   cl_mem maskSum,
   int batchSize,
-  int nnXLen,
-  int nnYLen,
+  int nnXYLen,
   cl_event* eventBuf
 ) {
   static constexpr int nKernelDims = 3;
@@ -1163,7 +1167,6 @@ cl_int OpenCLHelpers::computeMaskSums(
   };
 
   int numChannels = 1;
-  int nnXYLen = nnXLen * nnYLen;
   clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&mask);
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (void *)&maskSum);
   clSetKernelArg(kernel, 2, sizeof(int), (void *)&batchSize);
@@ -1181,6 +1184,7 @@ cl_int OpenCLHelpers::computeMaskSums(
 cl_int OpenCLHelpers::doAddPointWise(
   cl_kernel kernel,
   cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
   cl_mem acc,
   cl_mem value,
   int totalSize,
@@ -1190,15 +1194,142 @@ cl_int OpenCLHelpers::doAddPointWise(
   clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&value);
   clSetKernelArg(kernel, 2, sizeof(int), (const void *)&totalSize);
 
+  int eltsPerThread = tuneParams.pointWise.ELTS_PER_THREAD;
+  size_t localSize = (size_t)tuneParams.pointWise.LOCAL_SIZE;
+  size_t numThreads = ((size_t)totalSize + eltsPerThread - 1) / eltsPerThread;
+
   static constexpr int nKernelDims = 1;
-  size_t globalSizes[nKernelDims] = {powerOf2ify((size_t)totalSize)};
-  size_t* localSizes = NULL;
+  size_t globalSizes[nKernelDims] = {roundUpToMultiple(numThreads, localSize)};
+  size_t localSizes[nKernelDims] = {localSize};
 
   cl_int err;
   err = clEnqueueNDRangeKernel(
     commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
   );
   return err;
+}
+
+cl_int OpenCLHelpers::doSwiGLU(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  cl_mem mainProj,
+  cl_mem gateProj,
+  cl_mem output,
+  int totalSize,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&mainProj);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&gateProj);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&output);
+  clSetKernelArg(kernel, 3, sizeof(int), (const void *)&totalSize);
+
+  int eltsPerThread = tuneParams.pointWise.ELTS_PER_THREAD;
+  size_t localSize = (size_t)tuneParams.pointWise.LOCAL_SIZE;
+  size_t numThreads = ((size_t)totalSize + eltsPerThread - 1) / eltsPerThread;
+
+  static constexpr int nKernelDims = 1;
+  size_t globalSizes[nKernelDims] = {roundUpToMultiple(numThreads, localSize)};
+  size_t localSizes[nKernelDims] = {localSize};
+
+  cl_int err;
+  err = clEnqueueNDRangeKernel(
+    commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf
+  );
+  return err;
+}
+
+OpenCLHelpers::SpatialRMSNormSizing OpenCLHelpers::computeSpatialRMSNormSizing(int tileSize, int chwSize) {
+  SpatialRMSNormSizing sizing;
+  // Choose numCHWWorkgroups for pass 1 such that:
+  // 1. Each workgroup handles a reasonable chunk (tileSize * tilesPerGroup elements)
+  // 2. numCHWWorkgroups <= tileSize so pass 2 can reduce them in a single workgroup
+  // Start from the natural number of workgroups, then cap.
+  int naturalWorkgroups = (chwSize + tileSize - 1) / tileSize;
+  sizing.numCHWWorkgroups = std::min(naturalWorkgroups, tileSize);
+  // Compute tilesPerGroup for pass 1: each workgroup covers ceil(chwSize / (numCHWWorkgroups * tileSize)) tiles
+  sizing.tilesPerGroupPass1 = (chwSize + (sizing.numCHWWorkgroups * tileSize) - 1) / (sizing.numCHWWorkgroups * tileSize);
+  // Pass 2: reduce numCHWWorkgroups values to 1, in a single workgroup
+  sizing.tilesPerGroupPass2 = (sizing.numCHWWorkgroups + tileSize - 1) / tileSize;
+  return sizing;
+}
+
+cl_int OpenCLHelpers::doSpatialRMSNormSumSq(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  int batchSize, int cSize, int xySize,
+  int tileSize, int tilesPerGroup, int numCHWWorkgroups,
+  cl_mem input, cl_mem mask, cl_mem output,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&mask);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&output);
+  clSetKernelArg(kernel, 3, sizeof(int), (const void *)&batchSize);
+  clSetKernelArg(kernel, 4, sizeof(int), (const void *)&cSize);
+  clSetKernelArg(kernel, 5, sizeof(int), (const void *)&xySize);
+  clSetKernelArg(kernel, 6, sizeof(int), (const void *)&tilesPerGroup);
+
+  static constexpr int nKernelDims = 2;
+  size_t globalSizes[nKernelDims] = {(size_t)(numCHWWorkgroups * tileSize), (size_t)batchSize};
+  size_t localSizes[nKernelDims] = {(size_t)tileSize, 1};
+  return clEnqueueNDRangeKernel(commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf);
+}
+
+cl_int OpenCLHelpers::doSpatialRMSNormReduce(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  int batchSize, int numPartials,
+  int tileSize, int tilesPerGroup,
+  cl_mem input, cl_mem output,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
+  clSetKernelArg(kernel, 2, sizeof(int), (const void *)&batchSize);
+  clSetKernelArg(kernel, 3, sizeof(int), (const void *)&numPartials);
+  clSetKernelArg(kernel, 4, sizeof(int), (const void *)&tilesPerGroup);
+
+  // Single workgroup per batch element for pass 2
+  static constexpr int nKernelDims = 2;
+  size_t globalSizes[nKernelDims] = {(size_t)tileSize, (size_t)batchSize};
+  size_t localSizes[nKernelDims] = {(size_t)tileSize, 1};
+  return clEnqueueNDRangeKernel(commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf);
+}
+
+cl_int OpenCLHelpers::doSpatialRMSNormApply(
+  cl_kernel kernel,
+  cl_command_queue commandQueue,
+  const OpenCLTuneParams& tuneParams,
+  int batchSize, int cSize, int xySize,
+  float epsilon,
+  cl_mem input, cl_mem output,
+  cl_mem gamma, cl_mem beta,
+  cl_mem mask, cl_mem maskSum, cl_mem sumSqBuf,
+  cl_event* eventBuf
+) {
+  clSetKernelArg(kernel, 0, sizeof(cl_mem), (const void *)&input);
+  clSetKernelArg(kernel, 1, sizeof(cl_mem), (const void *)&output);
+  clSetKernelArg(kernel, 2, sizeof(cl_mem), (const void *)&gamma);
+  clSetKernelArg(kernel, 3, sizeof(cl_mem), (const void *)&beta);
+  clSetKernelArg(kernel, 4, sizeof(cl_mem), (const void *)&mask);
+  clSetKernelArg(kernel, 5, sizeof(cl_mem), (const void *)&maskSum);
+  clSetKernelArg(kernel, 6, sizeof(cl_mem), (const void *)&sumSqBuf);
+  clSetKernelArg(kernel, 7, sizeof(int), (const void *)&batchSize);
+  clSetKernelArg(kernel, 8, sizeof(int), (const void *)&cSize);
+  clSetKernelArg(kernel, 9, sizeof(int), (const void *)&xySize);
+  clSetKernelArg(kernel, 10, sizeof(float), (const void *)&epsilon);
+
+  int totalElems = cSize * xySize;
+  int eltsPerThread = tuneParams.spatialRMSNorm.APPLY_ELTS_PER_THREAD;
+  size_t numThreads = ((size_t)totalElems + eltsPerThread - 1) / eltsPerThread;
+  size_t localSize = 32;
+  size_t numWorkgroups = (numThreads + localSize - 1) / localSize;
+
+  static constexpr int nKernelDims = 2;
+  size_t globalSizes[nKernelDims] = {numWorkgroups * localSize, (size_t)batchSize};
+  size_t localSizes[nKernelDims] = {localSize, 1};
+  return clEnqueueNDRangeKernel(commandQueue, kernel, nKernelDims, NULL, globalSizes, localSizes, 0, NULL, eventBuf);
 }
 
 #endif

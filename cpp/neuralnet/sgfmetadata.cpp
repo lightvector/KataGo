@@ -339,3 +339,8 @@ SGFMetadata SGFMetadata::getProfile(const string& humanSLProfileName) {
   throw StringError("Unknown human SL network profile: " + humanSLProfileName);
 }
 
+SGFMetadata SGFMetadata::makeDummyWarmupProfile() {
+  // Any valid initialized profile works; reuse a recent modern-pro profile.
+  return makeModernProProfile(SimpleDate(2020,1,1));
+}
+

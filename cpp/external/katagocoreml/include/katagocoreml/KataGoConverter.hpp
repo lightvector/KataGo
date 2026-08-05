@@ -13,7 +13,7 @@ class KataGoConverter {
 public:
     /// Supported KataGo model versions
     static constexpr int MIN_SUPPORTED_VERSION = 8;
-    static constexpr int MAX_SUPPORTED_VERSION = 16;
+    static constexpr int MAX_SUPPORTED_VERSION = 17;
 
     /// Convert KataGo model file to Core ML mlpackage
     ///
@@ -41,6 +41,11 @@ public:
     static bool isVersionSupported(int version) {
         return version >= MIN_SUPPORTED_VERSION && version <= MAX_SUPPORTED_VERSION;
     }
+
+    /// True if converting with compute_precision="FLOAT16" would nonetheless build the model
+    /// fully in FP32 (narrow transformer trunks are demoted for accuracy). Lets callers report
+    /// the effective precision without performing a conversion.
+    static bool wouldBuildFullyFp32(int trunk_num_channels, bool has_transformer_blocks);
 
     /// Get library version string
     static std::string getVersion() {

@@ -4,6 +4,7 @@
 #ifndef DESC_H
 #define DESC_H
 
+#include <cstdint>
 #include <istream>
 #include <string>
 #include <vector>
@@ -32,8 +33,11 @@ struct ConvLayerDesc {
   ConvLayerDesc& operator=(ConvLayerDesc&& other);
 
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
 
   void scaleOutputChannels(const std::vector<float>& scaling);
+
+  void releaseWeights();
 };
 
 struct BatchNormLayerDesc {
@@ -59,11 +63,15 @@ struct BatchNormLayerDesc {
 
   BatchNormLayerDesc& operator=(BatchNormLayerDesc&& other);
 
+  int64_t getNumParameters() const;
+
   void computeMerged();
   void scaleInputChannels(const std::vector<float>& scaling);
   void extractChannelFactorsAbsLtOne(std::vector<float>& channelFactors);
   void extractChannelFactorsAbsLtOneWithInverses(std::vector<float>& channelFactors, std::vector<float>& invChannelFactors);
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ActivationLayerDesc {
@@ -98,7 +106,11 @@ struct MatMulLayerDesc {
 
   MatMulLayerDesc& operator=(MatMulLayerDesc&& other);
 
+  int64_t getNumParameters() const;
+
   void scaleOutputChannels(const std::vector<float>& scaling);
+
+  void releaseWeights();
 };
 
 struct MatBiasLayerDesc {
@@ -114,7 +126,12 @@ struct MatBiasLayerDesc {
   MatBiasLayerDesc& operator=(const MatBiasLayerDesc&) = delete;
 
   MatBiasLayerDesc& operator=(MatBiasLayerDesc&& other);
+
+  int64_t getNumParameters() const;
+
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ResidualBlockDesc {
@@ -137,9 +154,12 @@ struct ResidualBlockDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct GlobalPoolingResidualBlockDesc {
@@ -167,9 +187,12 @@ struct GlobalPoolingResidualBlockDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct NestedBottleneckResidualBlockDesc {
@@ -197,9 +220,128 @@ struct NestedBottleneckResidualBlockDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
+  //True if this block contains any transformer (attention or ffn) block, including ones nested
+  //inside further nested-bottleneck children.
+  bool hasAnyTransformerBlocks() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
+};
+
+// Trunk final normalization kind (stored in trunk header)
+constexpr int TRUNK_NORM_KIND_STANDARD = 0; // BatchNorm or BiasMask (existing)
+constexpr int TRUNK_NORM_KIND_RMSNORM = 1;  // RMSNorm (spatial vs non-spatial determined by RMSNormLayerDesc::spatial)
+
+struct RMSNormLayerDesc {
+  std::string name;
+  int numChannels;
+  float epsilon;
+  bool spatial;
+  int cgroupSize;  // 0 if not grouped
+  std::vector<float> gamma;
+  std::vector<float> beta;
+
+  RMSNormLayerDesc();
+  RMSNormLayerDesc(std::istream& in, bool binaryFloats);
+  RMSNormLayerDesc(RMSNormLayerDesc&& other);
+
+  RMSNormLayerDesc(const RMSNormLayerDesc&) = delete;
+  RMSNormLayerDesc& operator=(const RMSNormLayerDesc&) = delete;
+
+  RMSNormLayerDesc& operator=(RMSNormLayerDesc&& other);
+
+  int64_t getNumParameters() const;
+  void releaseWeights();
+};
+
+// Lightweight RMSNorm used inside transformer blocks (weight only, no bias, no spatial modes)
+struct TransformerRMSNormDesc {
+  std::string name;
+  int numChannels;
+  float epsilon;
+  std::vector<float> weight;
+
+  TransformerRMSNormDesc();
+  TransformerRMSNormDesc(std::istream& in, bool binaryFloats);
+  TransformerRMSNormDesc(TransformerRMSNormDesc&& other);
+
+  TransformerRMSNormDesc(const TransformerRMSNormDesc&) = delete;
+  TransformerRMSNormDesc& operator=(const TransformerRMSNormDesc&) = delete;
+
+  TransformerRMSNormDesc& operator=(TransformerRMSNormDesc&& other);
+
+  int64_t getNumParameters() const;
+  void releaseWeights();
+};
+
+struct TransformerAttentionDesc {
+  std::string name;
+  int numHeads;
+  int numKVHeads;
+  int qHeadDim;
+  int vHeadDim;
+  bool useRope;
+  bool learnableRope;
+
+  TransformerRMSNormDesc preLN;
+  MatMulLayerDesc qProj;
+  MatMulLayerDesc kProj;
+  MatMulLayerDesc vProj;
+  MatMulLayerDesc outProj;
+
+  // For learnable RoPE: (numKVHeads, numPairs, 2) flattened
+  int ropeNumKVHeads;
+  int ropeNumPairs;
+  std::vector<float> ropeFreqs;
+
+  // For non-learnable RoPE
+  float ropeTheta;
+
+  TransformerAttentionDesc();
+  TransformerAttentionDesc(std::istream& in, bool binaryFloats);
+  TransformerAttentionDesc(TransformerAttentionDesc&& other);
+
+  TransformerAttentionDesc(const TransformerAttentionDesc&) = delete;
+  TransformerAttentionDesc& operator=(const TransformerAttentionDesc&) = delete;
+
+  TransformerAttentionDesc& operator=(TransformerAttentionDesc&& other);
+
+  int64_t getNumParameters() const;
+  void releaseWeights();
+
+  // Compute cos/sin tables for RoPE given board dimensions.
+  // Output tables are indexed as:
+  //   Learnable: (numKVHeads, numPairs, paddedNNXYLen) flattened
+  //   Fixed:     (numPairs, paddedNNXYLen) flattened
+  // paddedNNXYLen >= nnXLen*nnYLen and may include padding positions (filled with 0).
+  void computeRopeCosSin(int nnXLen, int nnYLen, int paddedNNXYLen, std::vector<float>& cosTable, std::vector<float>& sinTable) const;
+};
+
+struct TransformerFFNDesc {
+  std::string name;
+  int numChannels;
+  int ffnChannels;
+  bool useSwiGLU;
+
+  TransformerRMSNormDesc preLN;
+  MatMulLayerDesc linear1;
+  MatMulLayerDesc linearGate;  // only used when useSwiGLU
+  MatMulLayerDesc linear2;
+
+  TransformerFFNDesc();
+  TransformerFFNDesc(std::istream& in, bool binaryFloats);
+  TransformerFFNDesc(TransformerFFNDesc&& other);
+
+  TransformerFFNDesc(const TransformerFFNDesc&) = delete;
+  TransformerFFNDesc& operator=(const TransformerFFNDesc&) = delete;
+
+  TransformerFFNDesc& operator=(TransformerFFNDesc&& other);
+
+  int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 struct SGFMetadataEncoderDesc {
@@ -223,12 +365,17 @@ struct SGFMetadataEncoderDesc {
   SGFMetadataEncoderDesc& operator=(const SGFMetadataEncoderDesc&) = delete;
 
   SGFMetadataEncoderDesc& operator=(SGFMetadataEncoderDesc&& other);
+
+  int64_t getNumParameters() const;
+  void releaseWeights();
 };
 
 
 constexpr int ORDINARY_BLOCK_KIND = 0;
 constexpr int GLOBAL_POOLING_BLOCK_KIND = 2;
 constexpr int NESTED_BOTTLENECK_BLOCK_KIND = 3;
+constexpr int TRANSFORMER_ATTENTION_BLOCK_KIND = 4;
+constexpr int TRANSFORMER_FFN_BLOCK_KIND = 5;
 
 struct TrunkDesc {
   std::string name;
@@ -240,12 +387,14 @@ struct TrunkDesc {
   int gpoolNumChannels;    // Currently every gpooling residual block must have the same number of gpooling conv channels
 
   int metaEncoderVersion;
+  int trunkNormKind;  // TRUNK_NORM_KIND_*
 
   ConvLayerDesc initialConv;
   MatMulLayerDesc initialMatMul;
   SGFMetadataEncoderDesc sgfMetadataEncoder;
   std::vector<std::pair<int, unique_ptr_void>> blocks;
   BatchNormLayerDesc trunkTipBN;
+  RMSNormLayerDesc trunkTipRMSNorm;
   ActivationLayerDesc trunkTipActivation;
 
   TrunkDesc();
@@ -260,9 +409,15 @@ struct TrunkDesc {
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   double getSpatialConvDepth() const;
+  int64_t getNumParameters() const;
+  //True if any block in the trunk is a transformer (attention or ffn) block, including ones nested
+  //inside nested-bottleneck blocks.
+  bool hasAnyTransformerBlocks() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct PolicyHeadDesc {
@@ -293,9 +448,12 @@ struct PolicyHeadDesc {
   PolicyHeadDesc& operator=(PolicyHeadDesc&& other);
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
+  int64_t getNumParameters() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ValueHeadDesc {
@@ -324,9 +482,12 @@ struct ValueHeadDesc {
   ValueHeadDesc& operator=(ValueHeadDesc&& other);
 
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
+  int64_t getNumParameters() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
+
+  void releaseWeights();
 };
 
 struct ModelPostProcessParams {
@@ -358,6 +519,10 @@ struct ModelDesc {
 
   int metaEncoderVersion;
 
+  //True if the model expects its pass-alive area input features to be computed as if
+  //multi-stone suicide were always legal, regardless of the actual suicide rule.
+  bool preferPassAliveUnderSuicideRules;
+
   ModelPostProcessParams postProcessParams;
 
   TrunkDesc trunk;
@@ -377,6 +542,15 @@ struct ModelDesc {
   void iterConvLayers(const std::function<void(const ConvLayerDesc& dest)>& f) const;
   int maxConvChannels(int convXSize, int convYSize) const;
   double getTrunkSpatialConvDepth() const;
+  //Total count of learnable parameters across the whole model.
+  int64_t getNumParameters() const;
+  //True if the model's trunk contains any transformer (attention or ffn) block. Useful for callers
+  //that want to report model stats or special-case transformer-only behavior (e.g. graph warmup).
+  bool hasAnyTransformerBlocks() const;
+
+  //Short human-readable summary of the model architecture kind and parameter count, e.g.
+  //"nbt transformer, 12345678 params". Backends can append this in parentheses after the model name.
+  std::string getShortInfoString() const;
 
   void transformToReduceActivations();
   void applyScale8ToReduceActivations();
@@ -388,6 +562,11 @@ struct ModelDesc {
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
   Rules getSupportedRules(const Rules& desiredRules, bool& supported) const;
+
+  // Frees all weight arrays (conv/matmul/bias/batchnorm), keeping scalar shape
+  // metadata intact. Safe once weights are no longer needed (e.g. CoreML/ANE
+  // inference, which reads weights from the compiled .mlmodelc).
+  void releaseWeights();
 
 };
 

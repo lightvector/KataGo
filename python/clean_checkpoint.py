@@ -35,6 +35,8 @@ if "train_state" in data:
         del data["train_state"]["old_train_data_dirs"]
     if "data_files_used" in data["train_state"]:
         del data["train_state"]["data_files_used"]
+    if "rev_data_files_remaining" in data["train_state"]:
+        del data["train_state"]["rev_data_files_remaining"]
 
 if "last_val_metrics" in data:
     del data["last_val_metrics"]

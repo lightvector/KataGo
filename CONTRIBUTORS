@@ -38,19 +38,23 @@ Emanuel-de-Jong - For minor improvement to GTP command.
 "simon300000" - For minor update to .gitignore.
 Dave Jarvis - For improved inline documentation for GTP example config.
 Yuji Ichikiwa - For a minor fix to include paths.
-"hzyhhzy" - For suggestions/improvements for training speed, and for a minor fix for rules parsing.
+"hzyhhzy" - For suggestions/improvements for training speed, various major training performance optimizations, and for a minor fix for rules parsing.
 Thaddee Tyl ("espadrine") - Reporting and fixing of issue with half library intrinsics.
 Sebastian H ("nerai") - Minor code cleanups and fixes.
 Jochen Voss ("seehuhn") - Typo fix in doc
 "kinfkong" - Added trt build configuration option
 "TTXS123OK" - Minor code style improvement.
-Chin-Chang Yang - For maintaining and implementing the Metal backend for MacOS and a variety of other GPU-related testing.
+Chin-Chang Yang - For maintaining and implementing the Metal and CoreML backends for MacOS and a variety of other GPU-related testing.
 "tterava" - For improvements to build instructions.
 "Stanley" - Minor typo fixes.
 "Traveler" - Minor readme edits.
-Ivan Kochurkin ("kvanttt") - for work and testing for Mingw and Metal backends.
-loker404 - One-line bugfix for python script.
+Ivan Kochurkin ("kvanttt") - for work and testing for Mingw and Metal backends, GitHub CI, various bugfixes and performance improvements.
+loker404 - One-line bugfixes for python scripts.
 "HarangPanul" - minor code style improvement
+awei-mj - CUDA 13.0 support.
+Cheng Chang ("changcheng967") - Python script bugfix.
+Evgeny Kurnevsky ("kurnevsky") - Out-of-bounds write fix.
+Suqin Zhang ("zsqdx") - Testing and optimizations to TensorRT and other gpu performance, various other collaboration on model training.
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support

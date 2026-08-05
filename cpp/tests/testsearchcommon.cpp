@@ -184,7 +184,8 @@ void TestSearchCommon::runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Ru
   Player nextPla;
   BoardHistory hist;
   Rules initialRules = sgf->getRulesOrFailAllowUnspecified(defaultRules);
-  sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+  sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx,
+    Search::resolveAlwaysComputePassAliveUnderSuicideRules(bot->getSearch()->searchParams, bot->getSearch()->nnEvaluator));
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
 }
@@ -199,10 +200,12 @@ NNEvaluator* TestSearchCommon::startNNEval(
   int nnCacheSizePowerOfTwo = 16;
   int nnMutexPoolSizePowerOfTwo = 12;
   //bool debugSkipNeuralNet = false;
-  bool openCLReTunePerBoardSize = false;
   const string& modelName = modelFile;
-  const string openCLTunerFile = "";
   const string homeDataDirOverride = "";
+  ConfigParser cfg;
+  //NHWC layout is no longer a generic NNEvaluator option; only the CUDA backend reads it (off cfg).
+  //Route the test's useNHWC param into a cudaUseNHWC override so it still drives the CUDA layout.
+  cfg.overrideKey("cudaUseNHWC", useNHWC ? "true" : "false");
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
@@ -226,16 +229,15 @@ NNEvaluator* TestSearchCommon::startNNEval(
     nnCacheSizePowerOfTwo,
     nnMutexPoolSizePowerOfTwo,
     debugSkipNeuralNet,
-    openCLTunerFile,
     homeDataDirOverride,
-    openCLReTunePerBoardSize,
     useFP16 ? enabled_t::True : enabled_t::False,
-    useNHWC ? enabled_t::True : enabled_t::False,
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
     nnRandSeed,
     nnRandomize,
-    defaultSymmetry
+    defaultSymmetry,
+    false,
+    cfg
   );
 
   nnEval->spawnServerThreads();

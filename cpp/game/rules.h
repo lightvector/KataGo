@@ -38,8 +38,8 @@ struct Rules {
 
   float komi;
   //Min and max acceptable komi in various places involving user input validation
-  static constexpr float MIN_USER_KOMI = -150.0f;
-  static constexpr float MAX_USER_KOMI = 150.0f;
+  static constexpr float MIN_USER_KOMI = -400.0f;
+  static constexpr float MAX_USER_KOMI = 400.0f;
 
   Rules();
   Rules(
@@ -102,6 +102,7 @@ struct Rules {
   static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
   static const Hash128 ZOBRIST_BUTTON_HASH;
   static const Hash128 ZOBRIST_FRIENDLY_PASS_OK_HASH;
+  static const Hash128 ZOBRIST_PASS_ALIVE_UNDER_SUICIDE_HASH;
 
 private:
   nlohmann::json toJsonHelper(bool omitKomi, bool omitDefaults) const;

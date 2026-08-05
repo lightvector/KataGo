@@ -2,6 +2,7 @@
 
 #include "../core/test.h"
 #include "../core/timer.h"
+#include "../search/reportedsearchvalues.h"
 
 using namespace std;
 
@@ -449,12 +450,11 @@ void AsyncBot::internalSearchThreadLoop() {
           return;
       }
 
-      bool isFirstLoop = true;
+      double periodToWait = firstCallbackAfter;
+      bool gotReportYet = false;
       while(true) {
-        double periodToWait = isFirstLoop ? firstCallbackAfter : callbackPeriod;
         if(periodToWait < 0)
           return;
-        isFirstLoop = false;
 
         callbackLoopWaiting.wait_for(
           callbackLock,
@@ -463,6 +463,21 @@ void AsyncBot::internalSearchThreadLoop() {
         );
         if(callbackLoopShouldStop.load())
           return;
+
+        // If the search hasn't yet produced any reportable root values because firstCallbackAfter
+        // elapsed before the root NN eval finished, skip callback and re-wait.
+        // Use a mild exponential backoff to avoid overly eager busy looping for tiny waits, just in case.
+        if(!gotReportYet) {
+          ReportedSearchValues unusedVals;
+          if(!search->getRootValues(unusedVals)) {
+            periodToWait = periodToWait * 1.25 + 0.001;
+            double cap = std::max(firstCallbackAfter, (callbackPeriod < 0 ? 1.0 : callbackPeriod));
+            periodToWait = std::min(periodToWait,cap);
+            continue;
+          }
+          gotReportYet = true;
+          periodToWait = callbackPeriod;
+        }
         callbackLock.unlock();
         analyzeCallbackLocal(search);
         callbackLock.lock();
