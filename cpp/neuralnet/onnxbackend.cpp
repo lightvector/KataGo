@@ -91,7 +91,6 @@ struct ComputeContext {
   bool requireExactNNLenStored;  // not used (per-handle), kept for clarity
   string providerName;
   string openvinoDeviceType;
-  string openvinoDeviceId;
   string openvinoCacheDir;
   // Optional OpenVINO provider options (empty = not passed to ORT)
   string openvinoPrecision;      // FP16 / FP32 / ACCURACY
@@ -117,7 +116,6 @@ struct ComputeContext {
       requireExactNNLenStored(false),
       providerName("cpu"),
       openvinoDeviceType("GPU"),
-      openvinoDeviceId(""),
       openvinoCacheDir(""),
       openvinoPrecision(""),
       openvinoNumStreams(""),
@@ -158,7 +156,6 @@ ComputeContext* NeuralNet::createComputeContext(
 
   // OpenVINO EP options.
   ctx->openvinoDeviceType = cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
-  ctx->openvinoDeviceId = cfg.contains("onnxOpenVINODeviceId") ? cfg.getString("onnxOpenVINODeviceId") : "";
   ctx->openvinoCacheDir = cfg.contains("onnxOpenVINOCacheDir") ? cfg.getString("onnxOpenVINOCacheDir") : "";
   ctx->openvinoPrecision = cfg.contains("onnxOpenVINOPrecision") ? cfg.getString("onnxOpenVINOPrecision") : "";
   ctx->openvinoNumStreams = cfg.contains("onnxOpenVINONumStreams") ? cfg.getString("onnxOpenVINONumStreams") : "";
@@ -402,14 +399,15 @@ struct ComputeHandle {
 
       // --- Build EP option map ---
       std::unordered_map<std::string, std::string> openvinoOpts;
-      openvinoOpts["device_type"] = threadDeviceType;
 
-      // device_id: keep existing fallback logic (per-thread index when > 0)
-      string deviceId = ctx->openvinoDeviceId;
-      if(deviceId.empty() && deviceIdxForThread > 0)
-        deviceId = Global::intToString(deviceIdxForThread);
-      if(!deviceId.empty())
-        openvinoOpts["device_id"] = deviceId;
+      // Map the per-thread device index (from the gpuToUse*/deviceToUse* config keys) into OpenVINO's
+      // device_type suffix, e.g. GPU -> GPU.1. The OpenVINO EP selects devices via device_type
+      // ("GPU.0", "GPU.1", ...); the legacy device_id provider option is deprecated and only accepts a
+      // bare device name, so passing a numeric index there would throw at session creation.
+      string deviceType = threadDeviceType;
+      if(deviceIdxForThread > 0 && deviceType.find('.') == string::npos && deviceType.find(':') == string::npos)
+        deviceType += "." + Global::intToString(deviceIdxForThread);
+      openvinoOpts["device_type"] = deviceType;
 
       auto setIfNotEmpty = [&](const char* ortKey, const std::string& globalVal) {
         std::string val = resolveOpt(ortKey, globalVal);
@@ -455,7 +453,6 @@ struct ComputeHandle {
       }
 
       if(logger != NULL) {
-        string devId = openvinoOpts.count("device_id") > 0 ? openvinoOpts["device_id"] : "";
         string extras;
         for(const char* k : optionalKeys) {
           if(openvinoOpts.count(k) > 0)
@@ -463,8 +460,7 @@ struct ComputeHandle {
         }
         logger->write(
           "ONNX backend: OpenVINO EP enabled for thread " + Global::intToString(serverThreadIdx) +
-          ", device_type=" + threadDeviceType +
-          (devId.empty() ? "" : (", device_id=" + devId)) + extras
+          ", device_type=" + deviceType + extras
         );
       }
     }
