@@ -31,7 +31,6 @@
 #include <fstream>
 #include <cstdlib>
 #include <mutex>
-#include <atomic>
 
 using namespace std;
 
@@ -41,7 +40,12 @@ struct LoadedModel {
   ModelDesc modelDesc;
   // One-time scale8 transform (see maybeApplyScale8). All server threads share this
   // LoadedModel, so whichever compute handle is created first decides for everyone.
-  mutable std::atomic<bool> scale8Resolved;
+  //
+  // scale8Resolved is only ever accessed under scale8Mutex, so a plain bool suffices.
+  // The mutex also establishes the happens-before between the write to modelDesc here and
+  // the subsequent unsynchronized reads in OnnxModelBuilder::build() of every thread:
+  // each thread runs maybeApplyScale8 (under the lock) before building its graph.
+  mutable bool scale8Resolved;
   mutable std::mutex scale8Mutex;
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
@@ -51,17 +55,17 @@ struct LoadedModel {
         "Feed a standard KataGo .bin.gz model instead (this backend builds the ONNX "
         "graph from the model weights internally).");
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-    scale8Resolved.store(false);
+    scale8Resolved = false;
   }
 
   // Apply the scale8 FP16-range workaround exactly once per model, unless skipped via
   // onnxSkipScale8. Must run before any ComputeHandle builds the graph from modelDesc.
   void maybeApplyScale8(bool skip) const {
     std::lock_guard<std::mutex> lock(scale8Mutex);
-    if(!scale8Resolved.load()) {
+    if(!scale8Resolved) {
       if(!skip)
         const_cast<LoadedModel*>(this)->modelDesc.applyScale8ToReduceActivations();
-      scale8Resolved.store(true);
+      scale8Resolved = true;
     }
   }
 
@@ -88,7 +92,6 @@ struct ComputeContext {
   Ort::Env env;
   int nnXLen;
   int nnYLen;
-  bool requireExactNNLenStored;  // not used (per-handle), kept for clarity
   string providerName;
   string openvinoDeviceType;
   string openvinoCacheDir;
@@ -113,7 +116,6 @@ struct ComputeContext {
     : env(ORT_LOGGING_LEVEL_WARNING, "KataGoOnnx"),
       nnXLen(xLen),
       nnYLen(yLen),
-      requireExactNNLenStored(false),
       providerName("cpu"),
       openvinoDeviceType("GPU"),
       openvinoCacheDir(""),
@@ -407,6 +409,12 @@ struct ComputeHandle {
       string deviceType = threadDeviceType;
       if(deviceIdxForThread > 0 && deviceType.find('.') == string::npos && deviceType.find(':') == string::npos)
         deviceType += "." + Global::intToString(deviceIdxForThread);
+      else if(deviceIdxForThread > 0 && deviceType.find(':') != string::npos && logger != NULL)
+        logger->write(
+          "ONNX backend: device index " + Global::intToString(deviceIdxForThread) +
+          " ignored for device_type '" + deviceType +
+          "' because it is a composite/qualified device string (AUTO:/MULTI:/HETERO:). " +
+          "Select the device explicitly in onnxOpenVINODeviceType or the per-thread onnxOpenVINODeviceTypeThread<N> override.");
       openvinoOpts["device_type"] = deviceType;
 
       auto setIfNotEmpty = [&](const char* ortKey, const std::string& globalVal) {
