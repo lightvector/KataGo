@@ -30,6 +30,8 @@
 #include <unordered_map>
 #include <fstream>
 #include <cstdlib>
+#include <mutex>
+#include <atomic>
 
 using namespace std;
 
@@ -37,6 +39,10 @@ using namespace std;
 
 struct LoadedModel {
   ModelDesc modelDesc;
+  // One-time scale8 transform (see maybeApplyScale8). All server threads share this
+  // LoadedModel, so whichever compute handle is created first decides for everyone.
+  mutable std::atomic<bool> scale8Resolved;
+  mutable std::mutex scale8Mutex;
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
     if(Global::isSuffix(fileName, ".onnx"))
@@ -45,11 +51,18 @@ struct LoadedModel {
         "Feed a standard KataGo .bin.gz model instead (this backend builds the ONNX "
         "graph from the model weights internally).");
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-    // Skip applyScale8ToReduceActivations() for ONNX backend:
-    // NPU/ONNX Runtime execution providers don't benefit from the fp16
-    // dynamic-range workaround; removing this avoids MISH_SCALE8 subgraphs
-    // that block operator fusion and cost ~25% extra ops per activation.
-    // modelDesc.applyScale8ToReduceActivations();
+    scale8Resolved.store(false);
+  }
+
+  // Apply the scale8 FP16-range workaround exactly once per model, unless skipped via
+  // onnxSkipScale8. Must run before any ComputeHandle builds the graph from modelDesc.
+  void maybeApplyScale8(bool skip) const {
+    std::lock_guard<std::mutex> lock(scale8Mutex);
+    if(!scale8Resolved.load()) {
+      if(!skip)
+        const_cast<LoadedModel*>(this)->modelDesc.applyScale8ToReduceActivations();
+      scale8Resolved.store(true);
+    }
   }
 
   LoadedModel() = delete;
@@ -86,6 +99,7 @@ struct ComputeContext {
   string openvinoNumOfThreads;   // positive int (infer requests per session)
   string openvinoModelPriority;  // LOW / MEDIUM / HIGH / DEFAULT
   bool transformerNHWC;         // run the trunk block stack channel-last (NHWC)
+  bool skipScale8;              // skip the scale8 FP16-range workaround (see createComputeContext)
 
   // Per-thread device type (index = serverThreadIdx). Filled with openvinoDeviceType
   // by default; individual entries are replaced by onnxOpenVINODeviceTypeThread<N>.
@@ -109,7 +123,8 @@ struct ComputeContext {
       openvinoNumStreams(""),
       openvinoNumOfThreads(""),
       openvinoModelPriority(""),
-      transformerNHWC(true)
+      transformerNHWC(true),
+      skipScale8(false)
   {}
 };
 
@@ -154,6 +169,13 @@ ComputeContext* NeuralNet::createComputeContext(
   // backend's trtTransformerNHWC default; NHWC is markedly faster for transformer trunks on
   // OpenVINO GPU/NPU and ignored entirely for models without transformer blocks.
   ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : true;
+
+  // Skip the scale8 FP16-range workaround (default false = apply it). scale8 keeps
+  // convnet activations 8x smaller so they stay inside the FP16 range OpenVINO infers
+  // in; the cost is MISH_SCALE8 subgraphs that block OpenVINO's fused-Mish (~2x slower
+  // on large-board convnets). Keep on (default); set true only for FP32 precision or
+  // small-board/transformer workloads where FP16 overflow is not a practical risk.
+  ctx->skipScale8 = cfg.contains("onnxSkipScale8") ? cfg.getBool("onnxSkipScale8") : false;
 
   // --- Per-thread device type assignment ---
   // Pre-parse onnxOpenVINODeviceTypeThread<N> keys so ComputeHandle can look up
@@ -505,6 +527,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
   (void)maxBatchSize;
   if(inputsUseNHWC)
     throw StringError("ONNX backend: inputsUseNHWC = true not supported, must use NCHW");
+
+  // Apply the scale8 FP16-range workaround exactly once per model (unless onnxSkipScale8),
+  // before this handle builds the ONNX graph from modelDesc.
+  loadedModel->maybeApplyScale8(context->skipScale8);
 
   if(logger != NULL) {
     logger->write("ONNX backend thread " + Global::intToString(serverThreadIdx) +
