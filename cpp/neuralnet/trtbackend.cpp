@@ -200,7 +200,10 @@ struct ModelParser {
 
   // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
   // Bumped 7->8 for the TensorRT ONNX overhaul (ONNX emitter as default path, NHWC trunk, FP32 pinning).
-  static constexpr int tuneSalt = 8;
+  // Bumped 8->9 for SGF metadata encoder support on the ONNX path, and to discard caches potentially
+  // polluted by the concurrent-engine-build bug fixed in "Serialize TensorRT engine builds across GPU
+  // threads" (#1225).
+  static constexpr int tuneSalt = 9;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -1309,6 +1312,8 @@ struct ComputeHandle {
       setProfile("InputMask", Dims4(1, 1, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, 1, ctx->nnYLen, ctx->nnXLen));
       setProfile("InputSpatial", Dims4(1, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen));
       setProfile("InputGlobal", Dims4(1, desc.numInputGlobalChannels, 1, 1), Dims4(maxBatchSize, desc.numInputGlobalChannels, 1, 1));
+      if(desc.metaEncoderVersion > 0)
+        setProfile("InputMeta", Dims4(1, desc.numInputMetaChannels, 1, 1), Dims4(maxBatchSize, desc.numInputMetaChannels, 1, 1));
 
       model = make_unique<TRTModel>();
       model->nnXLen = ctx->nnXLen;
@@ -1324,9 +1329,10 @@ struct ComputeHandle {
       // and the "nhwc" field distinguishes the NHWC vs NCHW trunk layout (different layer signatures),
       // so the two layouts don't share a timing-cache file full of mutual misses.
       string tuneDesc = Global::strprintf(
-        "\"onnxsalt\"(%d)\"nhwc\"(%d)\"model\"(%d,%d,%d)",
+        "\"onnxsalt\"(%d)\"nhwc\"(%d)\"model\"(%d,%d,%d,%d,%d)",
         ModelParser::tuneSalt, ctx->transformerNHWC ? 1 : 0,
-        desc.modelVersion, desc.numInputChannels, desc.numInputGlobalChannels);
+        desc.modelVersion, desc.numInputChannels, desc.numInputGlobalChannels,
+        desc.metaEncoderVersion, desc.numInputMetaChannels);
       SHA2::get256(tuneDesc.c_str(), model->tuneHash);
     }
     else {
@@ -1356,13 +1362,16 @@ struct ComputeHandle {
     // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
     config->setProfileStream(cudaStreamLegacy);
 
-    // Typical runtime allocation is much less than the 1 GiB specified below
-    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
+    // Leave workspace at TensorRT's device-dependent default (the GPU's total memory). This is a
+    // tactic-selection cap, not a preallocation; fixed caps can reject all tactics for larger profiles.
 
     string plan;
     {
       static mutex tuneMutex;
-      tuneMutex.lock();
+      // TensorRT 10.16 has been observed to segfault when builders on different devices call
+      // buildSerializedNetwork concurrently, particularly with timing-cache hits. Keep both cache
+      // access and engine building serialized, and use RAII so exceptions cannot leave the mutex held.
+      lock_guard<mutex> tuneLock(tuneMutex);
 
       auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
       cacheDir += "/trtcache";
@@ -1456,9 +1465,7 @@ struct ComputeHandle {
         writeFileAtomically(planCacheFile, plan.data(), plan.size());
         logger->write("Saved new plan cache to " + planCacheFile);
         plan.erase(plan.size() - 64 - paramStr.size());
-        tuneMutex.unlock();
       } else {
-        tuneMutex.unlock();
         logger->write("Using existing plan cache at " + planCacheFile);
       }
 #else
@@ -1511,9 +1518,7 @@ struct ComputeHandle {
         writeFileAtomically(
           timingCacheFile, static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
         logger->write("Saved new timing cache to " + timingCacheFile);
-        tuneMutex.unlock();
       } else {
-        tuneMutex.unlock();
         planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
