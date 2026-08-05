@@ -289,24 +289,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     (void)defaultMaxBatchSize;
 #endif
 
-    // Per-server-thread max batch sizes (optional). When set, each thread uses its own
-    // batch size limit instead of the global nnMaxBatchSize. This is useful for
-    // heterogeneous multi-device setups: give the fast device (GPU/NPU) a large batch
-    // size to fully utilise it while capping the slow device (CPU) to a small batch so
-    // it doesn't fragment work that the fast device could batch more efficiently.
-    vector<int> maxBatchSizeByServerThread(numNNServerThreadsPerModel, nnMaxBatchSize);
-    for(int j = 0; j < numNNServerThreadsPerModel; j++) {
-      const string threadIdxStr = Global::intToString(j);
-      const string modelThreadKey = "nnMaxBatchSizeModel" + idxStr + "Thread" + threadIdxStr;
-      const string threadKey = "nnMaxBatchSizeThread" + threadIdxStr;
-      int configuredMaxBatchSize = nnMaxBatchSize;
-      if(cfg.contains(modelThreadKey))
-        configuredMaxBatchSize = cfg.getInt(modelThreadKey, 1, 65536);
-      else if(cfg.contains(threadKey))
-        configuredMaxBatchSize = cfg.getInt(threadKey, 1, 65536);
-      maxBatchSizeByServerThread[j] = std::min(configuredMaxBatchSize, nnMaxBatchSize);
-    }
-
     int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
     if(disableFP16)
       useFP16Mode = enabled_t::False;
@@ -337,8 +319,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       (forcedSymmetry >= 0 ? false : nnRandomize),
       defaultSymmetry,
       disableWarmup,
-      cfg,
-      maxBatchSizeByServerThread
+      cfg
     );
 
     nnEval->spawnServerThreads();
