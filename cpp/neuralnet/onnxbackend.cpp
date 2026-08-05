@@ -109,7 +109,7 @@ struct ComputeContext {
       openvinoNumStreams(""),
       openvinoNumOfThreads(""),
       openvinoModelPriority(""),
-      transformerNHWC(false)
+      transformerNHWC(true)
   {}
 };
 
@@ -125,10 +125,15 @@ ComputeContext* NeuralNet::createComputeContext(
 ) {
   (void)gpuIdxs;
   (void)homeDataDirOverride;
-  // ONNX Runtime and the selected execution provider decide precision internally (e.g.
-  // OpenVINO/CUDA pick FP16 themselves), so the global useFP16 flag is intentionally ignored.
-  (void)useFP16Mode;
   (void)loadedModel;
+  // The emitted ONNX graph is fp32; inference precision is chosen internally by the execution
+  // provider (e.g. OpenVINO downcasts to FP16 per onnxOpenVINOPrecision). KataGo's global useFP16
+  // flag therefore cannot be honored here - fail loudly instead of silently ignoring a request.
+  if(useFP16Mode == enabled_t::True)
+    throw StringError(
+      "ONNX backend: the global useFP16 flag is not supported and cannot be honored. "
+      "Precision is controlled by the execution provider; for the OpenVINO provider set "
+      "onnxOpenVINOPrecision (e.g. FP16/FP32/ACCURACY). Leave useFP16 unset or set it to false/auto.");
 
   ComputeContext* ctx = new ComputeContext(nnXLen, nnYLen);
 
@@ -145,8 +150,10 @@ ComputeContext* NeuralNet::createComputeContext(
   ctx->openvinoNumOfThreads = cfg.contains("onnxOpenVINONumOfThreads") ? cfg.getString("onnxOpenVINONumOfThreads") : "";
   ctx->openvinoModelPriority = cfg.contains("onnxOpenVINOModelPriority") ? cfg.getString("onnxOpenVINOModelPriority") : "";
 
-  // Trunk layout for transformer models (NCHW by default; NHWC only when opted in).
-  ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : false;
+  // Trunk layout for transformer models. Default NHWC (channel-last), matching the TensorRT
+  // backend's trtTransformerNHWC default; NHWC is markedly faster for transformer trunks on
+  // OpenVINO GPU/NPU and ignored entirely for models without transformer blocks.
+  ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : true;
 
   // --- Per-thread device type assignment ---
   // Pre-parse onnxOpenVINODeviceTypeThread<N> keys so ComputeHandle can look up

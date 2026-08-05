@@ -572,6 +572,14 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   # ORT is serialized bytes, so there is no ABI contact with whatever protobuf lives
   # inside the ORT DLL. (Protobuf and protoc must be findable by find_package(Protobuf);
   # for an ORT built from source these live under its _deps/protobuf-build.)
+  if(NOT DEFINED Protobuf_USE_STATIC_LIBS)
+    # The protobuf that ships with a from-source ONNX Runtime build (e.g. under its
+    # _deps/protobuf-build on Windows) is a static library. FindProtobuf otherwise treats
+    # libprotobuf.lib as a shared import lib on Windows and injects PROTOBUF_USE_DLLS into
+    # the imported target, which breaks linking against a static libprotobuf. Default to
+    # static, but let the user override (e.g. a shared protobuf from vcpkg).
+    set(Protobuf_USE_STATIC_LIBS TRUE)
+  endif()
   find_package(Protobuf REQUIRED)
   message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
   set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
@@ -579,7 +587,10 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
   target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
   target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
-  target_link_libraries(katago ${Protobuf_LIBRARIES})
+  # Link the imported target rather than ${Protobuf_LIBRARIES}: when protobuf comes from a
+  # CMake package config (e.g. vcpkg), the variable can resolve to the DLL itself rather
+  # than the import lib, and it also omits protobuf's own dependencies such as abseil.
+  target_link_libraries(katago protobuf::libprotobuf)
 
   # Deploy the ORT runtime DLLs next to katago.exe so the build dir is self-contained.
   # NOTE: OpenVINO's own runtime DLLs are not shipped by ORT and must be copied
