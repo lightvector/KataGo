@@ -16,7 +16,7 @@ name: ONNX backend build & test
 
 on:
   push:
-    branches: [ feature/onnx-backend, ci/onnx-windows ]
+    branches: [ feature/onnx-backend ]
     paths-ignore:
       - 'cpp/configs/**'
       - '**/*.cfg'
