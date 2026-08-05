@@ -34,7 +34,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
       * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
-      * If using the ONNX backend, ONNX Runtime headers/libs and ONNX protobuf dependencies (`onnx/onnx_pb.h`, `onnx_proto`, `protobuf-lite`) for `.bin.gz` model conversion support.
+      * If using the ONNX backend, ONNX Runtime headers/libs, plus Protobuf (for generating the vendored ONNX schema used for `.bin.gz` model conversion -- the same dependency the TensorRT backend uses).
       * zlib, libzip. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`.
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
       * If compiling to contribute to public distributed training runs, OpenSSL is required (`libssl-dev`).
@@ -75,7 +75,7 @@ Install package root:
 * `cpp/external/onnxruntime-linux-x64-openvino` by running `cmake --install build\Linux\Release --config Release`.
 
 ##### Minimal KataGo Build Commands (Linux, ONNX backend)
-On Linux, `KATAGO_AUTO_FETCH_DEPS=ON` can auto-fetch missing `zlib`, `onnx`, and `protobuf` dependencies via vcpkg into `cpp/build/deps/vcpkg`.
+On Linux, `KATAGO_AUTO_FETCH_DEPS=ON` can auto-fetch missing `zlib` and `protobuf` dependencies via vcpkg into `cpp/build/deps/vcpkg`. The ONNX graph itself is generated from the vendored `cpp/external/onnx/onnx.proto` schema at build time (via `protobuf_generate_cpp`), the same mechanism the TensorRT backend uses for its ONNX-emitter path, so no separate `onnx` package is needed.
 
 ```bash
 cmake -S cpp -B cpp/build -G Ninja -DUSE_BACKEND=ONNX -DONNXRUNTIME_ROOT=cpp/external/onnxruntime-linux-x64-openvino
@@ -84,7 +84,7 @@ cmake --build cpp/build -j
 
 If you want to disable auto-fetch and provide dependencies manually:
 * `-DKATAGO_AUTO_FETCH_DEPS=OFF`
-* plus `-DONNX_INCLUDE_DIR=... -DONNX_PROTO_LIB=... -DPROTOBUF_INCLUDE_DIR=... -DPROTOBUF_LIB=... -DZLIB_INCLUDE_DIR=... -DZLIB_LIBRARY=...`
+* plus `-DProtobuf_PROTOC_EXECUTABLE=... -DProtobuf_INCLUDE_DIR=... -DProtobuf_LIBRARY=... -DZLIB_INCLUDE_DIR=... -DZLIB_LIBRARY=...`
 
 Typical run config for Intel NPU:
 * `onnxProvider = openvino`
@@ -93,6 +93,9 @@ Typical run config for Intel NPU:
 
 Multi-device assignment is mainly for `onnxProvider=cuda/tensorrt` (`onnxDeviceToUseThread*`).
 For `onnxProvider=openvino` on Intel NPU, a single device is typically used.
+
+See the [README's ONNX/OpenVINO Intel NPU Quick Start](README.md#onnxopenvino-intel-npu-quick-start-linux)
+for how to run on NPU only, iGPU only, or both together.
 
 
 ## Windows
@@ -106,7 +109,7 @@ For `onnxProvider=openvino` on Intel NPU, a single device is typically used.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
       * If using the Eigen backend, Eigen3, version 3.3.x. (http://eigen.tuxfamily.org/index.php?title=Main_Page#Download).
       * If using the ONNX backend, ONNX Runtime package (headers + import libs + runtime DLLs).
-      * On Windows, missing `zlib` and ONNX model-conversion dependencies (`onnx`, `protobuf`) can be auto-fetched by CMake into `cpp/build/deps/vcpkg` (default `KATAGO_AUTO_FETCH_DEPS=ON`).
+      * On Windows, missing `zlib` and `protobuf` (used to generate the vendored ONNX schema) can be auto-fetched by CMake into `cpp/build/deps/vcpkg` (default `KATAGO_AUTO_FETCH_DEPS=ON`).
       * libzip (optional, needed only for self-play training) - for example https://github.com/kiyolee/libzip-win-build
       * For MinGW it's recommended to use [MSYS2](https://www.msys2.org/) building platform to get necessary zlib and libzip dependencies:
         * Install MSYS2 according to the instruction on the official site
@@ -180,7 +183,7 @@ Install package root:
 * `cpp/external/onnxruntime-win-x64-openvino` by running `cmake --install build\Windows\Release --config Release`
 
 ##### Minimal KataGo Build Commands (Windows, ONNX backend)
-On Windows, `KATAGO_AUTO_FETCH_DEPS=ON` by default, so missing `zlib`, `onnx`, and `protobuf` dependencies are auto-fetched via vcpkg into `cpp/build/deps/vcpkg`.
+On Windows, `KATAGO_AUTO_FETCH_DEPS=ON` by default, so missing `zlib` and `protobuf` dependencies are auto-fetched via vcpkg into `cpp/build/deps/vcpkg`. The ONNX graph itself is generated from the vendored `cpp/external/onnx/onnx.proto` schema at build time (via `protobuf_generate_cpp`), the same mechanism the TensorRT backend uses for its ONNX-emitter path, so no separate `onnx` package is needed.
 
 ```
 cmake -S cpp -B cpp/build -G "Visual Studio 18 2026" -A x64 -DUSE_BACKEND=ONNX -DONNXRUNTIME_ROOT=cpp/external/onnxruntime-win-x64-openvino
@@ -189,7 +192,7 @@ cmake --build cpp/build --config Release -j
 
 If you want to disable auto-fetch and provide dependencies manually:
 * `-DKATAGO_AUTO_FETCH_DEPS=OFF`
-* plus `-DONNX_INCLUDE_DIR=... -DONNX_PROTO_LIB=... -DPROTOBUF_INCLUDE_DIR=... -DPROTOBUF_LIB=... -DZLIB_INCLUDE_DIR=... -DZLIB_LIBRARY=...`
+* plus `-DProtobuf_PROTOC_EXECUTABLE=... -DProtobuf_INCLUDE_DIR=... -DProtobuf_LIBRARY=... -DZLIB_INCLUDE_DIR=... -DZLIB_LIBRARY=...`
 
 Typical run config for Intel NPU:
 * `onnxProvider = openvino`
@@ -198,6 +201,9 @@ Typical run config for Intel NPU:
 
 Multi-device assignment is mainly for `onnxProvider=cuda/tensorrt` (`onnxDeviceToUseThread*`).
 For `onnxProvider=openvino` on Intel NPU, a single device is typically used.
+
+See the [README's ONNX/OpenVINO Intel NPU Quick Start](README.md#onnxopenvino-intel-npu-quick-start-windows)
+for how to run on NPU only, iGPU only, or both together.
 
 ## MacOS
    * TLDR (Metal backend - recommended for most users, hybrid CPU+GPU+Neural Engine for maximum throughput):

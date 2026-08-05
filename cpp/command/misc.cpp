@@ -90,7 +90,9 @@ int MainCmds::exportonnx(const vector<string>& args) {
     NeuralNet::freeLoadedModel
   );
   const ModelDesc& modelDesc = NeuralNet::getModelDesc(loadedModel.get());
-  string onnxBytes = OnnxModelBuilder::buildOnnxModel(modelDesc, nnXLen, nnYLen);
+  // requireExactNNLen=false, transformerNHWC=true (matches the TensorRT/ONNX backends' defaults).
+  OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(modelDesc, nnXLen, nnYLen, false, true, NULL);
+  const string& onnxBytes = onnxResult.serializedModel;
 
   ofstream out;
   FileUtils::open(out, outputFile, std::ios::binary | std::ios::out);

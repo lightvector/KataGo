@@ -60,9 +60,14 @@ else()
   set(_katago_auto_fetch_default OFF)
 endif()
 option(KATAGO_AUTO_FETCH_DEPS "Automatically fetch missing dependencies into build/deps (Windows/Linux use vcpkg)." ${_katago_auto_fetch_default})
-set(KATAGO_DEPS_DIR "${CMAKE_SOURCE_DIR}/build/deps" CACHE PATH "Directory for auto-fetched third-party dependencies")
+# CMAKE_BINARY_DIR (not CMAKE_SOURCE_DIR/build) so an out-of-tree build directory doesn't leave
+# fetched deps behind in the source tree.
+set(KATAGO_DEPS_DIR "${CMAKE_BINARY_DIR}/deps" CACHE PATH "Directory for auto-fetched third-party dependencies")
 if(WIN32)
-  set(_katago_vcpkg_triplet_default "x64-windows")
+  # Static-linked-against-the-DLL-CRT triplet: avoids duplicate abseil_dll.dll instances (one from
+  # a dynamically-linked vcpkg protobuf/abseil, one already loaded by katago.exe itself or another
+  # dependency) causing heap corruption when both allocate/free across the DLL boundary.
+  set(_katago_vcpkg_triplet_default "x64-windows-static-md")
 elseif(UNIX AND NOT APPLE)
   if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
     set(_katago_vcpkg_triplet_default "arm64-linux")
@@ -267,9 +272,10 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
     )
 elseif(USE_BACKEND STREQUAL "ONNX")
   message(STATUS "-DUSE_BACKEND=ONNX, using ONNX Runtime backend.")
+  # neuralnet/onnxmodelbuilder.cpp is added below, alongside the protobuf_generate_cpp() setup
+  # it needs (shared with the TensorRT backend's identical onnx.proto dependency).
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/onnxbackend.cpp
-    neuralnet/onnxmodelbuilder.cpp
     )
 elseif(USE_BACKEND STREQUAL "")
   message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=ONNX to compile with the respective backend.${ColorReset}")
@@ -644,107 +650,41 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   endif()
   target_link_libraries(katago ${ONNXRUNTIME_LIB})
 
-  # Required by onnxmodelbuilder.cpp for building ONNX graphs from .bin.gz.
-  # These are intentionally configurable because package layouts vary.
-  set(ONNX_INCLUDE_DIR "" CACHE PATH "Directory containing onnx/onnx_pb.h (required for .bin.gz -> ONNX conversion)")
-  set(ONNX_PROTO_LIB "" CACHE FILEPATH "Path to onnx_proto library (required for .bin.gz -> ONNX conversion)")
-  set(PROTOBUF_INCLUDE_DIR "" CACHE PATH "Directory containing google/protobuf/message.h (required for .bin.gz -> ONNX conversion)")
-  set(PROTOBUF_LIB "" CACHE FILEPATH "Path to protobuf library (protobuf-lite or libprotobuf, required for .bin.gz -> ONNX conversion)")
-  set(ONNX_PROTO_TARGET "" CACHE STRING "Imported CMake target for onnx_proto (optional, preferred over ONNX_PROTO_LIB)")
-  set(PROTOBUF_TARGET "" CACHE STRING "Imported CMake target for protobuf (optional, preferred over PROTOBUF_LIB)")
-  mark_as_advanced(CLEAR ONNX_INCLUDE_DIR ONNX_PROTO_LIB PROTOBUF_INCLUDE_DIR PROTOBUF_LIB)
-
-  # Backward compatibility with older cache variable name.
-  if(NOT PROTOBUF_LIB AND PROTOBUF_LITE_LIB)
-    set(PROTOBUF_LIB "${PROTOBUF_LITE_LIB}")
-  endif()
-
+  # The ONNX backend emits an ONNX ModelProto via the same OnnxModelBuilder as the TensorRT
+  # backend (neuralnet/onnxmodelbuilder.cpp) and hands the serialized bytes to Ort::Session, so its
+  # protobuf/onnx.proto dependency is set up identically to the TensorRT backend's (see the
+  # USE_BACKEND STREQUAL "TENSORRT" branch above): compile the vendored ONNX schema
+  # (cpp/external/onnx/onnx.proto) with protoc and link our own protobuf. This is symbol-isolated
+  # from whatever protobuf the ONNX Runtime DLL itself may embed, since the handoff to ORT is
+  # serialized bytes, not a shared protobuf object.
   if(KATAGO_AUTO_FETCH_DEPS)
     set(_katago_vcpkg_installed_root "${KATAGO_VCPKG_ROOT}/installed/${KATAGO_VCPKG_TRIPLET}")
-  endif()
-
-  if(KATAGO_AUTO_FETCH_DEPS)
-    set(_need_onnx_proto_deps FALSE)
-    if(NOT ONNX_INCLUDE_DIR OR NOT ONNX_PROTO_LIB OR NOT PROTOBUF_INCLUDE_DIR OR NOT PROTOBUF_LIB)
-      set(_need_onnx_proto_deps TRUE)
-    endif()
-    if(_need_onnx_proto_deps)
-      katago_vcpkg_install_if_needed("onnx")
+    if(NOT EXISTS "${_katago_vcpkg_installed_root}/share/protobuf/protobuf-config.cmake")
       katago_vcpkg_install_if_needed("protobuf")
-      set(_katago_vcpkg_installed_root "${KATAGO_VCPKG_ROOT}/installed/${KATAGO_VCPKG_TRIPLET}")
-      if(EXISTS "${_katago_vcpkg_installed_root}/include/onnx/onnx_pb.h")
-        set(ONNX_INCLUDE_DIR "${_katago_vcpkg_installed_root}/include" CACHE PATH "Directory containing onnx/onnx_pb.h (required for .bin.gz -> ONNX conversion)" FORCE)
-      endif()
-      find_library(_katago_onnx_proto_lib NAMES onnx_proto HINTS "${_katago_vcpkg_installed_root}/lib" "${_katago_vcpkg_installed_root}/debug/lib" NO_DEFAULT_PATH)
-      if(_katago_onnx_proto_lib)
-        set(ONNX_PROTO_LIB "${_katago_onnx_proto_lib}" CACHE FILEPATH "Path to onnx_proto library (required for .bin.gz -> ONNX conversion)" FORCE)
-      endif()
-      if(EXISTS "${_katago_vcpkg_installed_root}/include/google/protobuf/message.h")
-        set(PROTOBUF_INCLUDE_DIR "${_katago_vcpkg_installed_root}/include" CACHE PATH "Directory containing google/protobuf/message.h (required for .bin.gz -> ONNX conversion)" FORCE)
-      endif()
-      find_library(_katago_protobuf_lib NAMES protobuf-lite libprotobuf-lite protobuf libprotobuf HINTS "${_katago_vcpkg_installed_root}/lib" "${_katago_vcpkg_installed_root}/debug/lib" NO_DEFAULT_PATH)
-      if(_katago_protobuf_lib)
-        set(PROTOBUF_LIB "${_katago_protobuf_lib}" CACHE FILEPATH "Path to protobuf library (protobuf-lite or libprotobuf, required for .bin.gz -> ONNX conversion)" FORCE)
-      endif()
+    endif()
+    if(EXISTS "${_katago_vcpkg_installed_root}/share/protobuf/protobuf-config.cmake")
+      list(APPEND CMAKE_PREFIX_PATH "${_katago_vcpkg_installed_root}")
+    endif()
+    # FindProtobuf's MODULE mode (used below) does not consult CMAKE_PREFIX_PATH's tools/
+    # subdirectory for protoc, so a vcpkg-fetched protobuf is found as a library but not as a
+    # compiler; point it at the fetched protoc directly.
+    if(NOT Protobuf_PROTOC_EXECUTABLE)
+      find_program(Protobuf_PROTOC_EXECUTABLE protoc HINTS "${_katago_vcpkg_installed_root}/tools/protobuf" NO_DEFAULT_PATH)
     endif()
   endif()
-
-  # Prefer config-mode packages (vcpkg provides these) so transitive dependencies
-  # like absl/utf8_range are linked automatically.
-  if(_katago_vcpkg_installed_root)
-    list(APPEND CMAKE_PREFIX_PATH "${_katago_vcpkg_installed_root}")
-  endif()
-  if(NOT ONNX_PROTO_TARGET)
-    find_package(ONNX CONFIG QUIET)
-    if(TARGET ONNX::onnx_proto)
-      set(ONNX_PROTO_TARGET "ONNX::onnx_proto")
-    endif()
-  endif()
-  if(NOT PROTOBUF_TARGET)
-    if(_katago_vcpkg_installed_root AND EXISTS "${_katago_vcpkg_installed_root}/share/protobuf/protobuf-config.cmake")
-      set(protobuf_DIR "${_katago_vcpkg_installed_root}/share/protobuf")
-    endif()
-    find_package(protobuf CONFIG QUIET)
-    if(NOT TARGET protobuf::libprotobuf AND NOT TARGET protobuf::libprotobuf-lite)
-      find_package(Protobuf CONFIG QUIET)
-    endif()
-    if(TARGET protobuf::libprotobuf)
-      set(PROTOBUF_TARGET "protobuf::libprotobuf")
-    elseif(TARGET protobuf::libprotobuf-lite)
-      set(PROTOBUF_TARGET "protobuf::libprotobuf-lite")
-    endif()
-  endif()
-
-  if(NOT ONNX_INCLUDE_DIR)
-    find_path(ONNX_INCLUDE_DIR onnx/onnx_pb.h)
-  endif()
-  if(NOT ONNX_PROTO_LIB AND NOT ONNX_PROTO_TARGET)
-    find_library(ONNX_PROTO_LIB onnx_proto)
-  endif()
-  if(NOT PROTOBUF_INCLUDE_DIR)
-    find_path(PROTOBUF_INCLUDE_DIR google/protobuf/message.h)
-  endif()
-  if(NOT PROTOBUF_LIB AND NOT PROTOBUF_TARGET)
-    find_library(PROTOBUF_LIB libprotobuf protobuf protobuf-lite protobuf-lite32)
-  endif()
-
-  if(NOT ONNX_INCLUDE_DIR OR NOT PROTOBUF_INCLUDE_DIR OR (NOT ONNX_PROTO_TARGET AND NOT ONNX_PROTO_LIB) OR (NOT PROTOBUF_TARGET AND NOT PROTOBUF_LIB))
-    message(FATAL_ERROR
-      "ONNX backend requires ONNX protobuf dependencies for .bin.gz model conversion. "
-      "Set ONNX_INCLUDE_DIR (contains onnx/onnx_pb.h), ONNX_PROTO_LIB, PROTOBUF_INCLUDE_DIR, and PROTOBUF_LIB.")
-  endif()
-  target_include_directories(katago SYSTEM PRIVATE "${ONNX_INCLUDE_DIR}")
-  target_include_directories(katago SYSTEM PRIVATE "${PROTOBUF_INCLUDE_DIR}")
-  if(ONNX_PROTO_TARGET)
-    target_link_libraries(katago ${ONNX_PROTO_TARGET})
-  else()
-    target_link_libraries(katago ${ONNX_PROTO_LIB})
-  endif()
-  if(PROTOBUF_TARGET)
-    target_link_libraries(katago ${PROTOBUF_TARGET})
-  else()
-    target_link_libraries(katago ${PROTOBUF_LIB})
-  endif()
+  find_package(Protobuf REQUIRED)
+  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
+  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
+  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
+  # protoc-generated code is not ours to lint; silence its warnings to keep build output readable.
+  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
+  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
+  # Generated onnx.pb.h lands in the build dir; let backend code include it.
+  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
+  # Link the imported target rather than ${Protobuf_LIBRARIES}: when protobuf comes from a CMake
+  # package config (e.g. vcpkg), the variable can resolve to the DLL itself rather than the import
+  # lib, and it also omits protobuf's own dependencies such as abseil.
+  target_link_libraries(katago protobuf::libprotobuf)
 
   if(WIN32 AND ONNXRUNTIME_DLLS)
     foreach(_onnxruntime_dll IN LISTS ONNXRUNTIME_DLLS)

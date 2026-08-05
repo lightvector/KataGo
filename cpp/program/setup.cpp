@@ -111,6 +111,17 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   }
 #endif
 
+#if defined(USE_ONNX_BACKEND)
+  // Distributed selfplay (contribute) uploads training data, which must never contain FP16-overflow
+  // NaN rows, so always apply the scale8 workaround regardless of onnxSkipScale8.
+  if(setupFor == SETUP_FOR_DISTRIBUTED && cfg.contains("onnxSkipScale8") && cfg.getBool("onnxSkipScale8")) {
+    cfg.overrideKey("onnxSkipScale8", "false");
+    logger.write(
+      "WARNING: onnxSkipScale8 = true is not allowed for contribute (distributed selfplay); "
+      "forcing it to false so FP16-overflow NaNs cannot poison contributed training data.");
+  }
+#endif
+
   //Automatically flag keys that are for other backends as used so that we don't warn about unused keys
   //for those options
   for(const string& prefix: getBackendPrefixes()) {
@@ -304,6 +315,26 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     (void)defaultMaxBatchSize;
 #endif
 
+    // Per-server-thread max batch size override, parallel to gpuIdxByServerThread. Useful for
+    // heterogeneous multi-device setups (e.g. the ONNX/OpenVINO backend pinning one thread to an
+    // NPU and another to an iGPU via onnxOpenVINODeviceTypeThread<N>) where the optimal batch size
+    // differs per device. Falls back to nnMaxBatchSize for any thread without an override; every
+    // per-thread value is still capped at nnMaxBatchSize, which remains the reported/reserved
+    // upper bound (NNEvaluator::getMaxBatchSize()).
+    vector<int> maxBatchSizeByServerThread;
+#ifndef USE_EIGEN_BACKEND
+    for(int j = 0; j<numNNServerThreadsPerModel; j++) {
+      string threadIdxStr = Global::intToString(j);
+      if(cfg.contains("nnMaxBatchSizeThread"+threadIdxStr))
+        maxBatchSizeByServerThread.push_back(cfg.getInt("nnMaxBatchSizeThread"+threadIdxStr,1,nnMaxBatchSize));
+      else
+        maxBatchSizeByServerThread.push_back(nnMaxBatchSize);
+    }
+#else
+    cfg.markAllKeysUsedWithPrefix("nnMaxBatchSizeThread");
+    maxBatchSizeByServerThread.assign(numNNServerThreadsPerModel, nnMaxBatchSize);
+#endif
+
     int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
     if(disableFP16)
       useFP16Mode = enabled_t::False;
@@ -330,6 +361,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       useFP16Mode,
       numNNServerThreadsPerModel,
       gpuIdxByServerThread,
+      maxBatchSizeByServerThread,
       nnRandSeed,
       (forcedSymmetry >= 0 ? false : nnRandomize),
       defaultSymmetry,

@@ -144,30 +144,50 @@ path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz -config path/to/gtp_cus
 
 #### ONNX/OpenVINO Intel NPU Quick Start (Windows)
 
+The ONNX backend loads a standard `.bin.gz` KataGo model **directly** — no conversion step needed. It can also load a raw `.onnx` file (e.g. hand-exported or quantized elsewhere, or via `exportonnx` below); see the note on that below.
+
 > **Note on raw `.onnx` files and model version:** When loading a raw `.onnx` model (not a KataGo `.bin.gz`), the backend auto-detects the model version from output tensor shapes. This heuristic is usually correct for standard KataGo models, but may misdetect the version for unusual configurations, causing incorrect score or ownership outputs without any error. If results look wrong, add `onnxModelVersion = <N>` (e.g. `onnxModelVersion = 15`) to your GTP config to force the correct version. Standard `.bin.gz` KataGo models are unaffected — the version is always read from the file directly.
 
 If you want to use ONNX Runtime + OpenVINO on Intel NPU:
 * Install Intel NPU driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
 * Install OpenVINO archive package (Windows): https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-archive-windows.html
-* Typical install root looks like: `C:\Program Files (x86)\Intel\openvino_2026.0`
-* Add `C:\Program Files (x86)\Intel\openvino_2026.0\runtime\bin\intel64\Release` and `C:\Program Files (x86)\Intel\openvino_2026.0\runtime\3rdparty\tbb\bin` to System PATH
+* Typical install root looks like: `C:\Program Files (x86)\Intel\openvino`
+* Add `<openvino install>\runtime\bin\intel64\Release` and `<openvino install>\runtime\3rdparty\tbb\bin` to System PATH
 
-Minimal commands:
+Minimal commands, using the `.bin.gz` model directly:
 ```
-# 1) Export .bin/.bin.gz to ONNX (default export size is 19x19)
+# NPU only
+./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+
+# Intel iGPU only (same as above, but device type GPU)
+./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=GPU
+```
+
+NPU + iGPU running together: run two ONNX backend server threads and pin each one to a different
+device (a single OpenVINO session spanning both via `onnxOpenVINODeviceType=MULTI:NPU,GPU` does not
+parallelize well in practice). Pair this with a per-thread batch size override, since the NPU wants
+batch 1 while the iGPU benefits from a larger batch:
+```
+./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config "onnxProvider=openvino,numNNServerThreadsPerModel=2,onnxOpenVINODeviceTypeThread0=NPU,onnxOpenVINODeviceTypeThread1=GPU,nnMaxBatchSizeThread0=1,nnMaxBatchSizeThread1=8"
+```
+Check the log for `ONNX backend thread 0: provider=openvino deviceIdx=NPU` and
+`ONNX backend thread 1: provider=openvino deviceIdx=GPU` to confirm the two threads actually landed
+on the devices you expect.
+
+See the "ONNX backend settings" section of [`cpp/configs/gtp_example.cfg`](cpp/configs/gtp_example.cfg)
+for the full list of `onnx*` and `nnMaxBatchSizeThread<N>` keys, including per-device-type EP tuning
+(`onnxOpenVINODeviceConfig_<NPU|GPU|CPU>_<Option>`) and OpenVINO precision/cache-dir options — or
+save your chosen overrides into a `.cfg` file instead of repeating `-override-config` every time.
+
+If you'd rather export a portable raw `.onnx` file first (default export size is 19x19):
+```
 ./katago.exe exportonnx -model <NEURALNET>.bin.gz -output <NEURALNET>.onnx
-
-# 2) Benchmark on Intel NPU (OpenVINO provider)
-./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx
-
-# 3) Run GTP for GUI tools (Sabaki/Lizzie/q5Go/etc)
-./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx
-
-If you don't prepare config file, then use -override-config args, like:
-./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
 ```
 
 #### ONNX/OpenVINO Intel NPU Quick Start (Linux)
+
+The ONNX backend loads a standard `.bin.gz` KataGo model **directly** — no conversion step needed. It can also load a raw `.onnx` file (e.g. hand-exported or quantized elsewhere, or via `exportonnx` below); see the note on that below.
 
 > **Note on raw `.onnx` files and model version:** Same as above for Windows — if using a raw `.onnx` model and results look wrong, add `onnxModelVersion = <N>` to your config. Standard `.bin.gz` models are unaffected.
 
@@ -175,19 +195,35 @@ If you want to use ONNX Runtime + OpenVINO on Intel NPU:
 * Install Intel NPU driver (Linux): https://github.com/intel/linux-npu-driver
 * Install OpenVINO via system package manager (APT example): https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-apt.html
 
-Minimal commands:
+Minimal commands, using the `.bin.gz` model directly:
 ```bash
-# 1) Export .bin/.bin.gz to ONNX (default export size is 19x19)
+# NPU only
+./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+./katago gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+
+# Intel iGPU only (same as above, but device type GPU)
+./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=GPU
+```
+
+NPU + iGPU running together: run two ONNX backend server threads and pin each one to a different
+device (a single OpenVINO session spanning both via `onnxOpenVINODeviceType=MULTI:NPU,GPU` does not
+parallelize well in practice). Pair this with a per-thread batch size override, since the NPU wants
+batch 1 while the iGPU benefits from a larger batch:
+```bash
+./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config "onnxProvider=openvino,numNNServerThreadsPerModel=2,onnxOpenVINODeviceTypeThread0=NPU,onnxOpenVINODeviceTypeThread1=GPU,nnMaxBatchSizeThread0=1,nnMaxBatchSizeThread1=8"
+```
+Check the log for `ONNX backend thread 0: provider=openvino deviceIdx=NPU` and
+`ONNX backend thread 1: provider=openvino deviceIdx=GPU` to confirm the two threads actually landed
+on the devices you expect.
+
+See the "ONNX backend settings" section of [`cpp/configs/gtp_example.cfg`](cpp/configs/gtp_example.cfg)
+for the full list of `onnx*` and `nnMaxBatchSizeThread<N>` keys, including per-device-type EP tuning
+(`onnxOpenVINODeviceConfig_<NPU|GPU|CPU>_<Option>`) and OpenVINO precision/cache-dir options — or
+save your chosen overrides into a `.cfg` file instead of repeating `-override-config` every time.
+
+If you'd rather export a portable raw `.onnx` file first (default export size is 19x19):
+```bash
 ./katago exportonnx -model <NEURALNET>.bin.gz -output <NEURALNET>.onnx
-
-# 2) Benchmark on Intel NPU (OpenVINO provider)
-./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx
-
-# 3) Run GTP for GUI tools (Sabaki/Lizzie/q5Go/etc)
-./katago gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx
-
-# If you don't prepare config file, use -override-config:
-./katago gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
 ```
 
 #### Human-style Play and Analysis

@@ -48,6 +48,7 @@ static NNEvaluator* startNNEval(
     useFP16 ? enabled_t::True : enabled_t::False,
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
+    vector<int>(gpuIdxByServerThread.size(), maxBatchSize),
     seed,
     nnRandomize,
     defaultSymmetry,
