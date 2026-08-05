@@ -1,0 +1,167 @@
+# ONNX backend CI for the feature/onnx-backend branch (runs on the fork's own Actions).
+#
+# Builds KataGo with USE_BACKEND=ONNX against a from-source ONNX Runtime carrying the
+# OpenVINO execution provider (official prebuilt ORT packages do not ship the OpenVINO EP,
+# so it must be built from source), runs `katago runtests`, and uploads a self-contained
+# runnable directory as an artifact for easy download.
+#
+# Scoped to this branch so that it does NOT run on master after the PR merges (which would
+# burn upstream CI minutes on a ~1h ORT build); anyone can still trigger it manually via
+# workflow_dispatch. Maintainers are free to edit or delete this file at any time.
+#
+# Dependencies are cached under deps/install (ORT install tree + protobuf + zlib); only the
+# first run builds ONNX Runtime (~1-3h on a 2-core runner), subsequent runs take ~5 minutes.
+
+name: ONNX backend build & test
+
+on:
+  push:
+    branches: [ feature/onnx-backend ]
+    paths-ignore:
+      - 'cpp/configs/**'
+      - '**/*.cfg'
+      - '**/*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: onnx-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ORT_REF: v1.29.0
+  OV_URL: https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/windows/openvino_toolkit_windows_2026.2.1.21919.ede283a88e3_x86_64.zip
+  OV_VERSION: 2026.2.1
+
+jobs:
+  build-windows-onnx:
+    runs-on: windows-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout KataGo
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja
+        run: choco install ninja -y --no-progress
+
+      - name: Checkout ONNX Runtime source
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/onnxruntime
+          ref: v1.29.0
+          path: deps/onnxruntime
+          submodules: recursive
+
+      - name: Download & extract OpenVINO toolkit
+        shell: pwsh
+        run: |
+          $zip = "$env:RUNNER_TEMP\openvino.zip"
+          $dest = "deps\openvino"
+          Invoke-WebRequest -Uri $env:OV_URL -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $dest
+          # The zip contains a single top-level directory of the same name; hoist its contents up.
+          $inner = Get-ChildItem -Path $dest -Directory | Select-Object -First 1
+          if ($inner) {
+            Get-ChildItem -Path $inner.FullName | Move-Item -Destination $dest -Force
+            Remove-Item -Path $inner.FullName -Recurse -Force
+          }
+          Remove-Item -Path $zip -Force
+
+      - name: Locate OpenVINO setupvars.bat
+        shell: pwsh
+        run: |
+          $sv = Get-ChildItem "deps\openvino" -Recurse -Filter "setupvars.bat" | Select-Object -First 1
+          if (-not $sv) { throw "setupvars.bat not found under deps\openvino" }
+          echo "OV_SETUPVARS=$($sv.FullName)" >> $env:GITHUB_ENV
+
+      - name: Restore dependency cache
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: deps/install
+          key: onnx-deps-${{ runner.os }}-${{ env.ORT_REF }}-${{ env.OV_VERSION }}
+          restore-keys: |
+            onnx-deps-${{ runner.os }}-
+
+      - name: Build ONNX Runtime with OpenVINO GPU EP
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        shell: cmd
+        working-directory: deps/onnxruntime
+        run: |
+          call "%OV_SETUPVARS%"
+          python tools\ci_build\build.py --build_dir build --config Release --use_openvino GPU --build_shared_lib --skip_tests --parallel --compile_no_warning_as_error --cmake_generator Ninja --cmake_extra_defines CMAKE_INSTALL_PREFIX=%CD%\..\install\ort
+          if errorlevel 1 exit /b 1
+          cmake --install build\Release --config Release
+          if errorlevel 1 exit /b 1
+
+      - name: Stage protobuf (from ORT build tree)
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $deps = "deps\onnxruntime\build\Release\_deps"
+          New-Item -ItemType Directory -Force -Path "deps\install\protobuf\bin","deps\install\protobuf\lib","deps\install\protobuf\include" | Out-Null
+          Copy-Item "$deps\protobuf-build\protoc.exe" "deps\install\protobuf\bin\"
+          Copy-Item "$deps\protobuf-build\libprotobuf.lib" "deps\install\protobuf\lib\"
+          Copy-Item "$deps\protobuf-src\src\*" "deps\install\protobuf\include\" -Recurse
+
+      - name: Build zlib (static)
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          curl.exe -L -o "$env:RUNNER_TEMP\zlib.tar.gz" https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
+          tar -xzf "$env:RUNNER_TEMP\zlib.tar.gz" -C "$env:RUNNER_TEMP"
+          cmake -S "$env:RUNNER_TEMP\zlib-1.3.1" -B "$env:RUNNER_TEMP\zlib-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$env:GITHUB_WORKSPACE\deps\install\zlib
+          cmake --build "$env:RUNNER_TEMP\zlib-build"
+          cmake --install "$env:RUNNER_TEMP\zlib-build"
+
+      - name: Configure KataGo (USE_BACKEND=ONNX)
+        shell: pwsh
+        run: |
+          cmake -S cpp -B cpp\build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_BACKEND=ONNX `
+            -DONNXRUNTIME_ROOT=$env:GITHUB_WORKSPACE\deps\install\ort `
+            -DProtobuf_PROTOC_EXECUTABLE=$env:GITHUB_WORKSPACE\deps\install\protobuf\bin\protoc.exe `
+            -DProtobuf_INCLUDE_DIR=$env:GITHUB_WORKSPACE\deps\install\protobuf\include `
+            -DProtobuf_LIBRARY=$env:GITHUB_WORKSPACE\deps\install\protobuf\lib\libprotobuf.lib `
+            -DZLIB_INCLUDE_DIR=$env:GITHUB_WORKSPACE\deps\install\zlib\include `
+            -DZLIB_LIBRARY=$env:GITHUB_WORKSPACE\deps\install\zlib\lib\zlibstatic.lib
+
+      - name: Build KataGo
+        shell: pwsh
+        run: cmake --build cpp\build
+
+      - name: Run tests
+        shell: pwsh
+        run: cpp\build\katago.exe runtests
+
+      - name: Stage runnable directory
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "release" | Out-Null
+          Copy-Item "cpp\build\katago.exe" "release\"
+          Copy-Item "deps\install\ort\bin\*.dll" "release\"
+          Copy-Item "deps\install\ort\lib\onnxruntime_providers_openvino.dll" "release\"
+          $ovBin = "deps\openvino\runtime\bin\intel64\Release"
+          if (Test-Path $ovBin) {
+            Copy-Item "$ovBin\*.dll" "release\"
+            Copy-Item "$ovBin\*.json" "release\"
+          } else {
+            Write-Warning "OpenVINO runtime bin dir not found at $ovBin"
+          }
+          $tbb = Get-ChildItem "deps\openvino" -Recurse -Filter "tbb12.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($tbb) { Copy-Item $tbb.FullName "release\" }
+          Copy-Item "cpp\configs\gtp_example.cfg" "release\"
+          Write-Output "--- release contents ---"
+          Get-ChildItem "release" | Select-Object Name, Length
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: katago-windows-onnx-openvino
+          path: release/
