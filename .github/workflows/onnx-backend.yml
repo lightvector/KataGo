@@ -4,7 +4,8 @@
 #
 # Execution providers differ only in how ONNX Runtime is obtained; that difference lives
 # in .github/actions/onnx-prepare-ort/action.yml (one row in the matrix below per EP):
-#   - prebuilt    : official ORT release zip (the CPU EP ships inside it)
+#   - prebuilt    : official ORT release package (zip on Windows, tgz on Linux; the CPU
+#                   EP ships inside it)
 #   - nuget       : Microsoft.ML.OnnxRuntime.DirectML package (DirectML EP)
 #   - from-source : ORT built from source with the EP (OpenVINO today)
 #
@@ -63,6 +64,7 @@ jobs:
       matrix:
         include:
           - { ep: cpu,      os: windows-latest, mode: prebuilt,    ort_version: "1.28.0" }
+          - { ep: cpu,      os: ubuntu-latest,  mode: prebuilt,    ort_version: "1.28.0" }
           - { ep: directml, os: windows-latest, mode: nuget,       ort_version: "1.24.4" }
     steps:
       - uses: actions/checkout@v4

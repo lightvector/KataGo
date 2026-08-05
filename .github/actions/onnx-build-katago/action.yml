@@ -93,4 +93,10 @@ runs:
         cp deps/install/ort/lib/libonnxruntime*.so* release/ 2>/dev/null || true
         # EP-specific runtime libs (TensorRT/CUDA/ROCm, etc.) go here once wired up.
         cp cpp/configs/gtp_example.cfg release/
+        # katago's build-time DT_RUNPATH points at the CI workspace
+        # (deps/install/ort/lib), which no longer exists once the artifact is downloaded
+        # elsewhere. Rewrite it to $ORIGIN so the binary finds the sibling
+        # libonnxruntime.so* in the release dir, matching the Windows DLL convention.
+        if ! command -v patchelf >/dev/null 2>&1; then sudo apt-get install -y patchelf >/dev/null; fi
+        patchelf --set-rpath '$ORIGIN' release/katago
         ls -la release

@@ -127,7 +127,7 @@ runs:
         path: deps/install/ort
         key: onnx-ort-${{ runner.os }}-${{ inputs.ep }}-${{ inputs.ort_version }}-${{ inputs.ort_ref }}
 
-    # --- prebuilt: official ORT release zip (CPU EP) ---
+    # --- prebuilt: official ORT release package (CPU EP ships inside it): zip on Windows, tgz on Linux ---
     - name: Fetch prebuilt ORT (Windows)
       if: inputs.mode == 'prebuilt' && runner.os == 'Windows' && steps.cache-ort.outputs.cache-hit != 'true'
       shell: pwsh
@@ -144,6 +144,17 @@ runs:
         # Hoist lib/*.dll into bin/ too: the release-staging step globs bin/.
         New-Item -ItemType Directory -Force -Path "deps\install\ort\bin" | Out-Null
         Get-ChildItem "deps\install\ort\lib\*.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination "deps\install\ort\bin" -Force
+
+    - name: Fetch prebuilt ORT (Linux)
+      if: inputs.mode == 'prebuilt' && runner.os == 'Linux' && steps.cache-ort.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir -p deps/install/ort
+        curl -sfL -o "$RUNNER_TEMP/ort.tgz" "https://github.com/microsoft/onnxruntime/releases/download/v${{ inputs.ort_version }}/onnxruntime-linux-x64-${{ inputs.ort_version }}.tgz"
+        tar -xzf "$RUNNER_TEMP/ort.tgz" -C deps/install/ort --strip-components=1
+        # No lib/*.dll hoist is needed here: Linux resolves libonnxruntime.so through the
+        # binary's DT_RUNPATH, which onnx-build-katago rewrites to $ORIGIN at staging time.
+        ls deps/install/ort
 
     # --- nuget: Microsoft.ML.OnnxRuntime.DirectML package (DirectML EP) ---
     - name: Fetch DirectML NuGet package (Windows)
