@@ -31,7 +31,10 @@ permissions:
   contents: read
 
 env:
-  ORT_REF: v1.29.0
+  # onnxruntime 1.29.0 has no release tag yet (VERSION_NUMBER is 1.29.0 but no v1.29.0 tag
+  # exists), so pin to the exact commit the ONNX backend was verified against locally instead
+  # of master, which would drift. Update this SHA to re-validate against a newer snapshot.
+  ORT_REF: 7e76a52398ebf966bcbe4a10e552f438059edfce
   OV_URL: https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/windows/openvino_toolkit_windows_2026.2.1.21919.ede283a88e3_x86_64.zip
   OV_VERSION: 2026.2.1
 
@@ -55,7 +58,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: microsoft/onnxruntime
-          ref: v1.29.0
+          ref: ${{ env.ORT_REF }}
           path: deps/onnxruntime
           submodules: recursive
 
