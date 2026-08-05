@@ -16,7 +16,7 @@ name: ONNX backend build & test
 
 on:
   push:
-    branches: [ feature/onnx-backend ]
+    branches: [ feature/onnx-backend, ci/onnx-windows ]
     paths-ignore:
       - 'cpp/configs/**'
       - '**/*.cfg'
@@ -120,7 +120,7 @@ jobs:
         run: |
           curl.exe -L -o "$env:RUNNER_TEMP\zlib.tar.gz" https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.gz
           tar -xzf "$env:RUNNER_TEMP\zlib.tar.gz" -C "$env:RUNNER_TEMP"
-          cmake -S "$env:RUNNER_TEMP\zlib-1.3.1" -B "$env:RUNNER_TEMP\zlib-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$env:GITHUB_WORKSPACE\deps\install\zlib
+          cmake -S "$env:RUNNER_TEMP\zlib-1.3.1" -B "$env:RUNNER_TEMP\zlib-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}\deps\install\zlib
           cmake --build "$env:RUNNER_TEMP\zlib-build"
           cmake --install "$env:RUNNER_TEMP\zlib-build"
 
@@ -128,12 +128,12 @@ jobs:
         shell: pwsh
         run: |
           cmake -S cpp -B cpp\build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_BACKEND=ONNX `
-            -DONNXRUNTIME_ROOT=$env:GITHUB_WORKSPACE\deps\install\ort `
-            -DProtobuf_PROTOC_EXECUTABLE=$env:GITHUB_WORKSPACE\deps\install\protobuf\bin\protoc.exe `
-            -DProtobuf_INCLUDE_DIR=$env:GITHUB_WORKSPACE\deps\install\protobuf\include `
-            -DProtobuf_LIBRARY=$env:GITHUB_WORKSPACE\deps\install\protobuf\lib\libprotobuf.lib `
-            -DZLIB_INCLUDE_DIR=$env:GITHUB_WORKSPACE\deps\install\zlib\include `
-            -DZLIB_LIBRARY=$env:GITHUB_WORKSPACE\deps\install\zlib\lib\zlibstatic.lib
+            -DONNXRUNTIME_ROOT=${{ github.workspace }}\deps\install\ort `
+            -DProtobuf_PROTOC_EXECUTABLE=${{ github.workspace }}\deps\install\protobuf\bin\protoc.exe `
+            -DProtobuf_INCLUDE_DIR=${{ github.workspace }}\deps\install\protobuf\include `
+            -DProtobuf_LIBRARY=${{ github.workspace }}\deps\install\protobuf\lib\libprotobuf.lib `
+            -DZLIB_INCLUDE_DIR=${{ github.workspace }}\deps\install\zlib\include `
+            -DZLIB_LIBRARY=${{ github.workspace }}\deps\install\zlib\lib\zlibstatic.lib
 
       - name: Build KataGo
         shell: pwsh
