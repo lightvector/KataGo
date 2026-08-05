@@ -552,7 +552,13 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   endif()
   set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include/onnxruntime")
   if(NOT IS_DIRECTORY "${ONNXRUNTIME_INCLUDE_DIR}")
-    message(FATAL_ERROR "ONNX Runtime include directory not found: ${ONNXRUNTIME_INCLUDE_DIR}")
+    # Official prebuilt ORT packages (e.g. onnxruntime-win-x64-*.zip / -linux-x64-*.tgz) lay
+    # the headers flat under include/ (include/onnxruntime_cxx_api.h, ...), while an ORT
+    # built from source installs them under include/onnxruntime/. Support both layouts.
+    set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include")
+  endif()
+  if(NOT IS_DIRECTORY "${ONNXRUNTIME_INCLUDE_DIR}")
+    message(FATAL_ERROR "ONNX Runtime include directory not found under ${ONNXRUNTIME_ROOT}. Looked for both include/ and include/onnxruntime/.")
   endif()
   target_include_directories(katago SYSTEM PRIVATE "${ONNXRUNTIME_INCLUDE_DIR}")
   if(WIN32)

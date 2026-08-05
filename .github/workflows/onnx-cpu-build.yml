@@ -1,0 +1,132 @@
+# ONNX CPU backend CI (Windows). Runs on every PR and on master, so the ONNX backend
+# keeps a cheap, always-on regression guard independent of the expensive OpenVINO job
+# (onnx-build.yml), which must build ONNX Runtime from source because the official
+# prebuilt packages do not ship the OpenVINO EP.
+#
+# The CPU EP ships inside the official prebuilt ONNX Runtime package, so this job never
+# builds ORT from source: it downloads the release zip (~5 min with cache, ~10 min cold).
+# The two from-source deps (zlib, protobuf 3.21 static) are only built on cache miss.
+
+name: ONNX CPU build & test
+
+on:
+  pull_request:
+    paths:
+      - 'cpp/**'
+      - '.github/workflows/onnx-cpu-build.yml'
+  push:
+    # ci/onnx-windows is a temporary trigger so this workflow can be exercised before it
+    # exists on the default branch (workflow_dispatch requires the file on the default
+    # branch). Remove it once the branch is validated / merged to master.
+    branches: [ ci/onnx-windows, master ]
+    paths:
+      - 'cpp/**'
+      - '.github/workflows/onnx-cpu-build.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: onnx-cpu-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  ORT_VERSION: 1.28.0   # official prebuilt CPU package
+  PB_VERSION: 3.21.12   # protobuf 3.x, no abseil dependency (tag v21.12)
+  ZLIB_VERSION: 1.3.1
+
+jobs:
+  onnx-cpu-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja
+        run: choco install ninja -y --no-progress
+
+      - name: Restore dependency cache
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: deps/install
+          key: onnx-cpu-win-${{ runner.os }}-ort-${{ env.ORT_VERSION }}-pb-${{ env.PB_VERSION }}-zl-${{ env.ZLIB_VERSION }}
+
+      - name: Download ONNX Runtime CPU package (prebuilt)
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "deps\install\ort" | Out-Null
+          curl.exe -sfL -o "$env:RUNNER_TEMP\ort.zip" "https://github.com/microsoft/onnxruntime/releases/download/v$env:ORT_VERSION/onnxruntime-win-x64-$env:ORT_VERSION.zip"
+          Expand-Archive -Path "$env:RUNNER_TEMP\ort.zip" -DestinationPath "$env:RUNNER_TEMP\ort" -Force
+          $inner = Get-ChildItem "$env:RUNNER_TEMP\ort" -Directory | Select-Object -First 1
+          if ($inner) {
+            Get-ChildItem $inner.FullName | Move-Item -Destination "deps\install\ort" -Force
+            Remove-Item $inner.FullName -Recurse -Force
+          }
+          Remove-Item "$env:RUNNER_TEMP\ort.zip" -Force
+
+      - name: Build zlib (static)
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          curl.exe -L -o "$env:RUNNER_TEMP\zlib.tar.gz" "https://github.com/madler/zlib/releases/download/v$env:ZLIB_VERSION/zlib-$env:ZLIB_VERSION.tar.gz"
+          tar -xzf "$env:RUNNER_TEMP\zlib.tar.gz" -C "$env:RUNNER_TEMP"
+          cmake -S "$env:RUNNER_TEMP\zlib-$env:ZLIB_VERSION" -B "$env:RUNNER_TEMP\zlib-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}\deps\install\zlib
+          cmake --build "$env:RUNNER_TEMP\zlib-build"
+          cmake --install "$env:RUNNER_TEMP\zlib-build"
+
+      - name: Build protobuf 3.21 (static, /MD, no abseil)
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          curl.exe -L -o "$env:RUNNER_TEMP\pb.tar.gz" "https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protobuf-cpp-$env:PB_VERSION.tar.gz"
+          tar -xzf "$env:RUNNER_TEMP\pb.tar.gz" -C "$env:RUNNER_TEMP"
+          # protobuf_MSVC_STATIC_RUNTIME=OFF is REQUIRED: the protobuf default (/MT) would
+          # clash with KataGo's /MD Release build (LNK2038) when linking libprotobuf statically.
+          cmake -S "$env:RUNNER_TEMP\protobuf-$env:PB_VERSION" -B "$env:RUNNER_TEMP\pb-build" -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -Dprotobuf_BUILD_TESTS=OFF `
+            -Dprotobuf_BUILD_SHARED_LIBS=OFF `
+            -Dprotobuf_MSVC_STATIC_RUNTIME=OFF `
+            -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}\deps\install\protobuf
+          cmake --build "$env:RUNNER_TEMP\pb-build"
+          cmake --install "$env:RUNNER_TEMP\pb-build"
+
+      - name: Configure KataGo (USE_BACKEND=ONNX, CPU)
+        shell: pwsh
+        run: |
+          cmake -S cpp -B cpp\build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_BACKEND=ONNX `
+            -DONNXRUNTIME_ROOT=${{ github.workspace }}\deps\install\ort `
+            -DProtobuf_PROTOC_EXECUTABLE=${{ github.workspace }}\deps\install\protobuf\bin\protoc.exe `
+            -DProtobuf_INCLUDE_DIR=${{ github.workspace }}\deps\install\protobuf\include `
+            -DProtobuf_LIBRARY=${{ github.workspace }}\deps\install\protobuf\lib\libprotobuf.lib `
+            -DZLIB_INCLUDE_DIR=${{ github.workspace }}\deps\install\zlib\include `
+            -DZLIB_LIBRARY=${{ github.workspace }}\deps\install\zlib\lib\zlibstatic.lib
+
+      - name: Build KataGo
+        shell: pwsh
+        run: cmake --build cpp\build
+
+      - name: Run tests
+        shell: pwsh
+        run: cpp\build\katago.exe runtests
+
+      - name: Verify backend
+        shell: pwsh
+        run: |
+          # Out-String flattens the multi-line output into one string: -notmatch on an
+          # array returns the filtered array (non-empty => always truthy), not a bool.
+          $out = (cpp\build\katago.exe version 2>&1) | Out-String
+          if ($out -notmatch "ONNX Runtime") { throw "unexpected backend version output: $out" }
+          Write-Output $out.Trim()
+
+      # Optional: real CPU inference smoke test. CI has no .bin.gz model checked in;
+      # download one (e.g. a small kata1 model) and run `katago benchmark -visits 20`
+      # if you want end-to-end inference coverage here.
