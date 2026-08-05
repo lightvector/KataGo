@@ -1,0 +1,151 @@
+# ONNX backend CI. Builds KataGo (USE_BACKEND=ONNX) against an ONNX Runtime carrying the
+# requested execution provider, runs `katago runtests`, and uploads a self-contained
+# runnable directory as an artifact for easy download.
+#
+# Execution providers differ only in how ONNX Runtime is obtained; that difference lives
+# in .github/actions/onnx-prepare-ort/action.yml (one row in the matrix below per EP):
+#   - prebuilt    : official ORT release zip (the CPU EP ships inside it)
+#   - nuget       : Microsoft.ML.OnnxRuntime.DirectML package (DirectML EP)
+#   - from-source : ORT built from source with the EP (OpenVINO today)
+#
+# Trigger policy by tier:
+#   - fast EPs (prebuilt/nuget, a few minutes) run on PR + master push + manual dispatch,
+#     so the ONNX backend keeps a cheap always-on regression guard.
+#   - slow EPs (from-source ORT builds, 1-3h) run only on manual dispatch, so they never
+#     burn upstream CI minutes on every PR/commit.
+# GitHub-hosted runners have no GPU, so from-source jobs only verify build + EP wiring;
+# real GPU inference must be validated on a GPU machine.
+#
+# Adding a backend = add one matrix row + teach onnx-prepare-ort to fetch/build its ORT
+# (and extend the release-staging step in onnx-build-katago if it ships extra runtimes).
+
+name: ONNX backend build & test
+
+on:
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'cpp/**'
+      - '.github/workflows/onnx-backend.yml'
+      - '.github/actions/**'
+  push:
+    # ci/onnx-windows is a TEMPORARY trigger so this workflow can be exercised before it
+    # exists on the default branch (workflow_dispatch requires the file on the default
+    # branch). Remove it once the branch is validated / merged to master.
+    branches: [ master, ci/onnx-windows ]
+    paths:
+      - 'cpp/**'
+      - '.github/workflows/onnx-backend.yml'
+      - '.github/actions/**'
+  workflow_dispatch:
+
+concurrency:
+  group: onnx-backend-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # from-source ORT pin. 1.29.0 has no release tag (VERSION_NUMBER is 1.29.0 but no
+  # v1.29.0 tag exists), so pin to the exact commit the ONNX backend was verified against
+  # locally instead of master, which would drift. Update to re-validate a newer snapshot.
+  ORT_REF: 7e76a52398ebf966bcbe4a10e552f438059edfce
+  OV_URL: https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/windows/openvino_toolkit_windows_2026.2.1.21919.ede283a88e3_x86_64.zip
+  OV_VERSION: 2026.2.1
+
+jobs:
+  build-fast:
+    name: ${{ matrix.ep }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { ep: cpu,      os: windows-latest, mode: prebuilt,    ort_version: "1.28.0" }
+          - { ep: directml, os: windows-latest, mode: nuget,       ort_version: "1.24.4" }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ninja -y --no-progress
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Prepare ONNX Runtime (${{ matrix.ep }})
+        uses: ./.github/actions/onnx-prepare-ort
+        with:
+          ep: ${{ matrix.ep }}
+          mode: ${{ matrix.mode }}
+          ort_version: ${{ matrix.ort_version }}
+
+      - name: Build & test KataGo
+        uses: ./.github/actions/onnx-build-katago
+        with:
+          ort_root: ${{ github.workspace }}/deps/install/ort
+          ep: ${{ matrix.ep }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: katago-${{ runner.os }}-onnx-${{ matrix.ep }}
+          path: release/
+
+  build-slow:
+    # from-source ORT builds (1-3h) only on manual dispatch.
+    if: github.event_name == 'workflow_dispatch'
+    name: ${{ matrix.ep }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { ep: openvino, os: windows-latest, mode: from-source }
+          # - { ep: tensorrt, os: ubuntu-latest,  mode: from-source }  # needs CUDA+TensorRT SDK; validate on a GPU box first
+          # - { ep: migraphx, os: ubuntu-latest,  mode: from-source }  # needs ROCm; deferred (no ROCm on hosted runners)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC environment
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install Ninja (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ninja -y --no-progress
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Prepare ONNX Runtime (${{ matrix.ep }})
+        uses: ./.github/actions/onnx-prepare-ort
+        with:
+          ep: ${{ matrix.ep }}
+          mode: ${{ matrix.mode }}
+          ort_ref: ${{ env.ORT_REF }}
+          ov_version: ${{ env.OV_VERSION }}
+          ov_url: ${{ env.OV_URL }}
+
+      - name: Build & test KataGo
+        uses: ./.github/actions/onnx-build-katago
+        with:
+          ort_root: ${{ github.workspace }}/deps/install/ort
+          ep: ${{ matrix.ep }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: katago-${{ runner.os }}-onnx-${{ matrix.ep }}
+          path: release/
