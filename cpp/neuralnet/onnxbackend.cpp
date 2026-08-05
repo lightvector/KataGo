@@ -337,7 +337,6 @@ struct ComputeHandle {
     }
 
     Ort::SessionOptions sessionOpts;
-    sessionOpts.SetIntraOpNumThreads(1);
 
     // Select execution provider based on providerName.
     const string& provider = ctx->providerName;
@@ -373,6 +372,12 @@ struct ComputeHandle {
         logger->write("ONNX backend: MIGraphX execution provider enabled, device_id=" + Global::intToString((int)migraphxOpts.device_id));
     }
     else if(provider == "openvino") {
+      // The OpenVINO EP runs the graph nodes itself and manages its own inference threads via the
+      // num_of_threads provider option; ORT's intra-op pool is left with only the few EP-external
+      // nodes. With one ORT session per nn-server thread, leaving the default intra-op thread count
+      // would oversubscribe the CPU with N x M worker pools. Pin it to 1 for this provider only.
+      sessionOpts.SetIntraOpNumThreads(1);
+
       // --- Determine this thread's device_type ---
       string threadDeviceType = ctx->openvinoDeviceType;  // global default
       if(serverThreadIdx >= 0 && serverThreadIdx < (int)ctx->perThreadDeviceType.size())
