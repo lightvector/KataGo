@@ -429,7 +429,10 @@ struct Builder {
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
     // meanSq over channels (axis 1), keepdims -> [N,1,H,W]
-    string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
+    // Pow(x, 2.0) instead of Mul(x, x): OpenVINO's RMSFusion matcher requires Power(x, const(2))
+    // and silently skips Mul(x,x), leaving the RMSNorm as an unfused ReduceMean->Sqrt->Div chain.
+    string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
+    string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {1})},
                             uniq(desc.name + "/meansq"), desc.name + "/meansq");
     { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }
@@ -464,7 +467,9 @@ struct Builder {
     int C = desc.numChannels;
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
-    string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
+    // Pow(x, 2.0) instead of Mul(x, x): see transformerRMSNorm (NCHW variant) above.
+    string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
+    string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {3})},  // C is axis 3 of [N,H,W,C]
                             uniq(desc.name + "/meansq"), desc.name + "/meansq");
     { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }
@@ -495,7 +500,9 @@ struct Builder {
     string meanSq;
     if(!spatial) {
       // Per-position mean of squares over channels (axis 1) -> [N,1,H,W]
-      string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
+      // Pow(x, 2.0) instead of Mul(x, x): see transformerRMSNorm above (same OpenVINO fusion requirement).
+      string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
+      string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
       meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {1})},
                        uniq(desc.name + "/meansq"), desc.name + "/meansq");
       { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }
@@ -514,7 +521,9 @@ struct Builder {
       //   masked: meanSq = ReduceMean_{C,H,W}(x^2 * mask) / maskMean        (recover the on-board mean;
       //           maskMean = on-board fraction of the buffer, so dividing by it cancels the off-board
       //           zeros that ReduceMean averaged over). maskMean is itself FP32-pinned.
-      string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
+      // Pow(x, 2.0) instead of Mul(x, x): see transformerRMSNorm above (same OpenVINO fusion requirement).
+      string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
+      string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
       string reduceInput = sq;
       if(!requireExactNNLen)
         reduceInput = addNode("Mul", {sq, maskName}, uniq(desc.name + "/sqmask"), desc.name + "/sqmask");
@@ -898,9 +907,17 @@ Result build(
     shape->add_dim()->set_dim_value(1);
     shape->add_dim()->set_dim_value(1);
   };
-  addInput("InputMask", 1);
+  // Declaration order matters for the OpenVINO execution provider under ONNX Runtime: the EP builds
+  // its name->index map from declaration order while the runtime feeds the EP kernel input ports in
+  // a different order. With InputMask declared first, the two disagree and the EP misroutes the
+  // [N,1,H,W] mask tensor into the InputSpatial port, failing at runtime with a shape mismatch (e.g.
+  // "can't handle input tensor ...:InputSpatial, because model input (shape=[?,22,19,19]) and tensor
+  // (shape=[1,1,19,19]) are incompatible"). Declaring InputSpatial, InputGlobal, InputMask (in that
+  // order) fixes it. This is NOT the graph's first-reference order; it is an empirical,
+  // OpenVINO-EP-specific requirement.
   addInput("InputSpatial", numInputChannels);
   addInputNC11("InputGlobal", numInputGlobalChannels);
+  addInput("InputMask", 1);
 
   // ---- Mask-derived features ----
   if(!requireExactNNLen) {

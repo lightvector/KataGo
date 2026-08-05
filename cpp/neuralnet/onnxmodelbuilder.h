@@ -32,6 +32,11 @@ namespace OnnxModelBuilder {
   };
 
   // Build a serialized ONNX ModelProto for the given model.
+  // Inputs are always declared in the fixed order InputSpatial, InputGlobal, InputMask. This order
+  // is required by the OpenVINO execution provider under ONNX Runtime (its name->index map is built
+  // from declaration order while the runtime feeds the EP input ports in the order it expects; the
+  // default InputMask-first order misroutes the mask tensor at runtime). See onnxmodelbuilder.cpp
+  // for the full rationale.
   //
   // emitFusedMishOp: if true, KataGo's Mish activation (x * tanh(softplus(x))) is emitted as a
   // single native ONNX `Mish` node (opset 18+) instead of the decomposed Softplus+Tanh+Mul used
