@@ -154,7 +154,30 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
 ## ONNX Runtime backend (optional)
-The `ONNX` backend runs inference through [ONNX Runtime](https://onnxruntime.ai/), which supports several execution providers (CPU, OpenVINO for Intel GPUs/NPUs, CUDA, TensorRT, etc.). It reuses KataGo's built-in `OnnxModelBuilder` (the same graph emitter the TensorRT backend uses), so its IO protocol and post-processing are identical to TensorRT; only the runtime differs. It is useful when you want to run KataGo on a non-NVIDIA accelerator that already has an ONNX Runtime execution provider, or for cross-vendor benchmarking.
+The `ONNX` backend runs inference through [ONNX Runtime](https://onnxruntime.ai/), which selects an execution provider at runtime (see the support matrix below). It reuses KataGo's built-in `OnnxModelBuilder` (the same graph emitter the TensorRT backend uses), so its IO protocol and post-processing are identical to TensorRT; only the runtime differs. It is useful when you want to run KataGo on a non-NVIDIA accelerator that already has an ONNX Runtime execution provider, or for cross-vendor benchmarking.
+
+### Execution provider support matrix
+
+`onnxProvider` selects an execution provider at runtime. Upstream verification is
+**limited to OpenVINO on Windows + Intel GPU**; the other entries below are code
+paths that should work but are not continuously tested.
+
+| Provider | Status | Platform | ORT build flag | Runtime deps |
+|---|---|---|---|---|
+| `openvino` | Verified (Windows, Intel GPU; see benchmark notes) | Windows / Linux | `--use_openvino GPU` | OpenVINO runtime DLLs, TBB |
+| `cpu` | Experimental | All | none (stock ORT) | - |
+| `cuda` | Experimental | Windows / Linux | `--use_cuda` | CUDA runtime |
+| `tensorrt` | Experimental | Windows / Linux | `--use_tensorrt` | TensorRT |
+| `migraphx` | Experimental | Linux (AMD) | `--use_migraphx` | MIGraphX |
+| `coreml` | Needs work (build blocked) | macOS | `--use_coreml` | CoreML |
+
+Status legend:
+- **Verified** - covered by CI and/or end-to-end manual testing; numbers, precision
+  and runtime-dependency deployment are confirmed.
+- **Experimental** - the code path exists and the architecture is EP-agnostic, but it
+  is NOT tested upstream. You must build ONNX Runtime yourself with the matching EP,
+  and you should validate numerics yourself (e.g. against the `cpu` provider).
+- **Needs work** - currently cannot build; see PR notes.
 
 > **Note**: This backend is more involved to set up than the built-in backends above, because the official prebuilt ONNX Runtime packages do **not** ship the execution providers you may need (e.g. the OpenVINO EP). You generally have to build ONNX Runtime from source with the provider(s) you want enabled.
 

@@ -5,6 +5,9 @@
 // hands the bytes to an Ort::Session. Inference is run through ONNX Runtime with a
 // configurable execution provider (CPU, OpenVINO, CUDA, TensorRT, MIGraphX, CoreML)
 // selected at runtime via the onnxProvider config key.
+// Only the OpenVINO provider is verified upstream (see Compiling.md "Execution
+// provider support matrix"); the others are experimental code paths that require a
+// provider-enabled ONNX Runtime build.
 //
 // The IO tensor protocol is identical to the TensorRT ONNX-emitter path (see
 // onnxmodelbuilder.h): four NCHW float32 inputs InputMask / InputSpatial /
@@ -33,6 +36,16 @@
 #include <mutex>
 
 using namespace std;
+
+//--------------------------------------------------------------
+
+// ONNX execution providers this backend knows how to wire up. This list is the wiring
+// surface, not a statement of support: only the OpenVINO provider is verified upstream
+// (see Compiling.md "Execution provider support matrix"). Exposing a new EP = add its
+// name here plus an AppendExecutionProvider_* branch in ComputeHandle.
+static const char* const kKnownProviders[] = {
+  "cpu", "openvino", "cuda", "tensorrt", "migraphx", "coreml",
+};
 
 //--------------------------------------------------------------
 
@@ -215,11 +228,21 @@ ComputeContext* NeuralNet::createComputeContext(
     }
   }
 
-  if(ctx->providerName != "cpu" && ctx->providerName != "openvino" && ctx->providerName != "cuda" &&
-     ctx->providerName != "tensorrt" && ctx->providerName != "migraphx" && ctx->providerName != "coreml")
-    throw StringError(
-      "ONNX backend: unknown onnxProvider '" + ctx->providerName +
-      "', expected one of 'cpu','openvino','cuda','tensorrt','migraphx','coreml'");
+  {
+    bool knownProvider = false;
+    for(const char* p : kKnownProviders) {
+      if(ctx->providerName == p) {
+        knownProvider = true;
+        break;
+      }
+    }
+    if(!knownProvider)
+      throw StringError(
+        "ONNX backend: unknown onnxProvider '" + ctx->providerName +
+        "'. Known providers: cpu, openvino, cuda, tensorrt, migraphx, coreml "
+        "(verification status and build requirements: see Compiling.md "
+        "'Execution provider support matrix').");
+  }
 
   if(logger != NULL)
     logger->write("ONNX backend: creating compute context for " +
@@ -907,6 +930,9 @@ void NeuralNet::getOutput(
 
 void NeuralNet::printDevices() {
   cout << "ONNX backend: device enumeration is execution-provider-specific." << endl;
+  cout << "OpenVINO is the only provider verified upstream; cuda/tensorrt/migraphx/coreml" << endl;
+  cout << "are experimental and require a matching provider-enabled ONNX Runtime build." << endl;
+  cout << "See Compiling.md 'Execution provider support matrix' for status and requirements." << endl;
   cout << "Set onnxProvider (e.g. 'openvino') plus provider-specific options in the config." << endl;
   cout << endl;
   cout << "OpenVINO EP options:" << endl;
