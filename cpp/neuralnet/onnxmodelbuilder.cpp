@@ -902,6 +902,9 @@ Result build(
   // order InputSpatial, InputGlobal, InputMask fixes it. Note this is NOT the graph's
   // first-reference order (InputMask is referenced first in the !requireExactNNLen branch);
   // it is an empirical, EP-specific requirement; see PR #1222 for the investigation.
+  // For HumanSL nets (metaEncoderVersion > 0), InputMeta is declared after InputGlobal and
+  // before InputMask, and is only present when the model actually has an encoder; verified
+  // working on b18c384nbt-humanv0 (model v15) with ORT 1.29 + OpenVINO 2026.2.
   addInput("InputSpatial", numInputChannels);
   addInputNC11("InputGlobal", numInputGlobalChannels);
   // HumanSL-style nets additionally take a per-row SGF metadata vector. Only declare the input when
