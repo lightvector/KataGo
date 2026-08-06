@@ -23,6 +23,7 @@
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/onnxmodelbuilder.h"
+#include "../dataio/homedata.h"
 
 #include <onnxruntime_cxx_api.h>
 #ifdef __APPLE__
@@ -277,6 +278,8 @@ struct ComputeContext {
   string openvinoNumStreams;     // 1-8
   string openvinoNumOfThreads;   // positive int (infer requests per session)
   string openvinoModelPriority;  // LOW / MEDIUM / HIGH / DEFAULT
+  string openvinoLoadConfig;     // JSON for the ORT EP "load_config" provider option (arbitrary OV device config)
+  bool openvinoNPUExactBoard;    // NPU-only: build the mask-free exact-board graph (requires fixed-size workloads)
 
   bool transformerNHWC;  // run the trunk block stack channel-last (NHWC) for transformer models
   bool skipScale8;       // skip the scale8 FP16-range workaround (see createComputeContext)
@@ -321,6 +324,8 @@ struct ComputeContext {
       openvinoNumStreams(""),
       openvinoNumOfThreads(""),
       openvinoModelPriority(""),
+      openvinoLoadConfig(""),
+      openvinoNPUExactBoard(false),
       transformerNHWC(true),
       skipScale8(false),
       inputMaskName("InputMask"),
@@ -347,7 +352,6 @@ ComputeContext* NeuralNet::createComputeContext(
   ConfigParser& cfg
 ) {
   (void)gpuIdxs;
-  (void)homeDataDirOverride;
   (void)loadedModel;
   // The emitted ONNX graph is fp32; inference precision is chosen internally by the execution
   // provider (e.g. OpenVINO downcasts to FP16 per onnxOpenVINOPrecision). KataGo's global useFP16
@@ -379,11 +383,24 @@ ComputeContext* NeuralNet::createComputeContext(
   if(cfg.contains("onnxOpenVINODeviceId")) ctx->openvinoDeviceId = cfg.getString("onnxOpenVINODeviceId");
   if(cfg.contains("onnxOpenVINOEnableNPUFastCompile"))
     ctx->openvinoEnableNPUFastCompile = cfg.getBool("onnxOpenVINOEnableNPUFastCompile");
-  if(cfg.contains("onnxOpenVINOCacheDir")) ctx->openvinoCacheDir = cfg.getString("onnxOpenVINOCacheDir");
+  // OpenVINO blob cache. Defaults to <homeDataDir>/openvino_cache so caching works out of the box;
+  // onnxOpenVINOCacheDir overrides the location explicitly.
+  if(cfg.contains("onnxOpenVINOCacheDir"))
+    ctx->openvinoCacheDir = cfg.getString("onnxOpenVINOCacheDir");
+  else if(providerName == "openvino")
+    ctx->openvinoCacheDir = HomeData::getHomeDataDir(true, homeDataDirOverride) + "/openvino_cache";
   if(cfg.contains("onnxOpenVINOPrecision")) ctx->openvinoPrecision = cfg.getString("onnxOpenVINOPrecision");
   if(cfg.contains("onnxOpenVINONumStreams")) ctx->openvinoNumStreams = cfg.getString("onnxOpenVINONumStreams");
   if(cfg.contains("onnxOpenVINONumOfThreads")) ctx->openvinoNumOfThreads = cfg.getString("onnxOpenVINONumOfThreads");
   if(cfg.contains("onnxOpenVINOModelPriority")) ctx->openvinoModelPriority = cfg.getString("onnxOpenVINOModelPriority");
+  // Arbitrary OpenVINO device config as JSON, passed through to the ORT EP "load_config" provider
+  // option (e.g. {"NPU":{"NPU_COMPILATION_MODE_PARAMS":"optimization-level=2 performance-hint-override=latency"}}).
+  if(cfg.contains("onnxOpenVINOLoadConfig")) ctx->openvinoLoadConfig = cfg.getString("onnxOpenVINOLoadConfig");
+  // NPU-friendly exact-board build: when the session targets an NPU device, emit the mask-free
+  // exact-board graph (drops InputMask and all attention mask-bias adds, ~6% faster measured on
+  // b11-class transformer models). Only valid when every query uses the exact nnXLen x nnYLen
+  // board size (e.g. GTP play on a fixed board size); do NOT enable for mixed-size analysis.
+  ctx->openvinoNPUExactBoard = cfg.contains("onnxOpenVINONPUExactBoard") ? cfg.getBool("onnxOpenVINONPUExactBoard") : false;
 
   // Trunk layout for transformer models. Default NHWC (channel-last), matching the TensorRT
   // backend's trtTransformerNHWC default; NHWC is markedly faster for transformer trunks on
@@ -543,11 +560,22 @@ struct ComputeHandle {
     } else {
       if(logger != NULL)
         logger->write("ONNX backend: building ONNX graph from model weights...");
+      // NPU-friendly exact-board build: when this session targets an NPU device and the user
+      // opted in via onnxOpenVINONPUExactBoard, emit the mask-free exact-board graph (the
+      // builder drops InputMask and every attention mask-bias add). Non-NPU targets are built
+      // exactly as before.
+      bool exactBoardBuild = false;
+      if(ctx->openvinoNPUExactBoard && ctx->providerName == "openvino") {
+        string devForThread = ctx->openvinoDeviceType;
+        if(serverThreadIdx >= 0 && serverThreadIdx < (int)ctx->perThreadDeviceType.size())
+          devForThread = ctx->perThreadDeviceType[serverThreadIdx];
+        exactBoardBuild = (devForThread.find("NPU") != string::npos);
+      }
       // Reuse the same ONNX emitter as the TensorRT backend. The serialized ModelProto is a
       // standard ONNX graph that Ort::Session can parse directly; the TRT-only FP32 node-name
       // lists in the Result are ignored (ORT has no per-node precision API).
       OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(
-        loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen, /*requireExactNNLen=*/false, ctx->transformerNHWC, logger);
+        loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen, /*requireExactNNLen=*/exactBoardBuild, ctx->transformerNHWC, logger);
       builtOnnxBytes = onnxResult.serializedModel;
       if(logger != NULL)
         logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(builtOnnxBytes.size()) + " bytes)");
@@ -662,16 +690,17 @@ struct ComputeHandle {
       setIfNotEmpty("num_streams",    ctx->openvinoNumStreams);
       setIfNotEmpty("num_of_threads", ctx->openvinoNumOfThreads);
       setIfNotEmpty("model_priority", ctx->openvinoModelPriority);
+      setIfNotEmpty("load_config",    ctx->openvinoLoadConfig);
       if(ctx->openvinoEnableNPUFastCompile)
         openvinoOpts["enable_npu_fast_compile"] = "true";
 
       // Some ORT OpenVINO builds reject optional keys (cache_dir, precision, num_streams,
-      // num_of_threads, model_priority, enable_npu_fast_compile, device_id). Retry with only the
-      // core device_type key if optional keys are rejected, so that e.g. setting
+      // num_of_threads, model_priority, load_config, enable_npu_fast_compile, device_id). Retry
+      // with only the core device_type key if optional keys are rejected, so that e.g. setting
       // onnxOpenVINOCacheDir on an EP that doesn't support it degrades gracefully instead of
       // crashing.
       static const char* optionalKeys[] = {
-        "cache_dir", "precision", "num_streams", "num_of_threads", "model_priority",
+        "cache_dir", "precision", "num_streams", "num_of_threads", "model_priority", "load_config",
         "enable_npu_fast_compile", "device_id"
       };
       try {

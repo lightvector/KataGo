@@ -32,7 +32,7 @@ cpp/tests/results/matchsgfs2/games.sgfs
 
 cpp/data/
 versions/
-cpp/build
+cpp/build*
 cpp/out
 
 export_model_cuda.sh
@@ -65,7 +65,7 @@ CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
-cpp/builds/
+cpp/builds*/
 
 .DS_Store
 GPATH
