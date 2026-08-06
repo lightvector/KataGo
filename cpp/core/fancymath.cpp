@@ -148,6 +148,23 @@ double FancyMath::binaryCrossEntropy(double predProb, double targetProb, double 
   return targetProb * (-log(predProb)) + (1.0-targetProb) * (-log(reverseProb));
 }
 
+void FancyMath::wilsonCI95(double wins, double n, double& lo, double& hi) {
+  if(n <= 0) { lo = 0; hi = 1; return; }
+  const double z = 1.96;
+  double p = wins / n;
+  double denom = 1.0 + z*z/n;
+  double center = (p + z*z/(2*n)) / denom;
+  double margin = z * sqrt(p*(1-p)/n + z*z/(4*n*n)) / denom;
+  lo = center - margin;
+  hi = center + margin;
+}
+
+double FancyMath::oneTailedPValue(double wins, double n) {
+  if(n <= 0) return 0.5;
+  double z = (wins - 0.5*n) / (0.5*sqrt(n));
+  return 0.5 * erfc(z / sqrt(2.0));
+}
+
 
 #define APPROX_EQ(x,y,tolerance) testApproxEq((x),(y),(tolerance), #x, #y, __FILE__, __LINE__)
 static void testApproxEq(double x, double y, double tolerance, const char* msgX, const char* msgY, const char *file, int line) {

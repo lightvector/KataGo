@@ -1,4 +1,6 @@
 #include "../core/global.h"
+#include "../core/elo.h"
+#include "../core/fancymath.h"
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
@@ -12,6 +14,7 @@
 #include "../core/test.h"
 #include "../main.h"
 
+#include <array>
 #include <csignal>
 
 using namespace std;
@@ -252,10 +255,13 @@ int MainCmds::match(const vector<string>& args) {
   int64_t gameCount = 0;
   std::map<string,double> timeUsedByBotMap;
   std::map<string,double> movesByBotMap;
+  map<pair<string,string>, array<int64_t,3>> pairStats;
+  //key: {nameA, nameB} with nameA < nameB lexicographically
+  //value: {winsA, winsB, draws}
 
   auto runMatchLoop = [
     &gameRunner,&matchPairer,&sgfOutputDir,&logger,&gameSeedBase,&patternBonusTables,
-    &statsMutex, &gameCount, &timeUsedByBotMap, &movesByBotMap
+    &statsMutex, &gameCount, &timeUsedByBotMap, &movesByBotMap, &pairStats
   ](
     uint64_t threadHash
   ) {
@@ -305,6 +311,20 @@ int MainCmds::match(const vector<string>& args) {
           movesByBotMap[gameData->bName] += (double)gameData->bMoveCount;
           movesByBotMap[gameData->wName] += (double)gameData->wMoveCount;
 
+          //Update pairwise W/L/D stats
+          {
+            const string& bName = gameData->bName;
+            const string& wName = gameData->wName;
+            Player winner = gameData->endHist.winner;
+            bool aIsBlack = (bName < wName);
+            const string& nameA = aIsBlack ? bName : wName;
+            const string& nameB = aIsBlack ? wName : bName;
+            auto& ps = pairStats[{nameA, nameB}];
+            if(winner == P_BLACK)      { if(aIsBlack) ps[0]++; else ps[1]++; }
+            else if(winner == P_WHITE) { if(aIsBlack) ps[1]++; else ps[0]++; }
+            else                       { ps[2]++; }
+          }
+
           int64_t x = gameCount;
           while(x % 2 == 0 && x > 1) x /= 2;
           if(x == 1 || x == 3 || x == 5) {
@@ -345,6 +365,58 @@ int MainCmds::match(const vector<string>& args) {
   }
   for(int i = 0; i<threads.size(); i++)
     threads[i].join();
+
+  //Final match statistics
+  if(!pairStats.empty()) {
+    vector<string> activeBots;
+    {
+      set<string> seen;
+      for(auto& kv : pairStats) {
+        seen.insert(kv.first.first);
+        seen.insert(kv.first.second);
+      }
+      activeBots.assign(seen.begin(), seen.end());
+    }
+
+    vector<double> elo, eloStderr;
+    bool eloConverged = ComputeElos::computeBradleyTerryElo(activeBots, pairStats, elo, eloStderr);
+
+    logger.write("");
+    if(!eloConverged)
+      logger.write("Warning: Bradley-Terry Elo estimation did not fully converge");
+    logger.write("=== match Results ===");
+    logger.write("Global Elo (Bradley-Terry MLE, reference=" + activeBots[0] + "):");
+    for(int i = 0; i < (int)activeBots.size(); i++) {
+      string sign = (elo[i] >= 0) ? "+" : "";
+      string line = "  " + activeBots[i] + " : " +
+        sign + Global::strprintf("%.1f", elo[i]) + " +/- " + Global::strprintf("%.1f", eloStderr[i]);
+      if(i == 0) line += "  (reference)";
+      logger.write(line);
+    }
+    logger.write("");
+    logger.write("Pairwise summary:");
+    for(auto& kv : pairStats) {
+      int64_t wA = kv.second[0], wB = kv.second[1], d = kv.second[2];
+      int64_t total = wA + wB + d;
+      if(total == 0) continue;
+      double wins = wA + 0.5 * d;
+      double lo, hi;
+      FancyMath::wilsonCI95(wins, (double)total, lo, hi);
+      double pval = FancyMath::oneTailedPValue(wins, (double)total);
+      string sig = (pval < 0.05) ? " *" : "";
+      logger.write(
+        "  " + kv.first.first + " vs " + kv.first.second +
+        " : Games=" + Global::int64ToString(total) +
+        " W=" + Global::int64ToString(wA) +
+        " L=" + Global::int64ToString(wB) +
+        " D=" + Global::int64ToString(d) +
+        " | " + kv.first.first + " winrate=" + Global::strprintf("%.3f", wins/total) +
+        " [95% CI: " + Global::strprintf("%.3f", lo) + ", " + Global::strprintf("%.3f", hi) + "]" +
+        " | p=" + Global::strprintf("%.4f", pval) + sig
+      );
+    }
+    logger.write("");
+  }
 
   delete matchPairer;
   delete gameRunner;

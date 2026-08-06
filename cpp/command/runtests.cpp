@@ -5,6 +5,8 @@
 #include "../core/rand.h"
 #include "../core/elo.h"
 #include "../core/fancymath.h"
+#include "../qrstune/QRSOptimizer.h"
+#include "../command/tuneparams.h"
 #include "../core/config_parser.h"
 #include "../core/datetime.h"
 #include "../core/fileutils.h"
@@ -35,6 +37,8 @@ int MainCmds::runtests(const vector<string>& args) {
   DateTime::runTests();
   FancyMath::runTests();
   ComputeElos::runTests();
+  QRSTune::runTests();
+  TuneParams::runTests();
   Base64::runTests();
   ThreadTest::runTests();
 
