@@ -131,6 +131,11 @@ class NNEvaluator {
   // Check if the loaded neural net supports shorttermError fields
   bool supportsShorttermError() const;
 
+  // Whether the loaded model declares that it expects pass-alive area input features to be
+  // computed as if multi-stone suicide were always legal, regardless of the actual suicide rule.
+  // False if there is no loaded model (e.g. debugSkipNeuralNet).
+  bool modelPreferPassAliveUnderSuicideRules() const;
+
   // Return the "nearest" supported ruleset to desiredRules by this model.
   // Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
   Rules getSupportedRules(const Rules& desiredRules, bool& supported) const;

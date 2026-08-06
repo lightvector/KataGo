@@ -141,6 +141,7 @@ Search::Search(const SearchParams& params, NNEvaluator* nnEval, NNEvaluator* hum
   mutexPool = new MutexPool(nodeTable->mutexPool->getNumMutexes());
 
   rootHistory.clear(rootBoard,rootPla,Rules(),0);
+  applyPassAliveModeToRootHistory();
   rootKoHashTable->recompute(rootHistory);
 }
 
@@ -172,12 +173,30 @@ Player Search::getPlayoutDoublingAdvantagePla() const {
   return searchParams.playoutDoublingAdvantagePla == C_EMPTY ? plaThatSearchIsFor : searchParams.playoutDoublingAdvantagePla;
 }
 
+bool Search::resolveAlwaysComputePassAliveUnderSuicideRules(const SearchParams& params, const NNEvaluator* nnEval) {
+  if(params.alwaysComputePassAliveUnderSuicideRules == enabled_t::True)
+    return true;
+  if(params.alwaysComputePassAliveUnderSuicideRules == enabled_t::False)
+    return false;
+  return nnEval != NULL && nnEval->modelPreferPassAliveUnderSuicideRules();
+}
+
+void Search::applyPassAliveModeToRootHistory() {
+  bool b = resolveAlwaysComputePassAliveUnderSuicideRules(searchParams, nnEvaluator);
+  if(rootHistory.alwaysComputePassAliveUnderSuicideRules != b) {
+    //Changing the mode changes graph hashes and in-tree adjudication, so no search state can be kept.
+    clearSearch();
+    rootHistory.setAlwaysComputePassAliveUnderSuicideRules(b);
+  }
+}
+
 void Search::setPosition(Player pla, const Board& board, const BoardHistory& history) {
   clearSearch();
   rootPla = pla;
   plaThatSearchIsFor = C_EMPTY;
   rootBoard = board;
   rootHistory = history;
+  applyPassAliveModeToRootHistory();
   rootKoHashTable->recompute(rootHistory);
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
@@ -193,6 +212,7 @@ void Search::setPlayerAndClearHistory(Player pla) {
   bool assumeMultipleStartingBlackMovesAreHandicap = rootHistory.assumeMultipleStartingBlackMovesAreHandicap;
   rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
   rootHistory.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
+  applyPassAliveModeToRootHistory();
 
   rootKoHashTable->recompute(rootHistory);
 
@@ -213,6 +233,7 @@ void Search::setKomiIfNew(float newKomi) {
     clearSearch();
     rootHistory.setKomi(newKomi);
   }
+  applyPassAliveModeToRootHistory();
 }
 
 void Search::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec) {
@@ -252,10 +273,14 @@ void Search::setRootSymmetryPruningOnly(const std::vector<int>& v) {
 void Search::setParams(const SearchParams& params) {
   clearSearch();
   searchParams = params;
+  applyPassAliveModeToRootHistory();
 }
 
 void Search::setParamsNoClearing(const SearchParams& params) {
   searchParams = params;
+  //Deliberately overrides the "no clearing" if the resolved pass-alive mode actually changes,
+  //since in that case no search state is valid to keep.
+  applyPassAliveModeToRootHistory();
 }
 
 void Search::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table) {
@@ -291,6 +316,7 @@ void Search::setNNEval(NNEvaluator* nnEval) {
     if(humanEvaluator->getNNXLen() != nnXLen || humanEvaluator->getNNYLen() != nnYLen)
       throw StringError("Search::setNNEval - humanEval has different nnXLen or nnYLen");
   }
+  applyPassAliveModeToRootHistory();
 }
 
 void Search::clearSearch() {
@@ -625,6 +651,13 @@ void Search::beginSearch(bool pondering) {
   if(rootBoard.x_size > nnXLen || rootBoard.y_size > nnYLen)
     throw StringError("Search got from NNEval nnXLen = " + Global::intToString(nnXLen) +
                       " nnYLen = " + Global::intToString(nnYLen) + " but was asked to search board with larger x or y size");
+
+  //Invariant: every setter that installs or rebuilds rootHistory or changes params/nnEvaluator
+  //re-stamps this flag, so it should always be consistent by the time a search begins.
+  testAssert(
+    rootHistory.alwaysComputePassAliveUnderSuicideRules ==
+    resolveAlwaysComputePassAliveUnderSuicideRules(searchParams, nnEvaluator)
+  );
 
   rootBoard.checkConsistency();
 
@@ -1080,7 +1113,7 @@ void Search::computeRootValues() {
   bool nonPassAliveStones = false;
   bool safeBigTerritories = false;
   bool unsafeBigTerritories = false;
-  bool isMultiStoneSuicideLegal = rootHistory.rules.multiStoneSuicideLegal;
+  bool isMultiStoneSuicideLegal = rootHistory.suicideLegalForPassAlive();
   rootBoard.calculateArea(
     rootSafeArea,
     nonPassAliveStones,

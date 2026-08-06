@@ -697,8 +697,12 @@ void TrainingWriteBuffers::addRow(
   rowGlobal[66] = reanalysisData.wasReanalyzed ? reanalysisData.selectionValueSurprise : 0.0f;
   rowGlobal[67] = reanalysisData.wasReanalyzed ? (float)reanalysisData.originalNumVisits : 0.0f;
 
+  //Whether pass-alive areas for this game's adjudication and featurization were being computed as if
+  //multi-stone suicide were always legal regardless of the actual suicide rule.
+  rowGlobal[68] = hist.alwaysComputePassAliveUnderSuicideRules ? 1.0f : 0.0f;
+
   //Unused
-  for(int i = 68; i<80; i++)
+  for(int i = 69; i<80; i++)
     rowGlobal[i] = 0.0f;
 
   testAssert(80 == GLOBAL_TARGET_NUM_CHANNELS);

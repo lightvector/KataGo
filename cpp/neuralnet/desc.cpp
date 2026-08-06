@@ -2434,6 +2434,7 @@ ModelDesc::ModelDesc()
     numScoreValueChannels(0),
     numOwnershipChannels(0),
     metaEncoderVersion(0),
+    preferPassAliveUnderSuicideRules(false),
     postProcessParams()
 {}
 
@@ -2534,9 +2535,19 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
           SGFMetadata::METADATA_INPUT_NUM_CHANNELS));
     }
 
+    //Whether the model expects pass-alive area features computed as if suicide were always legal.
+    int preferPassAliveInt = 0;
+    in >> preferPassAliveInt;
+    if(preferPassAliveInt == 0)
+      preferPassAliveUnderSuicideRules = false;
+    else if(preferPassAliveInt == 1)
+      preferPassAliveUnderSuicideRules = true;
+    else
+      throw StringError(name + ": model preferPassAliveUnderSuicideRules unexpected value: " + Global::intToString(preferPassAliveInt));
+    if(in.fail())
+      throw StringError(name + ": model failed to parse preferPassAliveUnderSuicideRules");
+
     int unused = 0;
-    in >> unused;
-    if(unused != 0) throw StringError(name + ": unknown/unsupported model option B: " + Global::intToString(unused));
     in >> unused;
     if(unused != 0) throw StringError(name + ": unknown/unsupported model option C: " + Global::intToString(unused));
     in >> unused;
@@ -2555,6 +2566,7 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
   else {
     metaEncoderVersion = 0;
     numInputMetaChannels = 0;
+    preferPassAliveUnderSuicideRules = false;
   }
 
   trunk = TrunkDesc(in, modelVersion, binaryFloats, metaEncoderVersion);
@@ -2620,6 +2632,7 @@ ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   numScoreValueChannels = other.numScoreValueChannels;
   numOwnershipChannels = other.numOwnershipChannels;
   metaEncoderVersion = other.metaEncoderVersion;
+  preferPassAliveUnderSuicideRules = other.preferPassAliveUnderSuicideRules;
   postProcessParams = other.postProcessParams;
   trunk = std::move(other.trunk);
   policyHead = std::move(other.policyHead);

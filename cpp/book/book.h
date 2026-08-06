@@ -363,6 +363,9 @@ class Book {
   const Rules initialRules;
   const Player initialPla;
   const int repBound;
+  //Whether all histories and hashes of this book compute pass-alive area as if multi-stone suicide
+  //were legal regardless of the actual suicide rule. Recorded in the book file (absent = false).
+  const bool alwaysComputePassAliveUnderSuicideRules;
 
  private:
   BookParams params;
@@ -384,11 +387,22 @@ class Book {
     const Rules& rules,
     Player initialPla,
     int repBound,
+    bool alwaysComputePassAliveUnderSuicideRules,
     BookParams params
   );
   ~Book();
 
-  static constexpr int LATEST_BOOK_VERSION = 2;
+  //Reads just the metadata header of a saved book file to get its recorded pass-alive computation
+  //mode without loading the whole book. Absent key (older book files) = false.
+  static bool readAlwaysComputePassAliveUnderSuicideRulesOfFileHeader(const std::string& fileName);
+  static bool readAlwaysComputePassAliveUnderSuicideRulesOfHeader(std::istream& in);
+
+  //Version 3 is identical to version 2 in format and hashing, except that it may record
+  //alwaysComputePassAliveUnderSuicideRules=true. Flagged books require version >= 3 so that older
+  //binaries reject them cleanly ("Unsupported book version") instead of silently mis-hashing them
+  //into a disconnected mess. All new books are written as version 3, so new book files require
+  //this version of KataGo or later to load, whether flagged or not.
+  static constexpr int LATEST_BOOK_VERSION = 3;
 
   Book(const Book&) = delete;
   Book& operator=(const Book&) = delete;
@@ -485,9 +499,12 @@ class Book {
   );
 
   void saveToFile(const std::string& fileName) const;
+  void saveToStream(std::ostream& out) const;
   static Book* loadFromFile(const std::string& fileName, int numThreadsForRecompute=1);
+  static Book* loadFromStream(std::istream& in, int numThreadsForRecompute=1);
 
  private:
+  static Book* loadFromStreamHelper(std::istream& in, int numThreadsForRecompute, const std::string& sourceDesc);
   int64_t getIdx(const BookHash& hash) const;
   BookNode* get(const BookHash& hash);
   const BookNode* get(const BookHash& hash) const;

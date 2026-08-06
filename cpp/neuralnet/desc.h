@@ -519,6 +519,10 @@ struct ModelDesc {
 
   int metaEncoderVersion;
 
+  //True if the model expects its pass-alive area input features to be computed as if
+  //multi-stone suicide were always legal, regardless of the actual suicide rule.
+  bool preferPassAliveUnderSuicideRules;
+
   ModelPostProcessParams postProcessParams;
 
   TrunkDesc trunk;

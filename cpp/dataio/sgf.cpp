@@ -786,7 +786,7 @@ void Sgf::iterAllUniquePositions(
   Rules rules = Rules::getTrompTaylorish();
   rules.koRule = Rules::KO_SITUATIONAL;
   rules.multiStoneSuicideLegal = true;
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules,0,false);
 
   PositionSample sampleBuf;
   std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
@@ -814,7 +814,7 @@ void Sgf::iterAllPositions(
   Rules rules = Rules::getTrompTaylorish();
   rules.koRule = Rules::KO_SITUATIONAL;
   rules.multiStoneSuicideLegal = true;
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules,0,false);
 
   PositionSample sampleBuf;
   std::vector<std::pair<int64_t,int64_t>> variationTraceNodesBranch;
@@ -1276,10 +1276,11 @@ Sgf::PositionSample Sgf::PositionSample::previousPosition(double newWeight) cons
   return other;
 }
 
-bool Sgf::PositionSample::tryGetCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove, BoardHistory& hist) const {
+bool Sgf::PositionSample::tryGetCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove, BoardHistory& hist, bool alwaysComputePassAliveUnderSuicideRules) const {
   int encorePhase = 0;
   Player pla = nextPla;
   Board boardCopy = board;
+  hist.setAlwaysComputePassAliveUnderSuicideRules(alwaysComputePassAliveUnderSuicideRules);
   hist.clear(boardCopy,pla,rules,encorePhase);
   int numSampleMoves = (int)moves.size();
   for(int i = 0; i<numSampleMoves; i++) {
@@ -1814,7 +1815,7 @@ Rules CompactSgf::getRulesOrWarn(const Rules& defaultRules, const std::function<
 }
 
 
-void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) const {
+void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, bool alwaysComputePassAliveUnderSuicideRules) const {
   Color plPlayer = rootNode.getPLSpecifiedColor();
   if(plPlayer == P_BLACK || plPlayer == P_WHITE)
     nextPla = plPlayer;
@@ -1841,7 +1842,7 @@ void CompactSgf::setupInitialBoardAndHist(const Rules& initialRules, Board& boar
   bool suc = board.setStonesFailIfNoLibs(placements);
   if(!suc)
     throw StringError("setupInitialBoardAndHist: initial board position contains invalid stones or zero-liberty stones");
-  hist = BoardHistory(board,nextPla,initialRules,0);
+  hist = BoardHistory(board,nextPla,initialRules,0,alwaysComputePassAliveUnderSuicideRules);
   if(hist.initialTurnNumber < board.numStonesOnBoard())
     hist.initialTurnNumber = board.numStonesOnBoard();
 }
@@ -1878,13 +1879,13 @@ void CompactSgf::playMovesTolerant(Board& board, Player& nextPla, BoardHistory& 
   }
 }
 
-void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const {
-  setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+void CompactSgf::setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool alwaysComputePassAliveUnderSuicideRules) const {
+  setupInitialBoardAndHist(initialRules, board, nextPla, hist, alwaysComputePassAliveUnderSuicideRules);
   playMovesAssumeLegal(board, nextPla, hist, turnIdx);
 }
 
-void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const {
-  setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+void CompactSgf::setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore, bool alwaysComputePassAliveUnderSuicideRules) const {
+  setupInitialBoardAndHist(initialRules, board, nextPla, hist, alwaysComputePassAliveUnderSuicideRules);
   playMovesTolerant(board, nextPla, hist, turnIdx, preventEncore);
 }
 
@@ -2118,7 +2119,8 @@ void WriteSgf::writeSgf(
 
   string comment;
   Board board(initialBoard);
-  BoardHistory hist(board,endHist.initialPla,endHist.rules,endHist.initialEncorePhase);
+  //Replay faithfully under the same pass-alive computation mode the game was played with.
+  BoardHistory hist(board,endHist.initialPla,endHist.rules,endHist.initialEncorePhase,endHist.alwaysComputePassAliveUnderSuicideRules);
   for(size_t i = 0; i<endHist.moveHistory.size(); i++) {
     comment.clear();
     out << ";";

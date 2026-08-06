@@ -74,7 +74,7 @@ static void runReanalysisRowChannelsTest() {
   Board board(5,5);
   Player nextPla = P_BLACK;
   Rules rules = Rules::getTrompTaylorish();
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules,0,false);
 
   vector<PolicyTargetMove> policyTarget;
   policyTarget.push_back(PolicyTargetMove(Board::PASS_LOC,1));
@@ -199,7 +199,7 @@ void Tests::runTrainingWriteTests() {
     Board initialBoard(boardXLen,boardYLen);
     Player initialPla = P_BLACK;
     int initialEncorePhase = 0;
-    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase,false);
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
@@ -318,7 +318,7 @@ void Tests::runTrainingWriteTests() {
     Board initialBoard(5,5);
     Player initialPla = P_BLACK;
     int initialEncorePhase = 0;
-    BoardHistory initialHist(initialBoard,initialPla,gameRules,initialEncorePhase);
+    BoardHistory initialHist(initialBoard,initialPla,gameRules,initialEncorePhase,false);
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
@@ -467,7 +467,7 @@ void Tests::runSelfplayInitTestsWithNN(const string& modelFile) {
     Board initialBoard(11,11);
     Player initialPla = P_BLACK;
     int initialEncorePhase = 0;
-    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase,false);
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = numExtraBlack;
@@ -666,7 +666,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     }
 
-    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase,false);
     if(testHint)
       initialHist.setInitialTurnNumber(10);
 
@@ -807,7 +807,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     Board initialBoard(11,11);
     Player initialPla = P_BLACK;
     int initialEncorePhase = 0;
-    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase,false);
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
@@ -963,7 +963,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
 
     rules.komi = komi;
     Player pla = P_BLACK;
-    BoardHistory hist(board,pla,rules,0);
+    BoardHistory hist(board,pla,rules,0,false);
     int compensateKomiVisits = 50;
     OtherGameProperties otherGameProps;
     double lead = PlayUtils::computeLead(bot,bot,board,hist,pla,compensateKomiVisits,otherGameProps);
@@ -999,7 +999,7 @@ void Tests::runMoreSelfplayTestsWithNN(const string& modelFile) {
     Board initialBoard(11,11);
     Player initialPla = P_BLACK;
     int initialEncorePhase = 0;
-    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase);
+    BoardHistory initialHist(initialBoard,initialPla,rules,initialEncorePhase,false);
 
     ExtraBlackAndKomi extraBlackAndKomi;
     extraBlackAndKomi.extraBlack = 0;
@@ -1421,7 +1421,7 @@ xxxxxxxx.
     Board board;
     Player nextPla;
     BoardHistory hist;
-    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, false);
     for(size_t i = 0; i<moves.size(); i++) {
       if(i % 10 == 0) {
         bool doEndGameIfAllPassAlive = true;
@@ -3182,7 +3182,7 @@ void Tests::runSekiTrainWriteTests(const string& modelFile) {
     extraBlackAndKomi.komiMean = rules.komi;
     extraBlackAndKomi.komiStdev = 0;
     int turnIdx = (int)sgf->moves.size();
-    sgf->setupBoardAndHistAssumeLegal(rules,initialBoard,initialPla,initialHist,turnIdx);
+    sgf->setupBoardAndHistAssumeLegal(rules,initialBoard,initialPla,initialHist,turnIdx,false);
 
     bool doEndGameIfAllPassAlive = true;
     bool clearBotAfterSearch = true;
@@ -3308,9 +3308,9 @@ ox.......
 oox.x....
 .o.......
 )%%");
-      BoardHistory hist(board,P_BLACK,Rules::parseRules("tromp-taylor"),0);
+      BoardHistory hist(board,P_BLACK,Rules::parseRules("tromp-taylor"),0,false);
       testStatuses(board,hist,P_BLACK);
-      BoardHistory hist2(board,P_WHITE,Rules::parseRules("tromp-taylor"),0);
+      BoardHistory hist2(board,P_WHITE,Rules::parseRules("tromp-taylor"),0,false);
       testStatuses(board,hist2,P_WHITE);
     }
     //The neural net that we're using for this test actually produces a lot of nonsense because it doesn't
@@ -3327,9 +3327,9 @@ ooxxx.o..
 xo.ox.xoo
 .xxox.xx.
 )%%");
-      BoardHistory hist(board,P_WHITE,Rules::parseRules("tromp-taylor"),0);
+      BoardHistory hist(board,P_WHITE,Rules::parseRules("tromp-taylor"),0,false);
       testStatuses(board,hist,P_WHITE);
-      BoardHistory hist2(board,P_WHITE,Rules::parseRules("japanese"),0);
+      BoardHistory hist2(board,P_WHITE,Rules::parseRules("japanese"),0,false);
       testStatuses(board,hist2,P_WHITE);
 
     }
@@ -3339,6 +3339,155 @@ xo.ox.xoo
   }
 
   delete nnEval;
+  NeuralNet::globalCleanup();
+  cout << "Done" << endl;
+}
+
+void Tests::runPassAliveSuicideGameTests() {
+  bool inputsNHWC = true;
+  bool useNHWC = false;
+  TestCommon::overrideForBackends(inputsNHWC, useNHWC);
+
+  cout << "Running pass-alive-under-suicide-rules game and training write tests" << endl;
+  NeuralNet::globalInitialize();
+
+  const bool logToStdout = true;
+  const bool logToStderr = false;
+  const bool logTime = false;
+  Logger logger(nullptr, logToStdout, logToStderr, logTime);
+
+  Rules rules = Rules::parseRules("chinese");
+  testAssert(!rules.multiStoneSuicideLegal);
+
+  //Runs a full game with the given per-bot alwaysComputePassAliveUnderSuicideRules settings.
+  //The nnEval is a debugSkipNeuralNet eval, which declares no support, so Auto resolves to false.
+  auto runGameWithModes = [&](const string& seedBase, enabled_t modeB, enabled_t modeW, bool forSelfPlay, const Rules& gameRules) {
+    NNEvaluator* nnEval = startNNEval("/dev/null",seedBase+"nneval",logger,0,inputsNHWC,useNHWC,false);
+
+    SearchParams paramsB;
+    paramsB.maxVisits = 100;
+    paramsB.drawEquivalentWinsForWhite = 0.5;
+    paramsB.alwaysComputePassAliveUnderSuicideRules = modeB;
+    SearchParams paramsW = paramsB;
+    paramsW.alwaysComputePassAliveUnderSuicideRules = modeW;
+
+    MatchPairer::BotSpec botSpecB;
+    botSpecB.botIdx = 0;
+    botSpecB.botName = string("botB");
+    botSpecB.nnEval = nnEval;
+    botSpecB.baseParams = paramsB;
+    MatchPairer::BotSpec botSpecW;
+    botSpecW.botIdx = forSelfPlay ? 0 : 1;
+    botSpecW.botName = forSelfPlay ? string("botB") : string("botW");
+    botSpecW.nnEval = nnEval;
+    botSpecW.baseParams = paramsW;
+
+    Board initialBoard(7,7);
+    Player initialPla = P_BLACK;
+    int initialEncorePhase = 0;
+    BoardHistory initialHist(initialBoard,initialPla,gameRules,initialEncorePhase,false);
+
+    ExtraBlackAndKomi extraBlackAndKomi;
+    extraBlackAndKomi.extraBlack = 0;
+    extraBlackAndKomi.komiMean = gameRules.komi;
+    extraBlackAndKomi.komiStdev = 0;
+    bool doEndGameIfAllPassAlive = true;
+    bool clearBotBeforeSearch = true;
+    int maxMovesPerGame = 60;
+    auto shouldStop = []() noexcept { return false; };
+    WaitableFlag* shouldPause = nullptr;
+    PlaySettings playSettings;
+    if(forSelfPlay) {
+      playSettings.initGamesWithPolicy = true;
+      playSettings.policyInitAreaProp = 0.04;
+      playSettings.sidePositionProb = 0.10;
+      playSettings.forSelfPlay = true;
+    }
+    Rand rand(seedBase+"play");
+    OtherGameProperties otherGameProps;
+    FinishedGameData* gameData = Play::runGame(
+      initialBoard,initialPla,initialHist,extraBlackAndKomi,
+      botSpecB,botSpecW,
+      seedBase+"search",
+      doEndGameIfAllPassAlive, clearBotBeforeSearch,
+      logger, false, false,
+      maxMovesPerGame, shouldStop,
+      shouldPause,
+      playSettings, otherGameProps,
+      rand,
+      nullptr,
+      nullptr
+    );
+    delete nnEval;
+    return gameData;
+  };
+
+  //Selfplay game with the mode forced on for both bots. The game-level history records the mode,
+  //adjudication and featurization run under suicide-mode pass-alive computation, and every training
+  //row records it in globalTargetsNC channel 68.
+  {
+    int maxRows = 256;
+    double firstFileMinRandProp = 1.0;
+    int debugOnlyWriteEvery = 5;
+    int inputsVersion = 7;
+    TrainingDataWriter dataWriter(&cout,inputsVersion, maxRows, firstFileMinRandProp, 7, 7, debugOnlyWriteEvery, "passalivesuicidedwriter");
+    FinishedGameData* gameData = runGameWithModes("passalive-forcedtrue", enabled_t::True, enabled_t::True, true, rules);
+    cout << "seedBase: passalive-forcedtrue" << endl;
+    cout << "Game-level alwaysComputePassAliveUnderSuicideRules: " << gameData->endHist.alwaysComputePassAliveUnderSuicideRules << endl;
+    testAssert(gameData->startHist.alwaysComputePassAliveUnderSuicideRules);
+    testAssert(gameData->endHist.alwaysComputePassAliveUnderSuicideRules);
+    gameData->endHist.printDebugInfo(cout,gameData->endHist.getRecentBoard(0));
+    dataWriter.writeGame(*gameData);
+    dataWriter.flushIfNonempty();
+    delete gameData;
+  }
+
+  //Territory-scoring (japanese) game with the mode forced on. The game may be truncated by the
+  //move cap before reaching game-level territory scoring - in-search territory/encore logic still
+  //runs under the mode, and the direct scoring difference is unit-tested in testpassalivesuicide.cpp.
+  {
+    Rules japRules = Rules::parseRules("japanese");
+    testAssert(!japRules.multiStoneSuicideLegal);
+    FinishedGameData* gameData = runGameWithModes("passalive-territory", enabled_t::True, enabled_t::True, true, japRules);
+    cout << "seedBase: passalive-territory" << endl;
+    cout << "Game-level alwaysComputePassAliveUnderSuicideRules: " << gameData->endHist.alwaysComputePassAliveUnderSuicideRules << endl;
+    testAssert(gameData->startHist.alwaysComputePassAliveUnderSuicideRules);
+    testAssert(gameData->endHist.alwaysComputePassAliveUnderSuicideRules);
+    gameData->endHist.printDebugInfo(cout,gameData->endHist.getRecentBoard(0));
+    delete gameData;
+  }
+
+  //Match-style game where only one bot uses the mode: game-level adjudication uses the AND of the
+  //two bots' resolutions, so it stays off even though botB's own searches use the mode.
+  {
+    FinishedGameData* gameData = runGameWithModes("passalive-mixed", enabled_t::True, enabled_t::False, false, rules);
+    cout << "seedBase: passalive-mixed" << endl;
+    cout << "Game-level alwaysComputePassAliveUnderSuicideRules: " << gameData->endHist.alwaysComputePassAliveUnderSuicideRules << endl;
+    testAssert(!gameData->startHist.alwaysComputePassAliveUnderSuicideRules);
+    testAssert(!gameData->endHist.alwaysComputePassAliveUnderSuicideRules);
+    gameData->endHist.printDebugInfo(cout,gameData->endHist.getRecentBoard(0));
+    delete gameData;
+  }
+
+  //With a net that does not declare support, Auto must be behaviorally identical to explicit False.
+  {
+    FinishedGameData* gameDataAuto = runGameWithModes("passalive-identity", enabled_t::Auto, enabled_t::Auto, true, rules);
+    FinishedGameData* gameDataFalse = runGameWithModes("passalive-identity", enabled_t::False, enabled_t::False, true, rules);
+    testAssert(!gameDataAuto->endHist.alwaysComputePassAliveUnderSuicideRules);
+    testAssert(!gameDataFalse->endHist.alwaysComputePassAliveUnderSuicideRules);
+    testAssert(gameDataAuto->endHist.moveHistory.size() == gameDataFalse->endHist.moveHistory.size());
+    for(size_t i = 0; i<gameDataAuto->endHist.moveHistory.size(); i++) {
+      testAssert(gameDataAuto->endHist.moveHistory[i].loc == gameDataFalse->endHist.moveHistory[i].loc);
+      testAssert(gameDataAuto->endHist.moveHistory[i].pla == gameDataFalse->endHist.moveHistory[i].pla);
+    }
+    testAssert(gameDataAuto->endHist.getRecentBoard(0).pos_hash == gameDataFalse->endHist.getRecentBoard(0).pos_hash);
+    testAssert(gameDataAuto->endHist.winner == gameDataFalse->endHist.winner);
+    testAssert(gameDataAuto->endHist.finalWhiteMinusBlackScore == gameDataFalse->endHist.finalWhiteMinusBlackScore);
+    cout << "Auto with a non-declaring net produced a game identical to explicit False" << endl;
+    delete gameDataAuto;
+    delete gameDataFalse;
+  }
+
   NeuralNet::globalCleanup();
   cout << "Done" << endl;
 }

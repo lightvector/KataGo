@@ -15,8 +15,8 @@ using namespace std;
 namespace {
 
 // Builder that accumulates ONNX nodes and initializers into a single GraphProto, handing back
-// tensor names as it goes. Tensors are float32; the trunk runs NCHW by
-// default, or channel-last NHWC when transformerNHWC is set (see buildBlockStack / buildConv).
+// tensor names as it goes. Tensors are float32; transformerNHWC selects a channel-last NHWC trunk
+// instead of NCHW (see buildBlockStack / buildConv).
 struct Builder {
   onnx::GraphProto* graph;
   int nnXLen;
@@ -324,6 +324,21 @@ struct Builder {
   string maskMinusOne(const string& maskName, const string& nameBase) {
     string c = addScalarInitializer(uniq(nameBase + "/negone"), -1.0f);
     return addNode("Add", {maskName, c}, uniq(nameBase + "/gpmaskshift"), nameBase + "/gpmaskshift");
+  }
+
+  // SGF metadata encoder (HumanSL nets, metaEncoderVersion > 0): a small MLP over the [N,metaC,1,1]
+  // metadata input producing a [N,trunkC,1,1] bias that gets added into the trunk's initial bias
+  // alongside the global-input matmul. Mirrors SGFMetadataEncoder::apply in eigenbackend.cpp and
+  // ModelParser::buildSGFMetadataEncoder in trtbackend.cpp. All ops are NC11 channel matmuls/biases,
+  // so this is layout-independent (it runs before any NCHW->NHWC trunk conversion).
+  string buildSGFMetadataEncoder(const string& input, const SGFMetadataEncoderDesc& desc) {
+    string x = buildMatMul(input, desc.mul1);
+    x = buildMatBias(x, desc.bias1);
+    x = buildActivation(x, desc.act1);
+    x = buildMatMul(x, desc.mul2);
+    x = buildMatBias(x, desc.bias2);
+    x = buildActivation(x, desc.act2);
+    return buildMatMul(x, desc.mul3);
   }
 
   // ---- Residual block builders ----
@@ -814,9 +829,6 @@ Result build(
   bool transformerNHWC,
   Logger* logger
 ) {
-  if(desc.metaEncoderVersion > 0)
-    throw StringError("OnnxModelBuilder: SGF metadata encoder not yet supported");
-
   if(logger != NULL)
     logger->write("Building internal onnx model, requireExactNNLen=" + Global::boolToString(requireExactNNLen) + " transformerNHWC=" + Global::boolToString(transformerNHWC));
 
@@ -875,6 +887,12 @@ Result build(
   addInput("InputMask", 1);
   addInput("InputSpatial", numInputChannels);
   addInputNC11("InputGlobal", numInputGlobalChannels);
+  // HumanSL-style nets additionally take a per-row SGF metadata vector. Only declare the input when
+  // the model actually has an encoder - an unused graph input would just be dead weight (and the
+  // backend only allocates/binds an InputMeta buffer when numInputMetaChannels > 0).
+  bool hasMetaEncoder = desc.metaEncoderVersion > 0;
+  if(hasMetaEncoder)
+    addInputNC11("InputMeta", desc.numInputMetaChannels);
 
   // ---- Mask-derived features ----
   if(!requireExactNNLen) {
@@ -934,6 +952,12 @@ Result build(
   string initialConv = b.buildConv("InputSpatial", trunk.initialConv, false);
   string initialMatMul = b.buildMatMul("InputGlobal", trunk.initialMatMul);
   string cur = b.elementwise("Add", initialConv, initialMatMul, trunk.name + "/initbias");
+  if(hasMetaEncoder) {
+    testAssert(trunk.metaEncoderVersion > 0);
+    testAssert(trunk.sgfMetadataEncoder.mul3.outChannels == trunk.initialMatMul.outChannels);
+    string initialMeta = b.buildSGFMetadataEncoder("InputMeta", trunk.sgfMetadataEncoder);
+    cur = b.elementwise("Add", cur, initialMeta, trunk.name + "/initmetabias");
+  }
 
   // When transformerNHWC, run the entire trunk block stack channel-last: one NCHW->NHWC conversion
   // here and one NHWC->NCHW conversion before the trunk tip. Every block (convnet/gpool/nbt/

@@ -184,8 +184,11 @@ int MainCmds::evalsgf(const vector<string>& args) {
   Player nextPla;
   BoardHistory hist;
 
-  auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,&sgf,&extraMoves](const Rules& initialRules, int moveNum) {
-    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  //Set for real after the neural net is loaded, from the params and the model's declaration.
+  bool alwaysComputePassAliveUnderSuicideRules = false;
+  auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,&sgf,&extraMoves,&alwaysComputePassAliveUnderSuicideRules](const Rules& initialRules, int moveNum) {
+    //Set up before replaying moves so any adjudication during replay is consistent with the searches.
+    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, alwaysComputePassAliveUnderSuicideRules);
     vector<Move>& moves = sgf->moves;
 
     if(!isnan(overrideKomi)) {
@@ -287,6 +290,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
   }
   logger.write("Loaded neural net");
 
+  alwaysComputePassAliveUnderSuicideRules = Search::resolveAlwaysComputePassAliveUnderSuicideRules(params, nnEval);
+
   {
     bool rulesWereSupported;
     Rules supportedRules = nnEval->getSupportedRules(initialRules,rulesWereSupported);
@@ -373,7 +378,11 @@ int MainCmds::evalsgf(const vector<string>& args) {
       buf.result->debugPrint(cout,board);
 
       if(humanEval != NULL) {
-        humanEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+        //Featurize per the human model's own resolution, which may differ from the main model's.
+        MiscNNInputParams humanNNInputParams = nnInputParams;
+        humanNNInputParams.passAliveSuicideRulesOverride =
+          Search::resolveAlwaysComputePassAliveUnderSuicideRules(params, humanEval) ? 1 : 0;
+        humanEval->evaluate(board,hist,nextPla,humanNNInputParams,buf,skipCache,includeOwnerMap);
         buf.result->debugPrint(cout,board);
       }
       continue;

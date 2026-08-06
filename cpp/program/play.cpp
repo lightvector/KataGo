@@ -388,11 +388,12 @@ void GameInitializer::createGame(
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
   OtherGameProperties& otherGameProps,
-  const Sgf::PositionSample* startPosSample
+  const Sgf::PositionSample* startPosSample,
+  bool alwaysComputePassAliveUnderSuicideRules
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample,alwaysComputePassAliveUnderSuicideRules);
   if(noResultStdev != 0.0 || drawRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
@@ -404,11 +405,12 @@ void GameInitializer::createGame(
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
   OtherGameProperties& otherGameProps,
-  const Sgf::PositionSample* startPosSample
+  const Sgf::PositionSample* startPosSample,
+  bool alwaysComputePassAliveUnderSuicideRules
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample,alwaysComputePassAliveUnderSuicideRules);
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
@@ -485,11 +487,17 @@ void GameInitializer::createGameSharedUnsynchronized(
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
   OtherGameProperties& otherGameProps,
-  const Sgf::PositionSample* startPosSample
+  const Sgf::PositionSample* startPosSample,
+  bool alwaysComputePassAliveUnderSuicideRules
 ) {
+  //The game-level pass-alive computation mode, so that any adjudication during start position
+  //replay below is consistent with the game that will be played. (hist.clear() preserves this.)
+  hist.setAlwaysComputePassAliveUnderSuicideRules(alwaysComputePassAliveUnderSuicideRules);
+
   if(initialPosition != NULL) {
     board = initialPosition->board;
     hist = initialPosition->hist;
+    hist.setAlwaysComputePassAliveUnderSuicideRules(alwaysComputePassAliveUnderSuicideRules);
     pla = initialPosition->pla;
 
     //No handicap when starting from an initial position.
@@ -883,6 +891,9 @@ static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const
   NNResultBuf buf;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+  //Featurize the way this bot's own searches would, even if the passed history differs.
+  nnInputParams.passAliveSuicideRulesOverride =
+    Search::resolveAlwaysComputePassAliveUnderSuicideRules(bot->searchParams, bot->nnEvaluator) ? 1 : 0;
   bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
   NNOutput& nnOutput = *(buf.result);
 
@@ -1537,6 +1548,14 @@ FinishedGameData* Play::runGame(
 
   Board board(startBoard);
   BoardHistory hist(startHist);
+  //Game-level pass-alive computation mode, used for whole-game adjudication (endGameIfAllPassAlive,
+  //final scoring) and training data targets: use the suicide-rules-based computation only if BOTH
+  //bots' searches will be using it. Each bot's Search still stamps its own resolved setting onto its
+  //internal copy of the history, which may differ from this when the two bots' settings differ.
+  hist.setAlwaysComputePassAliveUnderSuicideRules(
+    Search::resolveAlwaysComputePassAliveUnderSuicideRules(botSpecB.baseParams, botSpecB.nnEval) &&
+    Search::resolveAlwaysComputePassAliveUnderSuicideRules(botSpecW.baseParams, botSpecW.nnEval)
+  );
   Player pla = startPla;
   testAssert(!(extraBlackAndKomi.makeGameFair && extraBlackAndKomi.makeGameFairForEmptyBoard));
   testAssert(!(playSettings.forSelfPlay && !clearBotBeforeSearch));
@@ -1546,7 +1565,8 @@ FinishedGameData* Play::runGame(
     Player makeFairPla = P_BLACK;
     if(playSettings.flipKomiProbWhenNoCompensate != 0.0 && gameRand.nextBool(playSettings.flipKomiProbWhenNoCompensate))
       makeFairPla = P_WHITE;
-    BoardHistory h(b,makeFairPla,startHist.rules,startHist.encorePhase);
+    //Use the game-level pass-alive computation mode for the komi-fairing evals too.
+    BoardHistory h(b,makeFairPla,startHist.rules,startHist.encorePhase,hist.alwaysComputePassAliveUnderSuicideRules);
     //Restore baseline on empty hist, adjust empty hist to fair, then apply to real history.
     PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,h);
     PlayUtils::adjustKomiToEven(botB,botW,b,h,makeFairPla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
@@ -1635,6 +1655,10 @@ FinishedGameData* Play::runGame(
   auto maybeCheckForNewNNEval = [&botB,&botW,&botSpecB,&botSpecW,&checkForNewNNEval,&gameRand,&gameData](int nextTurnIdx) {
     //Check if we got a new nnEval, with some probability.
     //Randomized and low-probability so as to reduce contention in checking, while still probably happening in a timely manner.
+    //NOTE: swapping the nnEval mid-game re-resolves each bot's alwaysComputePassAliveUnderSuicideRules mode
+    //(via Search::setNNEval), but the game-level hist deliberately KEEPS the mode stamped at the start of the
+    //game - re-adjudicating a game under a different mode than it started with would be worse than letting
+    //the searches briefly disagree with the game-level adjudication for the remainder of this one game.
     if(checkForNewNNEval != nullptr && gameRand.nextBool(0.1)) {
       NNEvaluator* newNNEval = checkForNewNNEval();
       if(newNNEval != NULL) {
@@ -1976,11 +2000,11 @@ FinishedGameData* Play::runGame(
 
       //Fill full and seki areas
       {
-        board.calculateArea(gameData->finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
+        board.calculateArea(gameData->finalFullArea, true, true, true, hist.suicideLegalForPassAlive());
 
         Color* independentLifeArea = new Color[Board::MAX_ARR_SIZE];
         int whiteMinusBlackIndependentLifeRegionCount;
-        board.calculateIndependentLifeArea(independentLifeArea,whiteMinusBlackIndependentLifeRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
+        board.calculateIndependentLifeArea(independentLifeArea,whiteMinusBlackIndependentLifeRegionCount, false, false, hist.suicideLegalForPassAlive());
         for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
           if(independentLifeArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
             gameData->finalSekiAreas[i] = true;
@@ -2209,6 +2233,9 @@ FinishedGameData* Play::runGame(
           Search* toMoveBot2 = sp2->pla == P_BLACK ? botB : botW;
           MiscNNInputParams nnInputParams;
           nnInputParams.drawEquivalentWinsForWhite = toMoveBot2->searchParams.drawEquivalentWinsForWhite;
+          //Featurize the way this bot's own searches would, even if the game-level history differs.
+          nnInputParams.passAliveSuicideRulesOverride =
+            Search::resolveAlwaysComputePassAliveUnderSuicideRules(toMoveBot2->searchParams, toMoveBot2->nnEvaluator) ? 1 : 0;
           toMoveBot2->nnEvaluator->evaluate(
             sp2->board,sp2->hist,sp2->pla,nnInputParams,
             nnResultBuf,false,false
@@ -2329,6 +2356,10 @@ FinishedGameData* Play::runGame(
 static void replayGameUpToMove(const FinishedGameData* finishedGameData, int moveIdx, Rules rules, Board& board, BoardHistory& hist, Player& pla) {
   board = finishedGameData->startHist.initialBoard;
   pla = finishedGameData->startHist.initialPla;
+
+  //Replay under the same pass-alive computation mode that the game was actually played and
+  //adjudicated with (clear() below preserves this).
+  hist.setAlwaysComputePassAliveUnderSuicideRules(finishedGameData->endHist.alwaysComputePassAliveUnderSuicideRules);
 
   if(rules.scoringRule == Rules::SCORING_AREA)
     hist.clear(board,pla,rules,0);
@@ -2453,6 +2484,9 @@ void Play::maybeForkGame(
     copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
     MiscNNInputParams nnInputParams;
     nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+    //Featurize the way this bot's own searches would, even if the replayed game-level history differs.
+    nnInputParams.passAliveSuicideRulesOverride =
+      Search::resolveAlwaysComputePassAliveUnderSuicideRules(bot->searchParams, bot->nnEvaluator) ? 1 : 0;
     bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),nnInputParams,buf,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
     double whiteScore = nnOutput->whiteScoreMean;
@@ -2629,15 +2663,20 @@ FinishedGameData* GameRunner::runGame(
   BoardHistory hist;
   ExtraBlackAndKomi extraBlackAndKomi;
   OtherGameProperties otherGameProps;
+  //Game-level pass-alive computation mode for this game, matching the value Play::runGame will
+  //stamp onto the game history it plays out: on only if BOTH bots' searches will be using it.
+  const bool gamePassAliveSuicideMode =
+    Search::resolveAlwaysComputePassAliveUnderSuicideRules(botSpecB.baseParams, botSpecB.nnEval) &&
+    Search::resolveAlwaysComputePassAliveUnderSuicideRules(botSpecW.baseParams, botSpecW.nnEval);
   if(playSettings.forSelfPlay) {
     testAssert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,playSettings,otherGameProps,startPosSample);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,playSettings,otherGameProps,startPosSample,gamePassAliveSuicideMode);
     botSpecB.baseParams = params;
     botSpecW.baseParams = params;
   }
   else {
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample,gamePassAliveSuicideMode);
 
     bool rulesWereSupported;
     if(botSpecB.nnEval != NULL) {

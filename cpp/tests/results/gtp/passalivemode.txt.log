@@ -1,0 +1,201 @@
+: Running with following config:
+allowResignation = true
+cudaUseFP16 = false
+cudaUseNHWC = false
+forDeterministicTesting = true
+lagBuffer = 1.0
+logAllGTPCommunication = true
+logFile = tests/results/gtp/passalivemode.txt.log
+logSearchInfo = true
+logSearchInfoForChosenMove = false
+logTimeStamp = false
+logToStderr = false
+maxPlayouts = 10000
+maxTimePondering = 60.0
+maxVisits = 100
+nnRandSeed = forTesting
+nnRandomize = false
+numSearchThreads = 1
+openclUseFP16 = false
+ponderingEnabled = false
+resignConsecTurns = 3
+resignThreshold = -0.90
+rootSymmetryPruning = false
+rules = tromp-taylor
+searchFactorAfterOnePass = 0.50
+searchFactorAfterTwoPass = 0.25
+searchFactorWhenWinning = 0.40
+searchFactorWhenWinningThreshold = 0.95
+searchRandSeed = forTesting
+trtUseFP16 = false
+
+: GTP Engine starting...
+: KataGo v1.17.2
+: Using TrompTaylor rules initially, unless GTP/GUI overrides this
+: Using 1 CPU thread(s) for search
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false
+: Initializing neural net buffer to be size 19 * 19 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732 (convnet, 1027911 params)
+: Loaded neural net with nnXLen 19 nnYLen 19
+: Initializing board with boardXSize 19 boardYSize 19
+: Loaded config configs/gtp_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/gtp/passalivemode.txt.log
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: nnRandSeed = forTesting
+: Config override: nnRandomize = false
+: Config override: numSearchThreads = 1
+: Config override: openclUseFP16 = false
+: Config override: rootSymmetryPruning = false
+: Config override: searchRandSeed = forTesting
+: Config override: trtUseFP16 = false
+: Model name: g170-b6c96-s175395328-d26788732
+: GTP ready, beginning main protocol loop
+: Controller: boardsize 4 5
+: GPU -1 finishing, processed 0 rows 0 batches
+: Cleaned up old neural net and bot
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false
+: Initializing neural net buffer to be size 4 * 5 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732 (convnet, 1027911 params)
+: Loaded neural net with nnXLen 4 nnYLen 5
+: Initializing board with boardXSize 4 boardYSize 5
+: = 
+: Controller: kata-set-rules {"ko":"SIMPLE","scoring":"AREA","tax":"NONE","suicide":false,"hasButton":false,"friendlyPassOk":false,"whiteHandicapBonus":"0"}
+: Changed rules to koSIMPLEscoreAREAtaxNONEsui0
+: = 
+: Controller: komi 0
+: = 
+: Controller: set_position b d5 b a4 b b4 w a3 b b3 b c3 b d3 w a2 w b2 b c2 b b1 b d1
+: = 
+: Controller: showboard
+: = MoveNum: 0 HASH: 296C7FD2F430C547A7F740C78DBA7C20
+   A B C D
+ 5 . . . X
+ 4 X X . .
+ 3 O X X X
+ 2 O O X .
+ 1 . X . X
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"SIMPLE","komi":0.0,"scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: Controller: kata-get-param alwaysComputePassAliveUnderSuicideRules
+: = "auto"
+: Controller: play w pass
+: = 
+: Controller: genmove_debug b
+: MoveNum: 1 HASH: 296C7FD2F430C547A7F740C78DBA7C20
+   A B C D
+ 5 . . . X
+ 4 X X . .
+ 3 O X X X
+ 2 O O X .
+ 1 @ X . X
+
+koSIMPLEscoreAREAtaxNONEsui0komi0
+Time taken: ###
+Root visits: 50
+New playouts: 50
+NN rows: 39
+NN batches: 39
+NN avg batch size: 1
+PV: A1 pass pass
+Tree:
+: T 120.70c W  99.87c S  20.20c (+21.4 L +18.2) N      50  --  A1 pass pass
+---Black(^)---
+A1  : T 124.00c W  99.86c S  23.02c (+22.6 L +19.0) LCB  121.15c P 19.81% WF  19.2 PSV      49 N      19  --  A1 pass pass
+pss : T 120.06c W  99.85c S  19.55c (+21.0 L +17.9) LCB  115.82c P 31.25% WF  15.9 PSV      15 N      16  --  pass C5 D4 pass
+C4  : T 122.96c W  99.92c S  21.25c (+21.2 L +20.0) LCB   93.70c P  8.34% WF   5.0 PSV       5 N       5  --  C4 pass pass
+C1  : T 113.99c W  99.92c S  15.16c (+19.4 L +16.7) LCB  -35.94c P  8.75% WF   2.0 PSV       2 N       2  --  C1 pass
+B5  : T 116.74c W  99.89c S  16.92c (+20.1 L +16.7) LCB  -33.05c P  7.70% WF   2.0 PSV       2 N       2  --  B5 pass
+D4  : T 111.08c W  99.87c S  14.39c (+19.3 L +15.6) LCB  -38.19c P  7.35% WF   1.9 PSV       1 N       2  --  D4 pass
+C5  : T 112.18c W  99.87c S  14.58c (+19.2 L +15.8) LCB  -37.87c P  7.27% WF   1.9 PSV       1 N       2  --  C5 pass
+D2  : T 116.63c W  99.99c S  16.64c (+20.6 L +14.1) LCB -234.23c P  5.74% WF   1.0 PSV       1 N       1  --  D2
+
+: = A1
+: Controller: undo
+: = 
+: Controller: kata-set-param alwaysComputePassAliveUnderSuicideRules true
+: = 
+: Controller: kata-get-param alwaysComputePassAliveUnderSuicideRules
+: = "true"
+: Controller: genmove_debug b
+: MoveNum: 1 HASH: 296C7FD2F430C547A7F740C78DBA7C20
+   A B C D
+ 5 . . . X
+ 4 X X . .
+ 3 O X X X
+ 2 O O X .
+ 1 @ X . X
+
+koSIMPLEscoreAREAtaxNONEsui0komi0
+Time taken: ###
+Root visits: 50
+New playouts: 50
+NN rows: 41
+NN batches: 41
+NN avg batch size: 1
+PV: A1 C5 C4 D4 B5
+Tree:
+: T 122.91c W  99.81c S  23.02c (+21.2 L +18.1) N      50  --  A1 C5 C4 D4 B5
+---Black(^)---
+A1  : T 126.29c W  99.82c S  25.70c (+22.4 L +19.1) LCB  124.62c P 38.69% WF  32.4 PSV      32 N      32  --  A1 C5 C4 D4 B5
+C4  : T 125.00c W  99.80c S  24.53c (+22.3 L +19.1) LCB   95.61c P  8.76% WF   5.0 PSV       5 N       5  --  C4 pass A1 C5
+C1  : T 113.09c W  99.82c S  15.85c (+18.0 L +15.4) LCB  -36.10c P 10.45% WF   1.9 PSV       2 N       2  --  C1 pass
+pss : T 108.62c W 100.00c S  11.16c (+16.0 L +12.1) LCB  -42.77c P 10.76% WF   1.9 PSV       1 N       2  --  pass pass
+D4  : T 111.94c W  99.75c S  15.61c (+18.1 L +15.0) LCB  -37.42c P  7.35% WF   1.9 PSV       1 N       2  --  D4 pass
+B5  : T 116.74c W  99.78c S  17.96c (+18.8 L +15.8) LCB  -33.12c P  7.18% WF   2.0 PSV       1 N       2  --  B5 pass
+C5  : T 111.97c W  99.79c S  15.10c (+17.7 L +14.8) LCB  -38.23c P  6.49% WF   1.9 PSV       1 N       2  --  C5 pass
+D2  : T 116.79c W  99.80c S  17.93c (+18.9 L +16.4) LCB  -32.19c P  5.93% WF   2.0 PSV       1 N       2  --  D2 pass
+
+: = A1
+: Controller: undo
+: = 
+: Controller: kata-set-param alwaysComputePassAliveUnderSuicideRules auto
+: = 
+: Controller: play b pass
+: = 
+: Controller: final_score
+: = B+20.0
+: Controller: final_status_list dead
+: = A3 A2 B2
+: Controller: kata-set-param alwaysComputePassAliveUnderSuicideRules true
+: = 
+: Controller: final_score
+: = B+13.0
+: Controller: final_status_list dead
+: = 
+: Controller: kata-set-param alwaysComputePassAliveUnderSuicideRules false
+: = 
+: Controller: final_score
+: = B+20.0
+: Controller: kata-set-param alwaysComputePassAliveUnderSuicideRules auto
+: = 
+: Controller: final_score
+: = B+20.0
+: Controller: showboard
+: = MoveNum: 2 HASH: 296C7FD2F430C547A7F740C78DBA7C20
+   A B C D
+ 5 . . . X
+ 4 X X . .
+ 3 O X X X
+ 2 O O X .
+ 1 . X . X
+Next player: White
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"SIMPLE","komi":0.0,"scoring":"AREA","suicide":false,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+: GPU -1 finishing, processed 80 rows 80 batches
+: All cleaned up, quitting
