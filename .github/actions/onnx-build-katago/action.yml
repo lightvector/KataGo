@@ -31,13 +31,15 @@ runs:
       if: runner.os == 'Linux'
       shell: bash
       run: |
+        # Use $GITHUB_WORKSPACE (not the github.workspace context): it resolves correctly
+        # both on plain runners (/home/runner/...) and inside a container job (/__w/...).
         cmake -S cpp -B cpp/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_BACKEND=ONNX \
-          -DONNXRUNTIME_ROOT="${{ inputs.ort_root }}" \
-          -DProtobuf_PROTOC_EXECUTABLE="${{ github.workspace }}/deps/install/protobuf/bin/protoc" \
-          -DProtobuf_INCLUDE_DIR="${{ github.workspace }}/deps/install/protobuf/include" \
-          -DProtobuf_LIBRARY="${{ github.workspace }}/deps/install/protobuf/lib/libprotobuf.a" \
-          -DZLIB_INCLUDE_DIR="${{ github.workspace }}/deps/install/zlib/include" \
-          -DZLIB_LIBRARY="${{ github.workspace }}/deps/install/zlib/lib/libz.a"
+          -DONNXRUNTIME_ROOT="$GITHUB_WORKSPACE/deps/install/ort" \
+          -DProtobuf_PROTOC_EXECUTABLE="$GITHUB_WORKSPACE/deps/install/protobuf/bin/protoc" \
+          -DProtobuf_INCLUDE_DIR="$GITHUB_WORKSPACE/deps/install/protobuf/include" \
+          -DProtobuf_LIBRARY="$GITHUB_WORKSPACE/deps/install/protobuf/lib/libprotobuf.a" \
+          -DZLIB_INCLUDE_DIR="$GITHUB_WORKSPACE/deps/install/zlib/include" \
+          -DZLIB_LIBRARY="$GITHUB_WORKSPACE/deps/install/zlib/lib/libz.a"
 
     - name: Build KataGo
       shell: bash
@@ -97,6 +99,9 @@ runs:
         # (deps/install/ort/lib), which no longer exists once the artifact is downloaded
         # elsewhere. Rewrite it to $ORIGIN so the binary finds the sibling
         # libonnxruntime.so* in the release dir, matching the Windows DLL convention.
-        if ! command -v patchelf >/dev/null 2>&1; then sudo apt-get install -y patchelf >/dev/null; fi
+        if ! command -v patchelf >/dev/null 2>&1; then
+          # Ubuntu runners have sudo; the NGC TensorRT container runs as root without it.
+          if command -v sudo >/dev/null 2>&1; then sudo apt-get install -y patchelf >/dev/null; else apt-get install -y patchelf >/dev/null; fi
+        fi
         patchelf --set-rpath '$ORIGIN' release/katago
         ls -la release

@@ -212,9 +212,50 @@ runs:
         cmake --install build\Release --config Release
         if errorlevel 1 exit /b 1
 
-    # NOTE: TensorRT / MIGraphX from-source builds slot in here once validated. They need
-    # CUDA+TensorRT SDK (ubuntu) / ROCm respectively, and github-hosted runners have no GPU,
-    # so each should be smoke-validated on a GPU machine before being wired into the matrix.
+    - name: Build ONNX Runtime with TensorRT EP (Linux container)
+      if: inputs.mode == 'from-source' && inputs.ep == 'tensorrt' && runner.os == 'Linux' && steps.cache-ort.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: deps/onnxruntime
+      run: |
+        # Runs inside the official NGC TensorRT container
+        # (nvcr.io/nvidia/tensorrt:25.03-py3 = CUDA 12.8 + TensorRT 10.9, the combo ORT is
+        # tested against), which preinstalls CUDA/cuDNN/TensorRT under /usr/local/cuda and
+        # /usr/lib/x86_64-linux-gnu. The container ships cmake + python3; the workflow's
+        # bootstrap step adds ninja. github-hosted runners have no GPU, so this verifies
+        # build + EP wiring only - real GPU inference is validated on a GPU machine.
+        # Build only for sm_89 (RTX 4090): ORT's default 10-arch matrix is huge and slow
+        # on a no-GPU CI runner. Tune per the GPU you validate on.
+        python3 tools/ci_build/build.py --build_dir build --config Release \
+          --use_tensorrt --use_cuda \
+          --cuda_home /usr/local/cuda \
+          --cudnn_home /usr/lib/x86_64-linux-gnu \
+          --tensorrt_home /usr/lib/x86_64-linux-gnu \
+          --build_shared_lib --skip_tests --parallel \
+          --cmake_generator Ninja --allow_running_as_root --skip_submodule_sync \
+          --cmake_extra_defines "CMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/deps/install/ort" "CMAKE_CUDA_ARCHITECTURES=89"
+        cmake --install build/Release --config Release
+
+    # NOTE: MIGraphX from-source build slots in here once validated (needs ROCm; deferred).
+
+    # Save caches explicitly: actions/cache@v4's post-save does not reliably run inside
+    # composite actions, so without these every run would rebuild zlib/protobuf and ORT.
+    # Only save when this run actually built the dep (restore cache-missed); the key must
+    # match the restore key above.
+    - name: Save common-dep cache
+      if: steps.cache-common.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          deps/install/zlib
+          deps/install/protobuf
+        key: onnx-common-${{ runner.os }}-pb-${{ inputs.pb_version }}-zl-${{ inputs.zlib_version }}
+
+    - name: Save ORT cache
+      if: steps.cache-ort.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: deps/install/ort
+        key: onnx-ort-${{ runner.os }}-${{ inputs.ep }}-${{ inputs.ort_version }}-${{ inputs.ort_ref }}
 
     - name: Report ORT install tree
       shell: bash
