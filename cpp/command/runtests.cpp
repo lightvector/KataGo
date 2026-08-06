@@ -379,8 +379,10 @@ int MainCmds::runtinynntests(const vector<string>& args) {
       maxTime,
       maxPonderTime,
       std::vector<int>(),
+      -1,
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
+      1,
       numSearchThreads
     );
     istringstream in(cfgStr);
