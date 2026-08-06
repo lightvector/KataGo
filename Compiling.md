@@ -152,3 +152,55 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * Pre-trained neural nets are available at [the main training website](https://katagotraining.org/).
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
+
+## ONNX Runtime backend (optional)
+The `ONNX` backend runs inference through [ONNX Runtime](https://onnxruntime.ai/), which selects an execution provider at runtime (see the support matrix below). It reuses KataGo's built-in `OnnxModelBuilder` (the same graph emitter the TensorRT backend uses), so its IO protocol and post-processing are identical to TensorRT; only the runtime differs. It is useful when you want to run KataGo on a non-NVIDIA accelerator that already has an ONNX Runtime execution provider, or for cross-vendor benchmarking.
+
+### Execution provider support matrix
+
+`onnxProvider` selects an execution provider at runtime. Upstream verification is
+**limited to OpenVINO on Windows + Intel GPU**; the other entries below are code
+paths that should work but are not continuously tested.
+
+| Provider | Status | Platform | ORT build flag | Runtime deps |
+|---|---|---|---|---|
+| `openvino` | Verified (Windows, Intel GPU; see benchmark notes) | Windows / Linux | `--use_openvino GPU` | OpenVINO runtime DLLs, TBB |
+| `cpu` | Experimental | All | none (stock ORT) | - |
+| `cuda` | Experimental | Windows / Linux | `--use_cuda` | CUDA runtime |
+| `tensorrt` | Experimental | Windows / Linux | `--use_tensorrt` | TensorRT |
+| `migraphx` | Experimental | Linux (AMD) | `--use_migraphx` | MIGraphX |
+| `coreml` | Needs work (build blocked) | macOS | `--use_coreml` | CoreML |
+
+Status legend:
+- **Verified** - covered by CI and/or end-to-end manual testing; numbers, precision
+  and runtime-dependency deployment are confirmed.
+- **Experimental** - the code path exists and the architecture is EP-agnostic, but it
+  is NOT tested upstream. You must build ONNX Runtime yourself with the matching EP,
+  and you should validate numerics yourself (e.g. against the `cpu` provider).
+- **Needs work** - currently cannot build; see PR notes.
+
+> **Note**: This backend is more involved to set up than the built-in backends above, because the official prebuilt ONNX Runtime packages do **not** ship the execution providers you may need (e.g. the OpenVINO EP). You generally have to build ONNX Runtime from source with the provider(s) you want enabled.
+
+### Requirements
+   * Everything KataGo normally needs (CMake, a C++17 compiler, zlib).
+   * ONNX Runtime, built from source with the execution provider(s) you intend to use. For the OpenVINO EP, build ONNX Runtime with `--use_openvino` against an installed OpenVINO toolkit. See https://onnxruntime.ai/docs/install/ for build instructions.
+   * Protobuf. The ONNX graph is serialized as an ONNX `ModelProto`, so `find_package(Protobuf)` must succeed. A protobuf 3.x (no abseil dependency) works; the version bundled in the ONNX Runtime source build tree is known to work.
+   * If using the OpenVINO EP, the OpenVINO runtime toolkit itself, plus its runtime DLLs at runtime (see below).
+
+### Compile
+   * Point CMake at your ONNX Runtime install tree and protobuf, and select the backend:
+     ```
+     cmake -S KataGo/cpp -B KataGo/cpp/build -DUSE_BACKEND=ONNX ^
+       -DONNXRUNTIME_ROOT=<path-to-onnxruntime-install> ^
+       -DProtobuf_PROTOC_EXECUTABLE=<protoc> ^
+       -DProtobuf_INCLUDE_DIR=<protobuf-include> ^
+       -DProtobuf_LIBRARY=<protobuf-lib>
+     cmake --build KataGo/cpp/build -j
+     ```
+   * `-DONNXRUNTIME_ROOT` should contain `include/onnxruntime/`, `lib/onnxruntime.lib` (or `.so`/`.dylib`), and the provider DLLs.
+   * As with other backends, `-DNO_GIT_REVISION=1` avoids embedding the git hash, and `-DBUILD_DISTRIBUTED=1` enables distributed-training support.
+
+### Runtime
+   * The `onnxruntime` shared library must be on your path or beside the executable.
+   * When using the OpenVINO EP, also deploy the OpenVINO runtime DLLs beside the executable (`openvino.dll`, `openvino_intel_gpu_plugin.dll`, `tbb12.dll`, `cache.json`, etc.), or put them on the system path.
+   * Configure the provider in `configs/gtp_example.cfg` via the `onnx*` keys, e.g. `onnxProvider=openvino` and `onnxOpenVINODeviceType=GPU`. See the ONNX settings block in `configs/gtp_example.cfg` for the full list.

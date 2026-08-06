@@ -1,0 +1,107 @@
+name: Build and test KataGo (ONNX backend)
+description: >
+  Configure, build, run `katago runtests`, verify the ORT backend is wired up, and stage a
+  self-contained runnable directory under release/ (katago binary + ORT runtime + EP
+  runtimes + example config). Expects onnx-prepare-ort to have populated
+  deps/install/{ort,protobuf,zlib} and the MSVC environment to be ready on Windows.
+inputs:
+  ort_root:
+    description: Path to the ORT install tree (deps/install/ort)
+    required: true
+  ep:
+    description: Execution provider, used for EP-specific runtime staging
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Configure KataGo (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        cmake -S cpp -B cpp\build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_BACKEND=ONNX `
+          -DONNXRUNTIME_ROOT=${{ inputs.ort_root }} `
+          -DProtobuf_PROTOC_EXECUTABLE=${{ github.workspace }}\deps\install\protobuf\bin\protoc.exe `
+          -DProtobuf_INCLUDE_DIR=${{ github.workspace }}\deps\install\protobuf\include `
+          -DProtobuf_LIBRARY=${{ github.workspace }}\deps\install\protobuf\lib\libprotobuf.lib `
+          -DZLIB_INCLUDE_DIR=${{ github.workspace }}\deps\install\zlib\include `
+          -DZLIB_LIBRARY=${{ github.workspace }}\deps\install\zlib\lib\zlibstatic.lib
+
+    - name: Configure KataGo (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        # Use $GITHUB_WORKSPACE (not the github.workspace context): it resolves correctly
+        # both on plain runners (/home/runner/...) and inside a container job (/__w/...).
+        cmake -S cpp -B cpp/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DUSE_BACKEND=ONNX \
+          -DONNXRUNTIME_ROOT="$GITHUB_WORKSPACE/deps/install/ort" \
+          -DProtobuf_PROTOC_EXECUTABLE="$GITHUB_WORKSPACE/deps/install/protobuf/bin/protoc" \
+          -DProtobuf_INCLUDE_DIR="$GITHUB_WORKSPACE/deps/install/protobuf/include" \
+          -DProtobuf_LIBRARY="$GITHUB_WORKSPACE/deps/install/protobuf/lib/libprotobuf.a" \
+          -DZLIB_INCLUDE_DIR="$GITHUB_WORKSPACE/deps/install/zlib/include" \
+          -DZLIB_LIBRARY="$GITHUB_WORKSPACE/deps/install/zlib/lib/libz.a"
+
+    - name: Build KataGo
+      shell: bash
+      run: cmake --build cpp/build
+
+    - name: Run tests
+      shell: bash
+      run: |
+        if [ "${{ runner.os }}" = "Windows" ]; then ./cpp/build/katago.exe runtests; else ./cpp/build/katago runtests; fi
+
+    - name: Verify backend wiring
+      shell: bash
+      run: |
+        # Command substitution flattens multi-line output: testing the raw array for a
+        # substring is unreliable, so check the flattened string with grep.
+        if [ "${{ runner.os }}" = "Windows" ]; then OUT=$(cpp/build/katago.exe version 2>&1); else OUT=$(cpp/build/katago version 2>&1); fi
+        if ! echo "$OUT" | grep -q "ONNX Runtime"; then
+          echo "unexpected backend version output: $OUT"
+          exit 1
+        fi
+        echo "$OUT" | head -8
+
+    - name: Stage release directory (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path "release" | Out-Null
+        Copy-Item "cpp\build\katago.exe" "release\"
+        Get-ChildItem "deps\install\ort\bin\*.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination "release\" -Force
+        # EP-specific runtime DLLs
+        if ("${{ inputs.ep }}" -eq "openvino") {
+          Get-ChildItem "deps\install\ort\lib\onnxruntime_providers_openvino.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination "release\" -Force
+          $ovBin = "deps\openvino\runtime\bin\intel64\Release"
+          if (Test-Path $ovBin) {
+            Copy-Item "$ovBin\*.dll" "release\"
+            Copy-Item "$ovBin\*.json" "release\"
+          } else {
+            Write-Warning "OpenVINO runtime bin dir not found at $ovBin"
+          }
+          $tbb = Get-ChildItem "deps\openvino" -Recurse -Filter "tbb12.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($tbb) { Copy-Item $tbb.FullName "release\" }
+        }
+        Copy-Item "cpp\configs\gtp_example.cfg" "release\"
+        Write-Output "--- release contents ---"
+        Get-ChildItem "release" | Select-Object Name, Length
+
+    - name: Stage release directory (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        mkdir -p release
+        cp cpp/build/katago release/
+        cp deps/install/ort/lib/libonnxruntime*.so* release/ 2>/dev/null || true
+        # EP-specific runtime libs (TensorRT/CUDA/ROCm, etc.) go here once wired up.
+        cp cpp/configs/gtp_example.cfg release/
+        # katago's build-time DT_RUNPATH points at the CI workspace
+        # (deps/install/ort/lib), which no longer exists once the artifact is downloaded
+        # elsewhere. Rewrite it to $ORIGIN so the binary finds the sibling
+        # libonnxruntime.so* in the release dir, matching the Windows DLL convention.
+        if ! command -v patchelf >/dev/null 2>&1; then
+          # Ubuntu runners have sudo; the NGC TensorRT container runs as root without it.
+          if command -v sudo >/dev/null 2>&1; then sudo apt-get install -y patchelf >/dev/null; else apt-get install -y patchelf >/dev/null; fi
+        fi
+        patchelf --set-rpath '$ORIGIN' release/katago
+        ls -la release

@@ -21,6 +21,7 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   prefixes.push_back("metal");
   prefixes.push_back("opencl");
   prefixes.push_back("eigen");
+  prefixes.push_back("onnx");
   prefixes.push_back("dummybackend");
   return prefixes;
 }
@@ -89,8 +90,21 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "opencl";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
+  #elif defined(USE_ONNX_BACKEND)
+  string backendPrefix = "onnx";
   #else
   string backendPrefix = "dummybackend";
+  #endif
+
+  #if defined(USE_ONNX_BACKEND)
+  // Distributed selfplay (contribute) uploads training data, which must never contain
+  // FP16-overflow NaN rows, so always apply the scale8 workaround regardless of onnxSkipScale8.
+  if(setupFor == SETUP_FOR_DISTRIBUTED && cfg.contains("onnxSkipScale8") && cfg.getBool("onnxSkipScale8")) {
+    cfg.overrideKey("onnxSkipScale8", "false");
+    logger.write(
+      "WARNING: onnxSkipScale8 = true is not allowed for contribute (distributed selfplay); "
+      "forcing it to false so FP16-overflow NaNs cannot poison contributed training data.");
+  }
   #endif
 
   //Automatically flag keys that are for other backends as used so that we don't warn about unused keys
@@ -142,7 +156,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" ? false : true;
+    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" || backendPrefix == "onnx" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))
