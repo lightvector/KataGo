@@ -29,10 +29,10 @@ NNResultBuf::~NNResultBuf() {
 
 //-------------------------------------------------------------------------------------
 
-NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
+NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model, int serverThreadIdx)
   :inputBuffers(NULL)
 {
-  int maxBatchSize = nnEval.getMaxBatchSize();
+  int maxBatchSize = nnEval.getMaxBatchSizeForServerThread(serverThreadIdx);
   if(model != NULL)
     inputBuffers = NeuralNet::createInputBuffers(model,maxBatchSize,nnEval.getNNXLen(),nnEval.getNNYLen());
 }
@@ -62,6 +62,7 @@ NNEvaluator::NNEvaluator(
   enabled_t useFP16Mode,
   int numThr,
   const vector<int>& gpuIdxByServerThr,
+  const vector<int>& maxBatchSizeByServerThr,
   const string& rSeed,
   bool doRandomize,
   int defaultSymmetry,
@@ -93,6 +94,7 @@ NNEvaluator::NNEvaluator(
    numServerThreadsEverSpawned(0),
    serverThreads(),
    maxBatchSize(maxBatchSz),
+   maxBatchSizeByServerThread(maxBatchSizeByServerThr),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
    m_numCacheHits(0),
@@ -117,6 +119,14 @@ NNEvaluator::NNEvaluator(
     throw StringError("maxBatchSize is negative: " + Global::intToString(maxBatchSize));
   if(gpuIdxByServerThread.size() != numThreads)
     throw StringError("gpuIdxByServerThread.size() != numThreads");
+  if(maxBatchSizeByServerThread.size() != numThreads)
+    throw StringError("maxBatchSizeByServerThread.size() != numThreads");
+  for(int perThreadMaxBatchSize : maxBatchSizeByServerThread) {
+    if(perThreadMaxBatchSize <= 0 || perThreadMaxBatchSize > maxBatchSize)
+      throw StringError(
+        "maxBatchSizeByServerThread entry " + Global::intToString(perThreadMaxBatchSize) +
+        " must be > 0 and <= maxBatchSize (" + Global::intToString(maxBatchSize) + ")");
+  }
 
   if(logger != NULL) {
     logger->write(
@@ -237,6 +247,10 @@ bool NNEvaluator::isNeuralNetLess() const {
 }
 int NNEvaluator::getMaxBatchSize() const {
   return maxBatchSize;
+}
+int NNEvaluator::getMaxBatchSizeForServerThread(int serverThreadIdx) const {
+  testAssert(serverThreadIdx >= 0 && serverThreadIdx < (int)maxBatchSizeByServerThread.size());
+  return maxBatchSizeByServerThread[serverThreadIdx];
 }
 int NNEvaluator::getCurrentBatchSize() const {
   return currentBatchSize.load(std::memory_order_acquire);
@@ -367,7 +381,7 @@ static void serveEvals(
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
-  NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
+  NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel,serverThreadIdx);
   Rand rand(randSeedThisThread);
 
   // Used to have a try catch around this but actually we're in big trouble if this raises an exception
@@ -382,6 +396,9 @@ void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
     throw StringError("NNEvaluator::setNumThreads called when threads were already running!");
   numThreads = (int)gpuIdxByServerThr.size();
   gpuIdxByServerThread = gpuIdxByServerThr;
+  // Reset any per-thread batch size overrides from construction time -- callers of setNumThreads
+  // reconfigure thread count/device assignment wholesale, so fall back to the uniform default.
+  maxBatchSizeByServerThread.assign(numThreads, maxBatchSize);
 }
 
 void NNEvaluator::spawnServerThreads() {
@@ -498,10 +515,11 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   if(!NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks())
     return;
 
+  const int threadMaxBatchSize = getMaxBatchSizeForServerThread(serverThreadIdx);
   if(logger != NULL) {
     logger->write(
       "Cuda backend thread " + Global::intToString(serverThreadIdx) +
-      ": warming up transformer graphs for batch sizes 1.." + Global::intToString(maxBatchSize)
+      ": warming up transformer graphs for batch sizes 1.." + Global::intToString(threadMaxBatchSize)
     );
   }
 
@@ -523,14 +541,14 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   // SDPA) leniently, falling back to a custom kernel instead of failing hard. Restored when done.
   bool prevIsWarmup = NeuralNet::setIsWarmup(gpuHandle, true);
 
-  InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel, maxBatchSize, nnXLen, nnYLen);
+  InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel, threadMaxBatchSize, nnXLen, nnYLen);
 
   // Reusable per-row input; identical for every row since it's an empty board.
   std::vector<std::unique_ptr<NNResultBuf>> ownedBufs;
   std::vector<NNResultBuf*> resultBufs;
-  ownedBufs.reserve(maxBatchSize);
-  resultBufs.reserve(maxBatchSize);
-  for(int i = 0; i < maxBatchSize; i++) {
+  ownedBufs.reserve(threadMaxBatchSize);
+  resultBufs.reserve(threadMaxBatchSize);
+  for(int i = 0; i < threadMaxBatchSize; i++) {
     ownedBufs.push_back(std::make_unique<NNResultBuf>());
     NNResultBuf* buf = ownedBufs.back().get();
     fillRowBufs(board, history, P_BLACK, sgfMetaPtr, nnInputParams, *buf);
@@ -539,7 +557,7 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
     resultBufs.push_back(buf);
   }
 
-  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+  for(int batchSize = 1; batchSize <= threadMaxBatchSize; batchSize++) {
     std::vector<NNOutput*> outputs;
     outputs.reserve(batchSize);
     for(int row = 0; row < batchSize; row++) {
@@ -566,6 +584,7 @@ void NNEvaluator::serve(
 ) {
   int64_t numBatchesHandledThisThread = 0;
   int64_t numRowsHandledThisThread = 0;
+  const int threadMaxBatchSize = getMaxBatchSizeForServerThread(serverThreadIdx);
 
   ComputeHandle* gpuHandle = NULL;
   if(loadedModel != NULL) {
@@ -573,7 +592,7 @@ void NNEvaluator::serve(
       computeContext,
       loadedModel,
       logger,
-      maxBatchSize,
+      threadMaxBatchSize,
       requireExactNNLen,
       inputsUseNHWC,
       gpuIdxForThisThread,
@@ -594,14 +613,14 @@ void NNEvaluator::serve(
   }
 
   vector<NNResultBuf*> resultBufs;
-  resultBufs.reserve(maxBatchSize);
+  resultBufs.reserve(threadMaxBatchSize);
 
   vector<NNOutput*> outputBuf;
 
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
     resultBufs.clear();
-    int desiredBatchSize = std::min(maxBatchSize, currentBatchSize.load(std::memory_order_acquire));
+    int desiredBatchSize = std::min(threadMaxBatchSize, currentBatchSize.load(std::memory_order_acquire));
     bool gotAnything = queryQueue.waitPopUpToN(resultBufs,desiredBatchSize);
     // Queue being closed is a signal that we're done.
     if(!gotAnything)

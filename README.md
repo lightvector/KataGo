@@ -1,27 +1,32 @@
 # KataGo
 
-* [Overview](#overview)
-* [Training History and Research](#training-history-and-research)
-* [Where To Download Stuff](#where-to-download-stuff)
-* [Setting Up and Running KataGo](#setting-up-and-running-katago)
-  * [GUIs](#guis)
-  * [Windows and Linux](#windows-and-linux)
-  * [MacOS](#macos)
-  * [OpenCL vs CUDA vs TensorRT vs Eigen](#opencl-vs-cuda-vs-tensorrt-vs-eigen)
-  * [How To Use](#how-to-use)
-  * [Tuning for Performance](#tuning-for-performance)
-  * [Common Questions and Issues](#common-questions-and-issues)
-    * [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers)
-    * [Common Problems](#common-problems)
-    * [Other Questions](#other-questions)
-* [Features for Developers](#features-for-developers)
-  * [GTP Extensions](#gtp-extensions)
-  * [Analysis Engine](#analysis-engine)
-* [Compiling KataGo](#compiling-katago)
-* [Source Code Overview](#source-code-overview)
-* [Selfplay Training](#selfplay-training)
-* [Contributors](#contributors)
-* [License](#license)
+- [KataGo](#katago)
+  - [Overview](#overview)
+  - [Training History and Research and Docs](#training-history-and-research-and-docs)
+  - [Where To Download Stuff](#where-to-download-stuff)
+  - [Setting Up and Running KataGo](#setting-up-and-running-katago)
+    - [GUIs](#guis)
+    - [Windows and Linux](#windows-and-linux)
+    - [MacOS](#macos)
+    - [OpenCL vs CUDA vs TensorRT vs Eigen vs ONNX](#opencl-vs-cuda-vs-tensorrt-vs-eigen-vs-onnx)
+    - [How To Use](#how-to-use)
+      - [ONNX/OpenVINO Intel NPU Quick Start (Windows)](#onnxopenvino-intel-npu-quick-start-windows)
+      - [ONNX/OpenVINO Intel NPU Quick Start (Linux)](#onnxopenvino-intel-npu-quick-start-linux)
+      - [Human-style Play and Analysis](#human-style-play-and-analysis)
+      - [Other Commands:](#other-commands)
+    - [Tuning for Performance](#tuning-for-performance)
+    - [Common Questions and Issues](#common-questions-and-issues)
+      - [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers)
+      - [Common Problems](#common-problems)
+      - [Other Questions](#other-questions)
+  - [Features for Developers](#features-for-developers)
+      - [GTP Extensions:](#gtp-extensions)
+      - [Analysis Engine:](#analysis-engine)
+  - [Compiling KataGo](#compiling-katago)
+  - [Source Code Overview:](#source-code-overview)
+  - [Selfplay Training:](#selfplay-training)
+  - [Contributors](#contributors)
+  - [License](#license)
 
 ## Overview
 
@@ -85,8 +90,8 @@ The community also provides KataGo packages for [Homebrew](https://brew.sh) on M
 
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep 'gtp.*\.cfg') -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
-### OpenCL vs CUDA vs TensorRT vs Eigen
-KataGo has four backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), and Eigen (CPU). (On macOS there is also a Metal backend, most easily obtained via homebrew - see above.)
+### OpenCL vs CUDA vs TensorRT vs Eigen vs ONNX
+KataGo has five backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), Eigen (CPU), and ONNX (CPU/GPU/NPU via providers).(On macOS there is also a Metal backend, most easily obtained via homebrew - see above.)
 
 As of v1.17, KataGo supports transformer neural nets, which are generally much stronger for the same compute cost and which the main training run is switching to. Transformer models are more demanding on the GPU backend than the older convolutional nets, so the backend recommendations below matter more for them - in particular OpenCL is noticeably slower on transformers, and on NVIDIA the CUDNN and TensorRT versions make a large difference.
 
@@ -96,12 +101,14 @@ The quick summary is:
   * Use Eigen with AVX2 if you don't have a GPU or if your GPU is too old/weak to work with OpenCL, and you just want a plain CPU KataGo.
   * Use Eigen without AVX2 if your CPU is old or on a low-end device that doesn't support AVX2.
   * The CUDA+CUDNN backend can also work well for NVIDIA GPUs. It has faster startup than TensorRT and is competitive on transformers if using CUDNN >= 9.8.0, though TensorRT 10.16 is often still slightly faster.
+  * ONNX backend uses ONNX Runtime execution providers (CPU/OpenVINO/CUDA/TensorRT/MIGraphX/CoreML). It is useful for Intel NPU (OpenVINO) and raw `.onnx` models.
 
 More in detail:
   * OpenCL is a general GPU backend should be able to run with any GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), including NVIDIA GPUs, AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. This is the most general GPU version of KataGo and doesn't require a complicated install like CUDA does, so is most likely to work out of the box as long as you have a fairly modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer. Also, the quality of OpenCL implementations is sometimes inconsistent, particularly for Intel Integrated Graphics and for AMD GPUs that are older than several years, so it might not work for very old machines, as well as specific buggy newer AMD GPUs, see also [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers). OpenCL is not as optimized as the NVIDIA-specific backends and will generally be slower, particularly for transformer models.
   * CUDA is a GPU backend specific to NVIDIA GPUs (it will not work with AMD or Intel or any other GPUs) and requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU. For older convolutional nets, on many GPUs the OpenCL implementation can match or beat NVIDIA's own CUDA/CUDNN, with the exception of top-end NVIDIA GPUs that support FP16 and tensor cores. For transformer nets, CUDA+CUDNN clearly outperforms OpenCL, but you should use CUDNN >= 9.8.0 if at all possible - the older CUDNN 8.9.7 is a LOT slower on transformer models. Compared to TensorRT, CUDA+CUDNN has faster startup times and is often only slightly slower (and occasionally faster) on transformers.
   * TensorRT is similar to CUDA, but uses NVIDIA's TensorRT framework to run the neural network with more optimized kernels. For modern NVIDIA GPUs it should work whenever CUDA does, and will usually be the fastest backend, though it has much longer startup times on every launch. As of v1.17.0, TensorRT versions older than 10 are no longer supported. For transformer models, recent versions like CUDA 13 + TensorRT 10.16 are best, while older TensorRT versions can be outperformed by CUDA+CUDNN.
   * Eigen is a *CPU* backend that should work widely *without* needing a GPU or fancy drivers. Use this if you don't have a good GPU or really any GPU at all. It will be quite significantly slower than OpenCL or CUDA, but on a good CPU can still often get 10 to 20 playouts per second if using the smaller (15 or 20) block neural nets. Eigen can also be compiled with AVX2 and FMA support, which can provide a big performance boost for Intel and AMD CPUs from the last few years. However, it will not run at all on older CPUs (and possibly even some recent but low-power modern CPUs) that don't support these fancy vector instructions.
+  * ONNX backend uses [ONNX Runtime](https://onnxruntime.ai/). It can use CPU by default, OpenVINO for Intel hardware (including NPU on supported systems), CUDA/TensorRT for NVIDIA GPUs, MIGraphX for AMD GPUs, and CoreML on macOS. Multi-device assignment via `onnxDeviceToUseThread*` is mainly for CUDA/TensorRT providers, while OpenVINO NPU setups are typically single-device.
 
 For **any** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
 
@@ -133,6 +140,90 @@ You may need to specify different paths when entering KataGo's command for a GUI
 ```
 path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz
 path/to/katago.exe gtp -model path/to/<NEURALNET>.bin.gz -config path/to/gtp_custom.cfg
+```
+
+#### ONNX/OpenVINO Intel NPU Quick Start (Windows)
+
+The ONNX backend loads a standard `.bin.gz` KataGo model **directly** — no conversion step needed. It can also load a raw `.onnx` file (e.g. hand-exported or quantized elsewhere, or via `exportonnx` below); see the note on that below.
+
+> **Note on raw `.onnx` files and model version:** When loading a raw `.onnx` model (not a KataGo `.bin.gz`), the backend auto-detects the model version from output tensor shapes. This heuristic is usually correct for standard KataGo models, but may misdetect the version for unusual configurations, causing incorrect score or ownership outputs without any error. If results look wrong, add `onnxModelVersion = <N>` (e.g. `onnxModelVersion = 15`) to your GTP config to force the correct version. Standard `.bin.gz` KataGo models are unaffected — the version is always read from the file directly.
+
+If you want to use ONNX Runtime + OpenVINO on Intel NPU:
+* Install Intel NPU driver: https://www.intel.com/content/www/us/en/download/794734/intel-npu-driver-windows.html
+* Install OpenVINO archive package (Windows): https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-archive-windows.html
+* Typical install root looks like: `C:\Program Files (x86)\Intel\openvino`
+* Add `<openvino install>\runtime\bin\intel64\Release` and `<openvino install>\runtime\3rdparty\tbb\bin` to System PATH
+
+Minimal commands, using the `.bin.gz` model directly:
+```
+# NPU only
+./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+
+# Intel iGPU only (same as above, but device type GPU)
+./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=GPU
+```
+
+NPU + iGPU running together: run two ONNX backend server threads and pin each one to a different
+device (a single OpenVINO session spanning both via `onnxOpenVINODeviceType=MULTI:NPU,GPU` does not
+parallelize well in practice). Pair this with a per-thread batch size override, since the NPU wants
+batch 1 while the iGPU benefits from a larger batch:
+```
+./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config "onnxProvider=openvino,numNNServerThreadsPerModel=2,onnxOpenVINODeviceTypeThread0=NPU,onnxOpenVINODeviceTypeThread1=GPU,nnMaxBatchSizeThread0=1,nnMaxBatchSizeThread1=8"
+```
+Check the log for `ONNX backend thread 0: provider=openvino deviceIdx=NPU` and
+`ONNX backend thread 1: provider=openvino deviceIdx=GPU` to confirm the two threads actually landed
+on the devices you expect.
+
+See the "ONNX backend settings" section of [`cpp/configs/gtp_example.cfg`](cpp/configs/gtp_example.cfg)
+for the full list of `onnx*` and `nnMaxBatchSizeThread<N>` keys, including per-device-type EP tuning
+(`onnxOpenVINODeviceConfig_<NPU|GPU|CPU>_<Option>`) and OpenVINO precision/cache-dir options — or
+save your chosen overrides into a `.cfg` file instead of repeating `-override-config` every time.
+
+If you'd rather export a portable raw `.onnx` file first (default export size is 19x19):
+```
+./katago.exe exportonnx -model <NEURALNET>.bin.gz -output <NEURALNET>.onnx
+```
+
+#### ONNX/OpenVINO Intel NPU Quick Start (Linux)
+
+The ONNX backend loads a standard `.bin.gz` KataGo model **directly** — no conversion step needed. It can also load a raw `.onnx` file (e.g. hand-exported or quantized elsewhere, or via `exportonnx` below); see the note on that below.
+
+> **Note on raw `.onnx` files and model version:** Same as above for Windows — if using a raw `.onnx` model and results look wrong, add `onnxModelVersion = <N>` to your config. Standard `.bin.gz` models are unaffected.
+
+If you want to use ONNX Runtime + OpenVINO on Intel NPU:
+* Install Intel NPU driver (Linux): https://github.com/intel/linux-npu-driver
+* Install OpenVINO via system package manager (APT example): https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-apt.html
+
+Minimal commands, using the `.bin.gz` model directly:
+```bash
+# NPU only
+./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+./katago gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
+
+# Intel iGPU only (same as above, but device type GPU)
+./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=GPU
+```
+
+NPU + iGPU running together: run two ONNX backend server threads and pin each one to a different
+device (a single OpenVINO session spanning both via `onnxOpenVINODeviceType=MULTI:NPU,GPU` does not
+parallelize well in practice). Pair this with a per-thread batch size override, since the NPU wants
+batch 1 while the iGPU benefits from a larger batch:
+```bash
+./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config "onnxProvider=openvino,numNNServerThreadsPerModel=2,onnxOpenVINODeviceTypeThread0=NPU,onnxOpenVINODeviceTypeThread1=GPU,nnMaxBatchSizeThread0=1,nnMaxBatchSizeThread1=8"
+```
+Check the log for `ONNX backend thread 0: provider=openvino deviceIdx=NPU` and
+`ONNX backend thread 1: provider=openvino deviceIdx=GPU` to confirm the two threads actually landed
+on the devices you expect.
+
+See the "ONNX backend settings" section of [`cpp/configs/gtp_example.cfg`](cpp/configs/gtp_example.cfg)
+for the full list of `onnx*` and `nnMaxBatchSizeThread<N>` keys, including per-device-type EP tuning
+(`onnxOpenVINODeviceConfig_<NPU|GPU|CPU>_<Option>`) and OpenVINO precision/cache-dir options — or
+save your chosen overrides into a `.cfg` file instead of repeating `-override-config` every time.
+
+If you'd rather export a portable raw `.onnx` file first (default export size is 19x19):
+```bash
+./katago exportonnx -model <NEURALNET>.bin.gz -output <NEURALNET>.onnx
 ```
 
 #### Human-style Play and Analysis

@@ -70,7 +70,7 @@ struct NNResultBuf {
 struct NNServerBuf {
   InputBuffers* inputBuffers;
 
-  NNServerBuf(const NNEvaluator& nneval, const LoadedModel* model);
+  NNServerBuf(const NNEvaluator& nneval, const LoadedModel* model, int serverThreadIdx);
   ~NNServerBuf();
   NNServerBuf(const NNServerBuf& other) = delete;
   NNServerBuf& operator=(const NNServerBuf& other) = delete;
@@ -95,6 +95,10 @@ class NNEvaluator {
     enabled_t useFP16Mode,
     int numThreads,
     const std::vector<int>& gpuIdxByServerThread,
+    // Per-server-thread max batch size override, parallel to gpuIdxByServerThread (same size).
+    // Useful for heterogeneous multi-device setups where the optimal batch size differs per
+    // device (e.g. an NPU thread vs an iGPU thread). Every entry must be > 0 and <= maxBatchSize.
+    const std::vector<int>& maxBatchSizeByServerThread,
     const std::string& randSeed,
     bool doRandomize,
     int defaultSymmetry,
@@ -114,6 +118,8 @@ class NNEvaluator {
   Logger* getLogger();
   bool isNeuralNetLess() const;
   int getMaxBatchSize() const;
+  // The max batch size for a specific server thread (see maxBatchSizeByServerThread), <= getMaxBatchSize().
+  int getMaxBatchSizeForServerThread(int serverThreadIdx) const;
   int getCurrentBatchSize() const;
   void setCurrentBatchSize(int batchSize);
   bool requiresSGFMetadata() const;
@@ -244,6 +250,8 @@ class NNEvaluator {
   std::vector<std::thread*> serverThreads;
 
   const int maxBatchSize;
+  // Parallel to gpuIdxByServerThread; see getMaxBatchSizeForServerThread.
+  std::vector<int> maxBatchSizeByServerThread;
 
   // Counters for statistics
   std::atomic<uint64_t> m_numRowsProcessed;

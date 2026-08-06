@@ -44,7 +44,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL ONNX)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -53,6 +53,112 @@ set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 50. Compil
 
 set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache. May use a lot of disk space. Only applies when USE_BACKEND is TENSORRT.")
 mark_as_advanced(USE_CACHE_TENSORRT_PLAN)
+
+if(WIN32 OR (UNIX AND NOT APPLE))
+  set(_katago_auto_fetch_default ON)
+else()
+  set(_katago_auto_fetch_default OFF)
+endif()
+option(KATAGO_AUTO_FETCH_DEPS "Automatically fetch missing dependencies into build/deps (Windows/Linux use vcpkg)." ${_katago_auto_fetch_default})
+# CMAKE_BINARY_DIR (not CMAKE_SOURCE_DIR/build) so an out-of-tree build directory doesn't leave
+# fetched deps behind in the source tree.
+set(KATAGO_DEPS_DIR "${CMAKE_BINARY_DIR}/deps" CACHE PATH "Directory for auto-fetched third-party dependencies")
+if(WIN32)
+  # Static-linked-against-the-DLL-CRT triplet: avoids duplicate abseil_dll.dll instances (one from
+  # a dynamically-linked vcpkg protobuf/abseil, one already loaded by katago.exe itself or another
+  # dependency) causing heap corruption when both allocate/free across the DLL boundary.
+  set(_katago_vcpkg_triplet_default "x64-windows-static-md")
+elseif(UNIX AND NOT APPLE)
+  if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
+    set(_katago_vcpkg_triplet_default "arm64-linux")
+  else()
+    set(_katago_vcpkg_triplet_default "x64-linux")
+  endif()
+else()
+  set(_katago_vcpkg_triplet_default "x64-windows")
+endif()
+set(KATAGO_VCPKG_TRIPLET "${_katago_vcpkg_triplet_default}" CACHE STRING "vcpkg triplet used by KATAGO_AUTO_FETCH_DEPS")
+set(KATAGO_VCPKG_ROOT "${KATAGO_DEPS_DIR}/vcpkg" CACHE PATH "Path to local vcpkg clone used by KATAGO_AUTO_FETCH_DEPS")
+mark_as_advanced(KATAGO_VCPKG_TRIPLET KATAGO_VCPKG_ROOT)
+
+function(katago_vcpkg_bootstrap_if_needed)
+  if(NOT WIN32 AND NOT (UNIX AND NOT APPLE))
+    message(FATAL_ERROR "katago_vcpkg_bootstrap_if_needed is only supported on Windows and Linux")
+  endif()
+
+  if(NOT KATAGO_AUTO_FETCH_DEPS)
+    message(FATAL_ERROR "KATAGO_AUTO_FETCH_DEPS is OFF, cannot auto-fetch missing dependency")
+  endif()
+
+  file(MAKE_DIRECTORY "${KATAGO_DEPS_DIR}")
+
+  if(WIN32)
+    set(_katago_vcpkg_exe "${KATAGO_VCPKG_ROOT}/vcpkg.exe")
+  else()
+    set(_katago_vcpkg_exe "${KATAGO_VCPKG_ROOT}/vcpkg")
+  endif()
+
+  if(NOT EXISTS "${_katago_vcpkg_exe}")
+    if(NOT EXISTS "${KATAGO_VCPKG_ROOT}/.git")
+      find_package(Git QUIET)
+      if(NOT GIT_FOUND)
+        message(FATAL_ERROR "KATAGO_AUTO_FETCH_DEPS requires git to clone vcpkg")
+      endif()
+      message(STATUS "Auto-fetch deps: cloning vcpkg into ${KATAGO_VCPKG_ROOT}")
+      execute_process(
+        COMMAND "${GIT_EXECUTABLE}" clone --depth=1 https://github.com/microsoft/vcpkg.git "${KATAGO_VCPKG_ROOT}"
+        RESULT_VARIABLE _clone_result
+        OUTPUT_VARIABLE _clone_out
+        ERROR_VARIABLE _clone_err
+      )
+      if(NOT _clone_result EQUAL 0)
+        message(FATAL_ERROR "Failed to clone vcpkg.\n${_clone_out}\n${_clone_err}")
+      endif()
+    endif()
+
+    message(STATUS "Auto-fetch deps: bootstrapping vcpkg")
+    if(WIN32)
+      execute_process(
+        COMMAND "${KATAGO_VCPKG_ROOT}/bootstrap-vcpkg.bat" -disableMetrics
+        WORKING_DIRECTORY "${KATAGO_VCPKG_ROOT}"
+        RESULT_VARIABLE _bootstrap_result
+      )
+    else()
+      execute_process(
+        COMMAND sh "${KATAGO_VCPKG_ROOT}/bootstrap-vcpkg.sh" -disableMetrics
+        WORKING_DIRECTORY "${KATAGO_VCPKG_ROOT}"
+        RESULT_VARIABLE _bootstrap_result
+      )
+    endif()
+    if(NOT _bootstrap_result EQUAL 0)
+      message(FATAL_ERROR "Failed to bootstrap vcpkg")
+    endif()
+  endif()
+endfunction()
+
+function(katago_vcpkg_install_if_needed package_name)
+  katago_vcpkg_bootstrap_if_needed()
+
+  if(WIN32)
+    set(_katago_vcpkg_exe "${KATAGO_VCPKG_ROOT}/vcpkg.exe")
+  else()
+    set(_katago_vcpkg_exe "${KATAGO_VCPKG_ROOT}/vcpkg")
+  endif()
+  if(NOT EXISTS "${_katago_vcpkg_exe}")
+    message(FATAL_ERROR "vcpkg executable not found after bootstrap: ${_katago_vcpkg_exe}")
+  endif()
+
+  set(_spec "${package_name}:${KATAGO_VCPKG_TRIPLET}")
+  message(STATUS "Auto-fetch deps: ensuring ${_spec} via vcpkg")
+  execute_process(
+    COMMAND "${_katago_vcpkg_exe}" install "${_spec}" --disable-metrics
+    WORKING_DIRECTORY "${KATAGO_VCPKG_ROOT}"
+    RESULT_VARIABLE _install_result
+  )
+  if(NOT _install_result EQUAL 0)
+    message(FATAL_ERROR "Failed to install ${_spec} via vcpkg")
+  endif()
+endfunction()
 
 #--------------------------- NEURAL NET BACKEND ------------------------------------------------------------------------
 
@@ -164,8 +270,15 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
+elseif(USE_BACKEND STREQUAL "ONNX")
+  message(STATUS "-DUSE_BACKEND=ONNX, using ONNX Runtime backend.")
+  # neuralnet/onnxmodelbuilder.cpp is added below, alongside the protobuf_generate_cpp() setup
+  # it needs (shared with the TensorRT backend's identical onnx.proto dependency).
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/onnxbackend.cpp
+    )
 elseif(USE_BACKEND STREQUAL "")
-  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
+  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=ONNX to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
 else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
@@ -504,6 +617,101 @@ elseif(USE_BACKEND STREQUAL "OPENCL")
     link_directories(${OpenCL_LIBRARY})
     target_link_libraries(katago ${OpenCL_LIBRARY})
   endif()
+elseif(USE_BACKEND STREQUAL "ONNX")
+  target_compile_definitions(katago PRIVATE USE_ONNX_BACKEND)
+
+  if(WIN32)
+    set(_onnx_default_root "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime-win-x64-openvino")
+  elseif(UNIX AND NOT APPLE)
+    set(_onnx_default_root "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime-linux-x64-openvino")
+  else()
+    set(_onnx_default_root "")
+  endif()
+  set(ONNXRUNTIME_ROOT "${_onnx_default_root}" CACHE PATH "Path to ONNX Runtime package root")
+
+  if(NOT IS_DIRECTORY "${ONNXRUNTIME_ROOT}")
+    message(FATAL_ERROR "ONNXRUNTIME_ROOT does not exist: ${ONNXRUNTIME_ROOT}")
+  endif()
+
+  set(ONNXRUNTIME_INCLUDE_DIR "${ONNXRUNTIME_ROOT}/include/onnxruntime")
+  if(NOT IS_DIRECTORY "${ONNXRUNTIME_INCLUDE_DIR}")
+    message(FATAL_ERROR "ONNX Runtime include directory not found: ${ONNXRUNTIME_INCLUDE_DIR}")
+  endif()
+  target_include_directories(katago SYSTEM PRIVATE "${ONNXRUNTIME_INCLUDE_DIR}")
+
+  if(WIN32)
+    set(ONNXRUNTIME_LIB "${ONNXRUNTIME_ROOT}/lib/onnxruntime.lib")
+    file(GLOB ONNXRUNTIME_DLLS "${ONNXRUNTIME_ROOT}/lib/*.dll" "${ONNXRUNTIME_ROOT}/bin/*.dll")
+  else()
+    find_library(ONNXRUNTIME_LIB onnxruntime HINTS "${ONNXRUNTIME_ROOT}/lib" "${ONNXRUNTIME_ROOT}/bin" "${ONNXRUNTIME_ROOT}")
+  endif()
+  if(NOT ONNXRUNTIME_LIB OR ONNXRUNTIME_LIB STREQUAL "ONNXRUNTIME_LIB-NOTFOUND" OR NOT EXISTS "${ONNXRUNTIME_LIB}")
+    message(FATAL_ERROR "Could not find onnxruntime library under ${ONNXRUNTIME_ROOT}. Looked for: ${ONNXRUNTIME_LIB}")
+  endif()
+  target_link_libraries(katago ${ONNXRUNTIME_LIB})
+
+  # The ONNX backend emits an ONNX ModelProto via the same OnnxModelBuilder as the TensorRT
+  # backend (neuralnet/onnxmodelbuilder.cpp) and hands the serialized bytes to Ort::Session, so its
+  # protobuf/onnx.proto dependency is set up identically to the TensorRT backend's (see the
+  # USE_BACKEND STREQUAL "TENSORRT" branch above): compile the vendored ONNX schema
+  # (cpp/external/onnx/onnx.proto) with protoc and link our own protobuf. This is symbol-isolated
+  # from whatever protobuf the ONNX Runtime DLL itself may embed, since the handoff to ORT is
+  # serialized bytes, not a shared protobuf object.
+  if(KATAGO_AUTO_FETCH_DEPS)
+    set(_katago_vcpkg_installed_root "${KATAGO_VCPKG_ROOT}/installed/${KATAGO_VCPKG_TRIPLET}")
+    if(NOT EXISTS "${_katago_vcpkg_installed_root}/share/protobuf/protobuf-config.cmake")
+      katago_vcpkg_install_if_needed("protobuf")
+    endif()
+    if(EXISTS "${_katago_vcpkg_installed_root}/share/protobuf/protobuf-config.cmake")
+      list(APPEND CMAKE_PREFIX_PATH "${_katago_vcpkg_installed_root}")
+    endif()
+    # FindProtobuf's MODULE mode (used below) does not consult CMAKE_PREFIX_PATH's tools/
+    # subdirectory for protoc, so a vcpkg-fetched protobuf is found as a library but not as a
+    # compiler; point it at the fetched protoc directly.
+    if(NOT Protobuf_PROTOC_EXECUTABLE)
+      find_program(Protobuf_PROTOC_EXECUTABLE protoc HINTS "${_katago_vcpkg_installed_root}/tools/protobuf" NO_DEFAULT_PATH)
+    endif()
+  endif()
+  find_package(Protobuf REQUIRED)
+  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
+  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
+  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
+  # protoc-generated code is not ours to lint; silence its warnings to keep build output readable.
+  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
+  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
+  # Generated onnx.pb.h lands in the build dir; let backend code include it.
+  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
+  # Link the imported target rather than ${Protobuf_LIBRARIES}: when protobuf comes from a CMake
+  # package config (e.g. vcpkg), the variable can resolve to the DLL itself rather than the import
+  # lib, and it also omits protobuf's own dependencies such as abseil.
+  target_link_libraries(katago protobuf::libprotobuf)
+
+  if(WIN32 AND ONNXRUNTIME_DLLS)
+    foreach(_onnxruntime_dll IN LISTS ONNXRUNTIME_DLLS)
+      add_custom_command(TARGET katago POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${_onnxruntime_dll}"
+          $<TARGET_FILE_DIR:katago>
+      )
+    endforeach()
+  endif()
+
+  # Copy runtime DLLs that vcpkg built as shared libraries but does not
+  # automatically deploy alongside the executable (e.g. zlib, abseil, protobuf).
+  if(WIN32 AND _katago_vcpkg_installed_root)
+    set(_vcpkg_bin_dir "${_katago_vcpkg_installed_root}/bin")
+    foreach(_dll_name z abseil_dll libprotobuf)
+      file(GLOB _found_dlls "${_vcpkg_bin_dir}/${_dll_name}.dll")
+      foreach(_dll IN LISTS _found_dlls)
+        add_custom_command(TARGET katago POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_dll}"
+            $<TARGET_FILE_DIR:katago>
+          COMMENT "Deploying ${_dll_name}.dll"
+        )
+      endforeach()
+    endforeach()
+  endif()
 elseif(USE_BACKEND STREQUAL "EIGEN")
   target_compile_definitions(katago PRIVATE USE_EIGEN_BACKEND)
   # Allow EIGEN3_INCLUDE_DIRS as a manual override (for users who downloaded
@@ -543,6 +751,24 @@ endif()
 
 if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
   target_compile_definitions(katago PRIVATE NO_GIT_REVISION)
+endif()
+
+if(KATAGO_AUTO_FETCH_DEPS)
+  set(_need_zlib_deps FALSE)
+  if(NOT ZLIB_INCLUDE_DIR OR NOT ZLIB_LIBRARY)
+    set(_need_zlib_deps TRUE)
+  endif()
+  if(_need_zlib_deps)
+    katago_vcpkg_install_if_needed("zlib")
+    set(_katago_vcpkg_installed_root "${KATAGO_VCPKG_ROOT}/installed/${KATAGO_VCPKG_TRIPLET}")
+    if(EXISTS "${_katago_vcpkg_installed_root}/include/zlib.h")
+      set(ZLIB_INCLUDE_DIR "${_katago_vcpkg_installed_root}/include" CACHE PATH "Path to directory with zlib.h and other header files" FORCE)
+    endif()
+    find_library(_katago_zlib_lib NAMES zlib z HINTS "${_katago_vcpkg_installed_root}/lib" "${_katago_vcpkg_installed_root}/debug/lib" NO_DEFAULT_PATH)
+    if(_katago_zlib_lib)
+      set(ZLIB_LIBRARY "${_katago_zlib_lib}" CACHE FILEPATH "Path to 'libz.so' on Linux or 'libz.lib' on Windows" FORCE)
+    endif()
+  endif()
 endif()
 
 find_package(ZLIB)
