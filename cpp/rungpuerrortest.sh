@@ -29,6 +29,9 @@ wget --no-clobber -P models/ https://media.katagotraining.org/uploaded/networks/
 wget --no-clobber -P models/ https://media.katagotraining.org/uploaded/networks/models/kata1/kata1-b28c512nbt-s8326494464-d4628051565.bin.gz
 wget --no-clobber -P models/ https://github.com/lightvector/KataGo/releases/download/v1.15.0/b18c384nbt-humanv0.bin.gz
 wget --no-clobber -P models/ https://media.katagotraining.org/uploaded/networks/models_extra/b5c192nbt-v16test.bin.gz
+wget --no-clobber -P models/ https://github.com/lightvector/KataGo/releases/download/v1.17.1/b10c384h6nbttflrs.bin.gz
+wget --no-clobber -P models/ https://github.com/lightvector/KataGo/releases/download/v1.17.1/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz
+wget --no-clobber -P models/ https://github.com/lightvector/KataGo/releases/download/v1.17.1/b11c768h12nbt3tflrs-fson-silu.bin.gz
 
 MODEL1=tests/models/run4-s67105280-d24430742-b6c96.txt.gz  # version 3
 MODEL2=tests/models/grun50-b6c96-s156348160-d118286860.txt.gz  # version 4
@@ -184,37 +187,36 @@ MODELBASE12=$(basename "$MODEL12")
          -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=16,maxBoardYSizeForNNBuffer=11,maxBatchSize=15,policyOptimism=0.70${EXTRA_OVERRIDE}" \
          -reference-file "$REFERENCEDIR"/"$MODELBASE11"_size9_rectbuffer.txt | tee "$RESULTSDIR"/"$MODELBASE11"_size9_rectbuffer${SUFFIX}.txt
 
-# Larger transformer models (not publicly downloadable, so these entries are commented out;
-# place the model files in models/ manually to run them). Like all reference files, the
-# references are machine-local (tests/results/gpu_error_reference_files/ is not in git):
-# generate them by running these same commands with an Eigen-backend build of katago, which
-# writes the reference file instead of checking against it. The _quick suffix marks the
+# Larger v17 transformer models, published in the v1.17.1 release (downloaded above). Like all
+# reference files, the references are machine-local (tests/results/gpu_error_reference_files/ is
+# not in git): generate them by running these same commands with an Eigen-backend build of katago,
+# which writes the reference file instead of checking against it. The _quick suffix marks the
 # -quick position subsample (large models are slow on CPU) - the flag must match between
 # reference generation and checking.
-#
-# MODEL13=models/b10c384h6nbttflrs.bin.gz  # v17 transformer, 6 heads, learnable rope, rmsnorm trunk tip
-# MODEL14=models/b15c512h8nbttflrs-fson-silu.bin.gz  # v17 transformer, 8 heads, learnable rope, silu
-# MODEL15=models/b11c768h12nbt3tflrs-fson-silu.bin.gz  # v17 transformer, 12 heads, learnable rope, silu, largest
-# MODELBASE13=$(basename "$MODEL13")
-# MODELBASE14=$(basename "$MODEL14")
-# MODELBASE15=$(basename "$MODEL15")
-#
-# ./katago testgpuerror -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 19 -quick \
-#          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-#          -reference-file "$REFERENCEDIR"/"$MODELBASE13"_size19_quick.txt | tee "$RESULTSDIR"/"$MODELBASE13"_size19_quick${SUFFIX}.txt
-# ./katago testgpuerror -model "$MODEL13" -config configs/gtp_example.cfg -boardsize rectangle -quick \
-#          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-#          -reference-file "$REFERENCEDIR"/"$MODELBASE13"_sizerect_quick.txt | tee "$RESULTSDIR"/"$MODELBASE13"_sizerect_quick${SUFFIX}.txt
-# ./katago testgpuerror -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 9 -quick \
-#          -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=16,maxBoardYSizeForNNBuffer=11,maxBatchSize=9${EXTRA_OVERRIDE}" \
-#          -reference-file "$REFERENCEDIR"/"$MODELBASE13"_size9_rectbuffer_quick.txt | tee "$RESULTSDIR"/"$MODELBASE13"_size9_rectbuffer_quick${SUFFIX}.txt
-#
-# ./katago testgpuerror -model "$MODEL14" -config configs/gtp_example.cfg -boardsize 19 -quick \
-#          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-#          -reference-file "$REFERENCEDIR"/"$MODELBASE14"_size19_quick.txt | tee "$RESULTSDIR"/"$MODELBASE14"_size19_quick${SUFFIX}.txt
-#
-# ./katago testgpuerror -model "$MODEL15" -config configs/gtp_example.cfg -boardsize 19 -quick \
-#          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
-#          -reference-file "$REFERENCEDIR"/"$MODELBASE15"_size19_quick.txt | tee "$RESULTSDIR"/"$MODELBASE15"_size19_quick${SUFFIX}.txt
+
+MODEL13=models/b10c384h6nbttflrs.bin.gz  # v17 transformer, 6 heads, learnable rope, rmsnorm trunk tip
+MODEL14=models/b10c512h8nbt3tflrs-fson-silu-rsnh.bin.gz  # v17 nbt transformer, 8 heads, learnable rope, silu, spatial rmsnorm tip
+MODEL15=models/b11c768h12nbt3tflrs-fson-silu.bin.gz  # v17 nbt transformer, 12 heads, learnable rope, silu, largest
+MODELBASE13=$(basename "$MODEL13")
+MODELBASE14=$(basename "$MODEL14")
+MODELBASE15=$(basename "$MODEL15")
+
+./katago testgpuerror -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 19 -quick \
+         -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE13"_size19_quick.txt | tee "$RESULTSDIR"/"$MODELBASE13"_size19_quick${SUFFIX}.txt
+./katago testgpuerror -model "$MODEL13" -config configs/gtp_example.cfg -boardsize rectangle -quick \
+         -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE13"_sizerect_quick.txt | tee "$RESULTSDIR"/"$MODELBASE13"_sizerect_quick${SUFFIX}.txt
+./katago testgpuerror -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 9 -quick \
+         -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=16,maxBoardYSizeForNNBuffer=11,maxBatchSize=9${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE13"_size9_rectbuffer_quick.txt | tee "$RESULTSDIR"/"$MODELBASE13"_size9_rectbuffer_quick${SUFFIX}.txt
+
+./katago testgpuerror -model "$MODEL14" -config configs/gtp_example.cfg -boardsize 19 -quick \
+         -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE14"_size19_quick.txt | tee "$RESULTSDIR"/"$MODELBASE14"_size19_quick${SUFFIX}.txt
+
+./katago testgpuerror -model "$MODEL15" -config configs/gtp_example.cfg -boardsize 19 -quick \
+         -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}" \
+         -reference-file "$REFERENCEDIR"/"$MODELBASE15"_size19_quick.txt | tee "$RESULTSDIR"/"$MODELBASE15"_size19_quick${SUFFIX}.txt
 
 
