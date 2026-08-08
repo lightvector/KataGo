@@ -41,7 +41,7 @@ void Tests::runOwnershipTests(const string& configFile, const string& modelFile)
 
   auto runOnBoard = [&](const Board& board, const Rules& rules) {
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     int64_t numVisits = 100;
     vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,nextPla,numVisits);
     cout << "=================================================================================" << endl;

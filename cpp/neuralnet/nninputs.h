@@ -58,17 +58,24 @@ struct MiscNNInputParams {
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
   double policyOptimism = 0.0;
   int maxHistory = 1000;
-  // -1 = no override: pass-alive featurization follows hist.alwaysComputePassAliveUnderSuicideRules.
+  // -1 = no override: pass-alive featurization follows hist.modes.alwaysComputePassAliveUnderSuicideRules.
   // 0/1 = override that flag for featurization (and its contribution to the nn cache hash). Used when
   // evaluating with a secondary net (e.g. a human SL profile net) whose declared featurization mode
   // differs from the mode the search itself is using.
   int passAliveSuicideRulesOverride = -1;
+  // Same, but for hist.modes.excludeTerritoryAdjacentToAtari.
+  int excludeTerritoryAdjAtariOverride = -1;
 
-  // The effective value of alwaysComputePassAliveUnderSuicideRules for featurization: the override
-  // if one is set, else hist's own flag.
+  // The effective value of modes.alwaysComputePassAliveUnderSuicideRules for featurization: the
+  // override if one is set, else hist's own flag.
   bool getAlwaysComputePassAliveUnderSuicideRules(const BoardHistory& hist) const;
+  // The effective value of modes.excludeTerritoryAdjacentToAtari for featurization: the override
+  // if one is set, else hist's own flag.
+  bool getExcludeTerritoryAdjacentToAtari(const BoardHistory& hist) const;
+  // The effective full modes for featurization, taking both overrides into account.
+  BoardHistoryModes getModes(const BoardHistory& hist) const;
   // The suicide legality to use for pass-alive area computations in featurization, taking the
-  // override and hist.alwaysComputePassAliveUnderSuicideRules into account.
+  // override and hist.modes.alwaysComputePassAliveUnderSuicideRules into account.
   bool getSuicideLegalForPassAlive(const BoardHistory& hist) const;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;

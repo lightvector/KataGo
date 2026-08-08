@@ -1971,7 +1971,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     testAssert(hist.computeNumHandicapStones() == 0);
     testAssert(hist.computeWhiteHandicapBonus() == 0);
@@ -1993,7 +1993,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2012,7 +2012,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("aga");
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2031,7 +2031,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("aga");
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2062,7 +2062,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2457,7 +2457,7 @@ oxxxxx.xo
       rules.koRule = rand.nextBool(0.5) ? Rules::KO_SITUATIONAL : Rules::KO_POSITIONAL;
     if(rand.nextBool(0.2))
       rules.taxRule = rand.nextBool(0.5) ? Rules::TAX_SEKI : rand.nextBool(0.5) ? Rules::TAX_NONE : Rules::TAX_ALL;
-    BoardHistory hist(board,pla,rules,initialEncorePhase,false);
+    BoardHistory hist(board,pla,rules,initialEncorePhase,BoardHistoryModes(false,false));
     hist.setInitialTurnNumber(rand.nextInt(0,40));
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(rand.nextBool(0.5));
 
@@ -2470,7 +2470,7 @@ oxxxxx.xo
     double passProb = rand.nextDouble(0.05,0.80);
     int numSteps = rand.nextInt(6,15);
     for(int i = 0; i<numSteps; i++) {
-      BoardHistory tmpHist(board,pla,rules,hist.encorePhase,hist.alwaysComputePassAliveUnderSuicideRules);
+      BoardHistory tmpHist(board,pla,rules,hist.encorePhase,hist.modes);
       Loc moveLoc;
       if(rand.nextBool(passProb))
         moveLoc = Board::PASS_LOC;

@@ -1,0 +1,111 @@
+: Running with following config:
+allowResignation = true
+cudaUseFP16 = false
+cudaUseNHWC = false
+forDeterministicTesting = true
+lagBuffer = 1.0
+logAllGTPCommunication = true
+logFile = tests/results/gtp/excludeterritoryscore.log
+logSearchInfo = true
+logSearchInfoForChosenMove = false
+logTimeStamp = false
+logToStderr = false
+maxPlayouts = 10000
+maxTimePondering = 60.0
+maxVisits = 100
+nnRandSeed = forTesting
+nnRandomize = false
+numSearchThreads = 1
+openclUseFP16 = false
+ponderingEnabled = false
+preventCleanupPhase = false
+resignConsecTurns = 3
+resignThreshold = -0.90
+rootSymmetryPruning = false
+rules = tromp-taylor
+searchFactorAfterOnePass = 0.50
+searchFactorAfterTwoPass = 0.25
+searchFactorWhenWinning = 0.40
+searchFactorWhenWinningThreshold = 0.95
+searchRandSeed = forTesting
+trtUseFP16 = false
+
+: GTP Engine starting...
+: KataGo v1.17.2
+: Using TrompTaylor rules initially, unless GTP/GUI overrides this
+: Using 1 CPU thread(s) for search
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false
+: Initializing neural net buffer to be size 19 * 19 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732 (convnet, 1027911 params)
+: Loaded neural net with nnXLen 19 nnYLen 19
+: Initializing board with boardXSize 19 boardYSize 19
+: Loaded config configs/gtp_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/gtp/excludeterritoryscore.log
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: nnRandSeed = forTesting
+: Config override: nnRandomize = false
+: Config override: numSearchThreads = 1
+: Config override: openclUseFP16 = false
+: Config override: preventCleanupPhase = false
+: Config override: rootSymmetryPruning = false
+: Config override: searchRandSeed = forTesting
+: Config override: trtUseFP16 = false
+: Model name: g170-b6c96-s175395328-d26788732
+: GTP ready, beginning main protocol loop
+: Controller: boardsize 7
+: GPU -1 finishing, processed 0 rows 0 batches
+: Cleaned up old neural net and bot
+: nnRandSeed0 = forTesting
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false
+: Initializing neural net buffer to be size 7 * 7 exactly
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732 (convnet, 1027911 params)
+: Loaded neural net with nnXLen 7 nnYLen 7
+: Initializing board with boardXSize 7 boardYSize 7
+: = 
+: Controller: kata-set-rules {"ko":"SIMPLE","scoring":"TERRITORY","tax":"NONE","suicide":false,"hasButton":false,"friendlyPassOk":false,"whiteHandicapBonus":"0"}
+: Changed rules to koSIMPLEscoreTERRITORYtaxNONEsui0
+: = 
+: Controller: komi 0
+: = 
+: Controller: set_position w d7 b e7 b f7 b g7 w a6 w b6 w c6 w d6 b e6 b g6 b a5 b b5 b c5 b d5 w e5 b f5 b g5 w a4 b c4 w d4 w e4 w f4 w g4 w a3 w b3 b c3 w d3 b e3 w g3 w a2 b b2 b c2 w d2 b f2 w g2 w a1 b c1 w d1 w e1 b f1 b g1
+: = 
+: Controller: play b pass
+: = 
+: Controller: play w pass
+: = 
+: Controller: play b pass
+: = 
+: Controller: play w pass
+: = 
+: Controller: play b pass
+: = 
+: Controller: play w pass
+: = 
+: Controller: final_score
+: = W+2.0
+: Controller: printsgf -
+: = (;FF[4]GM[1]SZ[7]PB[]PW[]HA[0]KM[0]RU[koSIMPLEscoreTERRITORYtaxNONEsui0]RE[W+2]AB[ea][fa][ga][eb][gb][ac][bc][cc][dc][fc][gc][cd][ce][ee][bf][cf][ff][cg][fg][gg]AW[da][ab][bb][cb][db][ec][ad][dd][ed][fd][gd][ae][be][de][ge][af][df][gf][ag][dg][eg];B[];W[];B[];W[];B[];W[]C[result=W+2])
+: Controller: kata-set-param excludeTerritoryAdjacentToAtari true
+: = 
+: Controller: final_score
+: = W+3.0
+: Controller: printsgf -
+: = (;FF[4]GM[1]SZ[7]PB[]PW[]HA[0]KM[0]RU[koSIMPLEscoreTERRITORYtaxNONEsui0]RE[W+3]AB[ea][fa][ga][eb][gb][ac][bc][cc][dc][fc][gc][cd][ce][ee][bf][cf][ff][cg][fg][gg]AW[da][ab][bb][cb][db][ec][ad][dd][ed][fd][gd][ae][be][de][ge][af][df][gf][ag][dg][eg];B[];W[];B[];W[];B[];W[]C[result=W+3])
+: Controller: kata-set-param excludeTerritoryAdjacentToAtari false
+: = 
+: Controller: final_score
+: = W+2.0
+: GPU -1 finishing, processed 0 rows 0 batches
+: All cleaned up, quitting

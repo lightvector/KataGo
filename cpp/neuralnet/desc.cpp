@@ -2455,6 +2455,7 @@ ModelDesc::ModelDesc()
     numOwnershipChannels(0),
     metaEncoderVersion(0),
     preferPassAliveUnderSuicideRules(false),
+    preferExcludeTerritoryAdjacentToAtari(false),
     postProcessParams(),
     archSummary()
 {}
@@ -2560,9 +2561,19 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
     if(in.fail())
       throw StringError(name + ": model failed to parse preferPassAliveUnderSuicideRules");
 
+    //Whether the model expects territory scoring with no seki tax to exclude points adjacent to atari (rules v3).
+    int preferExcludeTerritoryAdjAtariInt = 0;
+    in >> preferExcludeTerritoryAdjAtariInt;
+    if(preferExcludeTerritoryAdjAtariInt == 0)
+      preferExcludeTerritoryAdjacentToAtari = false;
+    else if(preferExcludeTerritoryAdjAtariInt == 1)
+      preferExcludeTerritoryAdjacentToAtari = true;
+    else
+      throw StringError(name + ": model preferExcludeTerritoryAdjacentToAtari unexpected value: " + Global::intToString(preferExcludeTerritoryAdjAtariInt));
+    if(in.fail())
+      throw StringError(name + ": model failed to parse preferExcludeTerritoryAdjacentToAtari");
+
     int unused = 0;
-    in >> unused;
-    if(unused != 0) throw StringError(name + ": unknown/unsupported model option C: " + Global::intToString(unused));
     in >> unused;
     if(unused != 0) throw StringError(name + ": unknown/unsupported model option D: " + Global::intToString(unused));
     in >> unused;
@@ -2580,6 +2591,7 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
     metaEncoderVersion = 0;
     numInputMetaChannels = 0;
     preferPassAliveUnderSuicideRules = false;
+    preferExcludeTerritoryAdjacentToAtari = false;
   }
 
   trunk = TrunkDesc(in, modelVersion, binaryFloats, metaEncoderVersion);
@@ -2646,6 +2658,7 @@ ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   numOwnershipChannels = other.numOwnershipChannels;
   metaEncoderVersion = other.metaEncoderVersion;
   preferPassAliveUnderSuicideRules = other.preferPassAliveUnderSuicideRules;
+  preferExcludeTerritoryAdjacentToAtari = other.preferExcludeTerritoryAdjacentToAtari;
   postProcessParams = other.postProcessParams;
   archSummary = other.archSummary;
   trunk = std::move(other.trunk);

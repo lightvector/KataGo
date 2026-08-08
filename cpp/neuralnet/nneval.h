@@ -139,6 +139,11 @@ class NNEvaluator {
   // False if there is no loaded model (e.g. debugSkipNeuralNet).
   bool modelPreferPassAliveUnderSuicideRules() const;
 
+  // Whether the loaded model declares that it expects territory scoring with TaxRule NONE to
+  // exclude empty points adjacent to chains in atari (rules version 3), both for adjudication and
+  // for its territory input features. False if there is no loaded model (e.g. debugSkipNeuralNet).
+  bool modelPreferExcludeTerritoryAdjacentToAtari() const;
+
   // Return the "nearest" supported ruleset to desiredRules by this model.
   // Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
   Rules getSupportedRules(const Rules& desiredRules, bool& supported) const;

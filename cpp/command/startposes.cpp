@@ -441,7 +441,7 @@ int MainCmds::samplesgfs(const vector<string>& args) {
       BoardHistory hist;
       Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
       //Featurize per the model's own declaration (no user-level search params in this mode).
-      compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist, valueFluctuationNNEval->modelPreferPassAliveUnderSuicideRules());
+      compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist, BoardHistoryModes(valueFluctuationNNEval->modelPreferPassAliveUnderSuicideRules(), valueFluctuationNNEval->modelPreferExcludeTerritoryAdjacentToAtari()));
 
       if(valueFluctuationMakeKomiFair) {
         Rand rand;
@@ -1395,7 +1395,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     Player nextPla;
     BoardHistory hist;
     //Keep pass-alive computations and featurization consistent with how the search performs them.
-    sgf.setupInitialBoardAndHist(rules, board, nextPla, hist, search->getRootHist().alwaysComputePassAliveUnderSuicideRules);
+    sgf.setupInitialBoardAndHist(rules, board, nextPla, hist, search->getRootHist().modes);
     if(!gameInit->isAllowedBSize(board.x_size,board.y_size)) {
       numFilteredSgfs.fetch_add(1);
       return;
@@ -1690,7 +1690,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     int encorePhase = 0;
     Player pla = sample.nextPla;
     //Keep pass-alive computations and featurization consistent with how the search performs them.
-    BoardHistory hist(board,pla,rules,encorePhase,search->getRootHist().alwaysComputePassAliveUnderSuicideRules);
+    BoardHistory hist(board,pla,rules,encorePhase,search->getRootHist().modes);
     int numSampleMoves = (int)sample.moves.size();
     for(int i = 0; i<numSampleMoves; i++) {
       if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))
@@ -2423,7 +2423,7 @@ int MainCmds::checksgfhintpolicy(const vector<string>& args) {
           Player nextPla;
           BoardHistory histBefore;
           //Featurize per the model's own declaration (this command has no search params to consult).
-          bool suc = priorPosSample.tryGetCurrentBoardHistory(rules,nextPla,histBefore,nnEval->modelPreferPassAliveUnderSuicideRules());
+          bool suc = priorPosSample.tryGetCurrentBoardHistory(rules,nextPla,histBefore,BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
           if(!suc) {
             logger.write("WARNING: unable to get current history for pos, skipping: " + Sgf::PositionSample::toJsonLine(priorPosSample));
             continue;

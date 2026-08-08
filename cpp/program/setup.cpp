@@ -665,6 +665,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"+idxStr)) params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules"+idxStr);
     else if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"))   params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules");
     else                                                               params.alwaysComputePassAliveUnderSuicideRules = enabled_t::Auto;
+    if(cfg.contains("excludeTerritoryAdjacentToAtari"+idxStr)) params.excludeTerritoryAdjacentToAtari = cfg.getEnabled("excludeTerritoryAdjacentToAtari"+idxStr);
+    else if(cfg.contains("excludeTerritoryAdjacentToAtari"))   params.excludeTerritoryAdjacentToAtari = cfg.getEnabled("excludeTerritoryAdjacentToAtari");
+    else                                                       params.excludeTerritoryAdjacentToAtari = enabled_t::Auto;
     //Controlled by GTP directly, not used in any other mode
     params.avoidMYTDaggerHackPla = C_EMPTY;
     if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);

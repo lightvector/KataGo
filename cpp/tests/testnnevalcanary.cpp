@@ -49,8 +49,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 18;
-    //Featurize per the model's own declared pass-alive computation mode.
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -85,8 +85,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 36;
-    //Featurize per the model's own declared pass-alive computation mode.
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -120,8 +120,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    //Featurize per the model's own declared pass-alive computation mode.
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -156,8 +156,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    //Featurize per the model's own declared pass-alive computation mode.
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
     hist.setKomi(-7);
 
     MiscNNInputParams nnInputParams;
@@ -189,8 +189,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    //Featurize per the model's own declared pass-alive computation mode.
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
     hist.setKomi(21);
 
     MiscNNInputParams nnInputParams;
@@ -225,8 +225,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 7;
-    //Featurize per the model's own declared pass-alive computation mode.
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -660,8 +660,9 @@ bool Tests::runBackendErrorTest(
     nnInputParams.policyOptimism = policyOptimismForTest;
     nnInputParams.playoutDoublingAdvantage = pdaForTest;
     nnInputParams.nnPolicyTemperature = (float)nnPolicyTemperatureForTest;
-    //Featurize per the model's own declared pass-alive computation mode.
+    //Featurize per the model's own declared BoardHistoryModes preferences.
     nnInputParams.passAliveSuicideRulesOverride = nnE->modelPreferPassAliveUnderSuicideRules() ? 1 : 0;
+    nnInputParams.excludeTerritoryAdjAtariOverride = nnE->modelPreferExcludeTerritoryAdjacentToAtari() ? 1 : 0;
 
     NNResultBuf buf;
     bool skipCache = true;

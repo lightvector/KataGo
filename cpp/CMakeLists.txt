@@ -338,6 +338,7 @@ add_executable(katago
   tests/testbackendreference.cpp
   tests/backendreferencedata.cpp
   tests/testpassalivesuicide.cpp
+  tests/testexcludeterritoryatari.cpp
   tests/testrules.cpp
   tests/testscore.cpp
   tests/testsgf.cpp

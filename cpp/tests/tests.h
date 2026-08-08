@@ -31,6 +31,7 @@ namespace Tests {
 
   //testpassalivesuicide.cpp
   void runPassAliveSuicideModeTests();
+  void runExcludeTerritoryAtariModeTests();
 
   //testscore.cpp
   void runScoreTests();
@@ -41,6 +42,7 @@ namespace Tests {
 
   //testnninputs.cpp
   void runNNInputsV3V4Tests();
+  void runExcludeTerritoryAtariNNInputsTests();
 
   //testsymmetries.cpp
   void runBasicSymmetryTests();

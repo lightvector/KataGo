@@ -152,10 +152,18 @@ def main(args):
         elif model_config.get("always_compute_pass_alive_under_suicide_rules"):
             logging.warn("Autoupgrading v15 or v16 model to v17 due to always_compute_pass_alive_under_suicide_rules")
             version = 17
+        elif model_config.get("exclude_territory_adjacent_to_atari"):
+            logging.warn("Autoupgrading v15 or v16 model to v17 due to exclude_territory_adjacent_to_atari")
+            version = 17
 
     if model_config.get("always_compute_pass_alive_under_suicide_rules") and version < 17:
         raise Exception(
             "always_compute_pass_alive_under_suicide_rules is set but model would be exported as version "
+            + str(version) + " < 17, which can technically represent it but we're not outputting in practice"
+        )
+    if model_config.get("exclude_territory_adjacent_to_atari") and version < 17:
+        raise Exception(
+            "exclude_territory_adjacent_to_atari is set but model would be exported as version "
             + str(version) + " < 17, which can technically represent it but we're not outputting in practice"
         )
 
@@ -194,8 +202,14 @@ def main(args):
             writeln(1)
         else:
             writeln(0)
+        # preferExcludeTerritoryAdjacentToAtari: 1 if the model expects territory scoring with
+        # TaxRule NONE to exclude empty points adjacent to chains in atari (rules version 3),
+        # both for adjudication and for its territory input features.
+        if model_config.get("exclude_territory_adjacent_to_atari"):
+            writeln(1)
+        else:
+            writeln(0)
         # Write some dummy placeholders for future features
-        writeln(0)
         writeln(0)
         writeln(0)
         writeln(0)

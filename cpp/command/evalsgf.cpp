@@ -185,10 +185,10 @@ int MainCmds::evalsgf(const vector<string>& args) {
   BoardHistory hist;
 
   //Set for real after the neural net is loaded, from the params and the model's declaration.
-  bool alwaysComputePassAliveUnderSuicideRules = false;
-  auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,&sgf,&extraMoves,&alwaysComputePassAliveUnderSuicideRules](const Rules& initialRules, int moveNum) {
+  BoardHistoryModes historyModes;
+  auto setUpBoardUsingRules = [&board,&nextPla,&hist,overrideKomi,&sgf,&extraMoves,&historyModes](const Rules& initialRules, int moveNum) {
     //Set up before replaying moves so any adjudication during replay is consistent with the searches.
-    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, alwaysComputePassAliveUnderSuicideRules);
+    sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist, historyModes);
     vector<Move>& moves = sgf->moves;
 
     if(!isnan(overrideKomi)) {
@@ -290,7 +290,7 @@ int MainCmds::evalsgf(const vector<string>& args) {
   }
   logger.write("Loaded neural net");
 
-  alwaysComputePassAliveUnderSuicideRules = Search::resolveAlwaysComputePassAliveUnderSuicideRules(params, nnEval);
+  historyModes = Search::resolveHistoryModes(params, nnEval);
 
   {
     bool rulesWereSupported;
@@ -382,6 +382,8 @@ int MainCmds::evalsgf(const vector<string>& args) {
         MiscNNInputParams humanNNInputParams = nnInputParams;
         humanNNInputParams.passAliveSuicideRulesOverride =
           Search::resolveAlwaysComputePassAliveUnderSuicideRules(params, humanEval) ? 1 : 0;
+        humanNNInputParams.excludeTerritoryAdjAtariOverride =
+          Search::resolveExcludeTerritoryAdjacentToAtari(params, humanEval) ? 1 : 0;
         humanEval->evaluate(board,hist,nextPla,humanNNInputParams,buf,skipCache,includeOwnerMap);
         buf.result->debugPrint(cout,board);
       }

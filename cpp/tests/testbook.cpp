@@ -70,7 +70,7 @@ void Tests::runBookTests() {
     rules,
     initialPla,
     repBound,
-    false,
+    BoardHistoryModes(),
     params
   );
 
@@ -88,7 +88,7 @@ void Tests::runBookTests() {
     for(int branchIdx = 0; branchIdx<10; branchIdx++) {
       SymBookNode node = book->getRoot();
       Board board(initialBoard);
-      BoardHistory hist(board,initialPla,rules,0,book->alwaysComputePassAliveUnderSuicideRules);
+      BoardHistory hist(board,initialPla,rules,0,book->historyModes);
       int branchLen = rand.nextUInt(10);
 
       for(int turnIdx = 0; turnIdx<branchLen; turnIdx++) {

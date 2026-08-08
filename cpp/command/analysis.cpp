@@ -1158,10 +1158,10 @@ int MainCmds::analysis(const vector<string>& args) {
       }
 
       Player nextPla = initialPlayer;
-      //Keep this request's history consistent with the pass-alive computation mode that the search
+      //Keep this request's history consistent with the BoardHistoryModes that the search
       //for this request will resolve to. (The search would re-stamp its own copy anyway, but this keeps
-      //any adjudication done during request setup/replay consistent with it.)
-      BoardHistory hist(board,nextPla,rules,0,Search::resolveAlwaysComputePassAliveUnderSuicideRules(rbase.params, nnEval));
+      //any adjudication done during request setup/replay consistent with them.)
+      BoardHistory hist(board,nextPla,rules,0,Search::resolveHistoryModes(rbase.params, nnEval));
       hist.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
 
       if(warnUnusedFields) {

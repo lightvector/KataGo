@@ -523,6 +523,10 @@ struct ModelDesc {
   //multi-stone suicide were always legal, regardless of the actual suicide rule.
   bool preferPassAliveUnderSuicideRules;
 
+  //True if the model expects territory scoring with TaxRule NONE (both for adjudication and for its
+  //territory input features) to exclude empty points adjacent to chains in atari, per rules version 3.
+  bool preferExcludeTerritoryAdjacentToAtari;
+
   ModelPostProcessParams postProcessParams;
 
   TrunkDesc trunk;
