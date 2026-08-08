@@ -11,14 +11,16 @@
 #include "../neuralnet/opencltuner.h"
 #endif
 
+#ifdef USE_MLX_BACKEND
+#include "../program/setup.h"
+#include "../neuralnet/desc.h"
+#include "../neuralnet/mlxwinotuner.h"
+#endif
+
 using namespace std;
 
-int MainCmds::tuner(const vector<string>& args) {
-#ifndef USE_OPENCL_BACKEND
-  cout << "Currently this command only does anything for the OpenCL version of KataGo" << endl;
-  (void)args;
-  return 0;
-#else
+#if defined(USE_OPENCL_BACKEND)
+static int runOpenCLTuner(const vector<string>& args) {
 
   ConfigParser cfg;
   string modelFile;
@@ -226,6 +228,142 @@ int MainCmds::tuner(const vector<string>& args) {
   }
 
   return 0;
+}
+#elif defined(USE_MLX_BACKEND)
+static int runMLXTuner(const vector<string>& args) {
 
+  // MLX (Apple GPU) tuner: searches the Winograd input/output transform grids
+  // and writes the winning parameters to the same cache the backend reads at
+  // model load. This is the deliberate "command tune" path; the auto-tune that
+  // runs during normal model load stays coarse/fast. The OpenCL-only FP16
+  // sub-knobs (storage/compute/tensorcores) have no MLX analog and are omitted.
+  ConfigParser cfg;
+  string modelFile;
+  string outputFileFromArg;
+  int nnXLen;
+  int nnYLen;
+  int batchSize;
+  string testFP16Str;
+  enabled_t testFP16Mode;
+  bool full;
+  try {
+    KataGoCommandLine cmd("Perform Winograd transform tuning for the MLX (Apple GPU) backend.");
+    cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
+    cmd.addModelFileArg();
+
+    TCLAP::ValueArg<string> outputFileArg("","output","Filename to output tuning configuration to (default: shared MLX tuner cache)",false,string(),"FILE");
+    TCLAP::ValueArg<int> nnXLenArg("","xsize","Width of board to tune for",false,19,"INT");
+    TCLAP::ValueArg<int> nnYLenArg("","ysize","Height of board to tune for",false,19,"INT");
+    TCLAP::ValueArg<int> batchSizeArg("","batchsize","Batch size to tune for",false,8,"INT");
+    TCLAP::ValueArg<string> testFP16Arg("","testFP16","Tune for FP16? true|false|auto (default auto = engine default, FP16)",false,"auto","BOOL_OR_AUTO");
+    TCLAP::SwitchArg fullArg("","full","Sweep the wide candidate grid instead of the default coarse one");
+
+    cmd.setShortUsageArgLimit();
+    cmd.addOverrideConfigArg();
+
+    cmd.add(outputFileArg);
+    cmd.add(nnXLenArg);
+    cmd.add(nnYLenArg);
+    cmd.add(batchSizeArg);
+    cmd.add(testFP16Arg);
+    cmd.add(fullArg);
+    cmd.parseArgs(args);
+
+    modelFile = cmd.getModelFile();
+    outputFileFromArg = outputFileArg.getValue();
+    nnXLen = nnXLenArg.getValue();
+    nnYLen = nnYLenArg.getValue();
+    batchSize = batchSizeArg.getValue();
+    testFP16Str = testFP16Arg.getValue();
+    full = fullArg.getValue();
+
+    if(!enabled_t::tryParse(testFP16Str,testFP16Mode)) {
+      cerr << "Error: Could not parse -testFP16 as bool or auto: " << testFP16Str << endl;
+      return 1;
+    }
+
+    cmd.getConfigAllowEmpty(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  // The MLX GPU path runs FP16 unless explicitly disabled (useFP16Mode != False
+  // in mlxbackend.cpp), so 'auto' tunes for FP16 - the precision the engine will
+  // actually use, and the precision the cache filename is keyed on.
+  const bool useFP16 = (testFP16Mode != enabled_t::False);
+
+  string homeDataDirOverride = Setup::loadHomeDataDirOverride(cfg);
+
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+
+  logger.write("Loading model...");
+  ModelDesc modelDesc;
+  string expectedSha256 = "";
+  ModelDesc::loadFromFileMaybeGZipped(modelFile, modelDesc, expectedSha256);
+
+  // Same shape diagnostic the backend logs at load, so the tuned cache can be
+  // correlated with the model's 3x3 conv shape mix.
+  logger.write(MLXWinogradTuner::formatConv3x3Distribution(modelDesc));
+
+  MLXWinogradTuner::ModelInfoForTuning modelInfo;
+  modelInfo.trunkNumChannels = modelDesc.trunk.trunkNumChannels;
+  modelInfo.modelVersion = modelDesc.modelVersion;
+  {
+    auto histograms = MLXWinogradTuner::buildConv3x3Histograms(modelDesc);
+    modelInfo.conv3x3InputHistogram = std::move(histograms.first);
+    modelInfo.conv3x3OutputHistogram = std::move(histograms.second);
+  }
+
+  // Chip-specific cache key, shared with the backend's model-load path so the
+  // command writes exactly the file the backend reads; part of the filename key.
+  const string gpuName = MLXWinogradTuner::detectGpuName();
+
+  string outputFile;
+  if(outputFileFromArg == "") {
+    string dir = MLXWinogradTuner::defaultDirectory(true,homeDataDirOverride);
+    outputFile = dir + "/" + MLXWinogradTuner::defaultFileName(
+      gpuName, nnXLen, nnYLen, modelInfo.trunkNumChannels, modelInfo.modelVersion, useFP16, full);
+  }
+  else {
+    outputFile = outputFileFromArg;
+  }
+
+  logger.write(string("MLX Winograd tuner starting (") + (full ? "full" : "coarse") +
+               " sweep, " + (useFP16 ? "FP16" : "FP32") + ", batch " + Global::intToString(batchSize) + ")...");
+
+  // reTune=true: a command tune always re-runs the search and overwrites the
+  // cache, rather than short-circuiting on an existing file.
+  MLXWinogradTuner::loadOrAutoTune(
+    outputFile,
+    homeDataDirOverride,
+    gpuName,
+    nnXLen,
+    nnYLen,
+    batchSize,
+    modelInfo,
+    &logger,
+    /*full=*/full,
+    /*reTune=*/true,
+    /*useFP16=*/useFP16
+  );
+
+  cout << "Done, results saved to " << outputFile << endl;
+
+  return 0;
+}
+#endif
+
+int MainCmds::tuner(const vector<string>& args) {
+#if defined(USE_OPENCL_BACKEND)
+  return runOpenCLTuner(args);
+#elif defined(USE_MLX_BACKEND)
+  return runMLXTuner(args);
+#else
+  cout << "Currently this command only does anything for the OpenCL and MLX versions of KataGo" << endl;
+  (void)args;
+  return 0;
 #endif
 }
