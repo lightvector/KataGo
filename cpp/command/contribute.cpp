@@ -144,6 +144,9 @@ static void runAndUploadSingleGame(
 
   istringstream taskCfgIn(gameTask.task.config);
   ConfigParser taskCfg(taskCfgIn);
+  //Consumed at model load time by the backend reference output check rather than here, so just
+  //suppress the unused key warning.
+  taskCfg.markKeyUsed("backendRefTestLenienceFactor");
   const std::string overrides = gameTask.repIdx < gameTask.task.overrides.size() ? gameTask.task.overrides[gameTask.repIdx] : std::string();
   try {
     if(overrides.size() > 0) {
@@ -848,7 +851,8 @@ int MainCmds::contribute(const vector<string>& args) {
   auto loadNeuralNetIntoManager =
     [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGamesPossible,&userCfgWarnedYet,
      &invalidModelErrorTimer,&invalidModelErrorEwms,&lastInvalidModelErrorTime,&invalidModelErrorMutex,&shouldPause](
-      SelfplayManager* manager, const Client::ModelInfo modelInfo, const string& modelFile, bool isRatingManager
+      SelfplayManager* manager, const Client::ModelInfo modelInfo, const string& modelFile, bool isRatingManager,
+      double backendRefLenienceFactor
     ) {
     const string& modelName = modelInfo.name;
     if(manager->hasModel(modelName))
@@ -959,7 +963,7 @@ int MainCmds::contribute(const vector<string>& args) {
       success = success && successRect;
 
       if(!fp32BatchSuccessBuf) {
-        logger.write("Error: large GPU numerical errors, unable to continue");
+        logger.write("Error: large GPU numerical errors testing model " + modelName + ", unable to continue");
         shouldStop.store(true);
         shouldStopGracefully.store(true);
         shouldPause->setPermanently(false);
@@ -969,15 +973,45 @@ int MainCmds::contribute(const vector<string>& args) {
         return false;
       }
       if(!success) {
-        logger.write("Warning: large FP16 errors, using FP32 instead");
+        logger.write("Warning: large FP16 errors on model " + modelName + ", using FP32 instead");
         testAssert(nnEval32 != nnEval);
         delete nnEval;
         nnEval = nnEval32;
       }
       else {
-      logger.write("Testing loaded net okay");
+        logger.write("Testing loaded net okay");
         if(nnEval32 != nnEval)
           delete nnEval32;
+      }
+
+      {
+        //Absolute-output check against compiled-in reference data blended across nets from the run,
+        //run on the final nnEval that will actually be used (post any fp32 fallback).
+        try {
+          const bool refVerbose = false;
+          const string referenceDataFileOverride = "";
+          const string dumpCandidateFileName = "";
+          //Product of the task-config factor and the per-network factor from the server.
+          const double refLenienceFactor = backendRefLenienceFactor * modelInfo.backendRefTestLenienceFactor;
+          bool refSuccess = Tests::runBackendReferenceTest(
+            nnEval,logger,refVerbose,
+            policyOptimismForTest,pdaForTest,nnPolicyTemperatureForTest,
+            refLenienceFactor,
+            referenceDataFileOverride,dumpCandidateFileName
+          );
+          if(!refSuccess) {
+            logger.write("Error: model " + modelName + " outputs deviate from expected reference outputs beyond calibrated bounds, likely a GPU/backend numerical problem, unable to continue");
+            shouldStop.store(true);
+            shouldStopGracefully.store(true);
+            shouldPause->setPermanently(false);
+            delete nnEval;
+            return false;
+          }
+        }
+        catch(const StringError& e) {
+          //Errors running the test itself (as opposed to failed checks) do not stop the client.
+          logger.write(string("Warning: backend reference test failed to run: ") + e.what());
+        }
       }
     }
 
@@ -1237,10 +1271,24 @@ int MainCmds::contribute(const vector<string>& args) {
         whiteManager = selfplayManager;
       }
 
-      suc = loadNeuralNetIntoManager(blackManager,task.modelBlack,modelFileBlack,task.isRatingGame);
+      //Optional lenience factor for the backend reference output check, carried on the task
+      //config the server distributes. Default 1.0 when absent or unparseable, since a bad
+      //value here should not stop the client from playing the game.
+      double backendRefLenienceFactor = 1.0;
+      try {
+        istringstream taskCfgIn(task.config);
+        ConfigParser taskCfg(taskCfgIn);
+        if(taskCfg.contains("backendRefTestLenienceFactor"))
+          backendRefLenienceFactor = taskCfg.getDouble("backendRefTestLenienceFactor", 0.01, 10000.0);
+      }
+      catch(const StringError& e) {
+        (void)e;
+      }
+
+      suc = loadNeuralNetIntoManager(blackManager,task.modelBlack,modelFileBlack,task.isRatingGame,backendRefLenienceFactor);
       if(!suc)
         continue;
-      suc = loadNeuralNetIntoManager(whiteManager,task.modelWhite,modelFileWhite,task.isRatingGame);
+      suc = loadNeuralNetIntoManager(whiteManager,task.modelWhite,modelFileWhite,task.isRatingGame,backendRefLenienceFactor);
       if(!suc)
         continue;
       if(shouldStopGracefullyFunc())

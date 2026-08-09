@@ -103,6 +103,28 @@ namespace Tests {
     const std::string& referenceFileName
   );
 
+  //testbackendreference.cpp
+  //Absolute-output check against compiled-in reference data blended across a sampling of nets
+  //from the training run (see backendreferencedata.cpp). Only nets from that run are expected
+  //to pass. Returns true regardless for models too small for the thresholds to be meaningful.
+  bool runBackendReferenceTest(
+    NNEvaluator* nnEval,
+    Logger& logger,
+    bool verbose,
+    //Defaults for positions whose reference data does not specify its own policyOptimism/pda.
+    //The temperature applies to all positions.
+    double policyOptimismForTest,
+    double pdaForTest,
+    double nnPolicyTemperatureForTest,
+    //Scales all limits in the lenient direction as it grows. 1.0 for normal checking. Composed
+    //with the automatic model-size-based lenience.
+    double lenienceFactor,
+    //If nonempty, load reference data from this file instead of the compiled-in data.
+    const std::string& referenceDataFileOverride,
+    //If nonempty, dump this net's outputs on the reference positions, for calibration.
+    const std::string& dumpCandidateFileName
+  );
+
   //testconfig.cpp
   void runInlineConfigTests();
   void runConfigTests(const std::vector<std::string>& args);
@@ -130,6 +152,9 @@ namespace TestCommon {
   std::vector<std::string> getMultiGameSize19Data();
   std::vector<std::string> getMultiGameSize10x14Data();
   std::vector<std::string> getMultiGameRectangleData();
+
+  //backendreferencedata.cpp (machine-generated, see that file for the JSON schema)
+  std::vector<std::string> getBackendReferenceJsonData();
 
   void overrideForBackends(bool& inputsNHWC, bool& useNHWC);
 }

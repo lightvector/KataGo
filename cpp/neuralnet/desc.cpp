@@ -2668,15 +2668,17 @@ int64_t ModelDesc::getNumParameters() const {
   return trunk.getNumParameters() + policyHead.getNumParameters() + valueHead.getNumParameters();
 }
 
+bool ModelDesc::hasAnyNestedBottleneckBlocks() const {
+  for(size_t i = 0; i < trunk.blocks.size(); i++) {
+    if(trunk.blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND)
+      return true;
+  }
+  return false;
+}
+
 string ModelDesc::getShortInfoString() const {
   bool isTransformer = hasAnyTransformerBlocks();
-  bool isNbt = false;
-  for(size_t i = 0; i < trunk.blocks.size(); i++) {
-    if(trunk.blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
-      isNbt = true;
-      break;
-    }
-  }
+  bool isNbt = hasAnyNestedBottleneckBlocks();
   string kind;
   if(isNbt)
     kind = isTransformer ? "nbt transformer" : "nbt convnet";

@@ -126,6 +126,9 @@ class NNEvaluator {
   bool getRequireExactNNLen() const;
   int getModelVersion() const;
   double getTrunkSpatialConvDepth() const;
+  int64_t getNumModelParameters() const;
+  bool modelHasAnyTransformerBlocks() const;
+  bool modelHasAnyNestedBottleneckBlocks() const;
   enabled_t getUsingFP16Mode() const;
 
   // Check if the loaded neural net supports shorttermError fields

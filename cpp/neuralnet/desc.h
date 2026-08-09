@@ -547,6 +547,7 @@ struct ModelDesc {
   //True if the model's trunk contains any transformer (attention or ffn) block. Useful for callers
   //that want to report model stats or special-case transformer-only behavior (e.g. graph warmup).
   bool hasAnyTransformerBlocks() const;
+  bool hasAnyNestedBottleneckBlocks() const;
 
   //Short human-readable summary of the model architecture kind and parameter count, e.g.
   //"nbt transformer, 12345678 params". Backends can append this in parentheses after the model name.

@@ -295,6 +295,18 @@ double NNEvaluator::getTrunkSpatialConvDepth() const {
   return NeuralNet::getModelDesc(loadedModel).getTrunkSpatialConvDepth();
 }
 
+int64_t NNEvaluator::getNumModelParameters() const {
+  return NeuralNet::getModelDesc(loadedModel).getNumParameters();
+}
+
+bool NNEvaluator::modelHasAnyTransformerBlocks() const {
+  return NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks();
+}
+
+bool NNEvaluator::modelHasAnyNestedBottleneckBlocks() const {
+  return NeuralNet::getModelDesc(loadedModel).hasAnyNestedBottleneckBlocks();
+}
+
 enabled_t NNEvaluator::getUsingFP16Mode() const {
   return usingFP16Mode;
 }

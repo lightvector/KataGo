@@ -44,6 +44,9 @@ namespace Client {
     size_t bytes;
     std::string sha256;
     bool isRandom;
+    //Optional per-network lenience factor for the backend reference output check, from the
+    //server's network properties. 1.0 when the server does not provide it.
+    double backendRefTestLenienceFactor = 1.0;
 
     void failIfSha256Mismatch(const std::string& modelPath) const;
   };

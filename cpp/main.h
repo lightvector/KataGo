@@ -13,6 +13,7 @@ namespace MainCmds {
   int selfplay(const std::vector<std::string>& args);
 
   int testgpuerror(const std::vector<std::string>& args);
+  int testbackendreference(const std::vector<std::string>& args);
 
   int runtests(const std::vector<std::string>& args);
   int runnnlayertests(const std::vector<std::string>& args);
