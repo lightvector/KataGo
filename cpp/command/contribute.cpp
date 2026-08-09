@@ -11,6 +11,7 @@
 #include "../dataio/homedata.h"
 #include "../external/nlohmann_json/json.hpp"
 #include "../neuralnet/modelversion.h"
+#include "../neuralnet/nninterface.h"
 #include "../search/asyncbot.h"
 #include "../program/play.h"
 #include "../program/setup.h"
@@ -610,11 +611,14 @@ int MainCmds::contribute(const vector<string>& args) {
     watchOngoingGameInFileName = "watchgame.txt";
 
   //Connect to server and get global parameters for the run.
+  //Report any runtime backend detail (e.g. which ONNX execution provider the config
+  //selects) along with the compile-time backend, so the server can distinguish them.
   Client::Connection* connection = new Client::Connection(
     serverUrl,username,password,caCertsFile,
     proxyUrl,
     modelDownloadMirrorBaseUrl,
     mirrorUseProxy,
+    NeuralNet::getRuntimeBackendDetail(*userCfg),
     &logger
   );
   connection->testConnection();

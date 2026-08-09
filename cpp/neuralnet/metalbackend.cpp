@@ -769,6 +769,11 @@ void NeuralNet::printDevices() {
   printMetalDevices();
 }
 
+std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
+  (void)cfg;
+  return std::string();
+}
+
 //------------------------------------------------------------------------------
 // InputBuffers implementation
 //------------------------------------------------------------------------------

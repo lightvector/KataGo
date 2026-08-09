@@ -38,6 +38,15 @@ namespace NeuralNet {
   // Print available backend devices
   void printDevices();
 
+  // A short lowercase alphanumeric string identifying any materially-different runtime
+  // configuration of this backend, or the empty string if the compile-time backend name
+  // already says everything (the common case).
+  // Currently only the ONNX backend returns anything: the execution provider selected
+  // by the onnxProvider config key (e.g. "openvino", "directml"),
+  // Used to disambiguate the version that contribute reports to the data server,
+  // so keep results short and stable for a given config.
+  std::string getRuntimeBackendDetail(ConfigParser& cfg);
+
   // Model I/O -----------------------------------------------------------------
 
   LoadedModel* loadModelFile(const std::string& file, const std::string& expectedSha256);

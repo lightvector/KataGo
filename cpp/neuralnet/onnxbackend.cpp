@@ -987,6 +987,23 @@ void NeuralNet::getOutput(
   }
 }
 
+std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
+  // Report which execution provider will run under this backend, matching the parsing in
+  // createComputeContext. Different providers are effectively different backends with
+  // different numerics and maturity, so e.g. the distributed training server wants to be
+  // able to tell them apart. Sanitized to lowercase alphanumeric since this is user
+  // config that gets reported verbatim to the server.
+  string provider = cfg.contains("onnxProvider") ? Global::toLower(cfg.getString("onnxProvider")) : "cpu";
+  string detail;
+  for(char c : provider) {
+    if((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
+      detail += c;
+    if(detail.size() >= 32)
+      break;
+  }
+  return detail;
+}
+
 void NeuralNet::printDevices() {
   cout << "ONNX backend: device enumeration is execution-provider-specific." << endl;
   cout << "Providers other than cpu need an ONNX Runtime package or build that includes them," << endl;

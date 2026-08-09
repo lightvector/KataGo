@@ -258,6 +258,7 @@ Connection::Connection(
   const Url& pUrl,
   const string& mdmbu,
   const bool mup,
+  const string& runtimeBackendDetail,
   Logger* lg
 )
   :httpClient(),
@@ -271,6 +272,10 @@ Connection::Connection(
    proxyUrl(pUrl),
    modelDownloadMirrorBaseUrl(mdmbu),
    mirrorUseProxy(mup),
+   gitRevisionWithBackendForServer(
+     Version::getGitRevisionWithBackend() +
+     (runtimeBackendDetail.empty() ? "" : ("-" + runtimeBackendDetail))
+   ),
    clientInstanceId(),
    logger(lg),
    rand(),
@@ -810,7 +815,7 @@ bool Connection::getNextTask(
 
     while(true) {
       httplib::MultipartFormDataItems items = {
-        { "git_revision", Version::getGitRevisionWithBackend(), "", "" },
+        { "git_revision", gitRevisionWithBackendForServer, "", "" },
         { "client_instance_id", clientInstanceId, "", "" },
         { "task_rep_factor", Global::intToString(taskRepFactor), "", ""},
         { "allow_selfplay_task", (allowSelfplayTask ? "true" : "false"), "", ""},
