@@ -420,10 +420,9 @@ struct Builder {
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
     // meanSq over channels (axis 1), keepdims -> [N,1,H,W]
-    // Pow(x, 2.0) instead of Mul(x, x): OpenVINO RMSFusion matcher requires
-    // Power(x, const(2)) (rms_fusion.cpp:38) and silently skips Mul(x,x).
-    // Without this, all 66 RMSNorm nodes run as unfused ReduceMean→Sqrt→Div
-    // chains, costing ~0.5–1.0 ms/frame on GPU.
+    // Pow(x, 2.0) rather than Mul(x, x): OpenVINO's RMSFusion pass only matches
+    // Power(x, const(2)) and silently skips Mul(x, x), which would leave every RMSNorm
+    // running as an unfused ReduceMean/Sqrt/Div chain.
     string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
     string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {1})},
@@ -460,7 +459,7 @@ struct Builder {
     int C = desc.numChannels;
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
-    // Pow(x, 2.0) instead of Mul(x, x): see NCHW variant above.
+    // Pow(x, 2.0) rather than Mul(x, x): see the NCHW variant above.
     string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
     string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {3})},  // C is axis 3 of [N,H,W,C]
@@ -893,18 +892,16 @@ Result build(
   };
   // Declaration order matters for the OpenVINO execution provider under ONNX Runtime: the
   // EP builds its name->index map from declaration order while the runtime feeds the EP
-  // kernel input ports in a different order. With the default master order (InputMask
-  // first), the two disagree and the EP misroutes the [N,1,H,W] mask tensor into the
-  // InputSpatial port, failing at runtime:
+  // kernel input ports in a different order. Declaring InputMask first makes the two
+  // disagree, and the EP misroutes the [N,1,H,W] mask tensor into the InputSpatial port,
+  // failing at runtime with:
   //   "can't handle input tensor ...:InputSpatial, because model input (shape=[?,22,19,19])
   //    and tensor (shape=[1,1,19,19]) are incompatible"
-  // (measured on ORT 1.29 + OpenVINO 2026.2, Intel Arc B580). Declaring inputs in the
-  // order InputSpatial, InputGlobal, InputMask fixes it. Note this is NOT the graph's
-  // first-reference order (InputMask is referenced first in the !requireExactNNLen branch);
-  // it is an empirical, EP-specific requirement; see PR #1222 for the investigation.
-  // For HumanSL nets (metaEncoderVersion > 0), InputMeta is declared after InputGlobal and
-  // before InputMask, and is only present when the model actually has an encoder; verified
-  // working on b18c384nbt-humanv0 (model v15) with ORT 1.29 + OpenVINO 2026.2.
+  // (observed on ORT 1.29 + OpenVINO 2026.2, Intel Arc B580). Declaring InputSpatial,
+  // InputGlobal, then InputMask fixes it. This is an empirical requirement of that EP
+  // rather than the graph's own first-reference order, in which InputMask comes first
+  // because the !requireExactNNLen branch below references it. InputMeta, when the model
+  // has a metadata encoder, goes after InputGlobal and before InputMask.
   addInput("InputSpatial", numInputChannels);
   addInputNC11("InputGlobal", numInputGlobalChannels);
   // HumanSL-style nets additionally take a per-row SGF metadata vector. Only declare the input when

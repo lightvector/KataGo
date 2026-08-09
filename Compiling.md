@@ -154,53 +154,43 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
 ## ONNX Runtime backend (optional)
-The `ONNX` backend runs inference through [ONNX Runtime](https://onnxruntime.ai/), which selects an execution provider at runtime (see the support matrix below). It reuses KataGo's built-in `OnnxModelBuilder` (the same graph emitter the TensorRT backend uses), so its IO protocol and post-processing are identical to TensorRT; only the runtime differs. It is useful when you want to run KataGo on a non-NVIDIA accelerator that already has an ONNX Runtime execution provider, or for cross-vendor benchmarking.
+The `ONNX` backend loads the usual KataGo neural net files, but runs them using [ONNX Runtime](https://onnxruntime.ai/), which supports many kinds of hardware through its "execution providers". This is mainly useful for hardware that has no native KataGo backend, such as Intel GPUs and NPUs (via the OpenVINO provider). If you have an NVIDIA GPU, use KataGo's native CUDA or TensorRT backends instead - they will almost certainly be faster.
 
-### Execution provider support matrix
+### Execution providers
 
-`onnxProvider` selects an execution provider at runtime. Upstream verification is
-**limited to OpenVINO on Windows + Intel GPU**; the other entries below are code
-paths that should work but are not continuously tested.
+Set `onnxProvider` in your config to choose the execution provider:
 
-| Provider | Status | Platform | ORT build flag | Runtime deps |
+| Provider | Status | Platform | ONNX Runtime needed | Also needs at runtime |
 |---|---|---|---|---|
-| `openvino` | Verified (Windows, Intel GPU; see benchmark notes) | Windows / Linux | `--use_openvino GPU` | OpenVINO runtime DLLs, TBB |
-| `cpu` | Experimental | All | none (stock ORT) | - |
-| `cuda` | Experimental | Windows / Linux | `--use_cuda` | CUDA runtime |
-| `tensorrt` | Experimental | Windows / Linux | `--use_tensorrt` | TensorRT |
-| `migraphx` | Experimental | Linux (AMD) | `--use_migraphx` | MIGraphX |
-| `coreml` | Needs work (build blocked) | macOS | `--use_coreml` | CoreML |
+| `openvino` | Tested (Windows, Intel GPU and NPU) | Windows / Linux | built from source with `--use_openvino GPU` | OpenVINO runtime, TBB |
+| `cpu` | Tested | All | official prebuilt package | - |
+| `cuda` | Lightly tested (Linux) | Windows / Linux | official prebuilt GPU package (`gpu_cuda12`), or built with `--use_cuda` | CUDA, cuDNN 9 |
+| `tensorrt` | Lightly tested (Linux) | Windows / Linux | official prebuilt GPU package (`gpu_cuda12`), or built with `--use_tensorrt` | CUDA, TensorRT 10 |
+| `migraphx` | Untested | Linux (AMD) | built from source with `--use_migraphx` | MIGraphX |
+| `directml` | Untested | Windows | Microsoft.ML.OnnxRuntime.DirectML package | DirectML |
+| `coreml` | Not working yet | macOS | built from source with `--use_coreml` | CoreML |
 
-Status legend:
-- **Verified** - covered by CI and/or end-to-end manual testing; numbers, precision
-  and runtime-dependency deployment are confirmed.
-- **Experimental** - the code path exists and the architecture is EP-agnostic, but it
-  is NOT tested upstream. You must build ONNX Runtime yourself with the matching EP,
-  and you should validate numerics yourself (e.g. against the `cpu` provider).
-- **Needs work** - currently cannot build; see PR notes.
+"Tested" means KataGo's neural net tests give correct results with this provider. "Lightly tested" means correctness was checked but performance was not. "Untested" providers are implemented but have never been run - if you try one, sanity-check its results, for example against the `cpu` provider. The `directml` provider may also be slow, because it prefers fixed tensor sizes while KataGo's search varies its batch size.
 
-> **Note**: This backend is more involved to set up than the built-in backends above, because the official prebuilt ONNX Runtime packages do **not** ship the execution providers you may need (e.g. the OpenVINO EP). You generally have to build ONNX Runtime from source with the provider(s) you want enabled.
+> **Note**: This backend is more involved to set up than KataGo's other backends. Most execution providers are not included in the official prebuilt ONNX Runtime packages - in particular, using the OpenVINO provider requires building ONNX Runtime from source with that provider enabled.
 
 ### Requirements
    * Everything KataGo normally needs (CMake, a C++17 compiler, zlib).
-   * ONNX Runtime, built from source with the execution provider(s) you intend to use. For the OpenVINO EP, build ONNX Runtime with `--use_openvino` against an installed OpenVINO toolkit. See https://onnxruntime.ai/docs/install/ for build instructions.
-   * Protobuf. The ONNX graph is serialized as an ONNX `ModelProto`, so `find_package(Protobuf)` must succeed. A protobuf 3.x (no abseil dependency) works; the version bundled in the ONNX Runtime source build tree is known to work.
-   * If using the OpenVINO EP, the OpenVINO runtime toolkit itself, plus its runtime DLLs at runtime (see below).
+   * ONNX Runtime including the execution provider you want - either an official prebuilt package, or built from source with the provider enabled (see the table above and https://onnxruntime.ai/docs/install/).
+   * Protobuf 3.x, such that CMake's `find_package(Protobuf)` succeeds. On Linux the usual system packages work. If you build ONNX Runtime from source, the protobuf inside its build tree also works.
+   * For the OpenVINO provider, the OpenVINO toolkit.
 
 ### Compile
-   * Point CMake at your ONNX Runtime install tree and protobuf, and select the backend:
+   * Point CMake at your ONNX Runtime install and select the backend:
      ```
-     cmake -S KataGo/cpp -B KataGo/cpp/build -DUSE_BACKEND=ONNX ^
-       -DONNXRUNTIME_ROOT=<path-to-onnxruntime-install> ^
-       -DProtobuf_PROTOC_EXECUTABLE=<protoc> ^
-       -DProtobuf_INCLUDE_DIR=<protobuf-include> ^
-       -DProtobuf_LIBRARY=<protobuf-lib>
+     cmake -S KataGo/cpp -B KataGo/cpp/build -DUSE_BACKEND=ONNX -DONNXRUNTIME_ROOT=<path-to-onnxruntime>
      cmake --build KataGo/cpp/build -j
      ```
-   * `-DONNXRUNTIME_ROOT` should contain `include/onnxruntime/`, `lib/onnxruntime.lib` (or `.so`/`.dylib`), and the provider DLLs.
-   * As with other backends, `-DNO_GIT_REVISION=1` avoids embedding the git hash, and `-DBUILD_DISTRIBUTED=1` enables distributed-training support.
+   * `ONNXRUNTIME_ROOT` is the directory containing ONNX Runtime's `include/` and `lib/`.
+   * If CMake does not find protobuf on its own, also pass `-DProtobuf_PROTOC_EXECUTABLE=<protoc>`, `-DProtobuf_INCLUDE_DIR=<include-dir>`, and `-DProtobuf_LIBRARY=<library>`.
+   * As with other backends, `-DNO_GIT_REVISION=1` avoids embedding the git hash, and `-DBUILD_DISTRIBUTED=1` enables contributing to distributed training.
 
 ### Runtime
-   * The `onnxruntime` shared library must be on your path or beside the executable.
-   * When using the OpenVINO EP, also deploy the OpenVINO runtime DLLs beside the executable (`openvino.dll`, `openvino_intel_gpu_plugin.dll`, `tbb12.dll`, `cache.json`, etc.), or put them on the system path.
-   * Configure the provider in `configs/gtp_example.cfg` via the `onnx*` keys, e.g. `onnxProvider=openvino` and `onnxOpenVINODeviceType=GPU`. See the ONNX settings block in `configs/gtp_example.cfg` for the full list.
+   * The `onnxruntime` shared library must be next to the executable or on your library path.
+   * For the OpenVINO provider, the OpenVINO runtime DLLs (`openvino.dll`, `openvino_intel_gpu_plugin.dll`, `tbb12.dll`, `cache.json`, etc.) must also be next to the executable or on the system path.
+   * Choose the provider and its options with the `onnx*` keys in your config, e.g. `onnxProvider = openvino` and `onnxOpenVINODeviceType = GPU`. The ONNX section of `configs/gtp_example.cfg` documents all the options.

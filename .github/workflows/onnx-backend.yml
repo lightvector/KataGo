@@ -1,11 +1,11 @@
 # ONNX backend CI. Builds KataGo (USE_BACKEND=ONNX) against an ONNX Runtime carrying the
-# requested execution provider, runs `katago runtests`, and uploads a self-contained
+# requested execution provider, or EP, runs `katago runtests`, and uploads a self-contained
 # runnable directory as an artifact for easy download.
 #
-# Execution providers differ only in how ONNX Runtime is obtained; that difference lives
+# Execution providers differ only in how ONNX Runtime is obtained, and that difference lives
 # in .github/actions/onnx-prepare-ort/action.yml (one row in the matrix below per EP):
-#   - prebuilt    : official ORT release package (zip on Windows, tgz on Linux; the CPU
-#                   EP ships inside it)
+#   - prebuilt    : official ORT release package, zip on Windows and tgz on Linux, with the
+#                   CPU EP shipping inside it
 #   - nuget       : Microsoft.ML.OnnxRuntime.DirectML package (DirectML EP)
 #   - from-source : ORT built from source with the EP (OpenVINO on Windows, TensorRT in an
 #                   NGC container)
@@ -14,12 +14,13 @@
 #   - fast EPs (prebuilt/nuget, a few minutes) run on PR + master push + manual dispatch,
 #     so the ONNX backend keeps a cheap always-on regression guard.
 #   - slow EPs (from-source ORT builds, 1-3h) run only on manual dispatch, so they never
-#     burn upstream CI minutes on every PR/commit.
-# GitHub-hosted runners have no GPU, so from-source jobs only verify build + EP wiring;
-# real GPU inference must be validated on a GPU machine.
+#     burn CI minutes on every PR/commit.
+# GitHub-hosted runners have no GPU, so from-source jobs only verify build and EP wiring.
+# Real GPU inference must be validated on a GPU machine.
 #
-# Adding a backend = add one matrix row + teach onnx-prepare-ort to fetch/build its ORT
-# (and extend the release-staging step in onnx-build-katago if it ships extra runtimes).
+# Adding a backend takes one more matrix row plus teaching onnx-prepare-ort to fetch or build
+# its ORT, and extending the release-staging step in onnx-build-katago if it ships extra
+# runtimes.
 
 name: ONNX backend build & test
 
@@ -31,10 +32,7 @@ on:
       - '.github/workflows/onnx-backend.yml'
       - '.github/actions/**'
   push:
-    # ci/onnx-windows is a TEMPORARY trigger so this workflow can be exercised before it
-    # exists on the default branch (workflow_dispatch requires the file on the default
-    # branch). Remove it once the branch is validated / merged to master.
-    branches: [ master, ci/onnx-windows ]
+    branches: [ master ]
     paths:
       - 'cpp/**'
       - '.github/workflows/onnx-backend.yml'
@@ -50,8 +48,8 @@ permissions:
 
 env:
   # from-source ORT pin. 1.29.0 has no release tag (VERSION_NUMBER is 1.29.0 but no
-  # v1.29.0 tag exists), so pin to the exact commit the ONNX backend was verified against
-  # locally instead of master, which would drift. Update to re-validate a newer snapshot.
+  # v1.29.0 tag exists), so pin an exact commit rather than a branch, which would drift.
+  # Update it to build against a newer ORT snapshot.
   ORT_REF: 7e76a52398ebf966bcbe4a10e552f438059edfce
   OV_URL: https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.2.1/windows/openvino_toolkit_windows_2026.2.1.21919.ede283a88e3_x86_64.zip
   OV_VERSION: 2026.2.1
@@ -60,6 +58,7 @@ jobs:
   build-fast:
     name: ${{ matrix.ep }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -108,6 +107,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     name: ${{ matrix.ep }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
@@ -160,6 +160,7 @@ jobs:
     # verifies build + EP wiring only; real GPU inference is validated on a GPU machine.
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 300
     container:
       image: nvcr.io/nvidia/tensorrt:25.03-py3
       options: --user root

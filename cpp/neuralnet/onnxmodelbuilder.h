@@ -32,11 +32,10 @@ namespace OnnxModelBuilder {
   };
 
   // Build a serialized ONNX ModelProto for the given model.
-  // Inputs are always declared in the fixed order InputSpatial, InputGlobal, InputMask.
-  // This order is required by the OpenVINO execution provider under ONNX Runtime (its
-  // name->index map is built from declaration order while the runtime feeds the EP input
-  // ports in the order it expects; the default InputMask-first order misroutes the mask
-  // tensor at runtime). See onnxmodelbuilder.cpp for the full rationale.
+  // Inputs are always declared in the order InputSpatial, InputGlobal, InputMeta (when the
+  // model has a metadata encoder), InputMask. The OpenVINO execution provider under ONNX
+  // Runtime requires this exact order and misroutes tensors at runtime otherwise. See
+  // onnxmodelbuilder.cpp for the full rationale.
   Result build(
     const ModelDesc& desc,
     int nnXLen,

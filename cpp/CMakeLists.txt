@@ -545,7 +545,7 @@ elseif(USE_BACKEND STREQUAL "ONNX")
 
   # ONNX Runtime install tree (include/ lib/ bin/). The official prebuilt ORT packages do
   # NOT ship the OpenVINO execution provider, so for Intel GPU acceleration ORT must be
-  # built from source with --use_openvino GPU (see the project's build notes).
+  # built from source with --use_openvino GPU (see Compiling.md).
   set(ONNXRUNTIME_ROOT "" CACHE PATH "Path to ONNX Runtime package root (containing include/, lib/, bin/)")
   if(NOT IS_DIRECTORY "${ONNXRUNTIME_ROOT}")
     message(FATAL_ERROR "ONNXRUNTIME_ROOT does not exist: ${ONNXRUNTIME_ROOT}. Set -DONNXRUNTIME_ROOT=<ort install dir>.")
@@ -574,10 +574,10 @@ elseif(USE_BACKEND STREQUAL "ONNX")
 
   # The ONNX backend emits an ONNX ModelProto via the same OnnxModelBuilder as the
   # TensorRT backend and hands the serialized bytes to Ort::Session. Generate onnx.pb.h
-  # from the vendored external/onnx/onnx.proto and link our own protobuf; the handoff to
+  # from the vendored external/onnx/onnx.proto and link our own protobuf. The handoff to
   # ORT is serialized bytes, so there is no ABI contact with whatever protobuf lives
-  # inside the ORT DLL. (Protobuf and protoc must be findable by find_package(Protobuf);
-  # for an ORT built from source these live under its _deps/protobuf-build.)
+  # inside the ORT DLL. Protobuf and protoc must be findable by find_package(Protobuf).
+  # For an ORT built from source, these live under its _deps/protobuf-build.
   if(NOT DEFINED Protobuf_USE_STATIC_LIBS)
     # The protobuf that ships with a from-source ONNX Runtime build (e.g. under its
     # _deps/protobuf-build on Windows) is a static library. FindProtobuf otherwise treats
@@ -600,7 +600,7 @@ elseif(USE_BACKEND STREQUAL "ONNX")
 
   # Deploy the ORT runtime DLLs next to katago.exe so the build dir is self-contained.
   # NOTE: OpenVINO's own runtime DLLs are not shipped by ORT and must be copied
-  # separately (see the project's build notes).
+  # separately (see Compiling.md).
   if(WIN32 AND ONNXRUNTIME_DLLS)
     foreach(_onnxruntime_dll IN LISTS ONNXRUNTIME_DLLS)
       add_custom_command(TARGET katago POST_BUILD

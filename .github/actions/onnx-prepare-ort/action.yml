@@ -1,6 +1,6 @@
 name: Prepare ONNX Runtime
 description: >
-  Fetch or build an ONNX Runtime install tree carrying the requested execution provider,
+  Fetch or build an ONNX Runtime install tree carrying the requested execution provider (EP),
   plus KataGo's own zlib/protobuf deps. Everything lands under deps/install/ and is
   cached, so only the first run pays for ORT acquisition (from-source ORT builds are the
   expensive case, 1-3h; prebuilt/nuget are minutes).
@@ -125,7 +125,9 @@ runs:
       uses: actions/cache@v4
       with:
         path: deps/install/ort
-        key: onnx-ort-${{ runner.os }}-${{ inputs.ep }}-${{ inputs.ort_version }}-${{ inputs.ort_ref }}
+        # ov_version is part of the key: an ORT built against one OpenVINO toolkit must
+        # not be restored when the toolkit version is bumped (empty for non-OpenVINO rows).
+        key: onnx-ort-${{ runner.os }}-${{ inputs.ep }}-${{ inputs.ort_version }}-${{ inputs.ort_ref }}-ov-${{ inputs.ov_version }}
 
     # --- prebuilt: official ORT release package (CPU EP ships inside it): zip on Windows, tgz on Linux ---
     - name: Fetch prebuilt ORT (Windows)
@@ -182,8 +184,12 @@ runs:
         path: deps/onnxruntime
         submodules: recursive
 
+    # NOTE: unlike the ORT build steps, this fetch runs even on an ORT cache hit. The
+    # OpenVINO runtime DLLs under deps/openvino are staged into the release artifact by
+    # onnx-build-katago, so skipping the fetch on cache-hit runs would silently ship an
+    # artifact with no OpenVINO runtime in it.
     - name: Fetch OpenVINO toolkit (Windows)
-      if: inputs.mode == 'from-source' && inputs.ep == 'openvino' && runner.os == 'Windows' && steps.cache-ort.outputs.cache-hit != 'true'
+      if: inputs.mode == 'from-source' && inputs.ep == 'openvino' && runner.os == 'Windows'
       shell: pwsh
       run: |
         $zip = "$env:RUNNER_TEMP\openvino.zip"
@@ -255,7 +261,7 @@ runs:
       uses: actions/cache/save@v4
       with:
         path: deps/install/ort
-        key: onnx-ort-${{ runner.os }}-${{ inputs.ep }}-${{ inputs.ort_version }}-${{ inputs.ort_ref }}
+        key: onnx-ort-${{ runner.os }}-${{ inputs.ep }}-${{ inputs.ort_version }}-${{ inputs.ort_ref }}-ov-${{ inputs.ov_version }}
 
     - name: Report ORT install tree
       shell: bash

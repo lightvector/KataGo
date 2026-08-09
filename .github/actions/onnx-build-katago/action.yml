@@ -1,8 +1,8 @@
 name: Build and test KataGo (ONNX backend)
 description: >
   Configure, build, run `katago runtests`, verify the ORT backend is wired up, and stage a
-  self-contained runnable directory under release/ (katago binary + ORT runtime + EP
-  runtimes + example config). Expects onnx-prepare-ort to have populated
+  self-contained runnable directory under release/ (katago binary + ORT runtime +
+  execution-provider runtimes + example config). Expects onnx-prepare-ort to have populated
   deps/install/{ort,protobuf,zlib} and the MSVC environment to be ready on Windows.
 inputs:
   ort_root:
@@ -49,6 +49,16 @@ runs:
       shell: bash
       run: |
         if [ "${{ runner.os }}" = "Windows" ]; then ./cpp/build/katago.exe runtests; else ./cpp/build/katago runtests; fi
+
+    - name: Run tiny neural net tests (real inference, CPU EP)
+      shell: bash
+      run: |
+        # runtests never creates an Ort::Session (it uses debugSkipNeuralNet), so this is
+        # the step that actually exercises ORT session creation + inference through the
+        # emitted graph, using the embedded tiny model. It runs on the CPU execution
+        # provider, which is present in every ORT build regardless of the EP row.
+        mkdir -p tinynn-scratch
+        if [ "${{ runner.os }}" = "Windows" ]; then ./cpp/build/katago.exe runtinynntests tinynn-scratch 1.0; else ./cpp/build/katago runtinynntests tinynn-scratch 1.0; fi
 
     - name: Verify backend wiring
       shell: bash
