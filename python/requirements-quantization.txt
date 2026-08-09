@@ -1,0 +1,3 @@
+# Reproducible ONNX post-training quantization toolchain.
+# Model Optimizer's ONNX extra supplies its compatible ONNX Runtime and graph tools.
+nvidia-modelopt[onnx]==0.45.0

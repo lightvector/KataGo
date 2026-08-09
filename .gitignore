@@ -68,6 +68,9 @@ cmake_install.cmake
 cpp/builds/
 
 .DS_Store
+/.venv-quant/
+/.quant-smoke/
+/artifacts/
 GPATH
 GRTAGS
 GTAGS
