@@ -3006,7 +3006,7 @@ def compute_attn_logit_dataless_bounds(model) -> Dict[str, float]:
     sinks), up to ~200x on layers that don't; see python/tmp/attn_logit_stats/.
 
     Inference backends mask off-board keys with large negative additive constants (-3e4 in fp16;
-    see cpp/neuralnet/cudahelpers.cu and onnxmodelbuilder.cpp), which is correct as long as
+    see cpp/neuralnet/cudaandrocmhelpers.inc and onnxmodelbuilder.cpp), which is correct as long as
     genuine logit magnitudes stay well below that scale - this bound certifies it from weights alone.
     """
     bounds = {}

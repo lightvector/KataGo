@@ -13,6 +13,10 @@
 #include <program/gitinfo.h>
 #endif
 
+#ifdef USE_ROCM_BACKEND
+#include <hip/hip_version.h>
+#endif
+
 #include <sstream>
 
 //------------------------
@@ -256,10 +260,8 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_ROCM_BACKEND)
   out << "Using ROCm backend" << endl;
-#if defined(HIP_TARGET_VERSION)
-#define STRINGIFY(x) #x
-#define STRINGIFY2(x) STRINGIFY(x)
-  out << "Compiled with HIP runtime version " << STRINGIFY2(HIP_TARGET_VERSION) << endl;
+#if defined(HIP_VERSION_MAJOR) && defined(HIP_VERSION_MINOR) && defined(HIP_VERSION_PATCH)
+  out << "Compiled with HIP version " << HIP_VERSION_MAJOR << "." << HIP_VERSION_MINOR << "." << HIP_VERSION_PATCH << endl;
 #endif
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;

@@ -266,6 +266,9 @@ int MainCmds::benchmark(const vector<string>& args) {
 #endif
 #ifdef USE_ROCM_BACKEND
   cout << "You are currently using the ROCm version of KataGo." << endl;
+  cout << "Your GTP config is currently set to rocmUseFP16 = " << nnEval->getUsingFP16Mode().toString() << endl;
+  if(nnEval->getUsingFP16Mode() == enabled_t::False)
+    cout << "If you have a strong GPU capable of FP16 setting this to true may give a large performance boost." << endl;
 #endif
 #ifdef USE_EIGEN_BACKEND
   cout << "You are currently using the Eigen (CPU) version of KataGo. Due to having no GPU, it may be slow." << endl;
