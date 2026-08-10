@@ -27,22 +27,41 @@ namespace {
 //
 // docs/ONNX_Model_Files.md documents this block and the graph's input/output contract for third
 // parties, who can write a conforming .onnx of their own. KEEP THAT DOCUMENT IN SYNC with changes
-// here, including the versioning rules below.
+// here, including the rules below.
 //
-//  - Adding an OPTIONAL key with a documented default: do NOT bump. Older readers ignore it, and
-//    newer readers fall back to the default when an older writer omitted it.
-//  - Adding a REQUIRED key, changing the meaning or units of an existing one, or changing the graph
-//    IO contract: bump KATAGO_METADATA_VERSION, so that older readers reject the file instead of
-//    misreading it.
+// The block has two namespaces, and which one a new key belongs in is the first thing to decide:
+//
+//  - "katago." is must-understand. load() refuses any key here that this build does not know, since
+//    a key it cannot interpret is one whose instructions it would be ignoring. Everything that
+//    changes how KataGo evaluates a position, decodes an output, or adjudicates a game belongs
+//    here, and as a REQUIRED key rather than an optional one with a default: silently defaulting a
+//    semantic flag off is exactly the failure this namespace exists to prevent.
+//  - "katago.info." is safe to ignore. Unknown keys here pass, so an older build still loads a file
+//    that carries newer reporting keys. Only put things here that affect nothing but log lines and
+//    diagnostics.
+//
+// Keys outside "katago." are left alone entirely - ONNX defines conventional metadata_props of its
+// own, and other tooling in the pipeline may stamp the file.
+//
+// Versioning on top of that:
+//
+//  - Adding a key under "katago.info.": do NOT bump. Older readers ignore it, and newer readers
+//    fall back to the documented default when an older writer omitted it.
+//  - Adding a key under "katago.", changing the meaning or units of an existing one, or changing
+//    the graph IO contract: bump KATAGO_METADATA_VERSION. The bump is what lets an older build say
+//    which version it wanted; refusing the unknown key is only the backstop if the bump is missed.
 //  - Raise KATAGO_METADATA_VERSION_MIN_READ only when this build can no longer honor an older
 //    version's semantics. Leaving it alone is what keeps old files working.
-//  - Unknown "katago." keys are ignored, which is what makes optional additions safe.
 const int KATAGO_METADATA_VERSION = 1;
 const int KATAGO_METADATA_VERSION_MIN_READ = 1;
 
+// Namespace prefixes, per the contract above.
+const char* const META_PREFIX = "katago.";
+const char* const META_INFO_PREFIX = "katago.info.";
+
 const char* const META_VERSION = "katago.metadataVersion";
 const char* const META_NAME = "katago.name";
-const char* const META_SOURCE_SHA256 = "katago.sourceSha256";
+const char* const META_SOURCE_SHA256 = "katago.info.sourceSha256";
 const char* const META_MODEL_VERSION = "katago.modelVersion";
 const char* const META_NUM_INPUT_CHANNELS = "katago.numInputChannels";
 const char* const META_NUM_INPUT_GLOBAL_CHANNELS = "katago.numInputGlobalChannels";
@@ -53,6 +72,7 @@ const char* const META_NUM_SCORE_VALUE_CHANNELS = "katago.numScoreValueChannels"
 const char* const META_NUM_OWNERSHIP_CHANNELS = "katago.numOwnershipChannels";
 const char* const META_META_ENCODER_VERSION = "katago.metaEncoderVersion";
 const char* const META_PREFER_PASS_ALIVE = "katago.preferPassAliveUnderSuicideRules";
+const char* const META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI = "katago.preferExcludeTerritoryAdjacentToAtari";
 const char* const META_TD_SCORE_MULT = "katago.postProcess.tdScoreMultiplier";
 const char* const META_SCORE_MEAN_MULT = "katago.postProcess.scoreMeanMultiplier";
 const char* const META_SCORE_STDEV_MULT = "katago.postProcess.scoreStdevMultiplier";
@@ -66,12 +86,45 @@ const char* const META_NN_Y_LEN = "katago.build.nnYLen";
 const char* const META_REQUIRE_EXACT_NNLEN = "katago.build.requireExactNNLen";
 const char* const META_TRANSFORMER_NHWC = "katago.build.transformerNHWC";
 const char* const META_SCALE8_APPLIED = "katago.build.scale8Applied";
-const char* const META_ARCH_TRUNK_DEPTH = "katago.arch.trunkSpatialConvDepth";
-const char* const META_ARCH_NUM_PARAMS = "katago.arch.numParameters";
-const char* const META_ARCH_HAS_TRANSFORMER = "katago.arch.hasAnyTransformerBlocks";
-const char* const META_ARCH_HAS_NBT = "katago.arch.hasAnyNestedBottleneckBlocks";
+const char* const META_ARCH_TRUNK_DEPTH = "katago.info.arch.trunkSpatialConvDepth";
+const char* const META_ARCH_NUM_PARAMS = "katago.info.arch.numParameters";
+const char* const META_ARCH_HAS_TRANSFORMER = "katago.info.arch.hasAnyTransformerBlocks";
+const char* const META_ARCH_HAS_NBT = "katago.info.arch.hasAnyNestedBottleneckBlocks";
 const char* const META_FP32_NODES_TRUNKTIP_HEAD = "katago.fp32Nodes.trunkTipAndHead";
 const char* const META_FP32_NODES_RMSNORM = "katago.fp32Nodes.rmsNorm";
+
+// Every key in the must-understand namespace. load() rejects any "katago." key absent from this
+// list, so a key added to build() without being added here fails the dump/load round trip at once.
+const char* const KNOWN_META_KEYS[] = {
+  META_VERSION,
+  META_NAME,
+  META_MODEL_VERSION,
+  META_NUM_INPUT_CHANNELS,
+  META_NUM_INPUT_GLOBAL_CHANNELS,
+  META_NUM_INPUT_META_CHANNELS,
+  META_NUM_POLICY_CHANNELS,
+  META_NUM_VALUE_CHANNELS,
+  META_NUM_SCORE_VALUE_CHANNELS,
+  META_NUM_OWNERSHIP_CHANNELS,
+  META_META_ENCODER_VERSION,
+  META_PREFER_PASS_ALIVE,
+  META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI,
+  META_TD_SCORE_MULT,
+  META_SCORE_MEAN_MULT,
+  META_SCORE_STDEV_MULT,
+  META_LEAD_MULT,
+  META_VARIANCE_TIME_MULT,
+  META_SHORTTERM_VALUE_ERROR_MULT,
+  META_SHORTTERM_SCORE_ERROR_MULT,
+  META_OUTPUT_SCALE_MULT,
+  META_NN_X_LEN,
+  META_NN_Y_LEN,
+  META_REQUIRE_EXACT_NNLEN,
+  META_TRANSFORMER_NHWC,
+  META_SCALE8_APPLIED,
+  META_FP32_NODES_TRUNKTIP_HEAD,
+  META_FP32_NODES_RMSNORM,
+};
 
 // Graph IO tensor names, in the order they are declared / bound. Their shapes and the meaning of
 // every channel are part of the published contract in docs/ONNX_Model_Files.md.
@@ -992,6 +1045,7 @@ Result build(
   addMeta(META_NUM_OWNERSHIP_CHANNELS, Global::intToString(desc.numOwnershipChannels));
   addMeta(META_META_ENCODER_VERSION, Global::intToString(desc.metaEncoderVersion));
   addMeta(META_PREFER_PASS_ALIVE, Global::boolToString(desc.preferPassAliveUnderSuicideRules));
+  addMeta(META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI, Global::boolToString(desc.preferExcludeTerritoryAdjacentToAtari));
   addMeta(META_TD_SCORE_MULT, doubleToMeta(desc.postProcessParams.tdScoreMultiplier));
   addMeta(META_SCORE_MEAN_MULT, doubleToMeta(desc.postProcessParams.scoreMeanMultiplier));
   addMeta(META_SCORE_STDEV_MULT, doubleToMeta(desc.postProcessParams.scoreStdevMultiplier));
@@ -1541,6 +1595,35 @@ LoadResult load(
       "no longer reads (minimum %d). Re-dump the model from its .bin.gz.",
       fileName.c_str(), result.metadataVersion, KATAGO_METADATA_VERSION_MIN_READ));
 
+  // Refuse keys in the must-understand namespace that this build has no code for. Reaching here
+  // means the version check passed, so the file claims to be readable while carrying instructions
+  // this build would be ignoring - most likely a writer that added a key without bumping the
+  // version, or a typo in a hand-written block.
+  {
+    vector<string> unknownKeys;
+    for(const auto& keyAndValue: meta) {
+      const string& key = keyAndValue.first;
+      if(!Global::isPrefix(key, META_PREFIX) || Global::isPrefix(key, META_INFO_PREFIX))
+        continue;
+      bool known = false;
+      for(const char* knownKey: KNOWN_META_KEYS) {
+        if(key == knownKey) {
+          known = true;
+          break;
+        }
+      }
+      if(!known)
+        unknownKeys.push_back(key);
+    }
+    if(unknownKeys.size() > 0)
+      throw StringError(
+        "Error loading ONNX model file " + fileName + ": its KataGo metadata has key(s) this build "
+        "does not know: " + Global::concat(unknownKeys, ", ") +
+        ". Keys under \"katago.\" have to be understood to run the model correctly. Re-dump the "
+        "model with this KataGo, use a newer KataGo, or drop the keys if they do not apply - purely "
+        "informational ones belong under \"katago.info.\" instead.");
+  }
+
   descBuf = ModelDesc();
   descBuf.name = reader.getString(META_NAME);
   ModelDesc::checkNameValid(descBuf.name);
@@ -1564,15 +1647,19 @@ LoadResult load(
   descBuf.numValueChannels = reader.getInt(META_NUM_VALUE_CHANNELS);
   descBuf.numScoreValueChannels = reader.getInt(META_NUM_SCORE_VALUE_CHANNELS);
   descBuf.numOwnershipChannels = reader.getInt(META_NUM_OWNERSHIP_CHANNELS);
-  // These two entered the .bin.gz header at model version 15, and are gated here the same way: a
-  // model too old to have them cannot have meant anything but the defaults.
+  // These entered the .bin.gz header at model version 15, and are gated here the same way: a model
+  // too old to have them cannot have meant anything but the defaults. The prefer* flags govern how
+  // the caller featurizes and adjudicates for this model, so a graph that needs one set has to say
+  // so rather than silently defaulting off.
   if(descBuf.modelVersion >= 15) {
     descBuf.metaEncoderVersion = reader.getInt(META_META_ENCODER_VERSION);
     descBuf.preferPassAliveUnderSuicideRules = reader.getBool(META_PREFER_PASS_ALIVE);
+    descBuf.preferExcludeTerritoryAdjacentToAtari = reader.getBool(META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI);
   }
   else {
     descBuf.metaEncoderVersion = reader.getIntOr(META_META_ENCODER_VERSION, 0);
     descBuf.preferPassAliveUnderSuicideRules = reader.getBoolOr(META_PREFER_PASS_ALIVE, false);
+    descBuf.preferExcludeTerritoryAdjacentToAtari = reader.getBoolOr(META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI, false);
   }
 
   // The input encoding and output decoding are fixed by the model version, so every channel count

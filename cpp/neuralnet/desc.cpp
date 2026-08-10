@@ -2573,6 +2573,11 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
     if(in.fail())
       throw StringError(name + ": model failed to parse preferExcludeTerritoryAdjacentToAtari");
 
+    //Spare slots for future model options. Claiming one means updating everything else that has to
+    //carry the option alongside the model: export_model_pytorch.py writes this same slot layout,
+    //and the ONNX metadata block needs a matching required "katago." key in onnxmodelbuilder.cpp
+    //plus a row in docs/ONNX_Model_Files.md. A .onnx model has no header to parse, so an option
+    //left out of that block reads as its default instead of failing the way a spare slot does here.
     int unused = 0;
     in >> unused;
     if(unused != 0) throw StringError(name + ": unknown/unsupported model option D: " + Global::intToString(unused));

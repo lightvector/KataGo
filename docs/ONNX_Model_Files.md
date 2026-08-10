@@ -92,6 +92,13 @@ Every output is raw: no softmax, tanh or softplus, and no masking of off-board p
 
 Values are strings, as ONNX metadata always is. Booleans are `true` or `false`.
 
+There are two namespaces:
+
+* **`katago.`** is must-understand. KataGo refuses to load a file carrying a key here that it does not recognize, since such a key is one whose instructions it would be ignoring. Everything that changes how a position is evaluated, an output decoded, or a game adjudicated lives here.
+* **`katago.info.`** is safe to ignore. Unknown keys here are skipped, so a file written by a newer KataGo still loads on an older one. Nothing here affects evaluation.
+
+Keys outside `katago.` are ignored entirely and are yours to use, as are ONNX's own conventional `metadata_props`.
+
 Required always:
 
 | Key | Meaning |
@@ -110,6 +117,7 @@ Required for model version 15 and up, where the `.bin.gz` header also carries th
 |---|---|
 | `katago.metaEncoderVersion` | 0 for a normal model, 1 for a human-style-play model with an `InputMeta` input. |
 | `katago.preferPassAliveUnderSuicideRules` | Whether the model expects pass-alive input features computed as if multi-stone suicide were legal. |
+| `katago.preferExcludeTerritoryAdjacentToAtari` | Whether the model expects territory scoring with no seki tax to exclude empty points adjacent to a chain in atari, per rules version 3. Affects both its territory input features and how its games are adjudicated. |
 
 Required for model version 13 and up, again matching the `.bin.gz` header, and optional below that, defaulting to 20, 20, 20, 20, 40, 0.25 and 30 respectively:
 
@@ -123,10 +131,8 @@ Optional:
 | `katago.fp32Nodes.trunkTipAndHead`, `katago.fp32Nodes.rmsNorm` | empty | Newline-separated node names that TensorRT keeps in FP32. See [Keeping layers out of FP16](#keeping-layers-out-of-fp16). |
 | `katago.build.scale8Applied` | `false` | Whether the 1/8 activation rescaling was applied when the graph was built. The compensation for it lives in `outputScaleMultiplier`. |
 | `katago.build.transformerNHWC` | `false` | Whether the trunk runs channel-last. TensorRT keys its timing and plan caches on this, so the two layouts do not share cache entries. |
-| `katago.arch.trunkSpatialConvDepth`, `katago.arch.numParameters`, `katago.arch.hasAnyTransformerBlocks`, `katago.arch.hasAnyNestedBottleneckBlocks` | `0`, `false` | Used only for log lines and for test tolerances. |
-| `katago.sourceSha256` | empty | The sha256 of the `.bin.gz` the graph was built from, if any. |
-
-Unknown `katago.` keys are ignored.
+| `katago.info.arch.trunkSpatialConvDepth`, `katago.info.arch.numParameters`, `katago.info.arch.hasAnyTransformerBlocks`, `katago.info.arch.hasAnyNestedBottleneckBlocks` | `0`, `false` | Used only for log lines and for test tolerances. Worth setting: `runnnevalcanarytests` picks its tolerances by model size and applies its most permissive ones to a model that declares no depth. |
+| `katago.info.sourceSha256` | empty | The sha256 of the `.bin.gz` the graph was built from, if any. |
 
 ### Example
 
@@ -145,6 +151,7 @@ katago.numScoreValueChannels        = 6
 katago.numOwnershipChannels         = 1
 katago.metaEncoderVersion           = 0
 katago.preferPassAliveUnderSuicideRules = false
+katago.preferExcludeTerritoryAdjacentToAtari = false
 katago.postProcess.tdScoreMultiplier             = 20
 katago.postProcess.scoreMeanMultiplier           = 20
 katago.postProcess.scoreStdevMultiplier          = 20
@@ -214,9 +221,11 @@ The ONNX Runtime backend ignores these keys. It has no per-node precision contro
 * A file newer than the build understands is refused, since its keys may not mean what the build thinks they mean.
 * A file older than the build's minimum is refused, and can be regenerated with `dumponnx`. KataGo raises that minimum only when it can no longer honor the old semantics, so old files normally keep working.
 
-When extending the format:
+When extending the format, first decide which namespace the new key belongs in:
 
-* Adding an optional key with a documented default does not bump the version. Old readers ignore it, and new readers fall back to the default for files that lack it.
-* Adding a required key, changing the meaning or units of an existing one, or changing the graph input/output contract does bump it.
+* A key that changes evaluation, decoding or adjudication goes under `katago.`, and it should be **required** rather than optional with a default. Silently defaulting a semantic flag off is the failure the must-understand namespace exists to prevent, and a default cannot be inferred from the graph. Adding one bumps the version, as does changing the meaning or units of an existing key, or changing the graph input/output contract.
+* A key that only feeds log lines or diagnostics goes under `katago.info.`, with a documented default. Adding one does not bump the version: old readers skip it, and new readers fall back to the default for files that lack it.
+
+Refusing unknown `katago.` keys is the backstop, not the mechanism. Bump the version when the rule says to, so that an older build can report which version it needed instead of reporting a key it has never heard of.
 
 The key list and version constants live in `cpp/neuralnet/onnxmodelbuilder.cpp`, next to a comment pointing back at this document. Changes to one belong with changes to the other.

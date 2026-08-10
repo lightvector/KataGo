@@ -41,6 +41,7 @@ map<string, string> makeMeta(int modelVersion, int numPolicyChannels) {
   if(modelVersion >= 15) {
     meta["katago.metaEncoderVersion"] = "0";
     meta["katago.preferPassAliveUnderSuicideRules"] = "false";
+    meta["katago.preferExcludeTerritoryAdjacentToAtari"] = "false";
   }
   if(modelVersion >= 13) {
     meta["katago.postProcess.tdScoreMultiplier"] = "20";
@@ -238,6 +239,7 @@ void Tests::runOnnxModelFileTests(const string& scratchDir, const string& modelF
     testAssert(desc.numOwnershipChannels == 1);
     testAssert(desc.metaEncoderVersion == 0);
     testAssert(desc.preferPassAliveUnderSuicideRules == false);
+    testAssert(desc.preferExcludeTerritoryAdjacentToAtari == false);
     testAssert(desc.postProcessParams.tdScoreMultiplier == 20.0);
     testAssert(desc.postProcessParams.varianceTimeMultiplier == 40.0);
     testAssert(desc.postProcessParams.shorttermValueErrorMultiplier == 0.25);
@@ -275,18 +277,21 @@ void Tests::runOnnxModelFileTests(const string& scratchDir, const string& modelF
   // ---- Optional keys ----
   {
     onnx::ModelProto model = makeModel(makeMeta(15, 2));
-    setMeta(model, "katago.sourceSha256", "abc123");
+    setMeta(model, "katago.info.sourceSha256", "abc123");
     setMeta(model, "katago.postProcess.outputScaleMultiplier", "8");
     setMeta(model, "katago.build.requireExactNNLen", "true");
     setMeta(model, "katago.build.transformerNHWC", "true");
     setMeta(model, "katago.build.scale8Applied", "true");
-    setMeta(model, "katago.arch.trunkSpatialConvDepth", "14.5");
-    setMeta(model, "katago.arch.numParameters", "123456789012");
-    setMeta(model, "katago.arch.hasAnyTransformerBlocks", "true");
-    setMeta(model, "katago.arch.hasAnyNestedBottleneckBlocks", "true");
+    setMeta(model, "katago.info.arch.trunkSpatialConvDepth", "14.5");
+    setMeta(model, "katago.info.arch.numParameters", "123456789012");
+    setMeta(model, "katago.info.arch.hasAnyTransformerBlocks", "true");
+    setMeta(model, "katago.info.arch.hasAnyNestedBottleneckBlocks", "true");
     setMeta(model, "katago.fp32Nodes.trunkTipAndHead", "node/a\nnode/b");
     setMeta(model, "katago.fp32Nodes.rmsNorm", "\nnode/c\n");
-    setMeta(model, "katago.someKeyFromTheFuture", "ignored");
+    // Only the must-understand namespace is policed: a reporting key from a newer writer and a key
+    // belonging to some other tool both have to load.
+    setMeta(model, "katago.info.someReportingKeyFromTheFuture", "ignored");
+    setMeta(model, "some.other.tools.key", "ignored");
     ModelDesc desc;
     OnnxModelBuilder::LoadResult lr = writeAndLoad(model, path, desc);
     testAssert(lr.sourceSha256 == "abc123");
@@ -312,6 +317,7 @@ void Tests::runOnnxModelFileTests(const string& scratchDir, const string& modelF
     testAssert(desc.numScoreValueChannels == 4);
     testAssert(desc.metaEncoderVersion == 0);
     testAssert(!desc.preferPassAliveUnderSuicideRules);
+    testAssert(!desc.preferExcludeTerritoryAdjacentToAtari);
     const ModelPostProcessParams dflt;
     testAssert(desc.postProcessParams.tdScoreMultiplier == dflt.tdScoreMultiplier);
     testAssert(desc.postProcessParams.leadMultiplier == dflt.leadMultiplier);
@@ -339,6 +345,18 @@ void Tests::runOnnxModelFileTests(const string& scratchDir, const string& modelF
     testAssert(desc.metaEncoderVersion == 1);
     testAssert(desc.numInputMetaChannels == NNModelVersion::getNumInputMetaChannels(1));
     testAssert(!lr.danglingInputNotDeclaredLast);
+  }
+
+  // ---- The rules-related model options reach the ModelDesc when set ----
+  {
+    map<string, string> meta = makeMeta(15, 2);
+    meta["katago.preferPassAliveUnderSuicideRules"] = "true";
+    meta["katago.preferExcludeTerritoryAdjacentToAtari"] = "true";
+    onnx::ModelProto model = makeModel(meta);
+    ModelDesc desc;
+    writeAndLoad(model, path, desc);
+    testAssert(desc.preferPassAliveUnderSuicideRules);
+    testAssert(desc.preferExcludeTerritoryAdjacentToAtari);
   }
 
   // ---- Metadata error paths ----
@@ -378,6 +396,17 @@ void Tests::runOnnxModelFileTests(const string& scratchDir, const string& modelF
     path, "outside the supported range", "board size too large");
   expectLoadError(withoutMeta("katago.build.nnXLen"), path, "missing required key", "build params missing");
   expectLoadError(withMeta("katago.preferPassAliveUnderSuicideRules", "maybe"), path, "is not a boolean", "bad boolean");
+  expectLoadError(
+    withoutMeta("katago.preferExcludeTerritoryAdjacentToAtari"),
+    path, "missing required key", "rules model option missing at v15+");
+  expectLoadError(
+    withMeta("katago.someKeyFromTheFuture", "surprise"),
+    path, "does not know: katago.someKeyFromTheFuture", "unknown must-understand key");
+  // A misspelled key is an unknown key, which is the whole point of policing the namespace: the
+  // required-key check alone would only report the real key as missing.
+  expectLoadError(
+    withMeta("katago.preferPassAliveUnderSuicideRule", "true"),
+    path, "does not know: katago.preferPassAliveUnderSuicideRule", "misspelled key");
 
   // ---- Graph/metadata mismatch error paths ----
   {
@@ -512,6 +541,7 @@ void Tests::runOnnxModelFileTests(const string& scratchDir, const string& modelF
     testAssert(desc.numOwnershipChannels == srcDesc.numOwnershipChannels);
     testAssert(desc.metaEncoderVersion == srcDesc.metaEncoderVersion);
     testAssert(desc.preferPassAliveUnderSuicideRules == srcDesc.preferPassAliveUnderSuicideRules);
+    testAssert(desc.preferExcludeTerritoryAdjacentToAtari == srcDesc.preferExcludeTerritoryAdjacentToAtari);
     const ModelPostProcessParams& a = desc.postProcessParams;
     const ModelPostProcessParams& b = srcDesc.postProcessParams;
     testAssert(a.tdScoreMultiplier == b.tdScoreMultiplier);

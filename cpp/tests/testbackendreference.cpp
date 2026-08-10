@@ -291,12 +291,14 @@ bool Tests::runBackendReferenceTest(
   for(size_t posIdx = 0; posIdx < refData.size(); posIdx++) {
     const BackendRefPosData& data = refData[posIdx];
 
-    //Featurize per the model's own declared pass-alive computation mode. Nets with different modes
+    //Featurize per the model's own declared BoardHistoryModes preferences. Nets with different modes
     //thus see slightly different inputs on the same position - part of the model-family spread the
     //calibrated thresholds must absorb.
+    const BoardHistoryModes modelModes(
+      nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari());
     BoardHistory hist;
     Player nextPla = C_EMPTY;
-    bool histOkay = data.sample.tryGetCurrentBoardHistory(data.rules, nextPla, hist, nnEval->modelPreferPassAliveUnderSuicideRules());
+    bool histOkay = data.sample.tryGetCurrentBoardHistory(data.rules, nextPla, hist, modelModes);
     if(!histOkay)
       throw StringError("Backend reference test: reference position " + Global::uint64ToString((uint64_t)posIdx) + " has illegal moves");
     const Board& board = hist.getRecentBoard(0);
@@ -307,7 +309,8 @@ bool Tests::runBackendReferenceTest(
     nnInputParams.playoutDoublingAdvantage = data.pda;
     nnInputParams.maxHistory = data.maxHistory;
     nnInputParams.nnPolicyTemperature = (float)nnPolicyTemperatureForTest;
-    nnInputParams.passAliveSuicideRulesOverride = nnEval->modelPreferPassAliveUnderSuicideRules() ? 1 : 0;
+    nnInputParams.passAliveSuicideRulesOverride = modelModes.alwaysComputePassAliveUnderSuicideRules ? 1 : 0;
+    nnInputParams.excludeTerritoryAdjAtariOverride = modelModes.excludeTerritoryAdjacentToAtari ? 1 : 0;
 
     NNResultBuf buf;
     const bool skipCache = true;
