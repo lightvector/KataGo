@@ -160,6 +160,10 @@ Force OpenCL tuner to re-tune:
 
    * `./katago tuner -config <GTP_CONFIG>.cfg`
 
+On the TensorRT and ONNX backends, write out the [ONNX graph](docs/ONNX_Model_Files.md) that KataGo builds for a model, which can then be run as a model file in its own right:
+
+   * `./katago dumponnx -model <NEURALNET>.bin.gz -out <NEURALNET>.onnx`
+
 Print version:
 
    * `./katago version`

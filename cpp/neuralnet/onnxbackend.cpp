@@ -60,6 +60,13 @@ static const char* const kKnownProviders[] = {
 
 struct LoadedModel {
   ModelDesc modelDesc;
+  string modelFileName;
+
+  // True if the model came from a .onnx file rather than a .bin.gz. The graph is then taken verbatim
+  // from externalOnnx.serializedModel instead of being emitted from weights.
+  bool isExternalOnnx;
+  OnnxModelBuilder::LoadResult externalOnnx;
+
   // One-time scale8 transform (see maybeApplyScale8), called from createComputeContext.
   //
   // It MUST run inside createComputeContext rather than lazily at compute-handle creation:
@@ -71,28 +78,48 @@ struct LoadedModel {
   // modelDesc in OnnxModelBuilder::build(). The mutex only keeps the transform idempotent
   // if multiple contexts are ever created on one model.
   mutable bool scale8Resolved;
+  // Whether the transform took effect; it is skipped for models where the rescaling would be
+  // unsound. Recorded in the emitted graph's metadata.
+  mutable bool scale8Applied;
   mutable std::mutex scale8Mutex;
 
-  LoadedModel(const string& fileName, const string& expectedSha256) {
-    if(Global::isSuffix(fileName, ".onnx"))
-      throw StringError(
-        "ONNX backend: loading a raw .onnx file is not supported by this backend. "
-        "Feed a standard KataGo .bin.gz model instead (this backend builds the ONNX "
-        "graph from the model weights internally).");
-    ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+  LoadedModel(const string& fileName, const string& expectedSha256)
+    : modelFileName(fileName), isExternalOnnx(false)
+  {
+    if(OnnxModelBuilder::isOnnxFileName(fileName)) {
+      isExternalOnnx = true;
+      // loadModelFile has no logger; createComputeHandle logs the graph's build settings instead.
+      externalOnnx = OnnxModelBuilder::load(fileName, expectedSha256, modelDesc, NULL);
+    }
+    else {
+      ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+    }
     scale8Resolved = false;
+    scale8Applied = isExternalOnnx && externalOnnx.buildParams.scale8Applied;
   }
 
   // Apply the scale8 FP16-range workaround exactly once per model, unless skipped via
   // onnxSkipScale8. See the comment on scale8Resolved for why this must run at
   // createComputeContext time.
-  void maybeApplyScale8(bool skip) const {
+  void maybeApplyScale8(bool skip, bool skipWasExplicit, Logger* logger) const {
     std::lock_guard<std::mutex> lock(scale8Mutex);
-    if(!scale8Resolved) {
-      if(!skip)
-        const_cast<LoadedModel*>(this)->modelDesc.applyScale8ToReduceActivations();
-      scale8Resolved = true;
+    if(scale8Resolved)
+      return;
+    scale8Resolved = true;
+    // A loaded graph's weights are already whatever they are, and the postProcessParams read out of
+    // the same file already match them. Applying the transform now would rescale
+    // outputScaleMultiplier alone, decoding every output 8x too large.
+    if(isExternalOnnx) {
+      if(logger != NULL && skipWasExplicit && skip == externalOnnx.buildParams.scale8Applied)
+        logger->write(
+          string("ONNX backend: WARNING - config option onnxSkipScale8 = ") + Global::boolToString(skip) +
+          " has no effect on a model loaded from a .onnx file. This graph was emitted with "
+          "scale8Applied=" + Global::boolToString(externalOnnx.buildParams.scale8Applied)
+        );
+      return;
     }
+    if(!skip)
+      scale8Applied = const_cast<LoadedModel*>(this)->modelDesc.applyScale8ToReduceActivations();
   }
 
   LoadedModel() = delete;
@@ -206,13 +233,20 @@ ComputeContext* NeuralNet::createComputeContext(
   // backend's trtTransformerNHWC default. NHWC is markedly faster for transformer trunks on
   // OpenVINO GPU/NPU, and is ignored entirely for models without transformer blocks.
   ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : true;
+  if(loadedModel->isExternalOnnx && logger != NULL && cfg.contains("onnxTransformerNHWC") &&
+     ctx->transformerNHWC != loadedModel->externalOnnx.buildParams.transformerNHWC &&
+     loadedModel->modelDesc.hasAnyTransformerBlocks())
+    logger->write(
+      "ONNX backend: WARNING - onnxTransformerNHWC = " + Global::boolToString(ctx->transformerNHWC) +
+      " has no effect on a model loaded from a .onnx file. The trunk layout is baked into the graph "
+      "(transformerNHWC=" + Global::boolToString(loadedModel->externalOnnx.buildParams.transformerNHWC) + ").");
 
   // Skip the scale8 FP16-range workaround. Default false, meaning the workaround is applied.
   // See the onnxSkipScale8 documentation in configs/gtp_example.cfg for the tradeoff.
   ctx->skipScale8 = cfg.contains("onnxSkipScale8") ? cfg.getBool("onnxSkipScale8") : false;
 
   // Must happen here rather than at compute-handle creation. See LoadedModel::scale8Resolved.
-  loadedModel->maybeApplyScale8(ctx->skipScale8);
+  loadedModel->maybeApplyScale8(ctx->skipScale8, cfg.contains("onnxSkipScale8"), logger);
 
   // --- Per-thread device type assignment ---
   // Pre-parse onnxOpenVINODeviceTypeThread<N> keys so ComputeHandle can look up
@@ -346,24 +380,58 @@ struct ComputeHandle {
       numScoreValueChannels(loadedModel.modelDesc.numScoreValueChannels),
       numOwnershipChannels(loadedModel.modelDesc.numOwnershipChannels)
   {
-    if(logger != NULL)
-      logger->write("ONNX backend: building ONNX graph from model weights...");
+    // The graph either comes verbatim from a .onnx file, or is emitted here from the .bin.gz weights
+    // by the same emitter the TensorRT backend uses. Either way Ort::Session parses it directly. The
+    // FP32 node-name lists are ignored, since ORT has no per-node precision API.
+    OnnxModelBuilder::Result onnxResult;   // only filled on the emit path
+    const string* onnxBytesPtr = NULL;
+    if(loadedModel.isExternalOnnx) {
+      OnnxModelBuilder::checkRuntimeParams(
+        loadedModel.externalOnnx, loadedModel.modelFileName, ctx->nnXLen, ctx->nnYLen, requireExactNNLen);
+      if(logger != NULL && serverThreadIdx <= 0) {
+        const OnnxModelBuilder::BuildParams& params = loadedModel.externalOnnx.buildParams;
+        logger->write(Global::strprintf(
+          "ONNX backend: using the graph from %s as-is (emitted for %dx%d, requireExactNNLen=%s, "
+          "transformerNHWC=%s, scale8Applied=%s)",
+          loadedModel.modelFileName.c_str(), params.nnXLen, params.nnYLen,
+          Global::boolToString(params.requireExactNNLen).c_str(),
+          Global::boolToString(params.transformerNHWC).c_str(),
+          Global::boolToString(params.scale8Applied).c_str()));
+        // The OpenVINO EP mis-binds inputs declared after one that no node consumes (ORT >= 1.23).
+        // It surfaces as a shape-mismatch crash on the first evaluation, which is hard to trace
+        // back to the graph.
+        if(loadedModel.externalOnnx.danglingInputNotDeclaredLast)
+          logger->write(
+            string("ONNX backend: ") + (ctx->providerName == "openvino" ? "WARNING" : "note") + " - " +
+            loadedModel.modelFileName +
+            " declares a graph input that no node consumes, ahead of inputs that are consumed. The "
+            "OpenVINO execution provider binds the inputs after it to the wrong buffers and fails "
+            "with a shape mismatch. Unconsumed inputs must be declared last.");
+      }
+      // Read straight out of the LoadedModel, which outlives every compute handle - no need for a
+      // per-thread copy of what can be hundreds of MB.
+      onnxBytesPtr = &loadedModel.externalOnnx.serializedModel;
+    }
+    else {
+      if(logger != NULL)
+        logger->write("ONNX backend: building ONNX graph from model weights...");
+      // TODO: every server thread re-runs this build, transiently duplicating the fully
+      // weight-baked serialized proto (hundreds of MB for large nets) across N spawning
+      // threads. The bytes are identical per (nnXLen, nnYLen, requireExactNNLen,
+      // transformerNHWC), so they could be built once in the ComputeContext and shared.
+      OnnxModelBuilder::BuildParams buildParams;
+      buildParams.nnXLen = ctx->nnXLen;
+      buildParams.nnYLen = ctx->nnYLen;
+      buildParams.requireExactNNLen = requireExactNNLen;
+      buildParams.transformerNHWC = ctx->transformerNHWC;
+      buildParams.scale8Applied = loadedModel.scale8Applied;
+      onnxResult = OnnxModelBuilder::build(loadedModel.modelDesc, buildParams, logger);
+      onnxBytesPtr = &onnxResult.serializedModel;
+    }
+    const string& onnxBytes = *onnxBytesPtr;
 
-    // Reuse the same ONNX emitter as the TensorRT backend. The serialized ModelProto is a
-    // standard ONNX graph that Ort::Session can parse directly. The TRT-only FP32 node-name
-    // lists in the Result are ignored, since ORT has no per-node precision API.
-    // TODO: every server thread re-runs this build, transiently duplicating the fully
-    // weight-baked serialized proto (hundreds of MB for large nets) across N spawning
-    // threads. The bytes are identical per (nnXLen, nnYLen, requireExactNNLen,
-    // transformerNHWC), so they could be built once in the ComputeContext and shared.
-    OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(
-      loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
-    const string& onnxBytes = onnxResult.serializedModel;
-    (void)onnxResult.trunkTipAndHeadNodeNames;
-    (void)onnxResult.rmsNormNodeNames;
-
     if(logger != NULL)
-      logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
+      logger->write("ONNX backend: ONNX graph ready (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
 
     // Dump the ONNX model to a file when KATAGO_DUMP_ONNX is set (debug aid).
     {

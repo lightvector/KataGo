@@ -260,6 +260,15 @@ int MainCmds::runnnontinyboardtest(const vector<string>& args) {
   return 0;
 }
 
+int MainCmds::runonnxmodelfiletests(const vector<string>& args) {
+  if(args.size() != 2 && args.size() != 3) {
+    cerr << "Must supply one or two arguments: SCRATCHDIR [MODELFILE]" << endl;
+    return 1;
+  }
+  Tests::runOnnxModelFileTests(args[1], args.size() >= 3 ? args[2] : "");
+  return 0;
+}
+
 int MainCmds::runnnsymmetriestest(const vector<string>& args) {
   if(args.size() != 5) {
     cerr << "Must supply exactly four arguments: MODEL_FILE INPUTSNHWC CUDANHWC FP16" << endl;

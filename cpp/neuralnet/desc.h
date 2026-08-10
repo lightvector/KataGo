@@ -529,6 +529,19 @@ struct ModelDesc {
   PolicyHeadDesc policyHead;
   ValueHeadDesc valueHead;
 
+  //Architecture summary values that are normally derived by walking trunk/policyHead/valueHead.
+  //Set (present = true) only for a desc reconstructed from a .onnx file, which has no layer
+  //structure to walk; the summary getters below then report these values instead.
+  struct ArchSummary {
+    bool present;
+    double trunkSpatialConvDepth;
+    int64_t numParameters;
+    bool hasAnyTransformerBlocks;
+    bool hasAnyNestedBottleneckBlocks;
+    ArchSummary();
+  };
+  ArchSummary archSummary;
+
   ModelDesc();
   ~ModelDesc();
   ModelDesc(std::istream& in, const std::string& sha256, bool binaryFloats);
@@ -554,11 +567,19 @@ struct ModelDesc {
   std::string getShortInfoString() const;
 
   void transformToReduceActivations();
-  void applyScale8ToReduceActivations();
+  //Rescales the net's activations by 1/8 to keep them inside the FP16 range, compensating via
+  //postProcessParams.outputScaleMultiplier. Returns whether it was applied: for models where the
+  //rescaling would be unsound it changes nothing and returns false.
+  bool applyScale8ToReduceActivations();
 
   //Loads a model from a file that may or may not be gzipped, storing it in descBuf
   //If expectedSha256 is nonempty, will also verify sha256 of the loaded data.
   static void loadFromFileMaybeGZipped(const std::string& fileName, ModelDesc& descBuf, const std::string& expectedSha256);
+
+  //Throws StringError if name is not usable as a model name. Model names get embedded into on-disk
+  //cache filenames (e.g. the TensorRT plan cache), so they are restricted to a short
+  //filesystem-safe character set.
+  static void checkNameValid(const std::string& name);
 
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.

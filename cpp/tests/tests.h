@@ -79,6 +79,9 @@ namespace Tests {
   void runNNLayerTests();
   void runNNSymmetryTests();
 
+  //testonnxmodelfile.cpp
+  void runOnnxModelFileTests(const std::string& scratchDir, const std::string& modelFile);
+
   //testownership.cpp
   void runOwnershipTests(const std::string& configFile, const std::string& modelFile);
 

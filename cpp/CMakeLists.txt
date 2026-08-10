@@ -354,6 +354,7 @@ add_executable(katago
   tests/testtime.cpp
   tests/testtrainingwrite.cpp
   tests/testnn.cpp
+  tests/testonnxmodelfile.cpp
   tests/tinymodel.cpp
   tests/tinymodeldata.cpp
   distributed/client.cpp
@@ -361,6 +362,7 @@ add_executable(katago
   command/analysis.cpp
   command/benchmark.cpp
   command/contribute.cpp
+  command/dumponnx.cpp
   command/evalsgf.cpp
   command/gatekeeper.cpp
   command/genbook.cpp
