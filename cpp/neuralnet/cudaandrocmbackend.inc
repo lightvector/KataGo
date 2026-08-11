@@ -2041,7 +2041,7 @@ struct RMSNormLayer {
       // Allocate temp buffer for spatial reduction from scratch (float regardless of FP16 mode).
       // Holds per-block partial sums plus the final reduced value per batch element; see
       // SPATIAL_RMSNORM_BLOCKS_PER_BATCH in cudaandrocmhelpers.inc (partialStride = that + 1).
-      SizedBuf<void*> sumSqBuf(scratch->allocator, (size_t)batchSize * CUDA_SPATIAL_RMSNORM_SUMSQ_STRIDE * sizeof(float));
+      SizedBuf<void*> sumSqBuf(scratch->allocator, scratch->getBufSizeFloat(CUDA_SPATIAL_RMSNORM_SUMSQ_STRIDE));
       if(!usingFP16) {
         if(!usingNHWC)
           customCudaSpatialRMSNormNCHW(
@@ -2179,9 +2179,6 @@ struct TransformerAttentionBlock {
     int qTotalDim = numHeads * qHeadDim;
     int kTotalDim = numKVHeads * qHeadDim;
     int vTotalDim = numKVHeads * vHeadDim;
-#ifdef KATAGO_GPU_CUDA
-    size_t bytesPerElt = usingFP16 ? sizeof(half) : sizeof(float);
-#endif
 
     // NHWC: trunk is [N, XY, C]. RMSNorm + mask zeroing.
     preLN.apply(cudaHandles, batchSize, seqLen, trunkBuf, trunkScratchBuf, maskBuf);
@@ -2195,17 +2192,13 @@ struct TransformerAttentionBlock {
     // MatMulLayer expects input as [inChannels, batchSize], which matches.
     int matBatchSize = batchSize * seqLen;
 
-#ifdef KATAGO_GPU_CUDA
-    SizedBuf<void*> qBuf(scratch->allocator, (size_t)qTotalDim * matBatchSize * bytesPerElt);
-    SizedBuf<void*> kBuf(scratch->allocator, (size_t)kTotalDim * matBatchSize * bytesPerElt);
-    SizedBuf<void*> vBuf(scratch->allocator, (size_t)vTotalDim * matBatchSize * bytesPerElt);
-#else  // KATAGO_GPU_HIP
-    //Sized by max batch size (unlike CUDA's exact sizing above): SimpleAllocator pools by exact
-    //byte size and retains forever, so max-sizing reuses one allocation across batch sizes.
+    //Every transient buffer here is sized by max batch size rather than the actual batch size.
+    //SimpleAllocator pools by exact byte size and never frees, so sizing by the actual batch size
+    //would retain a separate allocation for every distinct batch size ever seen, which costs
+    //O(maxBatchSize) times more memory than reusing one max-sized allocation.
     SizedBuf<void*> qBuf(scratch->allocator, scratch->getBufSizeXY(qTotalDim));
     SizedBuf<void*> kBuf(scratch->allocator, scratch->getBufSizeXY(kTotalDim));
     SizedBuf<void*> vBuf(scratch->allocator, scratch->getBufSizeXY(vTotalDim));
-#endif
 
     qProj.apply(cudaHandles, scratch, matBatchSize, trunkScratchBuf, qBuf.buf, workspaceBuf, workspaceBytes);
     kProj.apply(cudaHandles, scratch, matBatchSize, trunkScratchBuf, kBuf.buf, workspaceBuf, workspaceBytes);
@@ -2257,7 +2250,7 @@ struct TransformerAttentionBlock {
     // Both paths consume Q/K/V in BSHD layout and produce attnOut in the same layout as expected by outProj:
     //   attnOut: [numHeads*vHeadDim, seqLen*batchSize] col-major = [batchSize*seqLen, numHeads*vHeadDim] row-major.
 
-    SizedBuf<void*> attnOutBuf(scratch->allocator, (size_t)numHeads * vHeadDim * seqLen * batchSize * bytesPerElt);
+    SizedBuf<void*> attnOutBuf(scratch->allocator, scratch->getBufSizeXY(numHeads * vHeadDim));
 
     bool usedSDPA = false;
 #if KATAGO_CUDA_HAS_SDPA
@@ -2285,7 +2278,7 @@ struct TransformerAttentionBlock {
         // When a mask is present, materialize a [B, 1, S, S] additive bias: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -3e4).
         // For our test model (B=16, S=361) this is ~4 MB; the bias only depends on the mask, but
         // we rebuild it per attention block for simplicity (the mask kernel itself is cheap).
-        SizedBuf<void*> biasBuf(scratch->allocator, hasMask ? (size_t)batchSize * seqLen * seqLen * bytesPerElt : 1);
+        SizedBuf<void*> biasBuf(scratch->allocator, hasMask ? scratch->getBufSizeXY(seqLen) : 1);
         if(hasMask) {
           customCudaMaskToAttnBiasFull((const half*)maskBuf, (half*)biasBuf.buf, batchSize, seqLen);
           CUDA_ERR(name.c_str(),cudaPeekAtLastError());
@@ -2331,7 +2324,7 @@ struct TransformerAttentionBlock {
       // CK's fused path takes a pre-materialized additive bias rather than a raw per-position
       // mask, so build a [B, S, S] bias broadcast over heads, matching what the CUDA backend does
       // for its cudnn-frontend graph SDPA path.
-      SizedBuf<void*> biasBuf(scratch->allocator, hasMask ? (size_t)batchSize * seqLen * seqLen * sizeof(half) : 1);
+      SizedBuf<void*> biasBuf(scratch->allocator, hasMask ? scratch->getBufSizeXY(seqLen) : 1);
       if(hasMask) {
         customCudaMaskToAttnBiasFull((const half*)maskBuf, (half*)biasBuf.buf, batchSize, seqLen);
         CUDA_ERR(name.c_str(), hipPeekAtLastError());
@@ -2542,9 +2535,6 @@ struct TransformerFFNBlock {
 
     int seqLen = nnXLen * nnYLen;
     int matBatchSize = batchSize * seqLen;
-#ifdef KATAGO_GPU_CUDA
-    size_t bytesPerElt = usingFP16 ? sizeof(half) : sizeof(float);
-#endif
 
     // Step 1: RMSNorm
     preLN.apply(cudaHandles, batchSize, seqLen, trunkBuf, trunkScratchBuf, maskBuf);
@@ -2554,22 +2544,14 @@ struct TransformerFFNBlock {
 #endif
 
     // Step 2: linear1 projection
-#ifdef KATAGO_GPU_CUDA
-    SizedBuf<void*> ffnBuf(scratch->allocator, (size_t)ffnChannels * matBatchSize * bytesPerElt);
-#else  // KATAGO_GPU_HIP
     //Max-batch-sized. See the scratch-sizing note at the attention q/k/v buffers.
     SizedBuf<void*> ffnBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
-#endif
     linear1.apply(cudaHandles, scratch, matBatchSize, trunkScratchBuf, ffnBuf.buf, workspaceBuf, workspaceBytes);
 
     // Step 3: SwiGLU
     {
-#ifdef KATAGO_GPU_CUDA
-      SizedBuf<void*> gateBuf(scratch->allocator, (size_t)ffnChannels * matBatchSize * bytesPerElt);
-#else  // KATAGO_GPU_HIP
       //Max-batch-sized. See the scratch-sizing note at the attention q/k/v buffers.
       SizedBuf<void*> gateBuf(scratch->allocator, scratch->getBufSizeXY(ffnChannels));
-#endif
       linearGate->apply(cudaHandles, scratch, matBatchSize, trunkScratchBuf, gateBuf.buf, workspaceBuf, workspaceBytes);
 
       if((size_t)ffnChannels * (size_t)matBatchSize >= (size_t)2147483647)
