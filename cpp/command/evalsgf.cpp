@@ -405,6 +405,10 @@ int MainCmds::evalsgf(const vector<string>& args) {
       bot->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
     }
 
+    //Tree-averaged ownership is only accumulated if requested before the search runs.
+    if(printJson && printOwnership)
+      bot->setAlwaysIncludeOwnerMap(true);
+
     //Print initial state----------------------------------------------------------------
     const Search* search = bot->getSearchStopAndWait();
     ostringstream sout;
@@ -612,22 +616,13 @@ int MainCmds::evalsgf(const vector<string>& args) {
     search->printTree(sout, search->rootNode, options, perspective);
     logger.write(sout.str());
 
-    if(printLead) {
-      BoardHistory hist2(hist);
-      double lead = PlayUtils::computeLead(
-        bot->getSearchStopAndWait(), NULL, board, hist2, nextPla,
-        20, OtherGameProperties()
-      );
-      cout << "LEAD: " << lead << endl;
-    }
-
     if(printGraph) {
       std::reverse(nodes.begin(),nodes.end());
       std::map<SearchNode*,size_t> idxOfNode;
       for(size_t nodeIdx = 0; nodeIdx<nodes.size(); nodeIdx++)
         idxOfNode[nodes[nodeIdx]] = nodeIdx;
 
-      for(int nodeIdx = 0; nodeIdx<nodes.size(); nodeIdx++) {
+      for(size_t nodeIdx = 0; nodeIdx<nodes.size(); nodeIdx++) {
         SearchNode& node = *(nodes[nodeIdx]);
         SearchNodeChildrenReference children = node.getChildren();
         int childrenCapacity = children.getCapacity();
@@ -668,6 +663,17 @@ int MainCmds::evalsgf(const vector<string>& args) {
       if(suc) {
         cout << ret << endl;
       }
+    }
+
+    //Must come after everything that reads the search tree - computeLead reuses this same search
+    //object and clears the tree, invalidating "nodes" and search->rootNode.
+    if(printLead) {
+      BoardHistory hist2(hist);
+      double lead = PlayUtils::computeLead(
+        bot->getSearchStopAndWait(), NULL, board, hist2, nextPla,
+        20, OtherGameProperties()
+      );
+      cout << "LEAD: " << lead << endl;
     }
 
     if(dumpNpzInputTo != "") {
