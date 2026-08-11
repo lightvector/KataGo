@@ -43,6 +43,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <mutex>
+#include <set>
 
 using namespace std;
 
@@ -314,39 +315,42 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 }
 
 //--------------------------------------------------------------
-// Helper: extract a short device name from an OpenVINO device_type
-// string for matching onnxOpenVINODeviceConfig_<Device>_<Option> keys.
+// Helper: list the short device names an OpenVINO device_type string can run on, dropping
+// device index suffixes and the qualifier of a composite (AUTO/MULTI/HETERO) string.
 //
-//   "NPU"          -> "NPU"
-//   "GPU" / "GPU.0" / "GPU.1"  -> "GPU"
-//   "CPU"          -> "CPU"
-//   "AUTO:GPU,CPU" -> "GPU"
-//   "MULTI:GPU,NPU" -> "GPU"
-//   "HETERO:GPU,CPU" -> "GPU"
+//   "NPU"               -> {"NPU"}
+//   "GPU" / "GPU.1"     -> {"GPU"}
+//   "AUTO:GPU,CPU"      -> {"GPU","CPU"}
+//   "MULTI:GPU.0,GPU.1" -> {"GPU","GPU"}
 //--------------------------------------------------------------
-static std::string extractShortDeviceName(const std::string& deviceType) {
-  std::string upper = Global::toUpper(deviceType);
+static std::vector<std::string> parseDeviceNames(const std::string& deviceType) {
+  std::string upper = Global::trim(Global::toUpper(deviceType));
 
+  std::string devices = upper;
   size_t colonPos = upper.find(':');
   if(colonPos != std::string::npos) {
     std::string prefix = upper.substr(0, colonPos);
-    if(prefix == "AUTO" || prefix == "MULTI" || prefix == "HETERO") {
-      std::string afterColon = upper.substr(colonPos + 1);
-      size_t commaPos = afterColon.find(',');
-      if(commaPos != std::string::npos)
-        afterColon = afterColon.substr(0, commaPos);
-      size_t dotPos = afterColon.find('.');
-      if(dotPos != std::string::npos)
-        afterColon = afterColon.substr(0, dotPos);
-      return afterColon;
-    }
+    if(prefix == "AUTO" || prefix == "MULTI" || prefix == "HETERO")
+      devices = upper.substr(colonPos + 1);
   }
 
-  size_t dotPos = upper.find('.');
-  if(dotPos != std::string::npos)
-    upper = upper.substr(0, dotPos);
+  std::vector<std::string> names;
+  for(const std::string& piece : Global::split(devices, ',')) {
+    std::string name = Global::trim(piece);
+    size_t dotPos = name.find('.');
+    if(dotPos != std::string::npos)
+      name = name.substr(0, dotPos);
+    if(!name.empty())
+      names.push_back(name);
+  }
+  return names;
+}
 
-  return upper;
+// Short device name used to match onnxOpenVINODeviceConfig_<Device>_<Option> keys. A composite
+// device string matches on the first device it lists.
+static std::string extractShortDeviceName(const std::string& deviceType) {
+  std::vector<std::string> names = parseDeviceNames(deviceType);
+  return names.empty() ? std::string() : names[0];
 }
 
 //--------------------------------------------------------------
@@ -1055,19 +1059,67 @@ void NeuralNet::getOutput(
   }
 }
 
+// Device class to report for an OpenVINO device name. Any name other than the three device
+// classes that differ in numerics reports as "other": an OpenVINO device_type string can also
+// name a virtual device ("AUTO", "BATCH:GPU"), carry a per-device suffix ("GPU(2)"), or simply be
+// a typo, none of which are worth distinguishing.
+static string reportedDeviceName(const string& name) {
+  if(name == "CPU")
+    return "cpu";
+  if(name == "GPU")
+    return "gpu";
+  if(name == "NPU")
+    return "npu";
+  return "other";
+}
+
 std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
-  // Report which execution provider will run under this backend, matching the parsing in
-  // createComputeContext. Different providers are effectively different backends with
-  // different numerics and maturity, so e.g. the distributed training server wants to be
-  // able to tell them apart. Sanitized to lowercase alphanumeric since this is user
-  // config that gets reported verbatim to the server.
-  string provider = cfg.contains("onnxProvider") ? Global::toLower(cfg.getString("onnxProvider")) : "cpu";
+  // Report which execution provider will run under this backend, and for OpenVINO also which
+  // device classes it will run on, matching the parsing in createComputeContext and ComputeHandle.
+  // Providers are effectively different backends with different numerics and maturity, as are CPU
+  // versus GPU versus NPU under OpenVINO, so e.g. the distributed training server wants to be able
+  // to tell them apart. Produces e.g. "openvino-gpu-npu", at most 26 characters.
+  //
+  // Every piece of the result is a fixed string rather than any of the config text it was derived
+  // from, so that whoever aggregates these sees a small closed set of values and never something a
+  // user typed.
+  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+
   string detail;
-  for(char c : provider) {
-    if((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-      detail += c;
-    if(detail.size() >= 32)
+  for(const char* knownProvider : kKnownProviders) {
+    if(provider == knownProvider) {
+      detail = knownProvider;
       break;
+    }
+  }
+  // An unknown provider is a config error, but one that createComputeContext raises later than
+  // this runs. Report nothing rather than anything derived from the offending value.
+  if(detail.empty())
+    return detail;
+
+  // OpenVINO is the only provider that can target device classes differing in numerics without a
+  // change of provider name. The rest are single-class by construction: the CPU, or a GPU-like
+  // accelerator picked by device index.
+  if(detail == "openvino") {
+    string defaultDeviceType =
+      cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
+    int numThreads =
+      cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel", 1, 1024) : 1;
+
+    // Sorted and deduplicated, so that the result depends only on which device classes are in use
+    // and not on how threads were assigned to them.
+    std::set<string> deviceNames;
+    for(int t = 0; t < numThreads; t++) {
+      string key = "onnxOpenVINODeviceTypeThread" + Global::intToString(t);
+      string threadDeviceType = cfg.contains(key) ? cfg.getString(key) : defaultDeviceType;
+      // A composite device string contributes every device it lists, since any of them may end up
+      // running the graph.
+      for(const string& name : parseDeviceNames(threadDeviceType))
+        deviceNames.insert(reportedDeviceName(name));
+    }
+
+    for(const string& name : deviceNames)
+      detail += "-" + name;
   }
   return detail;
 }
