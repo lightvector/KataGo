@@ -940,7 +940,7 @@ int MainCmds::contribute(const vector<string>& args) {
       const bool verbose = false;
       const bool quickTest = true;
       // Cap test to avoid spawning too many threads when many selfplay games are running
-      const int maxBatchSizeCap = std::min(4, 1 + nnEval->getMaxBatchSize()/2);
+      const int maxBatchSizeCap = std::min(7, 1 + nnEval->getMaxBatchSize()/2);
       bool fp32BatchSuccessBuf = true;
       bool fp32BatchSuccessBufRect = true;
       const string referenceFileName = "";
