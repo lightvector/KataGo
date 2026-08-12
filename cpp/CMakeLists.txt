@@ -306,6 +306,14 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     message(FATAL_ERROR "USE_BACKEND=ROCM requires CMake >= 3.21 for HIP language support (found ${CMAKE_VERSION}).")
   endif()
   if(WIN32)
+    # Everything in the Windows ROCm build is located through HIP_PATH: the clang++ compiler
+    # selection below, the MSVC toolset probing, the bundled zlib, and the runtime DLL copying.
+    # Without it, configure fails later inside project()'s own HIP compiler detection with no
+    # useful message, so require it here with a clear one. ROCM_PATH or -DCMAKE_PREFIX_PATH
+    # alone is not a substitute.
+    if(NOT DEFINED ENV{HIP_PATH})
+      message(FATAL_ERROR "USE_BACKEND=ROCM on Windows requires the HIP_PATH environment variable, pointing at an installed AMD HIP SDK / extracted TheRock distribution (see Compiling.md).")
+    endif()
     # Normalize HIP_PATH to forward slashes.
     # cmake's HIP detection calls `hipconfig --rocmpath` which returns
     # backslash paths on Windows, and writes the result into the generated
@@ -788,17 +796,9 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   message(STATUS "-DUSE_BACKEND=ROCM, using AMD ROCm backend.")
 
   if(CMAKE_PREFIX_PATH STREQUAL "" OR NOT DEFINED CMAKE_PREFIX_PATH)
-    if(WIN32)
-      if(DEFINED ENV{HIP_PATH})
-        list(APPEND CMAKE_PREFIX_PATH "$ENV{HIP_PATH}")
-        message(STATUS "Auto-detected HIP_PATH=$ENV{HIP_PATH} -> CMAKE_PREFIX_PATH")
-      elseif(DEFINED ENV{ROCM_PATH})
-        list(APPEND CMAKE_PREFIX_PATH "$ENV{ROCM_PATH}")
-        message(STATUS "Auto-detected ROCM_PATH=$ENV{ROCM_PATH} -> CMAKE_PREFIX_PATH")
-      else()
-        message(FATAL_ERROR "ROCM backend on Windows requires HIP_PATH or ROCM_PATH environment variable (or -DCMAKE_PREFIX_PATH=<HIP SDK path>). Please install the HIP SDK for Windows.")
-      endif()
-    else()
+    # On Windows the pre-project block already required HIP_PATH and appended it to
+    # CMAKE_PREFIX_PATH, so only Linux needs handling here.
+    if(NOT WIN32)
       # Linux: resolve the real ROCm install prefix, using the same core-<version> vs flat
       # /opt/rocm resolution as the pre-project block above. This block re-runs it standalone in
       # case USE_BACKEND wasn't ROCM early enough for that block to have fired.
@@ -1604,14 +1604,15 @@ if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
 endif()
 
 # On Windows ROCm builds, zlib is bundled inside the HIP SDK (TheRock layout) - try that first.
+# The bundled header is only taken together with the bundled library: mixing zlib.h from one
+# distribution with a .lib/.dll from another (e.g. vcpkg's, below) risks a version skew that
+# zlib's inflateInit_ header-vs-library check would reject at runtime, at first .gz model load.
 if(WIN32 AND USE_BACKEND STREQUAL "ROCM" AND DEFINED ENV{HIP_PATH})
-  if(NOT ZLIB_INCLUDE_DIR AND EXISTS "$ENV{HIP_PATH}/lib/rocm_sysdeps/include/zlib.h")
-    set(ZLIB_INCLUDE_DIR "$ENV{HIP_PATH}/lib/rocm_sysdeps/include" CACHE PATH "" FORCE)
-  endif()
-  if(NOT ZLIB_LIBRARY)
+  if(NOT ZLIB_LIBRARY AND NOT ZLIB_INCLUDE_DIR AND EXISTS "$ENV{HIP_PATH}/lib/rocm_sysdeps/include/zlib.h")
     foreach(_zlib_name "zlibstatic.lib" "zlib.lib" "zlibstaticd.lib")
       if(EXISTS "$ENV{HIP_PATH}/lib/rocm_sysdeps/lib/${_zlib_name}")
         set(ZLIB_LIBRARY "$ENV{HIP_PATH}/lib/rocm_sysdeps/lib/${_zlib_name}" CACHE FILEPATH "" FORCE)
+        set(ZLIB_INCLUDE_DIR "$ENV{HIP_PATH}/lib/rocm_sysdeps/include" CACHE PATH "" FORCE)
         break()
       endif()
     endforeach()
@@ -1619,8 +1620,9 @@ if(WIN32 AND USE_BACKEND STREQUAL "ROCM" AND DEFINED ENV{HIP_PATH})
 endif()
 
 # TheRock's Windows package (as of ~7.13) ships zlib.h under rocm_sysdeps/include but no linkable
-# .lib anymore (the block above then leaves ZLIB_LIBRARY unset) - auto-fetch zlib via vcpkg instead
-# of requiring the user to separately install a package manager (see KATAGO_AUTO_FETCH_DEPS above).
+# .lib anymore (the block above then takes neither, keeping header and library paired) - auto-fetch
+# zlib via vcpkg instead of requiring the user to separately install a package manager (see
+# KATAGO_AUTO_FETCH_DEPS above).
 #
 # Probe for a normal system zlib first (quiet - the "real", error-emitting find_package(ZLIB) call
 # is further below): on a fresh Linux configure, ZLIB_INCLUDE_DIR/ZLIB_LIBRARY are never set by

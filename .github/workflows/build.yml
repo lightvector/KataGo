@@ -142,7 +142,7 @@ jobs:
       if: steps.cache-therock.outputs.cache-hit != 'true'
       run: |
         New-Item -ItemType Directory -Force -Path C:\TheRock | Out-Null
-        curl.exe -sSL -o C:\TheRock\therock-dist.tar.gz `
+        curl.exe -fsSL --retry 3 -o C:\TheRock\therock-dist.tar.gz `
           "https://therock-nightly-tarball.s3.amazonaws.com/therock-dist-windows-$env:THEROCK_FAMILY-$env:THEROCK_VERSION.tar.gz"
 
     - name: Extract TheRock

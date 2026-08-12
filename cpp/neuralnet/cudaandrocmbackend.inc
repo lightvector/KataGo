@@ -2347,8 +2347,10 @@ struct TransformerAttentionBlock {
 
       // Physical layout for Q/K/V/O is [N, S, H, D] (i_perm=false, o_perm=false), V is row-major
       // ([N, S, H, Dv], is_v_rowmajor=true) - all matching the BSHD buffers MatMulLayer produces.
-      fmha_fwd_args args;
-      memset(&args, 0, sizeof(args));
+      // Value-initialized so the fields not assigned below (e.g. the batch-mode cu_seqlen
+      // pointers) are null/zero. Not memset: args contains a std::variant member, which raw
+      // byte-zeroing may not legally overwrite.
+      fmha_fwd_args args{};
       args.q_ptr = qBuf.buf;
       args.k_ptr = kBuf.buf;
       args.v_ptr = vBuf.buf;
