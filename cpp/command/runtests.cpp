@@ -45,6 +45,7 @@ int MainCmds::runtests(const vector<string>& args) {
 
   Tests::runRulesTests();
   Tests::runPassAliveSuicideModeTests();
+  Tests::runExcludeTerritoryAtariModeTests();
 
   Tests::runBoardUndoTest();
   Tests::runBoardHandicapTest();
@@ -77,6 +78,7 @@ int MainCmds::runoutputtests(const vector<string>& args) {
   ScoreValue::initTables();
 
   Tests::runNNInputsV3V4Tests();
+  Tests::runExcludeTerritoryAtariNNInputsTests();
   Tests::runNNLessSearchTests();
   Tests::runTrainingWriteTests();
   Tests::runPassAliveSuicideGameTests();
@@ -257,6 +259,15 @@ int MainCmds::runnnontinyboardtest(const vector<string>& args) {
 
   ScoreValue::freeTables();
 
+  return 0;
+}
+
+int MainCmds::runonnxmodelfiletests(const vector<string>& args) {
+  if(args.size() != 2 && args.size() != 3) {
+    cerr << "Must supply one or two arguments: SCRATCHDIR [MODELFILE]" << endl;
+    return 1;
+  }
+  Tests::runOnnxModelFileTests(args[1], args.size() >= 3 ? args[2] : "");
   return 0;
 }
 
@@ -545,7 +556,7 @@ int MainCmds::runbeginsearchspeedtest(const vector<string>& args) {
 
   Player nextPla = P_BLACK;
   rules.komi = 6.5;
-  BoardHistory hist(board,nextPla,rules,0,false);
+  BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes());
 
   bot->setPosition(nextPla,board,hist);
 
@@ -669,7 +680,7 @@ int MainCmds::runownershipspeedtest(const vector<string>& args) {
 
   Player nextPla = P_BLACK;
   rules.komi = 7.0;
-  BoardHistory hist(board,nextPla,rules,0,false);
+  BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes());
 
   bot->setPosition(nextPla,board,hist);
   bot->setAlwaysIncludeOwnerMap(true);

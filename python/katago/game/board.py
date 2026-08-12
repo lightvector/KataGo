@@ -1121,7 +1121,7 @@ class Board:
                     if result[loc] == Board.EMPTY:
                         result[loc] = self.board[loc]
 
-    def calculateNonDameTouchingArea(self, result, keepTerritories, keepStones, isMultiStoneSuicideLegal):
+    def calculateNonDameTouchingArea(self, result, keepTerritories, keepStones, excludeTerritoryAdjacentToAtari, isMultiStoneSuicideLegal):
         #First, just compute basic area.
         basicArea = [Board.EMPTY for i in range(self.arrsize)]
         for i in range(self.arrsize):
@@ -1142,7 +1142,21 @@ class Board:
                 for x in range(self.x_size):
                     loc = self.loc(x,y)
                     if basicArea[loc] != Board.EMPTY and basicArea[loc] != self.board[loc]:
-                        result[loc] = basicArea[loc]
+                        #If excludeTerritoryAdjacentToAtari (rules version 3), empty points adjacent to a chain in
+                        #atari (e.g. unfilled ko mouths in seki) don't count. Otherwise, under territory scoring
+                        #with TaxRule NONE, possession of an unfillable ko mouth in a seki would be worth a point,
+                        #resulting in pass fights over such kos.
+                        #Note: only chains of the territory owner's own color block the territory (e.g. ko
+                        #stones, or the group whose eye is its last liberty). Chains of the opposing color in
+                        #atari (e.g. dead throw-in stones within pass-alive territory) deliberately do not.
+                        bordersChainInAtari = False
+                        if excludeTerritoryAdjacentToAtari and self.board[loc] == Board.EMPTY:
+                            for i in range(4):
+                                adj = loc + self.adj[i]
+                                if self.board[adj] == basicArea[loc] and self.num_liberties(adj) == 1:
+                                    bordersChainInAtari = True
+                        if not bordersChainInAtari:
+                            result[loc] = basicArea[loc]
 
         if keepStones:
             for y in range(self.y_size):
@@ -1378,8 +1392,8 @@ class Board:
         queue = [Board.PASS_LOC for i in range(self.arrsize)]
 
         #Iterate through all the regions that players own via area scoring and mark
-        #all the ones that are touching dame
-        isDameTouching = [False for i in range(self.arrsize)]
+        #all the ones that are touching dame OR that contain an atari stone
+        isSeki = [False for i in range(self.arrsize)]
 
         queueHead = 0
         queueTail = 0
@@ -1392,15 +1406,17 @@ class Board:
         for y in range(self.y_size):
             for x in range(self.x_size):
                 loc = self.loc(x,y)
-                if basicArea[loc] != Board.EMPTY and not isDameTouching[loc]:
-                    #Touches dame?
-                    if((self.board[loc+ADJ0] == Board.EMPTY and basicArea[loc+ADJ0] == Board.EMPTY) or
+                if basicArea[loc] != Board.EMPTY and not isSeki[loc]:
+                    #Stone of player owning the area is in atari? Treat as seki.
+                    #Touches dame? Treat as seki.
+                    if((self.board[loc] == basicArea[loc] and self.num_liberties(loc) == 1) or
+                       (self.board[loc+ADJ0] == Board.EMPTY and basicArea[loc+ADJ0] == Board.EMPTY) or
                        (self.board[loc+ADJ1] == Board.EMPTY and basicArea[loc+ADJ1] == Board.EMPTY) or
                        (self.board[loc+ADJ2] == Board.EMPTY and basicArea[loc+ADJ2] == Board.EMPTY) or
                        (self.board[loc+ADJ3] == Board.EMPTY and basicArea[loc+ADJ3] == Board.EMPTY)):
 
                         pla = basicArea[loc]
-                        isDameTouching[loc] = True
+                        isSeki[loc] = True
                         queue[queueTail] = loc
                         queueTail += 1
                         while queueHead != queueTail:
@@ -1411,20 +1427,20 @@ class Board:
                             #Look all around it, floodfill
                             for j in range(4):
                                 adj = nextLoc + self.adj[j]
-                                if basicArea[adj] == pla and not isDameTouching[adj]:
-                                    isDameTouching[adj] = True
+                                if basicArea[adj] == pla and not isSeki[adj]:
+                                    isSeki[adj] = True
                                     queue[queueTail] = adj
                                     queueTail += 1
 
         queueHead = 0
         queueTail = 0
 
-        #Now, walk through and copy all non-dame-touching basic areas into the result counting
+        #Now, walk through and copy all non-seki-touching basic areas into the result counting
         #how many there are.
         for y in range(self.y_size):
             for x in range(self.x_size):
                 loc = self.loc(x,y)
-                if basicArea[loc] != Board.EMPTY and not isDameTouching[loc] and result[loc] != basicArea[loc]:
+                if basicArea[loc] != Board.EMPTY and not isSeki[loc] and result[loc] != basicArea[loc]:
                     pla = basicArea[loc]
                     result[loc] = basicArea[loc]
                     queue[queueTail] = loc

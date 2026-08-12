@@ -363,9 +363,9 @@ class Book {
   const Rules initialRules;
   const Player initialPla;
   const int repBound;
-  //Whether all histories and hashes of this book compute pass-alive area as if multi-stone suicide
-  //were legal regardless of the actual suicide rule. Recorded in the book file (absent = false).
-  const bool alwaysComputePassAliveUnderSuicideRules;
+  //The BoardHistoryModes under which all histories and hashes of this book are computed.
+  //Recorded in the book file per-flag (absent flags = false).
+  const BoardHistoryModes historyModes;
 
  private:
   BookParams params;
@@ -387,22 +387,25 @@ class Book {
     const Rules& rules,
     Player initialPla,
     int repBound,
-    bool alwaysComputePassAliveUnderSuicideRules,
+    const BoardHistoryModes& historyModes,
     BookParams params
   );
   ~Book();
 
-  //Reads just the metadata header of a saved book file to get its recorded pass-alive computation
-  //mode without loading the whole book. Absent key (older book files) = false.
-  static bool readAlwaysComputePassAliveUnderSuicideRulesOfFileHeader(const std::string& fileName);
-  static bool readAlwaysComputePassAliveUnderSuicideRulesOfHeader(std::istream& in);
+  //Reads just the metadata header of a saved book file to get its recorded BoardHistoryModes
+  //without loading the whole book. Absent keys (older book files) = false.
+  static BoardHistoryModes readHistoryModesOfFileHeader(const std::string& fileName);
+  static BoardHistoryModes readHistoryModesOfHeader(std::istream& in);
 
-  //Version 3 is identical to version 2 in format and hashing, except that it may record
-  //alwaysComputePassAliveUnderSuicideRules=true. Flagged books require version >= 3 so that older
-  //binaries reject them cleanly ("Unsupported book version") instead of silently mis-hashing them
-  //into a disconnected mess. All new books are written as version 3, so new book files require
-  //this version of KataGo or later to load, whether flagged or not.
-  static constexpr int LATEST_BOOK_VERSION = 3;
+  //Versions 3 and 4 are identical to version 2 in format and hashing, except that version 3 may
+  //record alwaysComputePassAliveUnderSuicideRules=true and version 4 may additionally record
+  //excludeTerritoryAdjacentToAtari=true. A book flagged with a mode requires at least the version
+  //that introduced that mode, so that older binaries reject it cleanly ("Unsupported book version")
+  //instead of ignoring the unrecognized flag in the header and silently mis-hashing the book into a
+  //disconnected mess. Each new mode therefore needs its own version bump.
+  //All new books are written as the latest version, so new book files require this version of
+  //KataGo or later to load, whether flagged or not.
+  static constexpr int LATEST_BOOK_VERSION = 4;
 
   Book(const Book&) = delete;
   Book& operator=(const Book&) = delete;

@@ -31,6 +31,7 @@ namespace Tests {
 
   //testpassalivesuicide.cpp
   void runPassAliveSuicideModeTests();
+  void runExcludeTerritoryAtariModeTests();
 
   //testscore.cpp
   void runScoreTests();
@@ -41,6 +42,7 @@ namespace Tests {
 
   //testnninputs.cpp
   void runNNInputsV3V4Tests();
+  void runExcludeTerritoryAtariNNInputsTests();
 
   //testsymmetries.cpp
   void runBasicSymmetryTests();
@@ -78,6 +80,9 @@ namespace Tests {
   //testnn.cpp
   void runNNLayerTests();
   void runNNSymmetryTests();
+
+  //testonnxmodelfile.cpp
+  void runOnnxModelFileTests(const std::string& scratchDir, const std::string& modelFile);
 
   //testownership.cpp
   void runOwnershipTests(const std::string& configFile, const std::string& modelFile);

@@ -58,9 +58,11 @@ selfplaysurprisedump : Run selfplay games with a fixed model and dump per-positi
 
 testgpuerror : Print the average error of the neural net between current config and fp32 config.
 testbackendreference : Test backend absolute outputs against compiled-in blended reference data.
+dumponnx : (TensorRT/ONNX only) Write out the ONNX graph KataGo builds for a model.
 
 runtests : Test important board algorithms and datastructures
 runnnlayertests : Test a few subcomponents of the current neural net backend
+runonnxmodelfiletests : (TensorRT/ONNX only) Test the .onnx model file reader
 
 runnnontinyboardtest : Run neural net on a tiny board and dump result to stdout
 runnnsymmetriestest : Run neural net on a hardcoded rectangle board and dump symmetries result
@@ -103,6 +105,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::testgpuerror(subArgs);
   else if(subcommand == "testbackendreference")
     return MainCmds::testbackendreference(subArgs);
+  else if(subcommand == "dumponnx")
+    return MainCmds::dumponnx(subArgs);
   else if(subcommand == "runtests")
     return MainCmds::runtests(subArgs);
   else if(subcommand == "runnnlayertests")
@@ -137,6 +141,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::runtinynntests(subArgs);
   else if(subcommand == "runnnevalcanarytests")
     return MainCmds::runnnevalcanarytests(subArgs);
+  else if(subcommand == "runonnxmodelfiletests")
+    return MainCmds::runonnxmodelfiletests(subArgs);
   else if(subcommand == "runconfigtests")
     return MainCmds::runconfigtests(subArgs);
   else if(subcommand == "samplesgfs")

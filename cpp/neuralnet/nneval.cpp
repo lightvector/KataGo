@@ -321,6 +321,12 @@ bool NNEvaluator::modelPreferPassAliveUnderSuicideRules() const {
   return NeuralNet::getModelDesc(loadedModel).preferPassAliveUnderSuicideRules;
 }
 
+bool NNEvaluator::modelPreferExcludeTerritoryAdjacentToAtari() const {
+  if(loadedModel == NULL)
+    return false;
+  return NeuralNet::getModelDesc(loadedModel).preferExcludeTerritoryAdjacentToAtari;
+}
+
 bool NNEvaluator::getDoRandomize() const {
   return currentDoRandomize.load(std::memory_order_acquire);
 }
@@ -525,7 +531,10 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   Board board(nnXLen, nnYLen);
   //Featurize the way this model expects (a no-op under Tromp-Taylorish rules, but robust if the
   //warmup rules ever change).
-  BoardHistory history(board, P_BLACK, Rules::getTrompTaylorish(), 0, modelPreferPassAliveUnderSuicideRules());
+  BoardHistory history(
+    board, P_BLACK, Rules::getTrompTaylorish(), 0,
+    BoardHistoryModes(modelPreferPassAliveUnderSuicideRules(), modelPreferExcludeTerritoryAdjacentToAtari())
+  );
   MiscNNInputParams nnInputParams;
   SGFMetadata sgfMeta;
   const SGFMetadata* sgfMetaPtr = NULL;

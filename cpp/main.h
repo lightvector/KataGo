@@ -14,6 +14,7 @@ namespace MainCmds {
 
   int testgpuerror(const std::vector<std::string>& args);
   int testbackendreference(const std::vector<std::string>& args);
+  int dumponnx(const std::vector<std::string>& args);
 
   int runtests(const std::vector<std::string>& args);
   int runnnlayertests(const std::vector<std::string>& args);
@@ -32,6 +33,7 @@ namespace MainCmds {
   int runownershiptests(const std::vector<std::string>& args);
   int runtinynntests(const std::vector<std::string>& args);
   int runnnevalcanarytests(const std::vector<std::string>& args);
+  int runonnxmodelfiletests(const std::vector<std::string>& args);
   int runbeginsearchspeedtest(const std::vector<std::string>& args);
   int runownershipspeedtest(const std::vector<std::string>& args);
   int runsleeptest(const std::vector<std::string>& args);

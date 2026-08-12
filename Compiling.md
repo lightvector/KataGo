@@ -276,3 +276,6 @@ Set `onnxProvider` in your config to choose the execution provider:
    * The `onnxruntime` shared library must be next to the executable or on your library path.
    * For the OpenVINO provider, the OpenVINO runtime DLLs (`openvino.dll`, `openvino_intel_gpu_plugin.dll`, `tbb12.dll`, `cache.json`, etc.) must also be next to the executable or on the system path.
    * Choose the provider and its options with the `onnx*` keys in your config, e.g. `onnxProvider = openvino` and `onnxOpenVINODeviceType = GPU`. The ONNX section of `configs/gtp_example.cfg` documents all the options.
+
+### Working with .onnx files
+This backend and the TensorRT backend can also write out the ONNX graph they build (`katago dumponnx`) and load a `.onnx` file as a model in place of the `.bin.gz`, including one produced by other tooling. See **[ONNX_Model_Files.md](docs/ONNX_Model_Files.md)** for the commands and the model file format.

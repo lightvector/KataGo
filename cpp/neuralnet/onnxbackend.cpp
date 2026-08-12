@@ -43,6 +43,7 @@
 #include <fstream>
 #include <cstdlib>
 #include <mutex>
+#include <set>
 
 using namespace std;
 
@@ -60,6 +61,13 @@ static const char* const kKnownProviders[] = {
 
 struct LoadedModel {
   ModelDesc modelDesc;
+  string modelFileName;
+
+  // True if the model came from a .onnx file rather than a .bin.gz. The graph is then taken verbatim
+  // from externalOnnx.serializedModel instead of being emitted from weights.
+  bool isExternalOnnx;
+  OnnxModelBuilder::LoadResult externalOnnx;
+
   // One-time scale8 transform (see maybeApplyScale8), called from createComputeContext.
   //
   // It MUST run inside createComputeContext rather than lazily at compute-handle creation:
@@ -71,28 +79,48 @@ struct LoadedModel {
   // modelDesc in OnnxModelBuilder::build(). The mutex only keeps the transform idempotent
   // if multiple contexts are ever created on one model.
   mutable bool scale8Resolved;
+  // Whether the transform took effect; it is skipped for models where the rescaling would be
+  // unsound. Recorded in the emitted graph's metadata.
+  mutable bool scale8Applied;
   mutable std::mutex scale8Mutex;
 
-  LoadedModel(const string& fileName, const string& expectedSha256) {
-    if(Global::isSuffix(fileName, ".onnx"))
-      throw StringError(
-        "ONNX backend: loading a raw .onnx file is not supported by this backend. "
-        "Feed a standard KataGo .bin.gz model instead (this backend builds the ONNX "
-        "graph from the model weights internally).");
-    ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+  LoadedModel(const string& fileName, const string& expectedSha256)
+    : modelFileName(fileName), isExternalOnnx(false)
+  {
+    if(OnnxModelBuilder::isOnnxFileName(fileName)) {
+      isExternalOnnx = true;
+      // loadModelFile has no logger; createComputeHandle logs the graph's build settings instead.
+      externalOnnx = OnnxModelBuilder::load(fileName, expectedSha256, modelDesc, NULL);
+    }
+    else {
+      ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+    }
     scale8Resolved = false;
+    scale8Applied = isExternalOnnx && externalOnnx.buildParams.scale8Applied;
   }
 
   // Apply the scale8 FP16-range workaround exactly once per model, unless skipped via
   // onnxSkipScale8. See the comment on scale8Resolved for why this must run at
   // createComputeContext time.
-  void maybeApplyScale8(bool skip) const {
+  void maybeApplyScale8(bool skip, bool skipWasExplicit, Logger* logger) const {
     std::lock_guard<std::mutex> lock(scale8Mutex);
-    if(!scale8Resolved) {
-      if(!skip)
-        const_cast<LoadedModel*>(this)->modelDesc.applyScale8ToReduceActivations();
-      scale8Resolved = true;
+    if(scale8Resolved)
+      return;
+    scale8Resolved = true;
+    // A loaded graph's weights are already whatever they are, and the postProcessParams read out of
+    // the same file already match them. Applying the transform now would rescale
+    // outputScaleMultiplier alone, decoding every output 8x too large.
+    if(isExternalOnnx) {
+      if(logger != NULL && skipWasExplicit && skip == externalOnnx.buildParams.scale8Applied)
+        logger->write(
+          string("ONNX backend: WARNING - config option onnxSkipScale8 = ") + Global::boolToString(skip) +
+          " has no effect on a model loaded from a .onnx file. This graph was emitted with "
+          "scale8Applied=" + Global::boolToString(externalOnnx.buildParams.scale8Applied)
+        );
+      return;
     }
+    if(!skip)
+      scale8Applied = const_cast<LoadedModel*>(this)->modelDesc.applyScale8ToReduceActivations();
   }
 
   LoadedModel() = delete;
@@ -206,13 +234,20 @@ ComputeContext* NeuralNet::createComputeContext(
   // backend's trtTransformerNHWC default. NHWC is markedly faster for transformer trunks on
   // OpenVINO GPU/NPU, and is ignored entirely for models without transformer blocks.
   ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : true;
+  if(loadedModel->isExternalOnnx && logger != NULL && cfg.contains("onnxTransformerNHWC") &&
+     ctx->transformerNHWC != loadedModel->externalOnnx.buildParams.transformerNHWC &&
+     loadedModel->modelDesc.hasAnyTransformerBlocks())
+    logger->write(
+      "ONNX backend: WARNING - onnxTransformerNHWC = " + Global::boolToString(ctx->transformerNHWC) +
+      " has no effect on a model loaded from a .onnx file. The trunk layout is baked into the graph "
+      "(transformerNHWC=" + Global::boolToString(loadedModel->externalOnnx.buildParams.transformerNHWC) + ").");
 
   // Skip the scale8 FP16-range workaround. Default false, meaning the workaround is applied.
   // See the onnxSkipScale8 documentation in configs/gtp_example.cfg for the tradeoff.
   ctx->skipScale8 = cfg.contains("onnxSkipScale8") ? cfg.getBool("onnxSkipScale8") : false;
 
   // Must happen here rather than at compute-handle creation. See LoadedModel::scale8Resolved.
-  loadedModel->maybeApplyScale8(ctx->skipScale8);
+  loadedModel->maybeApplyScale8(ctx->skipScale8, cfg.contains("onnxSkipScale8"), logger);
 
   // --- Per-thread device type assignment ---
   // Pre-parse onnxOpenVINODeviceTypeThread<N> keys so ComputeHandle can look up
@@ -280,39 +315,42 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 }
 
 //--------------------------------------------------------------
-// Helper: extract a short device name from an OpenVINO device_type
-// string for matching onnxOpenVINODeviceConfig_<Device>_<Option> keys.
+// Helper: list the short device names an OpenVINO device_type string can run on, dropping
+// device index suffixes and the qualifier of a composite (AUTO/MULTI/HETERO) string.
 //
-//   "NPU"          -> "NPU"
-//   "GPU" / "GPU.0" / "GPU.1"  -> "GPU"
-//   "CPU"          -> "CPU"
-//   "AUTO:GPU,CPU" -> "GPU"
-//   "MULTI:GPU,NPU" -> "GPU"
-//   "HETERO:GPU,CPU" -> "GPU"
+//   "NPU"               -> {"NPU"}
+//   "GPU" / "GPU.1"     -> {"GPU"}
+//   "AUTO:GPU,CPU"      -> {"GPU","CPU"}
+//   "MULTI:GPU.0,GPU.1" -> {"GPU","GPU"}
 //--------------------------------------------------------------
-static std::string extractShortDeviceName(const std::string& deviceType) {
-  std::string upper = Global::toUpper(deviceType);
+static std::vector<std::string> parseDeviceNames(const std::string& deviceType) {
+  std::string upper = Global::trim(Global::toUpper(deviceType));
 
+  std::string devices = upper;
   size_t colonPos = upper.find(':');
   if(colonPos != std::string::npos) {
     std::string prefix = upper.substr(0, colonPos);
-    if(prefix == "AUTO" || prefix == "MULTI" || prefix == "HETERO") {
-      std::string afterColon = upper.substr(colonPos + 1);
-      size_t commaPos = afterColon.find(',');
-      if(commaPos != std::string::npos)
-        afterColon = afterColon.substr(0, commaPos);
-      size_t dotPos = afterColon.find('.');
-      if(dotPos != std::string::npos)
-        afterColon = afterColon.substr(0, dotPos);
-      return afterColon;
-    }
+    if(prefix == "AUTO" || prefix == "MULTI" || prefix == "HETERO")
+      devices = upper.substr(colonPos + 1);
   }
 
-  size_t dotPos = upper.find('.');
-  if(dotPos != std::string::npos)
-    upper = upper.substr(0, dotPos);
+  std::vector<std::string> names;
+  for(const std::string& piece : Global::split(devices, ',')) {
+    std::string name = Global::trim(piece);
+    size_t dotPos = name.find('.');
+    if(dotPos != std::string::npos)
+      name = name.substr(0, dotPos);
+    if(!name.empty())
+      names.push_back(name);
+  }
+  return names;
+}
 
-  return upper;
+// Short device name used to match onnxOpenVINODeviceConfig_<Device>_<Option> keys. A composite
+// device string matches on the first device it lists.
+static std::string extractShortDeviceName(const std::string& deviceType) {
+  std::vector<std::string> names = parseDeviceNames(deviceType);
+  return names.empty() ? std::string() : names[0];
 }
 
 //--------------------------------------------------------------
@@ -346,24 +384,58 @@ struct ComputeHandle {
       numScoreValueChannels(loadedModel.modelDesc.numScoreValueChannels),
       numOwnershipChannels(loadedModel.modelDesc.numOwnershipChannels)
   {
-    if(logger != NULL)
-      logger->write("ONNX backend: building ONNX graph from model weights...");
+    // The graph either comes verbatim from a .onnx file, or is emitted here from the .bin.gz weights
+    // by the same emitter the TensorRT backend uses. Either way Ort::Session parses it directly. The
+    // FP32 node-name lists are ignored, since ORT has no per-node precision API.
+    OnnxModelBuilder::Result onnxResult;   // only filled on the emit path
+    const string* onnxBytesPtr = NULL;
+    if(loadedModel.isExternalOnnx) {
+      OnnxModelBuilder::checkRuntimeParams(
+        loadedModel.externalOnnx, loadedModel.modelFileName, ctx->nnXLen, ctx->nnYLen, requireExactNNLen);
+      if(logger != NULL && serverThreadIdx <= 0) {
+        const OnnxModelBuilder::BuildParams& params = loadedModel.externalOnnx.buildParams;
+        logger->write(Global::strprintf(
+          "ONNX backend: using the graph from %s as-is (emitted for %dx%d, requireExactNNLen=%s, "
+          "transformerNHWC=%s, scale8Applied=%s)",
+          loadedModel.modelFileName.c_str(), params.nnXLen, params.nnYLen,
+          Global::boolToString(params.requireExactNNLen).c_str(),
+          Global::boolToString(params.transformerNHWC).c_str(),
+          Global::boolToString(params.scale8Applied).c_str()));
+        // The OpenVINO EP mis-binds inputs declared after one that no node consumes (ORT >= 1.23).
+        // It surfaces as a shape-mismatch crash on the first evaluation, which is hard to trace
+        // back to the graph.
+        if(loadedModel.externalOnnx.danglingInputNotDeclaredLast)
+          logger->write(
+            string("ONNX backend: ") + (ctx->providerName == "openvino" ? "WARNING" : "note") + " - " +
+            loadedModel.modelFileName +
+            " declares a graph input that no node consumes, ahead of inputs that are consumed. The "
+            "OpenVINO execution provider binds the inputs after it to the wrong buffers and fails "
+            "with a shape mismatch. Unconsumed inputs must be declared last.");
+      }
+      // Read straight out of the LoadedModel, which outlives every compute handle - no need for a
+      // per-thread copy of what can be hundreds of MB.
+      onnxBytesPtr = &loadedModel.externalOnnx.serializedModel;
+    }
+    else {
+      if(logger != NULL)
+        logger->write("ONNX backend: building ONNX graph from model weights...");
+      // TODO: every server thread re-runs this build, transiently duplicating the fully
+      // weight-baked serialized proto (hundreds of MB for large nets) across N spawning
+      // threads. The bytes are identical per (nnXLen, nnYLen, requireExactNNLen,
+      // transformerNHWC), so they could be built once in the ComputeContext and shared.
+      OnnxModelBuilder::BuildParams buildParams;
+      buildParams.nnXLen = ctx->nnXLen;
+      buildParams.nnYLen = ctx->nnYLen;
+      buildParams.requireExactNNLen = requireExactNNLen;
+      buildParams.transformerNHWC = ctx->transformerNHWC;
+      buildParams.scale8Applied = loadedModel.scale8Applied;
+      onnxResult = OnnxModelBuilder::build(loadedModel.modelDesc, buildParams, logger);
+      onnxBytesPtr = &onnxResult.serializedModel;
+    }
+    const string& onnxBytes = *onnxBytesPtr;
 
-    // Reuse the same ONNX emitter as the TensorRT backend. The serialized ModelProto is a
-    // standard ONNX graph that Ort::Session can parse directly. The TRT-only FP32 node-name
-    // lists in the Result are ignored, since ORT has no per-node precision API.
-    // TODO: every server thread re-runs this build, transiently duplicating the fully
-    // weight-baked serialized proto (hundreds of MB for large nets) across N spawning
-    // threads. The bytes are identical per (nnXLen, nnYLen, requireExactNNLen,
-    // transformerNHWC), so they could be built once in the ComputeContext and shared.
-    OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(
-      loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
-    const string& onnxBytes = onnxResult.serializedModel;
-    (void)onnxResult.trunkTipAndHeadNodeNames;
-    (void)onnxResult.rmsNormNodeNames;
-
     if(logger != NULL)
-      logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
+      logger->write("ONNX backend: ONNX graph ready (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
 
     // Dump the ONNX model to a file when KATAGO_DUMP_ONNX is set (debug aid).
     {
@@ -987,19 +1059,67 @@ void NeuralNet::getOutput(
   }
 }
 
+// Device class to report for an OpenVINO device name. Any name other than the three device
+// classes that differ in numerics reports as "other": an OpenVINO device_type string can also
+// name a virtual device ("AUTO", "BATCH:GPU"), carry a per-device suffix ("GPU(2)"), or simply be
+// a typo, none of which are worth distinguishing.
+static string reportedDeviceName(const string& name) {
+  if(name == "CPU")
+    return "cpu";
+  if(name == "GPU")
+    return "gpu";
+  if(name == "NPU")
+    return "npu";
+  return "other";
+}
+
 std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
-  // Report which execution provider will run under this backend, matching the parsing in
-  // createComputeContext. Different providers are effectively different backends with
-  // different numerics and maturity, so e.g. the distributed training server wants to be
-  // able to tell them apart. Sanitized to lowercase alphanumeric since this is user
-  // config that gets reported verbatim to the server.
-  string provider = cfg.contains("onnxProvider") ? Global::toLower(cfg.getString("onnxProvider")) : "cpu";
+  // Report which execution provider will run under this backend, and for OpenVINO also which
+  // device classes it will run on, matching the parsing in createComputeContext and ComputeHandle.
+  // Providers are effectively different backends with different numerics and maturity, as are CPU
+  // versus GPU versus NPU under OpenVINO, so e.g. the distributed training server wants to be able
+  // to tell them apart. Produces e.g. "openvino-gpu-npu", at most 26 characters.
+  //
+  // Every piece of the result is a fixed string rather than any of the config text it was derived
+  // from, so that whoever aggregates these sees a small closed set of values and never something a
+  // user typed.
+  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+
   string detail;
-  for(char c : provider) {
-    if((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))
-      detail += c;
-    if(detail.size() >= 32)
+  for(const char* knownProvider : kKnownProviders) {
+    if(provider == knownProvider) {
+      detail = knownProvider;
       break;
+    }
+  }
+  // An unknown provider is a config error, but one that createComputeContext raises later than
+  // this runs. Report nothing rather than anything derived from the offending value.
+  if(detail.empty())
+    return detail;
+
+  // OpenVINO is the only provider that can target device classes differing in numerics without a
+  // change of provider name. The rest are single-class by construction: the CPU, or a GPU-like
+  // accelerator picked by device index.
+  if(detail == "openvino") {
+    string defaultDeviceType =
+      cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
+    int numThreads =
+      cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel", 1, 1024) : 1;
+
+    // Sorted and deduplicated, so that the result depends only on which device classes are in use
+    // and not on how threads were assigned to them.
+    std::set<string> deviceNames;
+    for(int t = 0; t < numThreads; t++) {
+      string key = "onnxOpenVINODeviceTypeThread" + Global::intToString(t);
+      string threadDeviceType = cfg.contains(key) ? cfg.getString(key) : defaultDeviceType;
+      // A composite device string contributes every device it lists, since any of them may end up
+      // running the graph.
+      for(const string& name : parseDeviceNames(threadDeviceType))
+        deviceNames.insert(reportedDeviceName(name));
+    }
+
+    for(const string& name : deviceNames)
+      detail += "-" + name;
   }
   return detail;
 }

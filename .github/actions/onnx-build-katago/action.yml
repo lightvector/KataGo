@@ -60,6 +60,45 @@ runs:
         mkdir -p tinynn-scratch
         if [ "${{ runner.os }}" = "Windows" ]; then ./cpp/build/katago.exe runtinynntests tinynn-scratch 1.0; else ./cpp/build/katago runtinynntests tinynn-scratch 1.0; fi
 
+    - name: Run onnx model file unit tests
+      shell: bash
+      run: |
+        # Unit tests for the .onnx model file reader: metadata validation, graph IO signature
+        # checks, and a dump/load round trip of a real model's metadata through the emitter.
+        if [ "${{ runner.os }}" = "Windows" ]; then KATAGO=./cpp/build/katago.exe; else KATAGO=./cpp/build/katago; fi
+        mkdir -p onnx-scratch
+        $KATAGO runonnxmodelfiletests onnx-scratch cpp/tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+
+    - name: Dump ONNX model files and run them (CPU EP)
+      shell: bash
+      run: |
+        # Round-trip check for `dumponnx` and for loading a .onnx as a model file: the same net
+        # loaded as .bin.gz, where the graph is emitted at startup, and as .onnx, where it is read
+        # from the file, must evaluate identically. Covers a convnet and a transformer, since the
+        # emitter's transformer path is separate code. runnnsymmetriestest uses a 13x13 buffer and
+        # the board size is baked into the graph, so dump at that size.
+        if [ "${{ runner.os }}" = "Windows" ]; then KATAGO=./cpp/build/katago.exe; else KATAGO=./cpp/build/katago; fi
+        mkdir -p onnx-scratch
+        FAILED=0
+        for MODEL in g170-b6c96-s175395328-d26788732 b7c96h6kv3qk32v16tflrs-fson-bnh; do
+          echo "=== $MODEL"
+          BINGZ=cpp/tests/models/$MODEL.bin.gz
+          $KATAGO dumponnx -model $BINGZ -out onnx-scratch/$MODEL.onnx -nn-x-len 13 -nn-y-len 13
+          $KATAGO runnnsymmetriestest $BINGZ false false false > onnx-scratch/${MODEL}_bingz.txt
+          $KATAGO runnnsymmetriestest onnx-scratch/$MODEL.onnx false false false > onnx-scratch/${MODEL}_onnx.txt
+          # Drop the log lines that legitimately differ (rand seed, model path, graph source).
+          FILTER='nnModelFile|nnRandSeed|ONNX backend|Building internal onnx'
+          grep -Ev "$FILTER" onnx-scratch/${MODEL}_bingz.txt > onnx-scratch/a.txt
+          grep -Ev "$FILTER" onnx-scratch/${MODEL}_onnx.txt > onnx-scratch/b.txt
+          if diff onnx-scratch/a.txt onnx-scratch/b.txt; then
+            echo "$MODEL: dumped .onnx reproduces the .bin.gz evaluations exactly"
+          else
+            echo "$MODEL: evaluations from the dumped .onnx do not match the .bin.gz"
+            FAILED=1
+          fi
+        done
+        exit $FAILED
+
     - name: Verify backend wiring
       shell: bash
       run: |

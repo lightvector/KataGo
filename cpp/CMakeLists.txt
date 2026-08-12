@@ -1017,6 +1017,7 @@ add_executable(katago
   tests/testbackendreference.cpp
   tests/backendreferencedata.cpp
   tests/testpassalivesuicide.cpp
+  tests/testexcludeterritoryatari.cpp
   tests/testrules.cpp
   tests/testscore.cpp
   tests/testsgf.cpp
@@ -1033,6 +1034,7 @@ add_executable(katago
   tests/testtime.cpp
   tests/testtrainingwrite.cpp
   tests/testnn.cpp
+  tests/testonnxmodelfile.cpp
   tests/tinymodel.cpp
   tests/tinymodeldata.cpp
   distributed/client.cpp
@@ -1040,6 +1042,7 @@ add_executable(katago
   command/analysis.cpp
   command/benchmark.cpp
   command/contribute.cpp
+  command/dumponnx.cpp
   command/evalsgf.cpp
   command/gatekeeper.cpp
   command/genbook.cpp
@@ -1135,20 +1138,8 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${TENSORRT_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   target_link_libraries(katago CUDA::cudart_static ${TENSORRT_LIBRARY})
 
-  # The TensorRT backend builds networks by emitting an ONNX ModelProto and handing the
-  # serialized bytes to TensorRT's nvonnxparser. We compile the vendored ONNX schema
-  # (cpp/external/onnx/onnx.proto) with protoc and link against our own protobuf; this is
-  # symbol-isolated from the protobuf that TensorRT statically links into nvonnxparser, so
-  # there is no ABI contact between the two (the handoff is serialized bytes).
-  find_package(Protobuf REQUIRED)
-  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
-  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
-  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
-  # protoc-generated code is not ours to lint; silence its warnings to keep build output readable.
-  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
-  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
-  # Generated onnx.pb.h lands in the build dir; let backend code include it.
-  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
+  # The ONNX emitter this backend feeds nvonnxparser with, and the protobuf it needs, are set up
+  # in the shared block after this backend chain.
 
   # nvonnxparser ships alongside nvinfer in the TensorRT lib dir. Derive that dir from the
   # already-resolved TENSORRT_LIBRARY so this works both with TENSORRT_ROOT_DIR and with a
@@ -1158,10 +1149,7 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   if(NOT TENSORRT_ONNXPARSER_LIBRARY)
     message(FATAL_ERROR "${ColorBoldRed} libnvonnxparser was NOT found in the TensorRT lib dir. ${ColorReset}")
   endif()
-  # Link the imported target rather than ${Protobuf_LIBRARIES}: when protobuf comes from a
-  # CMake package config (e.g. vcpkg), the variable can resolve to the DLL itself rather
-  # than the import lib, and it also omits protobuf's own dependencies such as abseil.
-  target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY} protobuf::libprotobuf)
+  target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY})
 elseif(USE_BACKEND STREQUAL "METAL")
   target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
   target_link_libraries(katago KataGoSwift katagocoreml
@@ -1556,31 +1544,9 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   endif()
   target_link_libraries(katago ${ONNXRUNTIME_LIB})
 
-  # The ONNX backend emits an ONNX ModelProto via the same OnnxModelBuilder as the
-  # TensorRT backend and hands the serialized bytes to Ort::Session. Generate onnx.pb.h
-  # from the vendored external/onnx/onnx.proto and link our own protobuf. The handoff to
-  # ORT is serialized bytes, so there is no ABI contact with whatever protobuf lives
-  # inside the ORT DLL. Protobuf and protoc must be findable by find_package(Protobuf).
-  # For an ORT built from source, these live under its _deps/protobuf-build.
-  if(NOT DEFINED Protobuf_USE_STATIC_LIBS)
-    # The protobuf that ships with a from-source ONNX Runtime build (e.g. under its
-    # _deps/protobuf-build on Windows) is a static library. FindProtobuf otherwise treats
-    # libprotobuf.lib as a shared import lib on Windows and injects PROTOBUF_USE_DLLS into
-    # the imported target, which breaks linking against a static libprotobuf. Default to
-    # static, but let the user override (e.g. a shared protobuf from vcpkg).
-    set(Protobuf_USE_STATIC_LIBS TRUE)
-  endif()
-  find_package(Protobuf REQUIRED)
-  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
-  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
-  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
-  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
-  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
-  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
-  # Link the imported target rather than ${Protobuf_LIBRARIES}: when protobuf comes from a
-  # CMake package config (e.g. vcpkg), the variable can resolve to the DLL itself rather
-  # than the import lib, and it also omits protobuf's own dependencies such as abseil.
-  target_link_libraries(katago protobuf::libprotobuf)
+  # The ONNX emitter whose bytes go to Ort::Session, and the protobuf it needs, are set up in the
+  # shared block after this backend chain. Protobuf and protoc must be findable by
+  # find_package(Protobuf); for an ORT built from source they live under its _deps/protobuf-build.
 
   # Deploy the ORT runtime DLLs next to katago.exe so the build dir is self-contained.
   # NOTE: OpenVINO's own runtime DLLs are not shipped by ORT and must be copied
@@ -1593,6 +1559,42 @@ elseif(USE_BACKEND STREQUAL "ONNX")
           $<TARGET_FILE_DIR:katago>)
     endforeach()
   endif()
+endif()
+
+# The TensorRT and ONNX backends both build their network by emitting an ONNX ModelProto with
+# OnnxModelBuilder and handing the serialized bytes to nvonnxparser or to Ort::Session, so both
+# compile the vendored schema external/onnx/onnx.proto with protoc and link our own protobuf.
+# Serialized bytes are not ABI contact, so our protobuf never meets the one TensorRT links into
+# nvonnxparser, or whichever one lives inside the ONNX Runtime library.
+if(USE_BACKEND STREQUAL "TENSORRT" OR USE_BACKEND STREQUAL "ONNX")
+  # Static by default for ONNX only, and deliberately so - do not unify this with the TensorRT
+  # case, which would change how Windows TensorRT builds resolve protobuf. A from-source ONNX
+  # Runtime bundles a static protobuf, which module-mode FindProtobuf would otherwise take for a
+  # shared import lib, injecting PROTOBUF_USE_DLLS into the imported target and breaking the link.
+  # Linking ours statically also keeps it out of the global symbol namespace, where it could merge
+  # with the protobuf inside ONNX Runtime: both embed onnx.proto, and one descriptor pool holding
+  # two registrations of the same file aborts at startup. That second point is a precaution rather
+  # than a diagnosed bug, since the shared-protobuf configuration has never been tried against a
+  # real ONNX Runtime, so whether it actually clashes is unknown.
+  # Override with -DProtobuf_USE_STATIC_LIBS=FALSE. Only module-mode FindProtobuf honors it: a
+  # config-mode protobuf, as from a vcpkg toolchain or protobuf 22 and up with its abseil
+  # dependencies, ignores the variable entirely.
+  if(USE_BACKEND STREQUAL "ONNX" AND NOT DEFINED Protobuf_USE_STATIC_LIBS)
+    set(Protobuf_USE_STATIC_LIBS TRUE)
+  endif()
+  find_package(Protobuf REQUIRED)
+  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
+  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
+  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
+  # protoc-generated code is not ours to lint; silence its warnings to keep build output readable.
+  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
+  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
+  # Generated onnx.pb.h lands in the build dir; let backend code include it.
+  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS})
+  # Link the imported target rather than ${Protobuf_LIBRARIES}: when protobuf comes from a CMake
+  # package config (e.g. vcpkg), the variable can resolve to the DLL itself rather than the import
+  # lib, and it also omits protobuf's own dependencies such as abseil.
+  target_link_libraries(katago protobuf::libprotobuf)
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)

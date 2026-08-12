@@ -131,7 +131,7 @@ void Tests::runRulesTests() {
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = true;
     rules.taxRule = Rules::TAX_NONE;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(1,1,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(2,2,board.x_size), P_WHITE, __LINE__);
@@ -188,7 +188,7 @@ HASH: C5B7EC66E875EF237ADC456CEE8436EA
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = true;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(1,1,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(2,2,board.x_size), P_WHITE, __LINE__);
@@ -314,7 +314,7 @@ oooo.o
       Board board(baseBoard);
       Rules rules(baseRules);
       rules.koRule = Rules::KO_SIMPLE;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       makeMoveAssertLegal(hist, board, Location::getLoc(5,1,board.x_size), P_BLACK, __LINE__);
       out << "After black ko capture:" << endl;
@@ -390,7 +390,7 @@ isResignation: 0
       Board board(baseBoard);
       Rules rules(baseRules);
       rules.koRule = Rules::KO_POSITIONAL;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       makeMoveAssertLegal(hist, board, Location::getLoc(5,1,board.x_size), P_BLACK, __LINE__);
       out << "After black ko capture:" << endl;
@@ -474,7 +474,7 @@ Illegal: (5,1) X
       Board board(baseBoard);
       Rules rules(baseRules);
       rules.koRule = Rules::KO_SITUATIONAL;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       makeMoveAssertLegal(hist, board, Location::getLoc(5,1,board.x_size), P_BLACK, __LINE__);
       out << "After black ko capture:" << endl;
@@ -550,7 +550,7 @@ Illegal: (0,0) X
       testAssert(suc);
       Rules rules(baseRules);
       rules.koRule = Rules::KO_SPIGHT;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       makeMoveAssertLegal(hist, board, Location::getLoc(5,1,board.x_size), P_BLACK, __LINE__);
       out << "After black ko capture:" << endl;
@@ -677,7 +677,7 @@ xx....
       Board board(baseBoard);
       Rules rules(baseRules);
       rules.koRule = koRulesToTest[i];
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       makeMoveAssertLegal(hist, board, Location::getLoc(4,0,board.x_size), P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -776,7 +776,7 @@ xoooxxoo
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_NONE;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(2,4,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(4,4,board.x_size), P_WHITE, __LINE__);
@@ -815,7 +815,7 @@ ooooooo
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_NONE;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(3,1,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(1,2,board.x_size), P_WHITE, __LINE__);
@@ -858,7 +858,7 @@ ooooooo
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_NONE;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(3,1,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(1,2,board.x_size), P_WHITE, __LINE__);
@@ -889,7 +889,7 @@ ooooooo
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -936,7 +936,7 @@ Ko recap blocked at F5
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_WHITE,rules,0,false);
+    BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -1004,7 +1004,7 @@ Ko recap blocked at D3
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_WHITE,rules,0,false);
+    BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -1085,7 +1085,7 @@ HASH: 4F0DF41FC22ACBFAEBB9F5D2052C74DD
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_WHITE,rules,0,false);
+    BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -1236,7 +1236,7 @@ x.oxxxx
       rules.komi = 0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
@@ -1305,7 +1305,7 @@ x.oxxxx
       rules.komi = 0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
@@ -1374,7 +1374,7 @@ x.oxxxx
       rules.komi = 0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
@@ -1446,7 +1446,7 @@ x.oxxxx
       rules.komi = 0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(5,3,board.x_size), P_BLACK, __LINE__);
@@ -1520,7 +1520,7 @@ o.xoo.x
       rules.komi = -0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_WHITE,rules,0,false);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(6,5,board.x_size), P_WHITE, __LINE__);
@@ -1590,7 +1590,7 @@ o.xoo.x
       rules.komi = -0.5f;
       rules.multiStoneSuicideLegal = false;
       rules.taxRule = taxRules[whichTaxRule];
-      BoardHistory hist(board,P_WHITE,rules,0,false);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -1644,6 +1644,106 @@ Score: 8.5
     expect(name,out,expected);
   }
 
+  //Same as the two "Fill seki liberties" tests above but with excludeTerritoryAdjacentToAtari on
+  //(rules version 3 scoring) - only TAX_NONE differs from those tests, so only it is run.
+  {
+    const char* name = "Fill seki liberties in main phase (v3 excludeTerritoryAdjacentToAtari)";
+    Board board = Board::parseBoard(7,7,R"%%(
+...oxx.
+oooox.x
+xxxxoxx
+o.xoooo
+.oxox.o
+oxxo.x.
+o.xoo.x
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = -0.5f;
+    rules.multiStoneSuicideLegal = false;
+    rules.taxRule = Rules::TAX_NONE;
+    BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,true));
+
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,5,board.x_size), P_WHITE, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,6,board.x_size), P_BLACK, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(0,4,board.x_size), P_WHITE, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_BLACK, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(1,0,board.x_size), P_WHITE, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_BLACK, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    string expected = R"%%(
+Score: 1.5
+Score: 1.5
+Score: 1.5
+Score: 0.5
+Score: 2.5
+Score: 1.5
+Score: 1.5
+Score: 11.5
+)%%";
+    expect(name,out,expected);
+  }
+
+  {
+    const char* name = "Fill seki liberties in encore 2 (v3 excludeTerritoryAdjacentToAtari)";
+    Board board = Board::parseBoard(7,7,R"%%(
+...oxx.
+oooox.x
+xxxxoxx
+o.xoooo
+.oxox.o
+oxxo.x.
+o.xoo.x
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_POSITIONAL;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = -0.5f;
+    rules.multiStoneSuicideLegal = false;
+    rules.taxRule = Rules::TAX_NONE;
+    BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,true));
+
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
+    makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,5,board.x_size), P_WHITE, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,6,board.x_size), P_BLACK, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(0,4,board.x_size), P_WHITE, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(6,0,board.x_size), P_BLACK, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(1,0,board.x_size), P_WHITE, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_BLACK, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    makeMoveAssertLegal(hist, board, Location::getLoc(5,4,board.x_size), P_WHITE, __LINE__);
+    out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
+    string expected = R"%%(
+Score: 1.5
+Score: 1.5
+Score: 1.5
+Score: 0.5
+Score: 2.5
+Score: 2.5
+Score: 2.5
+Score: 12.5
+)%%";
+    expect(name,out,expected);
+  }
+
   {
     const char* name = "Area scoring with button";
 
@@ -1665,7 +1765,7 @@ Score: 8.5
       rules.multiStoneSuicideLegal = false;
       rules.komi = 2.5f;
       rules.hasButton = buttonRule[whichRule];
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       out << "Score: " << finalScoreIfGameEndedNow(hist,board) << endl;
       makeMoveAssertLegal(hist, board, Location::getLoc(3,4,board.x_size), P_BLACK, __LINE__);
@@ -1728,7 +1828,7 @@ Score: -3
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
     Hash128 hasha;
     Hash128 hashb;
     Hash128 hashc;
@@ -1880,7 +1980,7 @@ ooo....
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = true;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_WHITE,rules,0,false);
+    BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -2004,7 +2104,7 @@ oo.....
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = true;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -2050,7 +2150,7 @@ xxxxxxx
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_NONE;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -2109,7 +2209,7 @@ xxxo...oo
     {
       rules.scoringRule = Rules::SCORING_AREA;
       rules.taxRule = Rules::TAX_NONE;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       testAssert(hist.isGameFinished == true);
@@ -2118,7 +2218,7 @@ xxxo...oo
     {
       rules.scoringRule = Rules::SCORING_AREA;
       rules.taxRule = Rules::TAX_SEKI;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       testAssert(hist.isGameFinished == true);
@@ -2127,7 +2227,7 @@ xxxo...oo
     {
       rules.scoringRule = Rules::SCORING_AREA;
       rules.taxRule = Rules::TAX_ALL;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       testAssert(hist.isGameFinished == true);
@@ -2136,7 +2236,7 @@ xxxo...oo
     {
       rules.scoringRule = Rules::SCORING_TERRITORY;
       rules.taxRule = Rules::TAX_NONE;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -2149,7 +2249,7 @@ xxxo...oo
     {
       rules.scoringRule = Rules::SCORING_TERRITORY;
       rules.taxRule = Rules::TAX_SEKI;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -2162,7 +2262,7 @@ xxxo...oo
     {
       rules.scoringRule = Rules::SCORING_TERRITORY;
       rules.taxRule = Rules::TAX_ALL;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -2223,7 +2323,7 @@ xxxoxxxoo
     {
       rules.scoringRule = Rules::SCORING_AREA;
       rules.taxRule = Rules::TAX_NONE;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       testAssert(hist.isGameFinished == true);
@@ -2232,7 +2332,7 @@ xxxoxxxoo
     {
       rules.scoringRule = Rules::SCORING_AREA;
       rules.taxRule = Rules::TAX_SEKI;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       testAssert(hist.isGameFinished == true);
@@ -2241,7 +2341,7 @@ xxxoxxxoo
     {
       rules.scoringRule = Rules::SCORING_AREA;
       rules.taxRule = Rules::TAX_ALL;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       testAssert(hist.isGameFinished == true);
@@ -2250,7 +2350,7 @@ xxxoxxxoo
     {
       rules.scoringRule = Rules::SCORING_TERRITORY;
       rules.taxRule = Rules::TAX_NONE;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -2263,7 +2363,7 @@ xxxoxxxoo
     {
       rules.scoringRule = Rules::SCORING_TERRITORY;
       rules.taxRule = Rules::TAX_SEKI;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -2276,7 +2376,7 @@ xxxoxxxoo
     {
       rules.scoringRule = Rules::SCORING_TERRITORY;
       rules.taxRule = Rules::TAX_ALL;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -2331,7 +2431,7 @@ xxo
     rules.taxRule = Rules::TAX_NONE;
 
     {
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
       hist.printDebugInfo(out,board);
@@ -2350,7 +2450,7 @@ xxo
     {
       out << "-----------------------" << endl;
       out << "Preventing encore" << endl;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__, true);
       makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__, true);
       hist.printDebugInfo(out,board);
@@ -2625,9 +2725,9 @@ Last moves pass pass pass pass
     rules.komi = 0.5f;
     rules.taxRule = Rules::TAX_SEKI;
     rules.multiStoneSuicideLegal = false;
-    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,false),P_BLACK,true);
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,true);
     rules.multiStoneSuicideLegal = true;
-    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,false),P_BLACK,true);
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,true);
     expected = R"%%(
 5 .... NPX PS0 E0  0000 0000
 4 ..X. NPO PS0 E0  0000 0000
@@ -2769,11 +2869,11 @@ isResignation: 0
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_NONE;
-    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,false),P_BLACK,false);
-    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,false),P_BLACK,false);
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,false);
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,false);
     rules.multiStoneSuicideLegal = true;
-    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,false),P_BLACK,false);
-    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,false),P_BLACK,false);
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,false);
+    stressTest(emptyBoard22,BoardHistory(emptyBoard22,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,false);
     expected = R"%%(
 5 .... NPX PS0 E0  0000 0000
 4 X... NPO PS0 E0  0000 0000
@@ -2846,7 +2946,7 @@ isResignation: 0
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
-    stressTest(koBoard71,BoardHistory(koBoard71,P_BLACK,rules,0,false),P_BLACK,true);
+    stressTest(koBoard71,BoardHistory(koBoard71,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,true);
 
     expected = R"%%(
 3 .O.OX.O NPX PS0 E0  0000000 0000000
@@ -3028,7 +3128,7 @@ isResignation: 0
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
-    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,false),P_BLACK,true);
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,true);
     expected = R"%%(
 5 .... NPX PS0 E0  0000 0000
 3 .X.. NPO PS0 E0  0000 0000
@@ -3080,7 +3180,7 @@ isResignation: 0
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
-    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,false),P_BLACK,true);
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,true);
     expected = R"%%(
 5 .... NPX PS0 E0  0000 0000
 4 X... NPO PS0 E0  0000 0000
@@ -3122,7 +3222,7 @@ isResignation: 0
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_NONE;
-    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,false),P_BLACK,true);
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,true);
 
     expected = R"%%(
 5 .... NPX PS0 E0  0000 0000
@@ -3172,7 +3272,7 @@ isResignation: 0
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_NONE;
-    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,false),P_BLACK,true);
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,true);
     expected = R"%%(
 5 .... NPX PS0 E0  0000 0000
 3 .X.. NPO PS0 E0  0000 0000
@@ -3203,7 +3303,7 @@ isResignation: 0
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_NONE;
-    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,false),P_BLACK,true);
+    stressTest(koBoard41,BoardHistory(koBoard41,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,true);
     expected = R"%%(
 5 .... NPX PS0 E0  0000 0000
 4 ...X NPO PS0 E0  0000 0000
@@ -3233,7 +3333,7 @@ isResignation: 0
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
     baseRand.init("123");
-    stressTest(koBoard71,BoardHistory(koBoard71,P_BLACK,rules,0,false),P_BLACK,false);
+    stressTest(koBoard71,BoardHistory(koBoard71,P_BLACK,rules,0,BoardHistoryModes(false,false)),P_BLACK,false);
     expected = R"%%(
 3 .O.OX.O NPX PS0 E0  0000000 0000000
 4 .O.OXX. NPO PS0 E0  0000000 0000000
@@ -3287,8 +3387,8 @@ isResignation: 0
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = true;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
-    BoardHistory hist2(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
+    BoardHistory hist2(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     auto compareHists = [&]() {
       out << hist.moveHistory.size() << " " << hist2.moveHistory.size() << endl;
@@ -3428,7 +3528,7 @@ XXXOO.OOO
     rules.komi = 0.5f;
     rules.multiStoneSuicideLegal = false;
     rules.taxRule = Rules::TAX_SEKI;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -3469,7 +3569,7 @@ HASH: 5C26A060FA78FD93FFF559C72BD7C6A4
     int turnIdxToSetup = (int)sgf->moves.size();
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
 
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdxToSetup, false);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdxToSetup,BoardHistoryModes(false,false));
     string expected = R"%%(
 HASH: EB867913318513FD9DE98EDE86AE8CE0
    A B C D E F G H J K L M
@@ -3548,7 +3648,7 @@ xoxx.
     rules.multiStoneSuicideLegal = false;
     rules.komi = 0.0f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(2,2,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -3587,7 +3687,7 @@ xoxx.
     rules.multiStoneSuicideLegal = false;
     rules.komi = 0.5f;
     rules.hasButton = true;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(2,2,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -3632,7 +3732,7 @@ xoxx.
     rules.multiStoneSuicideLegal = false;
     rules.komi = 0.0f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(4,3,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_WHITE, __LINE__);
@@ -3665,7 +3765,7 @@ xoxx.
     rules.multiStoneSuicideLegal = false;
     rules.komi = 0.5f;
     rules.hasButton = true;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(4,3,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Location::getLoc(4,5,board.x_size), P_WHITE, __LINE__);
@@ -3706,7 +3806,7 @@ xoxx.
     rules.multiStoneSuicideLegal = false;
     rules.komi = 0.5f;
     rules.hasButton = true;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Location::getLoc(2,2,board.x_size), P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -3745,7 +3845,7 @@ Illegal: (4,3) X
     rules.multiStoneSuicideLegal = false;
     rules.komi = 6.5f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_WHITE,rules,0,false);
+    BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -3860,7 +3960,7 @@ Last moves pass pass pass J6 H9 H9 J6
     rules.multiStoneSuicideLegal = false;
     rules.komi = 6.5f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_WHITE,rules,0,false);
+    BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -3975,7 +4075,7 @@ Last moves pass pass pass J6 H9 H9 J7
     rules.multiStoneSuicideLegal = false;
     rules.komi = 6.5f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_WHITE,rules,0,false);
+    BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
@@ -4134,7 +4234,7 @@ Illegal: (8,3) X
     rules.multiStoneSuicideLegal = true;
     rules.komi = 6.5f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -4307,7 +4407,7 @@ Last moves pass pass H7 G9 J6 H8 G8 J7
     rules.multiStoneSuicideLegal = true;
     rules.komi = 6.5f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -4645,7 +4745,7 @@ Last moves pass pass H7 G9 J6 H8 H8 J6 G8 J7 F9 H7 F9 H8 H7 pass
     rules.multiStoneSuicideLegal = true;
     rules.komi = 6.5f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -4784,7 +4884,7 @@ Last moves pass pass pass pass H7 G9 J6 H8 H8
     rules.multiStoneSuicideLegal = true;
     rules.komi = 6.5f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -5011,7 +5111,7 @@ Last moves pass pass H7 G9 J6 H8 G8 H7 G8 J7 F9
     rules.multiStoneSuicideLegal = true;
     rules.komi = 6.5f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -5143,7 +5243,7 @@ Last moves pass pass pass pass H7 G9 F9 H8
     rules.multiStoneSuicideLegal = true;
     rules.komi = 6.5f;
     rules.hasButton = false;
-    BoardHistory hist(board,P_BLACK,rules,0,false);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_BLACK, __LINE__);
     makeMoveAssertLegal(hist, board, Board::PASS_LOC, P_WHITE, __LINE__);
@@ -5283,9 +5383,9 @@ Last moves pass pass pass pass H7 G9 F9 H7
       for(int j = 0; j<rules.size(); j++) {
         Player nextPla = P_BLACK;
         Board board = boards[i];
-        BoardHistory hist(board,nextPla,rules[j],0,false);
+        BoardHistory hist(board,nextPla,rules[j],0,BoardHistoryModes(false,false));
         Board board2 = boards[i];
-        BoardHistory hist2(board2,nextPla,rules[j],0,false);
+        BoardHistory hist2(board2,nextPla,rules[j],0,BoardHistoryModes(false,false));
         KoHashTable* table = new KoHashTable();
 
         Rand rand(baseRand.nextUInt64());

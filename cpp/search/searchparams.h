@@ -94,8 +94,12 @@ struct SearchParams {
   bool enableMorePassingHacks; //Always weightless search passing and non passing moves when a pass would end the phase after a few visits.
   //Whether to compute pass-alive areas as if multi-stone suicide were always legal regardless of the actual suicide
   //rule, for game end/scoring within the search tree and for nn input featurization.
-  //Auto = do so if and only if the neural net declares that it expects this. See BoardHistory::alwaysComputePassAliveUnderSuicideRules.
+  //Auto = do so if and only if the neural net declares that it expects this. See BoardHistoryModes.
   enabled_t alwaysComputePassAliveUnderSuicideRules;
+  //Whether territory scoring with TaxRule NONE excludes empty points adjacent to chains in atari (rules version 3),
+  //for game end/scoring within the search tree and for nn input featurization.
+  //Auto = do so if and only if the neural net declares that it expects this. See BoardHistoryModes.
+  enabled_t excludeTerritoryAdjacentToAtari;
 
   double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent
   Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player. If empty, opponent of the root player.

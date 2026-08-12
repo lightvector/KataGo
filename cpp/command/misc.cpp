@@ -224,7 +224,7 @@ int MainCmds::evalrandominits(const vector<string>& args) {
     Rules rules = Rules::parseRules("japanese");
     //Keep pass-alive computations (e.g. endGameIfAllPassAlive below) consistent with how the bot's
     //own searches are performing them.
-    BoardHistory hist(board,pla,rules,0,evalBot->getRootHist().alwaysComputePassAliveUnderSuicideRules);
+    BoardHistory hist(board,pla,rules,0,evalBot->getRootHist().modes);
     int numInitialMovesToPlay = (int)gameRand.nextUInt(200);
     double temperature = 1.0;
     for(int i = 0; i<numInitialMovesToPlay; i++) {
@@ -379,7 +379,7 @@ int MainCmds::searchentropyanalysis(const vector<string>& args) {
     Player pla;
     BoardHistory hist;
     Rules initialRules;
-    sgfObj->setupInitialBoardAndHist(initialRules, board, pla, hist, bot->getRootHist().alwaysComputePassAliveUnderSuicideRules);
+    sgfObj->setupInitialBoardAndHist(initialRules, board, pla, hist, bot->getRootHist().modes);
 
     for(int i = 0; i < turnIdx; i++) {
       Loc moveLoc = sgfObj->moves[i].loc;
