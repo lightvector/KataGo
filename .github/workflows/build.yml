@@ -116,10 +116,11 @@ jobs:
   # Windows). No AMD GPU on the runner, so this covers configure+compile+link and the GPU-less
   # runtests only - not GPU execution. Uses a pinned TheRock nightly dist tarball. Bump the
   # version below deliberately, since toolchain drift is exactly what this job is meant to catch.
-  # The Composable Kernel fused attention path is not covered either: its configure-time probe
-  # currently rejects TheRock's ck_tile under MSVC (see external/composable_kernel_fmha/README.md),
-  # so this builds the built-in attention kernels. Should a later TheRock or MSVC fix that, the
-  # probe starts accepting it and this job covers the CK kernels too.
+  # The Composable Kernel fused attention path is not covered at the version pinned below, whose
+  # ck_tile the configure-time probe rejects on Windows (see
+  # external/composable_kernel_fmha/README.md). This is specific to that ck_tile rather than to
+  # Windows or MSVC in general, and earlier TheRock versions do build the CK kernels here, so on a
+  # version where the probe accepts them this job covers them too.
   build-windows-rocm:
     # windows-2022: KataGo's CMake requires a v143 MSVC toolset (14.3x/14.4x) for HIP clang
     # compatibility, which this image ships.

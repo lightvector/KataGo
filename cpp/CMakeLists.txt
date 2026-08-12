@@ -272,9 +272,10 @@ function(katago_win_autoselect_msvc_toolset hip_compiler)
       # own cuda_wrappers/cmath shim was found, and that continuation only walks through the same
       # -I search list, not -isystem/-idirafter entries.
       #
-      # This ordering is not sufficient on its own. Some objects still end up referencing the
-      # bodyless MSVC declarations, and core/win_rocm_sse_shim.cpp supplies the definitions that
-      # let them link. Do not drop that file on the assumption that this ordering replaces it.
+      # This ordering is not sufficient on its own, and does not by itself decide which <intrin.h>
+      # a given HIP SDK ends up using. On SDKs that resolve it to MSVC's, objects still reference
+      # the bodyless declarations, and core/win_rocm_sse_shim.cpp supplies the definitions that let
+      # them link. Do not drop that file on the assumption that this ordering replaces it.
       execute_process(COMMAND "${hip_compiler}" -print-resource-dir
         OUTPUT_VARIABLE _clang_resource_dir OUTPUT_STRIP_TRAILING_WHITESPACE)
       file(TO_CMAKE_PATH "${_clang_resource_dir}" _clang_resource_dir)

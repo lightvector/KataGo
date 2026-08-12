@@ -17,7 +17,8 @@ Known unavailable on Windows as of TheRock 7.14: ck_tile's `cast_to_amdgpu_buffe
 libstdc++ gets that from HIP's own headers, but MSVC's `<cstring>` is already included by the time
 those are reached, leaving `memcpy` host-only and the kernels uncompilable. The configure-time
 probe detects this and falls back to the built-in attention kernels, so it costs speed rather than
-breaking the build.
+breaking the build. TheRock 7.13's ck_tile does compile these kernels on Windows, so this is a
+regression in the newer ck_tile rather than a general Windows or MSVC limitation.
 
 Source: https://github.com/ROCm/rocm-libraries, tag `therock-7.13`,
 `projects/composablekernel/example/ck_tile/01_fmha/`. Must be API-compatible with the ck_tile core
