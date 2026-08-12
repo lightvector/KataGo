@@ -12,6 +12,13 @@ performance optimization, not required for correctness. Measured ~2x speedup in 
 Runtime opt-out: set `rocmDisableFusedAttention = true` in the KataGo config to force the plain
 kernel even when the fused path is compiled in and available.
 
+Known unavailable on Windows as of TheRock 7.14: ck_tile's `cast_to_amdgpu_buffer_rsrc_t` calls
+`std::memcpy` from device code, which requires a standard library whose `memcpy` is host+device.
+libstdc++ gets that from HIP's own headers, but MSVC's `<cstring>` is already included by the time
+those are reached, leaving `memcpy` host-only and the kernels uncompilable. The configure-time
+probe detects this and falls back to the built-in attention kernels, so it costs speed rather than
+breaking the build.
+
 Source: https://github.com/ROCm/rocm-libraries, tag `therock-7.13`,
 `projects/composablekernel/example/ck_tile/01_fmha/`. Must be API-compatible with the ck_tile core
 headers from the installed system package (`fmha_fwd.hpp` etc. reference internal ck_tile core APIs

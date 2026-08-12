@@ -1390,48 +1390,119 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     endif()
   endforeach()
 
-  # The vendored glue headers only compile against an API-compatible version of the installed
-  # ck_tile core headers (see external/composable_kernel_fmha/README.md), and ck_tile's API moves
-  # between ROCm releases. Probe-compile the glue against the headers we found before committing:
-  # if the versions are incompatible we skip the fused path with a clear message instead of
-  # hard-failing the whole build partway through with hundreds of template errors. The probe result
-  # is cached per ck_tile directory so a plain re-run of cmake doesn't redo it.
+  # The vendored kernels only compile against an API-compatible version of the installed ck_tile
+  # core headers (see external/composable_kernel_fmha/README.md), and ck_tile's API moves between
+  # ROCm releases. Probe-compile against the headers we found before committing: if they are
+  # incompatible we skip the fused path with a clear message instead of hard-failing the whole
+  # build partway through with hundreds of template errors. The probe result is cached per ck_tile
+  # directory so a plain re-run of cmake doesn't redo it.
+  #
+  # The probe compiles a real generated kernel file rather than a translation unit that merely
+  # includes the glue headers, because some incompatibilities only appear once ck_tile's kernel
+  # templates are instantiated for a target arch. ck_tile 7.14's cast_to_amdgpu_buffer_rsrc_t, for
+  # instance, calls std::memcpy from device code, which compiles only where the standard library's
+  # memcpy is host+device. It is with libstdc++, which gets that from HIP's headers, but not with
+  # MSVC's, whose <cstring> is already included by the time those headers are reached. A probe that
+  # only includes headers accepts that and the build then dies in the middle of the kernels.
   set(_katago_ck_fmha_enabled FALSE)
-  if(KATAGO_CK_TILE_INCLUDE_DIR AND NOT KATAGO_CK_FMHA_SUPPORTED_ARCHS)
-    message(STATUS "ck_tile headers found, but no targeted GPU arch supports the CK FMHA kernels; ROCm backend will only use its built-in (non-fused) attention kernel")
+  # Each generated kernel file targets one CK codegen family and produces code only for archs in
+  # that family, so probe one file per distinct family among the target archs. Families are matched
+  # most-specific-first, so gfx950 and gfx115x do not fall into the broader gfx9 and gfx11 buckets,
+  # mirroring the dispatch order in generated/fmha_fwd_api.cpp. Archs matching no family (RDNA2
+  # gfx103x) have no CK kernels at all, so a build targeting only those gets nothing from CK.
+  set(_ck_probe_families "")
+  set(_ck_probe_archs "")
+  foreach(_arch ${KATAGO_CK_FMHA_SUPPORTED_ARCHS})
+    string(REGEX REPLACE ":.*$" "" _arch_base "${_arch}")
+    set(_ck_fam "")
+    if(_arch_base MATCHES "^gfx950")
+      set(_ck_fam "gfx950")
+    elseif(_arch_base MATCHES "^gfx9")
+      set(_ck_fam "gfx9")
+    elseif(_arch_base MATCHES "^gfx115")
+      set(_ck_fam "gfx115")
+    elseif(_arch_base MATCHES "^gfx11")
+      set(_ck_fam "gfx11")
+    elseif(_arch_base MATCHES "^gfx12")
+      set(_ck_fam "gfx12")
+    endif()
+    if(_ck_fam AND NOT _ck_fam IN_LIST _ck_probe_families)
+      list(APPEND _ck_probe_families "${_ck_fam}")
+      list(APPEND _ck_probe_archs "${_arch}")
+    endif()
+  endforeach()
+  if(KATAGO_CK_TILE_INCLUDE_DIR AND NOT _ck_probe_families)
+    message(STATUS "ck_tile headers found, but no targeted GPU arch has CK FMHA kernels; ROCm backend will only use its built-in (non-fused) attention kernel")
   elseif(KATAGO_CK_TILE_INCLUDE_DIR)
-    list(GET KATAGO_CK_FMHA_SUPPORTED_ARCHS 0 _ck_probe_arch)
-    # The cache signature includes the compiler, probe arch, and a content hash of ck_tile's own
-    # fmha_fwd.hpp (a good proxy for the installed ck_tile API version), so an in-place ROCm or
-    # header upgrade, or a changed toolchain/arch list, re-probes instead of trusting a stale
-    # verdict.
+    # The cache signature includes the compiler, the probed archs, a content hash of ck_tile's own
+    # fmha_fwd.hpp (a good proxy for the installed ck_tile API version), and a tag for the probe
+    # scheme itself, so an in-place ROCm or header upgrade, a changed toolchain or arch list, or a
+    # future change to what the probe compiles all re-probe instead of trusting a stale verdict.
     file(SHA1 "${KATAGO_CK_TILE_INCLUDE_DIR}/ck_tile/ops/fmha_fwd.hpp" _ck_header_hash)
-    set(_ck_probe_sig "${KATAGO_CK_TILE_INCLUDE_DIR}|${CMAKE_HIP_COMPILER}|${CMAKE_HIP_COMPILER_VERSION}|${_ck_probe_arch}|${_ck_header_hash}")
+    set(_ck_probe_sig "kernels-v2|${KATAGO_CK_TILE_INCLUDE_DIR}|${CMAKE_HIP_COMPILER}|${CMAKE_HIP_COMPILER_VERSION}|${CMAKE_BUILD_TYPE}|${_ck_probe_archs}|${_ck_header_hash}")
     if(NOT DEFINED KATAGO_CK_FMHA_COMPILE_OK OR NOT "${KATAGO_CK_FMHA_PROBED_SIG}" STREQUAL "${_ck_probe_sig}")
       set(_ck_probe_dir "${CMAKE_BINARY_DIR}/_katago_ck_fmha_probe")
       file(MAKE_DIRECTORY "${_ck_probe_dir}")
-      # Mirrors how rocmbackend.cpp includes the glue (see its fmha_fwd.hpp include block).
-      file(WRITE "${_ck_probe_dir}/probe.cpp" "#include <cstring>\n#include <utility>\n#include \"fmha_fwd.hpp\"\nint main(){return 0;}\n")
       # Probe with the same HIP flags the real build will use (on Windows these carry the baked
       # MSVC/WinSDK include paths without which any HIP compile fails outside the vcvars env).
       separate_arguments(_ck_probe_extra_flags NATIVE_COMMAND "${CMAKE_HIP_FLAGS}")
+      # The per-configuration flags have to be included too, not just the base ones. ck_tile's
+      # gfx11 and gfx12 kernels use inline asm with "n" (immediate) operand constraints that only
+      # fold to constants once optimized, so those kernels genuinely do not compile at -O0. Probing
+      # with the flags the build will really use keeps the verdict honest in both directions: no
+      # false negative for a normal optimized build, and a correct one for a debug build that would
+      # in fact fail to compile them.
+      string(TOUPPER "${CMAKE_BUILD_TYPE}" _ck_probe_build_type)
+      if(NOT _ck_probe_build_type)
+        # Multi-config generators choose the configuration at build time rather than now, so probe
+        # the optimized one.
+        set(_ck_probe_build_type "RELEASE")
+      endif()
+      if(CMAKE_HIP_FLAGS_${_ck_probe_build_type})
+        separate_arguments(_ck_probe_config_flags NATIVE_COMMAND "${CMAKE_HIP_FLAGS_${_ck_probe_build_type}}")
+        list(APPEND _ck_probe_extra_flags ${_ck_probe_config_flags})
+      else()
+        list(APPEND _ck_probe_extra_flags "-O3")
+      endif()
       if(KATAGO_HIP_SYSTEM_INCLUDE_DIR)
         list(APPEND _ck_probe_extra_flags "-isystem${KATAGO_HIP_SYSTEM_INCLUDE_DIR}")
       endif()
-      message(STATUS "Probing whether the vendored CK FMHA glue compiles against ${KATAGO_CK_TILE_INCLUDE_DIR} (may take a little while)...")
-      execute_process(
-        COMMAND "${CMAKE_HIP_COMPILER}" -x hip --offload-arch=${_ck_probe_arch} -std=c++17 -c
-                "-I${CMAKE_SOURCE_DIR}/external/composable_kernel_fmha"
-                "-isystem${KATAGO_CK_TILE_INCLUDE_DIR}"
-                ${_ck_probe_extra_flags}
-                "${_ck_probe_dir}/probe.cpp" -o "${_ck_probe_dir}/probe.o"
-        RESULT_VARIABLE _ck_probe_rc
-        ERROR_VARIABLE _ck_probe_err
-        OUTPUT_QUIET)
-      if(_ck_probe_rc EQUAL 0)
+      message(STATUS "Probing whether the vendored CK FMHA kernels compile against ${KATAGO_CK_TILE_INCLUDE_DIR} for ${_ck_probe_archs} (may take a little while)...")
+      set(_ck_probe_ok TRUE)
+      set(KATAGO_CK_FMHA_FAILED_ARCH "" CACHE INTERNAL "")
+      foreach(_ck_fam _arch IN ZIP_LISTS _ck_probe_families _ck_probe_archs)
+        # One d32 file stands in for its whole family: the files share their traits and pipeline
+        # machinery, so a single instantiation catches API drift and device-code errors without
+        # paying to compile all fifty-odd of them. An incompatibility confined to the d64 shapes
+        # would still reach the build.
+        file(GLOB _ck_fam_srcs "${CMAKE_SOURCE_DIR}/external/composable_kernel_fmha/generated/fmha_fwd_d32_${_ck_fam}_*.cpp")
+        list(SORT _ck_fam_srcs)
+        if(NOT _ck_fam_srcs)
+          continue()
+        endif()
+        list(GET _ck_fam_srcs 0 _ck_fam_src)
+        # A full object compile rather than -fsyntax-only, so that code generation for the arch is
+        # covered too and the probe tests exactly what the build will do.
+        execute_process(
+          COMMAND "${CMAKE_HIP_COMPILER}" -x hip --offload-arch=${_arch} -std=c++17 -c
+                  "-I${CMAKE_SOURCE_DIR}/external/composable_kernel_fmha"
+                  "-isystem${KATAGO_CK_TILE_INCLUDE_DIR}"
+                  ${_ck_probe_extra_flags}
+                  "${_ck_fam_src}" -o "${_ck_probe_dir}/probe_${_ck_fam}.o"
+          RESULT_VARIABLE _ck_probe_rc
+          ERROR_VARIABLE _ck_probe_err
+          OUTPUT_QUIET)
+        if(NOT _ck_probe_rc EQUAL 0)
+          file(WRITE "${_ck_probe_dir}/probe_error.log"
+            "Arch ${_arch} (CK kernel family ${_ck_fam})\nSource: ${_ck_fam_src}\n\n${_ck_probe_err}")
+          set(KATAGO_CK_FMHA_FAILED_ARCH "${_arch}" CACHE INTERNAL "")
+          set(_ck_probe_ok FALSE)
+          break()
+        endif()
+      endforeach()
+      if(_ck_probe_ok)
         set(KATAGO_CK_FMHA_COMPILE_OK TRUE CACHE INTERNAL "")
       else()
-        file(WRITE "${_ck_probe_dir}/probe_error.log" "${_ck_probe_err}")
         set(KATAGO_CK_FMHA_COMPILE_OK FALSE CACHE INTERNAL "")
       endif()
       set(KATAGO_CK_FMHA_PROBED_SIG "${_ck_probe_sig}" CACHE INTERNAL "")
@@ -1439,7 +1510,7 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     if(KATAGO_CK_FMHA_COMPILE_OK)
       set(_katago_ck_fmha_enabled TRUE)
     else()
-      message(STATUS "The vendored CK FMHA glue failed to compile against the ck_tile headers at ${KATAGO_CK_TILE_INCLUDE_DIR} - either that ck_tile version is API-incompatible with the glue, or the probe hit a toolchain/environment issue (see ${CMAKE_BINARY_DIR}/_katago_ck_fmha_probe/probe_error.log). ROCm backend will only use its built-in (non-fused) attention kernel. For the fused path, install the CK version noted in external/composable_kernel_fmha/README.md or point KATAGO_CK_TILE_INCLUDE_DIR at a compatible copy of the ck_tile headers.")
+      message(STATUS "The vendored CK FMHA kernels failed to compile against the ck_tile headers at ${KATAGO_CK_TILE_INCLUDE_DIR} for arch ${KATAGO_CK_FMHA_FAILED_ARCH} - that ck_tile version may be API-incompatible with the glue, or unable to compile its own kernels for that arch under this toolchain, or the probe hit a toolchain/environment issue (see ${CMAKE_BINARY_DIR}/_katago_ck_fmha_probe/probe_error.log). ROCm backend will only use its built-in (non-fused) attention kernel. For the fused path, install the CK version noted in external/composable_kernel_fmha/README.md or point KATAGO_CK_TILE_INCLUDE_DIR at a compatible copy of the ck_tile headers, and check that it builds for every targeted GPU arch.")
     endif()
   endif()
 
