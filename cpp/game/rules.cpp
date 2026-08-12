@@ -357,7 +357,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.hasButton = false;
     rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
     rules.friendlyPassOk = true;
-    rules.komi = 7.5;
+    rules.komi = 7.0;
   }
   else if(lowercased == "tromp-taylor" || lowercased == "tromp_taylor" || lowercased == "tromp taylor" || lowercased == "tromptaylor") {
     rules.scoringRule = Rules::SCORING_AREA;
@@ -618,3 +618,5 @@ const Hash128 Rules::ZOBRIST_BUTTON_HASH =   //Based on sha256 hash of Rules::ZO
 const Hash128 Rules::ZOBRIST_FRIENDLY_PASS_OK_HASH =   //Based on sha256 hash of Rules::ZOBRIST_FRIENDLY_PASS_OK_HASH
   Hash128(0x0113655998ef0a25ULL, 0x99c9d04ecd964874ULL);
 
+const Hash128 Rules::ZOBRIST_PASS_ALIVE_UNDER_SUICIDE_HASH =   //Based on sha256 hash of Rules::ZOBRIST_PASS_ALIVE_UNDER_SUICIDE_HASH
+  Hash128(0x3094018861134017ULL, 0x706330a293e266aaULL);

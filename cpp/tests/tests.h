@@ -29,6 +29,9 @@ namespace Tests {
   //testrules.cpp
   void runRulesTests();
 
+  //testpassalivesuicide.cpp
+  void runPassAliveSuicideModeTests();
+
   //testscore.cpp
   void runScoreTests();
 
@@ -66,6 +69,7 @@ namespace Tests {
 
   //testtrainingwrite.cpp
   void runTrainingWriteTests();
+  void runPassAliveSuicideGameTests();
   void runSelfplayInitTestsWithNN(const std::string& modelFile);
   void runSekiTrainWriteTests(const std::string& modelFile);
   void runMoreSelfplayTestsWithNN(const std::string& modelFile);

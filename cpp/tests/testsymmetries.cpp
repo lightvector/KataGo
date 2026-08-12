@@ -819,7 +819,7 @@ void Tests::runBoardSymmetryTests() {
   };
 
   auto computeAndPrintMarkedSymDupArea = [&out,&printMarkedSymDupArea](const Board& board, Player pla, const std::vector<int>* onlySymmetries) {
-    BoardHistory hist(board,pla,Rules::getTrompTaylorish(),0);
+    BoardHistory hist(board,pla,Rules::getTrompTaylorish(),0,false);
     bool isSymDupLoc[Board::MAX_ARR_SIZE];
     vector<int> validSymmetries;
     vector<int> avoidMoves;

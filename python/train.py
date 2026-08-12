@@ -2,6 +2,7 @@
 import sys
 import os
 import argparse
+import re
 import traceback
 import random
 import math
@@ -43,6 +44,7 @@ from katago.train.metrics_pytorch import Metrics
 from katago.utils.training_data_generator import TrainingDataGenerator
 from katago.train import load_model
 from katago.train import data_processing_pytorch
+from katago.train import trainloop_helpers
 from katago.train.metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
@@ -81,6 +83,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
     optional_args.add_argument('-lr-scale-auto', help='LR auto scaling', required=False, action='store_true')
     optional_args.add_argument('-lr-scale-auto2', help='LR auto scaling 2', required=False, type=float)
+    optional_args.add_argument('-lr-schedule', help="Explicit piecewise-constant LR scale schedule as (global_step_samples,lr_scale) points, e.g. '(0,12.0),(20M,9.0),(40M,6.0)'. Must start at (0,...); each point sets the LR scale from that sample count onward. Counts accept K/M/B suffixes. Mutually exclusive with -lr-scale/-lr-scale-auto/-lr-scale-auto2.", required=False, type=str)
     optional_args.add_argument('-head-lr-factor', help='LR factor for output head weights', type=float, required=False, default=0.5)
     optional_args.add_argument('-noreg-lr-factor', help='LR factor for noreg params (biases, norms)', type=float, required=False, default=1.0)
     optional_args.add_argument('-muon-adam-lr-factor', help='LR factor for muon-ineligible (adam) params when using muon', type=float, required=False, default=1.0)
@@ -105,7 +108,8 @@ if __name__ == "__main__":
     optional_args.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon/normuon/aurora', required=False, action='store_true')
 
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
-    optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
+    optional_args.add_argument('-use-fp16', help='Use fp16 AMP training (with gradient scaler)', required=False, action='store_true')
+    optional_args.add_argument('-use-bf16', help='Use bf16 AMP training (no gradient scaler). Mutually exclusive with -use-fp16', required=False, action='store_true')
     optional_args.add_argument('-no-compile', help='Do not torch.compile', required=False, action='store_true')
     optional_args.add_argument('-use-tf32-matmul', help='Reduce float32 precision for speed on some gpus', required=False, action='store_true')
 
@@ -133,6 +137,9 @@ if __name__ == "__main__":
     optional_args.add_argument('-brenorm-target-dmax', type=float, help='Gradually adjust brenorm dmax to this value', required=False)
     optional_args.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
 
+    optional_args.add_argument('-attn-logit-penalty-cap', type=float, help='Penalize attention layers whose per-head logit upper bound (scale * max||q|| * max||k||, incl off-board positions) exceeds this. None = disabled.', required=False)
+    optional_args.add_argument('-attn-logit-penalty-coeff', type=float, default=1e-3, help='Loss coeff for the attention logit bound penalty (linear hinge, mean over heads, sum over layers, per sample)', required=False)
+    optional_args.add_argument('-attn-logit-penalty-batch-frac', type=float, default=1.0, help='Compute the attention logit penalty on only this fraction of each batch (cuts its cost proportionally, adds gradient variance)', required=False)
     optional_args.add_argument('-soft-policy-weight-scale', type=float, default=8.0, help='Soft policy loss coeff', required=False)
     optional_args.add_argument('-disable-optimistic-policy', help='Disable optimistic policy', required=False, action='store_true')
     optional_args.add_argument('-meta-kata-only-soft-policy', help='Mask soft policy on non-kata rows using sgfmeta', required=False, action='store_true')
@@ -146,6 +153,39 @@ if __name__ == "__main__":
 
     args = vars(parser.parse_args())
 
+
+def parse_sample_count(s):
+    """Parse a sample-count token like '0', '20M', '1.5B', '250K' into an int."""
+    s = s.strip()
+    mult = 1.0
+    if s and s[-1] in "kK":
+        mult = 1e3; s = s[:-1]
+    elif s and s[-1] in "mM":
+        mult = 1e6; s = s[:-1]
+    elif s and s[-1] in "bBgG":
+        mult = 1e9; s = s[:-1]
+    return int(round(float(s) * mult))
+
+def parse_lr_schedule(schedule_str):
+    """Parse an explicit LR schedule string into a sorted list of (samples, lr_scale) points.
+
+    Format: a sequence of '(samples,lr_scale)' points separated by ',' or ';', e.g.
+    '(0,12.0),(20M,9.0),(40M,6.0)'. Sample counts accept K/M/B suffixes. The schedule is
+    piecewise-constant: at global_step_samples >= a point's sample count, the LR scale becomes
+    that point's value, until the next point. Must start at samples == 0 and have strictly
+    increasing sample thresholds.
+    """
+    points = []
+    for m in re.finditer(r"\(\s*([0-9.eE+\-kKmMbBgG]+)\s*,\s*([0-9.eE+\-]+)\s*\)", schedule_str):
+        points.append((parse_sample_count(m.group(1)), float(m.group(2))))
+    if not points:
+        raise ValueError(f"Could not parse any (samples,lr_scale) points from -lr-schedule: {schedule_str!r}")
+    if points[0][0] != 0:
+        raise ValueError(f"-lr-schedule must start at samples 0, got first point at {points[0][0]}")
+    for i in range(1, len(points)):
+        if points[i][0] <= points[i-1][0]:
+            raise ValueError(f"-lr-schedule sample thresholds must be strictly increasing: {points}")
+    return points
 
 def get_longterm_checkpoints_dir(traindir):
     return os.path.join(traindir,"longterm_checkpoints")
@@ -304,6 +344,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
     lr_scale = args["lr_scale"]
     lr_scale_auto = args["lr_scale_auto"]
     lr_scale_auto2 = args["lr_scale_auto2"]
+    lr_schedule = parse_lr_schedule(args["lr_schedule"]) if args["lr_schedule"] is not None else None
     head_lr_factor = args["head_lr_factor"]
     noreg_lr_factor = args["noreg_lr_factor"]
     muon_adam_lr_factor = args["muon_adam_lr_factor"]
@@ -332,6 +373,11 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             raise ValueError("-use-polar-express can only be used with muon or normuon or aurora optimizer")
     optimizer_name = "Aurora" if use_aurora else "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
     use_fp16 = args["use_fp16"]
+    use_bf16 = args["use_bf16"]
+    if use_fp16 and use_bf16:
+        raise ValueError("-use-fp16 and -use-bf16 are mutually exclusive")
+    use_amp = use_fp16 or use_bf16
+    amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
     no_compile = args["no_compile"]
     use_tf32_matmul = args["use_tf32_matmul"]
 
@@ -359,6 +405,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
     brenorm_avg_momentum = args["brenorm_avg_momentum"]
     brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
 
+    attn_logit_penalty_cap = args["attn_logit_penalty_cap"]
+    attn_logit_penalty_coeff = args["attn_logit_penalty_coeff"]
+    attn_logit_penalty_batch_frac = args["attn_logit_penalty_batch_frac"]
     soft_policy_weight_scale = args["soft_policy_weight_scale"]
     disable_optimistic_policy = args["disable_optimistic_policy"]
     meta_kata_only_soft_policy = args["meta_kata_only_soft_policy"]
@@ -374,6 +423,10 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         lr_scale = 1.0
     if lr_scale_auto or lr_scale_auto2 is not None:
         assert lr_scale == 1.0, "Cannot specify both lr_scale and lr_scale_auto"
+    if lr_schedule is not None:
+        assert lr_scale == 1.0, "Cannot specify both -lr-scale and -lr-schedule"
+        assert not lr_scale_auto and lr_scale_auto2 is None, "Cannot specify -lr-schedule together with -lr-scale-auto/-lr-scale-auto2"
+        logging.info("Using explicit -lr-schedule: " + ", ".join(f"(samples>={s}: scale {v})" for s, v in lr_schedule))
 
     assert not (not datadir and not latestdatadir), "Must specify one of -datadir and -latestdatadir"
     assert not (datadir and latestdatadir), "Must specify only one of -datadir and -latestdatadir"
@@ -499,6 +552,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             if train_state["global_step_samples"] < 600000000:
                 return 0.08 * lr_scale_auto2
             return 0.05 * lr_scale_auto2
+        elif lr_schedule is not None:
+            # Piecewise-constant: use the value of the last point whose threshold <= current samples.
+            samples = train_state["global_step_samples"]
+            scale = lr_schedule[0][1]
+            for (thresh, val) in lr_schedule:
+                if samples >= thresh:
+                    scale = val
+                else:
+                    break
+            return scale
         else:
             return 1.0
 
@@ -513,14 +576,24 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
     NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
-    def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=None):
+    def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=None, skip_optimizer=False):
         if gnorm_stats_debug:
             logging.warning("Skipping save since debugging gnorm stats")
             return
+        optimizer_state_dict = None
+        if not skip_optimizer:
+            if hasattr(optimizer, "state_dict_for_checkpoint"):
+                # Collective: gathers the Muon states sharded across DDP ranks,
+                # so when skip_optimizer is False, every rank must call save()
+                # at the same point. Returns None on nonzero ranks.
+                optimizer_state_dict = optimizer.state_dict_for_checkpoint()
+            elif rank == 0:
+                optimizer_state_dict = optimizer.state_dict()
         if rank == 0:
             state_dict = {}
             state_dict["model"] = ddp_model.state_dict()
-            state_dict["optimizer"] = optimizer.state_dict()
+            if optimizer_state_dict is not None:
+                state_dict["optimizer"] = optimizer_state_dict
             state_dict["metrics"] = metrics_obj.state_dict()
             state_dict["running_metrics"] = {
                 k: dict(v) if isinstance(v, defaultdict) else v
@@ -731,11 +804,12 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             raw_model.initialize()
 
             raw_model.to(device)
-            compiled_model = raw_model if no_compile else torch.compile(raw_model, mode="default")
-            if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(compiled_model, device_ids=[device])
-            else:
-                ddp_model = compiled_model
+            if attn_logit_penalty_cap is not None:
+                raw_model.attn_logit_penalty_cap = attn_logit_penalty_cap
+                raw_model.attn_logit_penalty_batch_frac = attn_logit_penalty_batch_frac
+            # Applies torch.compile and DDP options.
+            # Must run before the optimizer is constructed since it may replace Parameter objects.
+            ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -821,11 +895,12 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             raw_model.load_state_dict(model_state_dict)
 
             raw_model.to(device)
-            compiled_model = raw_model if no_compile else torch.compile(raw_model, mode="default")
-            if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(compiled_model, device_ids=[device])
-            else:
-                ddp_model = compiled_model
+            if attn_logit_penalty_cap is not None:
+                raw_model.attn_logit_penalty_cap = attn_logit_penalty_cap
+                raw_model.attn_logit_penalty_batch_frac = attn_logit_penalty_batch_frac
+            # Applies torch.compile and DDP options.
+            # Must run before the optimizer is constructed since it may replace Parameter objects.
+            ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -869,16 +944,18 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 old_optimizer_name = train_state.get("optimizer_name","SGD")
                 if old_optimizer_name == optimizer_name:
                     try:
-                        optimizer.load_state_dict(state_dict["optimizer"])
+                        if hasattr(optimizer, "load_state_dict_for_checkpoint"):
+                            optimizer.load_state_dict_for_checkpoint(state_dict["optimizer"])
+                        else:
+                            optimizer.load_state_dict(state_dict["optimizer"])
                     except ValueError as e:
                         logging.info(f"WARNING: Failed to load optimizer state dict: {e}, dropping old optimizer state")
                     train_state["optimizer_name"] = optimizer_name
                 else:
                     train_state["optimizer_name"] = optimizer_name
                     logging.info(f"WARNING: Optimizer name {old_optimizer_name} in checkpoint but we are set to use {optimizer_name} now, dropping old optimizer state")
-
             else:
-                logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
+                logging.info("WARNING: Optimizer not found in state dict (e.g. a skip_optimizer save), using fresh optimizer")
                 train_state["optimizer_name"] = optimizer_name
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
@@ -1269,15 +1346,6 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         return None
 
     # METRICS -----------------------------------------------------------------------------------
-    def detensorify_metrics(metrics):
-        ret = {}
-        for key in metrics:
-            if isinstance(metrics[key], torch.Tensor):
-                ret[key] = metrics[key].detach().cpu().item()
-            else:
-                ret[key] = metrics[key]
-        return ret
-
     if rank == 0:
         train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
         val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
@@ -1320,10 +1388,20 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         running_metrics["weights"] = defaultdict(float,running_metrics["weights"])
 
     torch.backends.cudnn.benchmark = True
+    trainloop_helpers.maybe_enable_compiled_autograd()
 
+    model_norms_only_at_print = trainloop_helpers.get_model_norms_only_at_print()
+    logging.info(f"model_norms_only_at_print {model_norms_only_at_print}")
+    training_metrics_fn = trainloop_helpers.make_training_metrics_fn(metrics_obj, no_compile, model_norms_only_at_print)
+    step_norm_tracker = trainloop_helpers.StepNormTracker(optimizer)
+    gnorm_watcher = trainloop_helpers.GnormWatcher()
+
+    scaler = None
     if use_fp16:
         logging.info("Training in FP16! Creating scaler")
         scaler = GradScaler("cuda")
+    elif use_bf16:
+        logging.info("Training in BF16 AMP without gradient scaling.")
     else:
         logging.info("Training in FP32.")
 
@@ -1390,7 +1468,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         logging.info(f"Training dir: {traindir}")
         logging.info(f"Export dir: {exportdir}")
         logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
-        if use_fp16:
+        if scaler is not None:
             logging.info(f"Current grad scale: {scaler.get_scale()}")
 
         lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="always")
@@ -1447,8 +1525,8 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 # if raw_model.get_has_metadata_encoder():
                 #     extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
 
-                if use_fp16:
-                    with autocast("cuda"):
+                if use_amp:
+                    with autocast("cuda", dtype=amp_dtype):
                         # Note: output heads are already in fp32 despite autocast
                         model_outputs = ddp_model(
                             batch["binaryInputNCHW"],
@@ -1464,8 +1542,11 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                         extra_outputs=extra_outputs,
                     )
 
+                # The print-batch extras below run when the post-increment batch count hits the print interval.
+                is_print_batch = (batch_count_this_epoch + 1) % print_train_loss_every_batches == 0
+
                 postprocessed = raw_model.postprocess_output(model_outputs)
-                metrics = metrics_obj.metrics_dict_batchwise(
+                metrics = training_metrics_fn(
                     raw_model,
                     postprocessed,
                     extra_outputs,
@@ -1480,13 +1561,26 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                     variance_time_loss_scale=variance_time_loss_scale,
                     main_loss_scale=main_loss_scale,
                     intermediate_loss_scale=intermediate_loss_scale,
+                    include_model_norms=not model_norms_only_at_print,
                 )
+                if model_norms_only_at_print and is_print_batch:
+                    metrics.update(metrics_obj.get_model_norm_metrics(raw_model))
 
                 # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
                 loss = metrics["loss_sum"] * world_size
 
+                # Attention logit bound penalty (kept out of loss_sum so the main loss stays comparable
+                # across runs; logged as its own metrics). mean * batch_size rather than sum: with
+                # attn-logit-penalty-batch-frac < 1 the penalty is computed on a slice of the batch,
+                # and this keeps it an unbiased estimate of the full-batch sum (coeff meaning unchanged).
+                if attn_logit_penalty_cap is not None:
+                    attn_pen_sum = raw_model.attn_logit_penalty_per_sample.mean() * batch_size
+                    metrics["alogitpen_sum"] = attn_pen_sum.detach()
+                    metrics["alogitubmax_batch"] = raw_model.attn_logit_ub_batch_max
+                    loss = loss + attn_logit_penalty_coeff * attn_pen_sum * world_size
+
                 # Reduce gradients across DDP
-                if use_fp16:
+                if scaler is not None:
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
                 else:
@@ -1518,12 +1612,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 # Loosen gradient clipping as we shift to smaller learning rates
                 gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,get_effective_lr_scale(train_state)))
 
-                gnorm = torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), gnorm_cap).detach().cpu().item()
-
-                if math.isfinite(gnorm) and abs(gnorm < 1e30):
-                    metrics["gnorm_batch"] = gnorm
-                    exgnorm = max(0.0, gnorm - gnorm_cap)
-                    metrics["exgnorm_sum"] = exgnorm * batch_size
+                trainloop_helpers.clip_gradients_and_record(ddp_model, gnorm_cap, metrics, batch_size)
 
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
@@ -1539,55 +1628,25 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 metrics["window_end_batch"] = train_state["total_num_data_rows"]
 
                 # Store parameters to later calculate empirical step vector length
-                old_params = {}
-                for name, param in ddp_model.named_parameters():
-                    if param.requires_grad:
-                        old_params[name] = param.data.detach().clone()
+                step_norm_tracker.capture(ddp_model, is_print_batch=is_print_batch)
 
-                if use_fp16:
+                if scaler is not None:
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     optimizer.step()
 
                 # Empirical step vector length (overall and per parameter group)
-                with torch.no_grad():
-                    step_norm_squared = 0.0
-                    step_norm_squared_per_group = defaultdict(float)
+                step_norm_tracker.record(ddp_model, metrics)
 
-                    # Build a mapping from parameter id to group name
-                    param_to_group = {}
-                    for param_group in optimizer.param_groups:
-                        group_name = param_group["group_name"]
-                        for param in param_group["params"]:
-                            param_to_group[id(param)] = group_name
-
-                    param_idx = 0
-                    for name, param in ddp_model.named_parameters():
-                        if param.requires_grad:
-                            param_diff_squared = torch.sum(torch.square(param.data - old_params[name])).cpu().item()
-                            step_norm_squared += param_diff_squared
-
-                            # Add to per-group tracking
-                            group_name = param_to_group.get(id(param), "unknown")
-                            step_norm_squared_per_group[group_name] += param_diff_squared
-
-                            param_idx += 1
-
-                    step_norm = math.sqrt(step_norm_squared)
-                    metrics["step_norm_batch"] = step_norm
-
-                    # Store per-group step norms
-                    for group_name, norm_squared in step_norm_squared_per_group.items():
-                        metrics[f"step_norm_{group_name}_batch"] = math.sqrt(norm_squared)
-
-                del model_outputs, postprocessed, loss, old_params
+                del model_outputs, postprocessed, loss
 
                 batch_count_this_epoch += 1
                 train_state["train_steps_since_last_reload"] += batch_size * world_size
                 train_state["global_step_samples"] += batch_size * world_size
 
-                metrics = detensorify_metrics(metrics)
+                metrics = trainloop_helpers.detensorify_metrics(metrics)
+                gnorm_watcher.observe(metrics, gnorm_cap=gnorm_cap)
 
                 if lookahead_k is not None and lookahead_print:
                     # Only accumulate metrics when lookahead is synced if lookahead_print is True
@@ -1600,6 +1659,21 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
 
 
                 if batch_count_this_epoch % print_train_loss_every_batches == 0:
+
+                    # Norms computed only on this print batch are snapshots;
+                    # store them with weight 1 so logging cannot divide 0 by 0
+                    # (e.g. when lookahead_print gives surrounding batches zero
+                    # accumulation weight).
+                    if model_norms_only_at_print:
+                        trainloop_helpers.set_snapshot_metrics(
+                            running_metrics["sums"], running_metrics["weights"], metrics,
+                            [key for key in metrics if key.startswith("norm_") and key.endswith("_batch")],
+                        )
+                    if step_norm_tracker.only_at_print:
+                        trainloop_helpers.set_snapshot_metrics(
+                            running_metrics["sums"], running_metrics["weights"], metrics,
+                            [key for key in metrics if key.startswith("step_norm_") and key.endswith("_batch")],
+                        )
 
                     if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
                         metrics["brn_rmax"] = train_state["brenorm_rmax"]
@@ -1684,8 +1758,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             if len(val_files) == 0:
                 logging.info("No validation files, skipping validation step")
             else:
+                validation_model = trainloop_helpers.get_local_validation_model(ddp_model, raw_model, world_size)
                 with torch.no_grad():
-                    ddp_model.eval()
+                    validation_model.eval()
                     val_metric_sums = defaultdict(float)
                     val_metric_weights = defaultdict(float)
                     val_samples = 0
@@ -1701,16 +1776,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                         include_meta=raw_model.get_has_metadata_encoder(),
                         model_config=model_config
                     ):
-                        if use_fp16:
-                            with autocast("cuda"):
+                        if use_amp:
+                            with autocast("cuda", dtype=amp_dtype):
                                 # Note: output heads are already in fp32 despite autocast
-                                model_outputs = ddp_model(
+                                model_outputs = validation_model(
                                     batch["binaryInputNCHW"],
                                     batch["globalInputNC"],
                                     input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
                                 )
                         else:
-                            model_outputs = ddp_model(
+                            model_outputs = validation_model(
                                 batch["binaryInputNCHW"],
                                 batch["globalInputNC"],
                                 input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
@@ -1733,7 +1808,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                             main_loss_scale=main_loss_scale,
                             intermediate_loss_scale=intermediate_loss_scale,
                         )
-                        metrics = detensorify_metrics(metrics)
+                        metrics = trainloop_helpers.detensorify_metrics(metrics)
                         accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0, new_weight=1.0)
                         val_samples += batch_size
                         if max_val_samples is not None and val_samples > max_val_samples:
@@ -1747,7 +1822,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                     log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
                     t1 = time.perf_counter()
                     logging.info(f"Validation took {t1-t0} seconds")
-                    ddp_model.train()
+                    validation_model.train()
 
         if rank == 0:
             logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
@@ -1780,9 +1855,21 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 else:
                     os.mkdir(savepathtmp)
                     logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
-                    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"))
+                    # skip_optimizer: export only needs weights, and this save runs on
+                    # rank 0 only so it must not trigger the optimizer-state collective.
+                    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"), skip_optimizer=True)
                     time.sleep(2)
                     os.rename(savepathtmp,savepath)
+
+        # Rejoin all ranks before the final save. The save below is called by every rank and,
+        # with a sharded optimizer like Muon, performs a collective (state_dict_for_checkpoint's
+        # gather) that every rank must enter together. Validation and export above run on rank 0
+        # only, so without this barrier the non-zero ranks would reach the collective immediately
+        # and sit inside an NCCL op waiting for rank 0, hitting the ~600s NCCL watchdog timeout and
+        # aborting the job on any epoch where rank 0's validation/export takes that long. This is a
+        # CPU-side multiprocessing.Barrier (no NCCL timeout), so the non-zero ranks idle here
+        # harmlessly instead. No-op when barrier is None (single-GPU / non-DDP training).
+        safe_barrier(barrier,rank)
 
         # Finally save, now after validation and exports are done
         save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
@@ -1797,7 +1884,9 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
                 last_longterm_checkpoint_save_time = now
                 dated_name = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-                save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
+                # skip_optimizer: archival checkpoint, and this save runs on rank 0
+                # only so it must not trigger the optimizer-state collective.
+                save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"), skip_optimizer=True)
 
     train_metrics_out.close()
     val_metrics_out.close()

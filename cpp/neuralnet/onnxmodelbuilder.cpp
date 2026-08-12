@@ -8,22 +8,21 @@
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninputs.h"
 
-#include "onnx/onnx_pb.h"
+#include "onnx.pb.h"
 
 using namespace std;
 
 namespace {
 
 // Builder that accumulates ONNX nodes and initializers into a single GraphProto, handing back
-// tensor names as it goes. Tensors are float32; the trunk runs NCHW by
-// default, or channel-last NHWC when transformerNHWC is set (see buildBlockStack / buildConv).
+// tensor names as it goes. Tensors are float32; transformerNHWC selects a channel-last NHWC trunk
+// instead of NCHW (see buildBlockStack / buildConv).
 struct Builder {
   onnx::GraphProto* graph;
   int nnXLen;
   int nnYLen;
   bool requireExactNNLen;
   bool transformerNHWC;  // run the trunk block stack channel-last (NHWC) vs NCHW
-  bool emitFusedMishOp;  // emit a native ONNX Mish node instead of Softplus+Tanh+Mul (see header)
 
   // Mask-derived feature tensor names (computed once, reused by every gpool). Empty if exact.
   string maskSumName;    // [N,1,1,1] sum of mask over H,W  (only when !exact)
@@ -178,14 +177,7 @@ struct Builder {
     string out = uniq(desc.name);
     addNode("Conv", {input, wName}, out, desc.name);
     onnx::NodeProto* node = lastNode();
-    // strides/pads/dilations default to (1,1)/(0,0,0,0)/(1,1) per the ONNX spec when omitted, which
-    // is exactly what a 1x1 conv needs here -- but some EPs' graph compilers (e.g. AMD VitisAI's xir,
-    // which requires "strides" to be explicitly present) don't apply ONNX's own default semantics, so
-    // set them explicitly rather than relying on the (spec-compliant but not universally honored) omission.
     { onnx::AttributeProto* a = addAttr(node, "kernel_shape"); a->set_type(onnx::AttributeProto::INTS); a->add_ints(1); a->add_ints(1); }
-    { onnx::AttributeProto* a = addAttr(node, "strides"); a->set_type(onnx::AttributeProto::INTS); a->add_ints(1); a->add_ints(1); }
-    { onnx::AttributeProto* a = addAttr(node, "pads"); a->set_type(onnx::AttributeProto::INTS); a->add_ints(0); a->add_ints(0); a->add_ints(0); a->add_ints(0); }
-    { onnx::AttributeProto* a = addAttr(node, "dilations"); a->set_type(onnx::AttributeProto::INTS); a->add_ints(1); a->add_ints(1); }
     return out;
   }
 
@@ -252,22 +244,6 @@ struct Builder {
       // The SCALE8 variant is the runtime applyScale8ToReduceActivations() transform that keeps
       // FP16 activations small. ONNX Softplus has no beta, so for SCALE8 we
       // scale the input by 8 before Softplus and do NOT scale the result.
-      if(emitFusedMishOp) {
-        // Native ONNX `Mish` (opset 18+) computes y = y*tanh(softplus(y)) with no beta parameter.
-        // For plain mish that's exactly mish(x), one node. For mish_scale8, substitute y=8x:
-        // Mish(8x) = 8x*tanh(softplus(8x)), so mish_scale8(x) = x*tanh(softplus(8x)) = Mish(8x)/8.
-        string mishIn = input;
-        if(act == ACTIVATION_MISH_SCALE8) {
-          string bName = addScalarInitializer(uniq(desc.name + "/beta8"), 8.0f);
-          mishIn = addNode("Mul", {input, bName}, uniq(desc.name + "/beta8mul"), desc.name + "/beta8mul");
-        }
-        string m = addNode("Mish", {mishIn}, uniq(desc.name + "/mish"), desc.name + "/mish");
-        if(act == ACTIVATION_MISH_SCALE8) {
-          string invBName = addScalarInitializer(uniq(desc.name + "/invbeta8"), 0.125f);
-          return addNode("Mul", {m, invBName}, uniq(desc.name), desc.name);
-        }
-        return m;
-      }
       string spIn = input;
       if(act == ACTIVATION_MISH_SCALE8) {
         string bName = addScalarInitializer(uniq(desc.name + "/beta8"), 8.0f);
@@ -350,6 +326,21 @@ struct Builder {
     return addNode("Add", {maskName, c}, uniq(nameBase + "/gpmaskshift"), nameBase + "/gpmaskshift");
   }
 
+  // SGF metadata encoder (HumanSL nets, metaEncoderVersion > 0): a small MLP over the [N,metaC,1,1]
+  // metadata input producing a [N,trunkC,1,1] bias that gets added into the trunk's initial bias
+  // alongside the global-input matmul. Mirrors SGFMetadataEncoder::apply in eigenbackend.cpp and
+  // ModelParser::buildSGFMetadataEncoder in trtbackend.cpp. All ops are NC11 channel matmuls/biases,
+  // so this is layout-independent (it runs before any NCHW->NHWC trunk conversion).
+  string buildSGFMetadataEncoder(const string& input, const SGFMetadataEncoderDesc& desc) {
+    string x = buildMatMul(input, desc.mul1);
+    x = buildMatBias(x, desc.bias1);
+    x = buildActivation(x, desc.act1);
+    x = buildMatMul(x, desc.mul2);
+    x = buildMatBias(x, desc.bias2);
+    x = buildActivation(x, desc.act2);
+    return buildMatMul(x, desc.mul3);
+  }
+
   // ---- Residual block builders ----
   // useNHWC: input and output are channel-last [N,H,W,C], and the block's internals run NHWC. The
   // elementwise BN/activation/mask ops and 1x1 convs are layout-free; spatial convs (k>1) bubble to
@@ -429,10 +420,7 @@ struct Builder {
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
     // meanSq over channels (axis 1), keepdims -> [N,1,H,W]
-    // Pow(x, 2.0) instead of Mul(x, x): OpenVINO's RMSFusion matcher requires Power(x, const(2))
-    // and silently skips Mul(x,x), leaving the RMSNorm as an unfused ReduceMean->Sqrt->Div chain.
-    string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
-    string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
+    string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {1})},
                             uniq(desc.name + "/meansq"), desc.name + "/meansq");
     { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }
@@ -467,9 +455,7 @@ struct Builder {
     int C = desc.numChannels;
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
-    // Pow(x, 2.0) instead of Mul(x, x): see transformerRMSNorm (NCHW variant) above.
-    string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
-    string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
+    string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {3})},  // C is axis 3 of [N,H,W,C]
                             uniq(desc.name + "/meansq"), desc.name + "/meansq");
     { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }
@@ -500,9 +486,7 @@ struct Builder {
     string meanSq;
     if(!spatial) {
       // Per-position mean of squares over channels (axis 1) -> [N,1,H,W]
-      // Pow(x, 2.0) instead of Mul(x, x): see transformerRMSNorm above (same OpenVINO fusion requirement).
-      string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
-      string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
+      string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
       meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {1})},
                        uniq(desc.name + "/meansq"), desc.name + "/meansq");
       { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }
@@ -521,9 +505,7 @@ struct Builder {
       //   masked: meanSq = ReduceMean_{C,H,W}(x^2 * mask) / maskMean        (recover the on-board mean;
       //           maskMean = on-board fraction of the buffer, so dividing by it cancels the off-board
       //           zeros that ReduceMean averaged over). maskMean is itself FP32-pinned.
-      // Pow(x, 2.0) instead of Mul(x, x): see transformerRMSNorm above (same OpenVINO fusion requirement).
-      string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
-      string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
+      string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
       string reduceInput = sq;
       if(!requireExactNNLen)
         reduceInput = addNode("Mul", {sq, maskName}, uniq(desc.name + "/sqmask"), desc.name + "/sqmask");
@@ -845,14 +827,10 @@ Result build(
   int nnYLen,
   bool requireExactNNLen,
   bool transformerNHWC,
-  Logger* logger,
-  bool emitFusedMishOp
+  Logger* logger
 ) {
-  if(desc.metaEncoderVersion > 0)
-    throw StringError("OnnxModelBuilder: SGF metadata encoder not yet supported");
-
   if(logger != NULL)
-    logger->write("Building internal onnx model, requireExactNNLen=" + Global::boolToString(requireExactNNLen) + " transformerNHWC=" + Global::boolToString(transformerNHWC) + " emitFusedMishOp=" + Global::boolToString(emitFusedMishOp));
+    logger->write("Building internal onnx model, requireExactNNLen=" + Global::boolToString(requireExactNNLen) + " transformerNHWC=" + Global::boolToString(transformerNHWC));
 
   int numInputChannels = desc.numInputChannels;
   int numInputGlobalChannels = desc.numInputGlobalChannels;
@@ -882,7 +860,6 @@ Result build(
   b.nnYLen = nnYLen;
   b.requireExactNNLen = requireExactNNLen;
   b.transformerNHWC = transformerNHWC;
-  b.emitFusedMishOp = emitFusedMishOp;
 
   // ---- Inputs (NCHW, dynamic batch) ----
   auto addInput = [&](const string& name, int channels) {
@@ -907,17 +884,15 @@ Result build(
     shape->add_dim()->set_dim_value(1);
     shape->add_dim()->set_dim_value(1);
   };
-  // Declaration order matters for the OpenVINO execution provider under ONNX Runtime: the EP builds
-  // its name->index map from declaration order while the runtime feeds the EP kernel input ports in
-  // a different order. With InputMask declared first, the two disagree and the EP misroutes the
-  // [N,1,H,W] mask tensor into the InputSpatial port, failing at runtime with a shape mismatch (e.g.
-  // "can't handle input tensor ...:InputSpatial, because model input (shape=[?,22,19,19]) and tensor
-  // (shape=[1,1,19,19]) are incompatible"). Declaring InputSpatial, InputGlobal, InputMask (in that
-  // order) fixes it. This is NOT the graph's first-reference order; it is an empirical,
-  // OpenVINO-EP-specific requirement.
+  addInput("InputMask", 1);
   addInput("InputSpatial", numInputChannels);
   addInputNC11("InputGlobal", numInputGlobalChannels);
-  addInput("InputMask", 1);
+  // HumanSL-style nets additionally take a per-row SGF metadata vector. Only declare the input when
+  // the model actually has an encoder - an unused graph input would just be dead weight (and the
+  // backend only allocates/binds an InputMeta buffer when numInputMetaChannels > 0).
+  bool hasMetaEncoder = desc.metaEncoderVersion > 0;
+  if(hasMetaEncoder)
+    addInputNC11("InputMeta", desc.numInputMetaChannels);
 
   // ---- Mask-derived features ----
   if(!requireExactNNLen) {
@@ -958,9 +933,15 @@ Result build(
   // Only needed when masking (variable board) and there are transformer attention blocks.
   if(!requireExactNNLen && desc.trunk.hasAnyTransformerBlocks()) {
     // (mask - 1) * BIG : on-board (1) -> 0, off-board (0) -> -BIG
+    // BIG must be exactly representable in fp16 (TensorRT runs this whole subgraph and the fused
+    // attention in fp16 in FP16 engines, a constant like 1e9 only works by luck of internal fp32
+    // constant handling and risks 0 * inf = NaN on the on-board side if a TRT version casts the
+    // constant to fp16 before multiplying). -3e4 fits fp16 (max ~65504) and masks exactly: the
+    // softmax subtracts the row max, so exp(logit - 3e4 - rowmax) underflows to exactly 0 as long
+    // as the spread of genuine attention logits is below ~3e4.
     string one = b.addScalarInitializer(b.uniq("InputMask/biasone"), -1.0f);
     string mShift = b.addNode("Add", {"InputMask", one}, b.uniq("InputMask/biasshift"), "InputMask/biasshift");
-    string big = b.addScalarInitializer(b.uniq("InputMask/biasbig"), 1.0e9f);
+    string big = b.addScalarInitializer(b.uniq("InputMask/biasbig"), 3.0e4f);
     string biasNCHW = b.addNode("Mul", {mShift, big}, b.uniq("InputMask/biasnchw"), "InputMask/biasnchw");  // [N,1,H,W]
     // reshape [N,1,H,W] -> [N,1,1,S] so it broadcasts over the key axis of [N,heads,S(query),S(key)]
     b.maskBiasName = b.reshape(biasNCHW, {0, 1, 1, nnXLen * nnYLen}, "InputMask/bias");
@@ -971,6 +952,12 @@ Result build(
   string initialConv = b.buildConv("InputSpatial", trunk.initialConv, false);
   string initialMatMul = b.buildMatMul("InputGlobal", trunk.initialMatMul);
   string cur = b.elementwise("Add", initialConv, initialMatMul, trunk.name + "/initbias");
+  if(hasMetaEncoder) {
+    testAssert(trunk.metaEncoderVersion > 0);
+    testAssert(trunk.sgfMetadataEncoder.mul3.outChannels == trunk.initialMatMul.outChannels);
+    string initialMeta = b.buildSGFMetadataEncoder("InputMeta", trunk.sgfMetadataEncoder);
+    cur = b.elementwise("Add", cur, initialMeta, trunk.name + "/initmetabias");
+  }
 
   // When transformerNHWC, run the entire trunk block stack channel-last: one NCHW->NHWC conversion
   // here and one NHWC->NCHW conversion before the trunk tip. Every block (convnet/gpool/nbt/

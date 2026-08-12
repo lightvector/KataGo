@@ -774,8 +774,8 @@ int OpenCLTuneParams::getPaddedNNXYLen(int nnXLen, int nnYLen, bool usingFP16Ten
 }
 
 
-static const int TUNER_VERSION = 12;
-static const char* TUNEPARAMS_VERSION_LINE = "VERSION=12";
+static const int TUNER_VERSION = 13;
+static const char* TUNEPARAMS_VERSION_LINE = "VERSION=13";
 void OpenCLTuneParams::save(const string& filename, const OpenCLTuneParams& config) {
   ofstream out;
   FileUtils::open(out,filename);

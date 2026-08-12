@@ -6,7 +6,11 @@
 #ifdef NO_GIT_REVISION
 #define GIT_REVISION "<omitted>"
 #else
-#include "program/gitinfo.h"
+// Angle-bracket (not quoted) include so this resolves ONLY via the -I search
+// paths, where the build dir's freshly-generated program/gitinfo.h lives. A
+// quoted include would search main.cpp's own directory first and pick up a
+// stale in-source cpp/program/gitinfo.h left over from an in-source build.
+#include <program/gitinfo.h>
 #endif
 
 #include <sstream>
@@ -29,8 +33,6 @@ static void printHelp(const vector<string>& args) {
 gtp : Runs GTP engine that can be plugged into any standard Go GUI for play/analysis.
 benchmark : Test speed with different numbers of search threads.
 genconfig : User-friendly interface to generate a config with rules and automatic performance tuning.
-exportonnx : Export KataGo .bin/.bin.gz model to a fixed-size .onnx model.
-dumpcalibrationdata : Dump NN input tensors sampled from sgf games, for offline quantization (e.g. for VitisAI/NPU).
 
 contribute : Connect to online distributed KataGo training and run perpetually contributing selfplay games.
 
@@ -48,6 +50,7 @@ gatekeeper : Poll directory for new nets and match them against the latest net s
 ---Testing/debugging subcommands-------------
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
 searchentropyanalysis : Analyze search entropy across test datasets.
+selfplaysurprisedump : Run selfplay games with a fixed model and dump per-position policy/value surprise stats to csv.
 
 testgpuerror : Print the average error of the neural net between current config and fp32 config.
 
@@ -161,6 +164,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::evalrandominits(subArgs);
   else if(subcommand == "searchentropyanalysis")
     return MainCmds::searchentropyanalysis(subArgs);
+  else if(subcommand == "selfplaysurprisedump")
+    return MainCmds::selfplaysurprisedump(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(subArgs);
   else if(subcommand == "runownershipspeedtest")
@@ -169,10 +174,6 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::runsleeptest(subArgs);
   else if(subcommand == "printclockinfo")
     return MainCmds::printclockinfo(subArgs);
-  else if(subcommand == "exportonnx")
-    return MainCmds::exportonnx(subArgs);
-  else if(subcommand == "dumpcalibrationdata")
-    return MainCmds::dumpcalibrationdata(subArgs);
   else if(subcommand == "sandbox")
     return MainCmds::sandbox();
   else if(subcommand == "version") {
@@ -225,11 +226,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.16.5");
+  return string("1.17.2");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.16.5");
+  return string("KataGo v1.17.2");
 }
 
 string Version::getKataGoVersionFullInfo() {
@@ -252,8 +253,6 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using OpenCL backend" << endl;
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
-#elif defined(USE_ONNX_BACKEND)
-  out << "Using ONNX backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
@@ -290,8 +289,6 @@ string Version::getGitRevisionWithBackend() {
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
   s += "-eigen";
-#elif defined(USE_ONNX_BACKEND)
-  s += "-onnx";
 #else
   s += "-dummy";
 #endif

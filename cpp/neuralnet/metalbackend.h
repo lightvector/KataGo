@@ -114,6 +114,14 @@ struct ComputeContext {
   MetalComputeContext metalContext;
 
   /**
+   * @brief True only when every configured device is METAL_MUX_ANE, so no
+   * MPSGraph (GPU) handle will ever read modelDesc weights. Gates the call to
+   * ModelDesc::releaseWeights() so a mixed GPU+ANE config can never free live
+   * weights.
+   */
+  bool aneOnly = false;
+
+  /**
    * @brief Constructs a ComputeContext object.
    * @param nnX The width of the input tensor.
    * @param nnY The height of the input tensor.
@@ -179,6 +187,18 @@ struct ComputeHandle {
    */
   bool maskIdentityChecked = false;
 
+  // Weight-release safety is guaranteed by ComputeContext::aneOnly, NOT by the
+  // declaration order below: within a single ComputeHandle exactly one handle is
+  // built (the two paths are mutually exclusive on gpuIdx, enforced by the
+  // ctor's exactly-one check), and releaseWeights() only ever fires on an
+  // aneOnly context, where no MPSGraph handle is built for any thread.
+  // That said, keep mpsGraphOnlyHandle declared before coremlOnlyHandle. C++
+  // initializes members in DECLARATION order, so createMPSGraphHandleIfNeeded
+  // (which reads modelDesc weights via modelDescToSwift) is sequenced before
+  // createCoreMLOnlyHandleIfNeeded (which may call modelDesc.releaseWeights()).
+  // This ordering is belt-and-suspenders that preserves the natural read-then-
+  // release sequence should the aneOnly invariant ever be weakened; don't rely
+  // on it as the primary guarantee, but don't reorder it either.
   /**
    * @brief The MPSGraph-only handle instance from Swift (GPU-only mode).
    */

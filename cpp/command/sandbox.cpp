@@ -197,7 +197,7 @@ using namespace std;
 
 #include <NvInfer.h>
 #include <NvOnnxParser.h>
-#include "onnx/onnx_pb.h"
+#include "onnx.pb.h"
 
 namespace {
   // Minimal TensorRT logger for the smoke test.

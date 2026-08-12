@@ -21,7 +21,6 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   prefixes.push_back("metal");
   prefixes.push_back("opencl");
   prefixes.push_back("eigen");
-  prefixes.push_back("onnx");
   prefixes.push_back("dummybackend");
   return prefixes;
 }
@@ -88,39 +87,11 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "metal";
   #elif defined(USE_OPENCL_BACKEND)
   string backendPrefix = "opencl";
-  #elif defined(USE_ONNX_BACKEND)
-  string backendPrefix = "onnx";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
   #else
   string backendPrefix = "dummybackend";
   #endif
-
-#if !defined(USE_ONNX_BACKEND)
-  // In non-ONNX builds, fail fast on any ONNX-specific config instead of silently ignoring it.
-  {
-    const vector<string> allKeys = cfg.unusedKeys();
-    for(const string& key : allKeys) {
-      if(Global::isPrefix(Global::toLower(key),"onnx")) {
-        throw StringError(
-          "Config key '" + key + "' requires ONNX backend, but this executable is not built with USE_BACKEND=ONNX. "
-          "Remove onnx* settings or rebuild with -DUSE_BACKEND=ONNX."
-        );
-      }
-    }
-  }
-#endif
-
-#if defined(USE_ONNX_BACKEND)
-  // Distributed selfplay (contribute) uploads training data, which must never contain FP16-overflow
-  // NaN rows, so always apply the scale8 workaround regardless of onnxSkipScale8.
-  if(setupFor == SETUP_FOR_DISTRIBUTED && cfg.contains("onnxSkipScale8") && cfg.getBool("onnxSkipScale8")) {
-    cfg.overrideKey("onnxSkipScale8", "false");
-    logger.write(
-      "WARNING: onnxSkipScale8 = true is not allowed for contribute (distributed selfplay); "
-      "forcing it to false so FP16-overflow NaNs cannot poison contributed training data.");
-  }
-#endif
 
   //Automatically flag keys that are for other backends as used so that we don't warn about unused keys
   //for those options
@@ -171,7 +142,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         requireExactNNLen = cfg.getBool("requireMaxBoardSize");
     }
 
-    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" || backendPrefix == "onnx" ? false : true;
+    bool inputsUseNHWC = backendPrefix == "opencl" || backendPrefix == "trt" || backendPrefix == "metal" ? false : true;
     if(cfg.contains(backendPrefix+"InputsUseNHWC"+idxStr))
       inputsUseNHWC = cfg.getBool(backendPrefix+"InputsUseNHWC"+idxStr);
     else if(cfg.contains("inputsUseNHWC"+idxStr))
@@ -250,11 +221,10 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
     string homeDataDirOverride = loadHomeDataDirOverride(cfg);
 
-    // Backend-specific options (e.g. openclTunerFile, cudaDisableGraphSDPA, onnxProvider,
-    // onnxVitisAIConfigFile) are read directly by the relevant compute backend off of cfg (see
-    // each backend's createComputeContext). Because they follow the backend prefix convention,
-    // the getBackendPrefixes() loop above already marks them used for the backends that don't
-    // read them, so no explicit mark-used or pass-through is needed here.
+    // Backend-specific options (e.g. openclTunerFile, cudaDisableGraphSDPA) are read directly by the
+    // relevant compute backend off of cfg (see createComputeContext). Because they follow the backend
+    // prefix convention, the getBackendPrefixes() loop above already marks them used for the backends
+    // that don't read them, so no explicit mark-used is needed here.
 
     enabled_t useFP16Mode = enabled_t::Auto;
     if(cfg.contains(backendPrefix+"UseFP16-"+idxStr))
@@ -678,6 +648,9 @@ vector<SearchParams> Setup::loadParams(
     if(cfg.contains("fillDameBeforePass"+idxStr)) params.fillDameBeforePass = cfg.getBool("fillDameBeforePass"+idxStr);
     else if(cfg.contains("fillDameBeforePass"))   params.fillDameBeforePass = cfg.getBool("fillDameBeforePass");
     else                                          params.fillDameBeforePass = false;
+    if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"+idxStr)) params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules"+idxStr);
+    else if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"))   params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules");
+    else                                                               params.alwaysComputePassAliveUnderSuicideRules = enabled_t::Auto;
     //Controlled by GTP directly, not used in any other mode
     params.avoidMYTDaggerHackPla = C_EMPTY;
     if(cfg.contains("wideRootNoise"+idxStr)) params.wideRootNoise = cfg.getDouble("wideRootNoise"+idxStr, 0.0, 5.0);

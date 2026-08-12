@@ -234,6 +234,9 @@ struct Search {
   void setRootSymmetryPruningOnly(const std::vector<int>& rootPruneOnlySymmetries);
   void setParams(const SearchParams& params);
   void setParamsNoClearing(const SearchParams& params); //Does not clear search
+  //Resolve a false/auto/true alwaysComputePassAliveUnderSuicideRules setting against what a neural net
+  //declares that it expects. Auto resolves to the net's declaration (false if nnEval is NULL).
+  static bool resolveAlwaysComputePassAliveUnderSuicideRules(const SearchParams& params, const NNEvaluator* nnEval);
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
   void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
   void setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache);
@@ -667,6 +670,14 @@ private:
   // Initialization and core search logic
   // search.cpp
   //----------------------------------------------------------------------------------------
+  //Enforce the invariant that rootHistory's alwaysComputePassAliveUnderSuicideRules always matches
+  //what searchParams and nnEvaluator resolve to, regardless of any history set into this Search.
+  //Clears search if this changes the flag, since all graph hashes and in-tree adjudication change.
+  //Called by every setter that installs or rebuilds rootHistory or changes params or nnEvaluator.
+  void applyPassAliveModeToRootHistory();
+  //Copy of nnInputParams for querying humanEvaluator, overriding the pass-alive featurization mode
+  //with the human net's own resolution, which may differ from the mode the search is using.
+  MiscNNInputParams paramsForHumanEvaluator(const MiscNNInputParams& nnInputParams) const;
   void computeRootValues(); // Helper for begin search
   void recursivelyRecomputeStats(SearchNode& node); // Helper for search initialization
   void recursivelyRecordEvalCache(SearchNode& n);

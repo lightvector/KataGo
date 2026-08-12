@@ -1,14 +1,14 @@
 Running search tests introduced after v8 nets
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : Initializing neural net buffer to be size 9 * 9 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : Initializing neural net buffer to be size 9 * 9 exactly
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 TEST EXACT (NO MASKING) VS MASKED 9x9 ==========================================================================
@@ -114,11 +114,11 @@ F7  : T -30.98c W -27.07c S  -3.91c ( -1.8 L  -1.7) LCB -380.98c P  2.32% WF   0
 : GPU 0 finishing, processed 192 rows 192 batches
 : GPU 0 finishing, processed 192 rows 192 batches
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : Initializing neural net buffer to be size 19 * 19 exactly
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 TEST EXACT (NO MASKING) VS MASKED ==========================================================================
@@ -232,11 +232,11 @@ M16 : T  -4.29c W  -3.11c S  -1.19c ( -0.9 L  -0.5) LCB -354.29c P  1.12% WF   1
 
 TEST SYMMETRY AVGING ==========================================================================
 : GPU 0 finishing, processed 196 rows 196 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : GPU 0 finishing, processed 196 rows 196 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 BASIC
@@ -332,21 +332,21 @@ Q15 : T   4.13c W   3.11c S   1.02c ( +1.0 L  +1.7) LCB  354.13c P  1.22% WF   1
 
 
 : GPU 0 finishing, processed 202 rows 202 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : GPU 0 finishing, processed 202 rows 202 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 TEST NN TEMPERATURE ==========================================================================
 BASELINE
 : GPU 0 finishing, processed 0 rows 0 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : GPU 0 finishing, processed 0 rows 0 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
@@ -437,11 +437,11 @@ O18 C17 : T  -3.69c W  -3.28c S  -0.41c ( -1.1 L  -1.6) LCB  -77.75c P  4.00% WF
 P16 : T  10.24c W   8.43c S   1.81c ( +2.2 L  +2.4) LCB   20.08c P 16.41% WF  10.6 PSV      12 N      12  --  P16 P17 S16 S15 S17 R14 P15 Q14
 TEMP 1.5
 : GPU 0 finishing, processed 182 rows 182 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : GPU 0 finishing, processed 182 rows 182 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
@@ -538,11 +538,11 @@ Q3  : T   2.15c W   1.58c S   0.57c ( +0.8 L  +1.1) LCB  352.15c P  0.98% WF   1
 S17 : T   5.07c W   4.26c S   0.81c ( +1.2 L  +1.1) LCB  355.07c P  0.82% WF   1.0 PSV       0 N       1  --  S17
 TEMP 0.5
 : GPU 0 finishing, processed 192 rows 192 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : GPU 0 finishing, processed 192 rows 192 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
@@ -622,7 +622,7 @@ O18 N18 : T  -1.80c W  -1.66c S  -0.13c ( -0.4 L  -0.5) LCB   -6.20c P 88.68% WF
 : GPU 0 finishing, processed 191 rows 191 batches
 : GPU 0 finishing, processed 191 rows 191 batches
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 ===================================================================
@@ -1796,7 +1796,7 @@ C8  : T -46.62c W -45.84c S  -0.78c ( -6.2 L  -6.5) LCB  303.38c P  0.83% WF   0
 H10 : T -39.83c W -39.91c S   0.08c ( -5.4 L  -6.4) LCB  310.17c P  0.83% WF   0.9 PSV       0 N       1  --  H10
 F3  : T -48.81c W -47.85c S  -0.96c ( -6.4 L  -7.0) LCB  301.19c P  0.72% WF   0.9 PSV       0 N       1  --  F3
 : GPU 0 finishing, processed 5954 rows 5954 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 ===================================================================
@@ -1911,7 +1911,7 @@ D5  : T 110.81c W  95.75c S  15.06c (+39.2 L +40.9) LCB  460.81c P  1.14% WF   1
 Q11 : T 117.61c W  97.61c S  20.00c (+48.2 L +49.6) LCB  467.61c P  0.95% WF   0.9 PSV       1 N       1  --  Q11
 L15 : T 111.37c W  95.70c S  15.66c (+40.5 L +41.6) LCB  461.37c P  0.73% WF   1.0 PSV       1 N       1  --  L15
 : GPU 0 finishing, processed 638 rows 638 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 AntiMirror white ==========================================================================
@@ -2160,7 +2160,7 @@ H10 : T -35.94c W -31.74c S  -4.20c ( -3.0 L  -2.6) LCB -385.94c P  0.01% WF   1
 
 : GPU 0 finishing, processed 973 rows 973 batches
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 TEST VALUE BIAS ==========================================================================
@@ -3833,7 +3833,7 @@ G4  : T   1.16c W  -2.52c S   3.68c ( -0.1 L  -0.5) LCB  351.16c P  1.58% WF   0
 
 TEST Hintlocs ==========================================================================
 : GPU 0 finishing, processed 5826 rows 5826 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 ===================================================================
@@ -4403,7 +4403,7 @@ L3  : T   0.32c W  -0.82c S   1.14c ( -0.1 L  +0.1) LCB   74.34c P  2.62% WF   3
 K3  : T   0.26c W  -0.88c S   1.14c ( -0.1 L  +0.1) LCB   74.41c P  2.57% WF   3.2 PSV       3 N       3  --  K3 R16
 C1  : T  43.82c W  36.44c S   7.38c ( +9.2 L  +9.6) LCB   49.61c P  2.01% WF  32.6 PSV       0 N      55  --  C1 Q17 C3 C4 D2 E3 E2
 : GPU 0 finishing, processed 2011 rows 2011 batches
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 Mix pruning, subtracting, dirichlet noise, value weight exponent =========================================
@@ -7124,7 +7124,7 @@ E5  : T -82.63c W -75.29c S  -7.34c (-23.9 L -22.6) LCB -432.63c P  0.31% WF   1
 L4  : T -84.22c W -77.02c S  -7.20c (-23.5 L -21.9) LCB -434.22c P  0.31% WF   1.0 PSV       1 N       1  --  L4
 : GPU 0 finishing, processed 55458 rows 55458 batches
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 TEST ownership endgame ==========================================================================
@@ -7180,7 +7180,7 @@ B9  : T -45.00c W -35.69c S  -9.30c ( -2.0 L  -1.9) LCB -395.00c P  2.59% WF   0
 
 : GPU 0 finishing, processed 62 rows 62 batches
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 TEST sampled symmetries ==========================================================================
@@ -7388,7 +7388,7 @@ WL samples
 27 -0.00380898
 : GPU 0 finishing, processed 1028 rows 1028 batches
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 Multithreaded search test =========================================

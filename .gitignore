@@ -65,6 +65,7 @@ CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
+cpp/builds/
 
 .DS_Store
 GPATH
@@ -91,4 +92,3 @@ cpp/build.ninja
 cpp/KataGoSwift.*
 cpp/include/KataGoSwift/KataGoSwift-swift.h
 cpp/external/katagocoreml/proto/
-cpp/external/onnxruntime-win-x64-vitisai/

@@ -721,6 +721,11 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
   SearchParams params = SearchParams::basicDecentParams();
+  //Pass-alive computation mode, applied uniformly to game replay/adjudication, featurization,
+  //training targets, and the searches below. Auto resolves to the model's declared preference.
+  if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"))
+    params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules");
+  const bool alwaysComputePassAliveUnderSuicideRules = Search::resolveAlwaysComputePassAliveUnderSuicideRules(params, nnEval);
   params.maxVisits = maxVisits;
   params.chosenMoveTemperatureEarly = 0.1;
   params.chosenMoveTemperature = 0.1;
@@ -1377,7 +1382,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     Player nextPla;
     BoardHistory hist;
     try {
-      sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
+      //Set up before replaying so game replay/adjudication, featurization, and targets are all uniform
+      //with each other and with the searches (whose setPosition resolves to the same value from params).
+      sgf->setupInitialBoardAndHist(rules, board, nextPla, hist, alwaysComputePassAliveUnderSuicideRules);
     }
     catch(const StringError& e) {
       logger.write("Bad initial setup in sgf " + fileName + " " + e.what());
@@ -2098,7 +2105,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           // Ownership stuff!
           hasOwnershipTargets = true;
           hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
-          board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
+          board.calculateArea(finalFullArea, true, true, true, hist.suicideLegalForPassAlive());
           NNInputs::fillScoring(board,finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,finalWhiteScoring);
 
           // Make sure KataGo didn't leave huge unscored regions due to passing weirdness, and make sure the scoring agrees with

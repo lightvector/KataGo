@@ -95,6 +95,7 @@ NNEvaluator::NNEvaluator(
    maxBatchSize(maxBatchSz),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
+   m_numCacheHits(0),
    bufferMutex(),
    isKilled(false),
    numServerThreadsStartingUp(0),
@@ -299,6 +300,12 @@ bool NNEvaluator::supportsShorttermError() const {
   return modelVersion >= 9;
 }
 
+bool NNEvaluator::modelPreferPassAliveUnderSuicideRules() const {
+  if(loadedModel == NULL)
+    return false;
+  return NeuralNet::getModelDesc(loadedModel).preferPassAliveUnderSuicideRules;
+}
+
 bool NNEvaluator::getDoRandomize() const {
   return currentDoRandomize.load(std::memory_order_acquire);
 }
@@ -329,10 +336,14 @@ uint64_t NNEvaluator::numBatchesProcessed() const {
 double NNEvaluator::averageProcessedBatchSize() const {
   return (double)numRowsProcessed() / (double)numBatchesProcessed();
 }
+uint64_t NNEvaluator::numCacheHits() const {
+  return m_numCacheHits.load(std::memory_order_relaxed);
+}
 
 void NNEvaluator::clearStats() {
   m_numRowsProcessed.store(0);
   m_numBatchesProcessed.store(0);
+  m_numCacheHits.store(0);
 }
 
 void NNEvaluator::clearCache() {
@@ -359,22 +370,10 @@ static void serveEvals(
   NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeedThisThread);
 
-  // An uncaught exception escaping a std::thread's entry function does NOT propagate to any
-  // try/catch at toplevel on the main thread - it calls std::terminate() directly, which aborts
-  // the process with no message printed. So catch here instead, print what actually went wrong,
-  // and then exit - achieving the same "fail fast, nnEval thread dying is fatal" intent as before,
-  // but with a diagnosable error message instead of a silent abort().
-  try {
-    nnEval->serve(*buf,rand,gpuIdxForThisThread,serverThreadIdx);
-  }
-  catch(const std::exception& e) {
-    cerr << "Uncaught exception in NN eval server thread " << serverThreadIdx << ": " << e.what() << endl;
-    std::exit(1);
-  }
-  catch(...) {
-    cerr << "Uncaught exception of unknown type in NN eval server thread " << serverThreadIdx << endl;
-    std::exit(1);
-  }
+  // Used to have a try catch around this but actually we're in big trouble if this raises an exception
+  // and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
+  // toplevel for easier debugging
+  nnEval->serve(*buf,rand,gpuIdxForThisThread,serverThreadIdx);
   delete buf;
 }
 
@@ -509,7 +508,9 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   // Empty board of the configured size, default rules/params. Outputs are discarded; we only want
   // the forward passes to trigger graph compilation for every batch size that will be seen.
   Board board(nnXLen, nnYLen);
-  BoardHistory history(board, P_BLACK, Rules::getTrompTaylorish(), 0);
+  //Featurize the way this model expects (a no-op under Tromp-Taylorish rules, but robust if the
+  //warmup rules ever change).
+  BoardHistory history(board, P_BLACK, Rules::getTrompTaylorish(), 0, modelPreferPassAliveUnderSuicideRules());
   MiscNNInputParams nnInputParams;
   SGFMetadata sgfMeta;
   const SGFMetadata* sgfMetaPtr = NULL;
@@ -900,6 +901,7 @@ void NNEvaluator::evaluate(
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
     if(!(includeOwnerMap && buf.result->whiteOwnerMap == NULL))
     {
+      m_numCacheHits.fetch_add(1, std::memory_order_relaxed);
       buf.hasResult = true;
       return;
     }
