@@ -24,6 +24,11 @@
 // particular avoid warp-size assumptions (__shfl*_sync with 32-bit masks, hardcoded 32-lane
 // reductions) outside KATAGO_GPU_CUDA regions, since AMD wavefronts are 64 lanes wide on CDNA.
 
+#ifdef KATAGO_HELPERS_INC_INCLUDED
+#error "cudaandrocmhelpers.inc may only be included once"
+#endif
+#define KATAGO_HELPERS_INC_INCLUDED 1
+
 #include <stdexcept>
 #include <string>
 
@@ -140,6 +145,8 @@ void channelConcatKernel(
 
 template <typename T>
 void customCudaChannelConcatTemplate(const T* inA, const T* inB, T* out, int chwA, int chwB, int n) {
+  //The kernel forms indices up to n*(chwA+chwB) in 32-bit int.
+  checkBufferIndexFitsInt(n, (int64_t)chwA + chwB, 1, "customCudaChannelConcat");
   int blockSize = targetNumThreads;
   int numBlocksA = (chwA + blockSize-1) / blockSize;
   int numBlocksB = (chwB + blockSize-1) / blockSize;
@@ -193,7 +200,7 @@ void customCudaChannel0ExtractNCHWTemplate(const T *in, T* out, int nSize, int c
   int nBlocks;
   splitThreadsAcrossDim01(hwSize, nSize, hwThreads, hwBlocks, nThreads, nBlocks);
 
-  if(nBlocks > 65536)
+  if(nBlocks > 65535)
     throw std::runtime_error("customCudaChannel0ExtractNCHW: nSize too large given hwSize");
 
   dim3 grid(hwBlocks,nBlocks,1);
@@ -237,8 +244,10 @@ void sumChannelsNCHWKernel(const float* in, float* out, int cSize, int xySize, f
       acc += in[xyIdx + cIdx * xySize + nIdx * xycSize];
       xyIdx += xyBlockDim;
     }
-    sumPoolNCHWShared[sharedIdx] = acc;
   }
+  //Store unconditionally (like the NHWC variants) so the reduction below never reads
+  //uninitialized shared memory in rows where cIdx >= cSize.
+  sumPoolNCHWShared[sharedIdx] = acc;
   __syncthreads();
 
   for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
@@ -271,8 +280,8 @@ void valueHeadPoolChannelsNCHWKernel(const float* in, float* out, int nSize, int
       acc += in[xyIdx + cIdx * xySize + nIdx * xycSize];
       xyIdx += xyBlockDim;
     }
-    sumPoolNCHWShared[sharedIdx] = acc;
   }
+  sumPoolNCHWShared[sharedIdx] = acc;
   __syncthreads();
 
   for(int s = xyBlockDim>>1; s > 0; s >>= 1) {
@@ -397,9 +406,9 @@ void gPoolChannelsNCHWMaskKernel(const float* in, float* out, int cSize, int xyS
 }
 
 void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize, int xySize, float scaleSum) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaPoolRowsSumNCHW: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaPoolRowsSumNCHW: cSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaPoolRowsSumNCHW");
 
@@ -420,9 +429,9 @@ void customCudaPoolRowsSumNCHW(const float* in, float* out, int nSize, int cSize
   sumChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,cSize,xySize,scaleSum);
 }
 void customCudaValueHeadPoolNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* maskSum) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaValueHeadPoolNCHW: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaValueHeadPoolNCHW: cSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaValueHeadPoolNCHW");
 
@@ -443,9 +452,9 @@ void customCudaValueHeadPoolNCHW(const float* in, float* out, int nSize, int cSi
   valueHeadPoolChannelsNCHWKernel<<<grid,threads,sharedMemSize>>>(in,out,nSize,cSize,xySize,maskSum);
 }
 void customCudaPoolRowsGPoolNCHW(const float* in, float* out, int nSize, int cSize, int xySize, const float* mask, const float* maskSum) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaPoolRowsGPoolNCHW: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaPoolRowsGPoolNCHW: cSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaPoolRowsGPoolNCHW");
 
@@ -588,9 +597,9 @@ void gPoolChannelsNCHWHalfMaskKernel(const half* in, half* out, int cSize, int x
 }
 
 void customCudaPoolRowsGPoolNCHW(const half* in, half* out, int nSize, int cSize, int xySize, const half* mask, const float* maskSum) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaPoolRowsGPoolNCHW: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaPoolRowsGPoolNCHW: cSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaPoolRowsGPoolNCHW");
 
@@ -801,9 +810,9 @@ void gPoolChannelsNHWCMaskKernel(const float* in, float* out, int xySize, int cS
 
 
 void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySize, int cSize, float scaleSum) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaPoolRowsSumNHWC: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaPoolRowsSumNHWC: cSize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaPoolRowsSumNHWC");
 
@@ -826,9 +835,9 @@ void customCudaPoolRowsSumNHWC(const float* in, float* out, int nSize, int xySiz
 }
 
 void customCudaValueHeadPoolNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* maskSum) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaValueHeadPoolNHWC: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaValueHeadPoolNHWC: cSize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaValueHeadPoolNHWC");
 
@@ -851,9 +860,9 @@ void customCudaValueHeadPoolNHWC(const float* in, float* out, int nSize, int xyS
 }
 
 void customCudaPoolRowsGPoolNHWC(const float* in, float* out, int nSize, int xySize, int cSize, const float* mask, const float* maskSum) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaPoolRowsGPoolNHWC: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaPoolRowsGPoolNHWC: cSize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaPoolRowsGPoolNHWC");
 
@@ -995,9 +1004,9 @@ void gPoolChannelsNHWCHalfMaskKernel(const half* in, half* out, int xySize, int 
 }
 
 void customCudaPoolRowsGPoolNHWC(const half* in, half* out, int nSize, int xySize, int cSize, const half* mask, const float* maskSum) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaPoolRowsGPoolNHWC: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaPoolRowsGPoolNHWC: cSize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaPoolRowsGPoolNHWC");
 
@@ -1120,7 +1129,7 @@ void batchedTranspose2DKernel(const T* in, T* out, int aSize, int bSize)
 template<typename T>
 static void applyBatchedTranspose2D(const T* in, T* out, int nSize, int aSize, int bSize, const char* name) {
   checkBufferIndexFitsInt(nSize, aSize, bSize, name);
-  if(nSize > 65536 || aSize > 65536)
+  if(nSize > 65535 || aSize > 65535)
     throw std::runtime_error(std::string(name) + ": dimension exceeds the grid y/z size limit");
   int blockSize = targetNumThreads;
   dim3 grid((bSize + blockSize - 1) / blockSize, aSize, nSize);
@@ -1299,7 +1308,7 @@ static void sharedAddCBiasInplaceNC(void* buf, const void* biases, int nSize, in
   int nBlocks;
   splitThreadsAcrossDim01(cSize, nSize, cThreads, cBlocks, nThreads, nBlocks);
 
-  if(nBlocks > 65536)
+  if(nBlocks > 65535)
     throw std::runtime_error("customCudaAddCBiasInplaceNC: nSize too large given cSize");
 
   dim3 grid(cBlocks,nBlocks,1);
@@ -1379,9 +1388,9 @@ void addNCBiasInplaceNCHWHalfKernel(half *buf, const half* biases, int cSize, in
 }
 
 static void sharedAddNCBiasInplaceNCHW(void *buf, const void* biases, int nSize, int cSize, int xySize, bool isHalf) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaAddNCBiasInplaceNCHW: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaAddNCBiasInplaceNCHW: cSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaAddNCBiasInplaceNCHW");
 
@@ -1439,9 +1448,9 @@ void addNCBiasInplaceNHWCHalfKernel(half *buf, const half* biases, int sSize, in
 }
 
 static void sharedAddNCBiasInplaceNHWC(void *buf, const void* biases, int nSize, int xySize, int cSize, bool isHalf) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaAddNCBiasInplaceNHWC: nSize too large");
-  if(xySize > 65536)
+  if(xySize > 65535)
     throw std::runtime_error("customCudaAddNCBiasInplaceNHWC: xySize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaAddNCBiasInplaceNHWC");
 
@@ -1741,9 +1750,9 @@ void applyCScaleBiasNCHWSiluMaskHalfKernel(const half *in, half* out, const half
 }
 
 static void sharedApplyCScaleBiasNCHW(const void* in, void* out, const void* scale, const void* biases, const void* mask, int nSize, int cSize, int xySize, bool isHalf, int activation) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaApplyCScaleBiasNCHW: nSize too large");
-  if(cSize > 65536)
+  if(cSize > 65535)
     throw std::runtime_error("customCudaApplyCScaleBiasNCHW: cSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaApplyCScaleBiasNCHW");
 
@@ -2110,9 +2119,9 @@ void applyCScaleBiasNHWCSiluMaskHalfKernel(const half* in, half* out, const half
 }
 
 static void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, const void* biases, const void* mask, int nSize, int xySize, int cSize, bool isHalf, int activation) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaApplyCScaleBiasNHWC: nSize too large");
-  if(xySize > 65536)
+  if(xySize > 65535)
     throw std::runtime_error("customCudaApplyCScaleBiasNHWC: xySize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaApplyCScaleBiasNHWC");
 
@@ -2401,7 +2410,7 @@ void customCudaApplyRoPE(
   // The kernel maps one thread per (head,pair) within a single block (no grid-stride loop), so
   // totalHP must fit in one block. Fail loudly rather than silently clamping and skipping rotations.
   if(totalHP > 1024)
-    throw std::runtime_error("customCudaApplyRoPE: numHeads*qHeadDim/2 (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
+    throw std::runtime_error("customCudaApplyRoPE: numBufHeads*numPairs (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
   int threads = ((totalHP + 31) / 32) * 32;  // round up to warp size
   dim3 blocks(seqLen, batchSize, 1);
   applyRoPEKernel<<<blocks, threads>>>(
@@ -2415,7 +2424,7 @@ void customCudaApplyRoPE(
   int totalDim = numBufHeads * qHeadDim;
   int totalHP = numBufHeads * numPairs;
   if(totalHP > 1024)
-    throw std::runtime_error("customCudaApplyRoPE: numHeads*qHeadDim/2 (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
+    throw std::runtime_error("customCudaApplyRoPE: numBufHeads*numPairs (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
   int threads = ((totalHP + 31) / 32) * 32;
   dim3 blocks(seqLen, batchSize, 1);
   applyRoPEHalfKernel<<<blocks, threads>>>(
@@ -2432,7 +2441,7 @@ void customCudaApplyRoPELearnableRecompute(
   int totalDim = numBufHeads * qHeadDim;
   int totalHP = numBufHeads * numPairs;
   if(totalHP > 1024)
-    throw std::runtime_error("customCudaApplyRoPELearnableRecompute: numHeads*qHeadDim/2 (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
+    throw std::runtime_error("customCudaApplyRoPELearnableRecompute: numBufHeads*numPairs (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
   int threads = ((totalHP + 31) / 32) * 32;
   dim3 blocks(seqLen, batchSize, 1);
   applyRoPELearnableRecomputeKernel<<<blocks, threads>>>(
@@ -2446,7 +2455,7 @@ void customCudaApplyRoPELearnableRecompute(
   int totalDim = numBufHeads * qHeadDim;
   int totalHP = numBufHeads * numPairs;
   if(totalHP > 1024)
-    throw std::runtime_error("customCudaApplyRoPELearnableRecompute: numHeads*qHeadDim/2 (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
+    throw std::runtime_error("customCudaApplyRoPELearnableRecompute: numBufHeads*numPairs (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
   int threads = ((totalHP + 31) / 32) * 32;
   dim3 blocks(seqLen, batchSize, 1);
   applyRoPELearnableRecomputeHalfKernel<<<blocks, threads>>>(
@@ -2651,7 +2660,7 @@ void customCudaFlashAttention(
   const float* Q, const float* K, const float* V, const float* mask, float* output,
   int batchSize, int seqLen, int numHeads, int numKVHeads, int qHeadDim, int vHeadDim
 ) {
-  if(batchSize * numHeads > 65536)
+  if(batchSize * numHeads > 65535)
     throw std::runtime_error("customCudaFlashAttention: batchSize * numHeads too large");
   float scale = 1.0f / sqrtf((float)qHeadDim);
   // Only (qHeadDim,vHeadDim) pairs that stay comfortably under the 255-register-per-thread cap on
@@ -2672,7 +2681,7 @@ void customCudaFlashAttention(
   const half* Q, const half* K, const half* V, const half* mask, half* output,
   int batchSize, int seqLen, int numHeads, int numKVHeads, int qHeadDim, int vHeadDim
 ) {
-  if(batchSize * numHeads > 65536)
+  if(batchSize * numHeads > 65535)
     throw std::runtime_error("customCudaFlashAttention: batchSize * numHeads too large");
   float scale = 1.0f / sqrtf((float)qHeadDim);
   // See the float overload above for why only these small pairs are instantiated (255-register cap,
@@ -2850,7 +2859,7 @@ void maskedResidualAddNCHWHalfKernel(half* trunk, const half* residual, const ha
 }
 
 void customCudaMaskedResidualAddNCHW(float* trunk, const float* residual, const float* mask, int nSize, int cSize, int xySize) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaMaskedResidualAddNCHW: nSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaMaskedResidualAddNCHW");
   int xyThreads, xyBlocks, cThreads, cBlocks;
@@ -2860,7 +2869,7 @@ void customCudaMaskedResidualAddNCHW(float* trunk, const float* residual, const 
   maskedResidualAddNCHWKernel<<<grid, threads>>>(trunk, residual, mask, cSize, xySize);
 }
 void customCudaMaskedResidualAddNCHW(half* trunk, const half* residual, const half* mask, int nSize, int cSize, int xySize) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaMaskedResidualAddNCHW: nSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaMaskedResidualAddNCHW");
   int xyThreads, xyBlocks, cThreads, cBlocks;
@@ -2901,7 +2910,7 @@ void maskedResidualAddNHWCHalfKernel(half* trunk, const half* residual, const ha
 }
 
 void customCudaMaskedResidualAddNHWC(float* trunk, const float* residual, const float* mask, int nSize, int xySize, int cSize) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaMaskedResidualAddNHWC: nSize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaMaskedResidualAddNHWC");
   int cThreads, cBlocks, xyThreads, xyBlocks;
@@ -2911,7 +2920,7 @@ void customCudaMaskedResidualAddNHWC(float* trunk, const float* residual, const 
   maskedResidualAddNHWCKernel<<<grid, threads>>>(trunk, residual, mask, xySize, cSize);
 }
 void customCudaMaskedResidualAddNHWC(half* trunk, const half* residual, const half* mask, int nSize, int xySize, int cSize) {
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaMaskedResidualAddNHWC: nSize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaMaskedResidualAddNHWC");
   int cThreads, cBlocks, xyThreads, xyBlocks;
@@ -3568,7 +3577,7 @@ void customCudaSpatialRMSNormNHWC(
 ) {
   if(nSize <= 0)
     return;
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaSpatialRMSNormNHWC: nSize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaSpatialRMSNormNHWC");
   int totalElems = xySize * cSize;
@@ -3595,7 +3604,7 @@ void customCudaSpatialRMSNormNHWC(
 ) {
   if(nSize <= 0)
     return;
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaSpatialRMSNormNHWC: nSize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaSpatialRMSNormNHWC");
   int totalElems = xySize * cSize;
@@ -3626,7 +3635,7 @@ void customCudaSpatialRMSNormNCHW(
 ) {
   if(nSize <= 0)
     return;
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaSpatialRMSNormNCHW: nSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaSpatialRMSNormNCHW");
   int totalElems = cSize * xySize;
@@ -3653,7 +3662,7 @@ void customCudaSpatialRMSNormNCHW(
 ) {
   if(nSize <= 0)
     return;
-  if(nSize > 65536)
+  if(nSize > 65535)
     throw std::runtime_error("customCudaSpatialRMSNormNCHW: nSize too large");
   checkBufferIndexFitsInt(nSize, cSize, xySize, "customCudaSpatialRMSNormNCHW");
   int totalElems = cSize * xySize;

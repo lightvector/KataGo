@@ -4,8 +4,6 @@
 
 #include "../neuralnet/cudahelpers.h"
 
-#include <mma.h>
-
 // Evaluated per device architecture during nvcc's per-arch device compilation passes, so the
 // half-precision kernel bodies are compiled exactly for the archs that support them.
 #if __CUDA_ARCH__ >= 530

@@ -15,7 +15,7 @@ static inline void checkCudaError(hipError_t status,
                       file + ":" + func + ":" + Global::intToString(line) +
                       " : " + hipGetErrorString(status));
 }
-#define CUDA_ERR(opName,x)   checkCudaError((x),opName,__FILE__,#x,__LINE__)
+#define CUDA_ERR(opName,x)   { checkCudaError((x),opName,__FILE__,#x,__LINE__); }
 
 // ---------- hipBLAS ----------
 static inline const char* cublasGetErrorString(hipblasStatus_t s) {
@@ -41,7 +41,7 @@ static inline void checkCublasError(hipblasStatus_t status,
                       file + ":" + func + ":" + Global::intToString(line) +
                       " : " + cublasGetErrorString(status));
 }
-#define CUBLAS_ERR(opName,x) checkCublasError((x),opName,__FILE__,#x,__LINE__)
+#define CUBLAS_ERR(opName,x) { checkCublasError((x),opName,__FILE__,#x,__LINE__); }
 
 // ---------- MIOpen ----------
 static inline void checkCudnnError(miopenStatus_t status,
@@ -54,6 +54,6 @@ static inline void checkCudnnError(miopenStatus_t status,
                       file + ":" + func + ":" + Global::intToString(line) +
                       " : " + miopenGetErrorString(status));
 }
-#define CUDNN_ERR(opName,x) checkCudnnError((x),opName,__FILE__,#x,__LINE__)
+#define CUDNN_ERR(opName,x) { checkCudnnError((x),opName,__FILE__,#x,__LINE__); }
 
 #endif // NEURALNET_ROCMERRORCHECK_H_

@@ -19,12 +19,12 @@
 // Types
 using cudaDeviceProp = hipDeviceProp_t;
 using cublasHandle_t = hipblasHandle_t;
-using cublasStatus_t = hipblasStatus_t;
 using cudnnHandle_t = miopenHandle_t;
 using cudnnStatus_t = miopenStatus_t;
 using cudnnTensorDescriptor_t = miopenTensorDescriptor_t;
 
 // Enum constants
+constexpr auto cudaSuccess = hipSuccess;
 constexpr auto cudaMemcpyHostToDevice = hipMemcpyHostToDevice;
 constexpr auto cudaMemcpyDeviceToHost = hipMemcpyDeviceToHost;
 constexpr auto CUBLAS_OP_N = HIPBLAS_OP_N;

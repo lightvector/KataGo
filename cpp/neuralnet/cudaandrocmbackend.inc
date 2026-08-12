@@ -77,7 +77,7 @@ void NeuralNet::globalInitialize() {
 }
 
 void NeuralNet::globalCleanup() {
-  cudaDeviceReset();
+  (void)cudaDeviceReset();
 }
 
 #ifdef KATAGO_GPU_CUDA
@@ -675,12 +675,15 @@ struct ScratchBuffers {
       return buf;
     };
     std::function<void(void*)> releaseFunc = [](void* buf) {
-      cudaFree(buf);
+      (void)cudaFree(buf);
     };
 
-    allocator = new SimpleAllocator<void*>(allocateFunc, releaseFunc);
+    //Build into a unique_ptr first (same pattern as ByBatchSize) so that if
+    //hostMallocZeroOneBufs throws, the allocator is not leaked.
+    auto allocatorOwned = std::make_unique<SimpleAllocator<void*>>(allocateFunc, releaseFunc);
 
     CudaUtils::hostMallocZeroOneBufs(zeroBuf, oneBuf, useFP16);
+    allocator = allocatorOwned.release();
   }
   ~ScratchBuffers() {
     delete allocator;
@@ -894,7 +897,7 @@ struct ConvLayer {
         }
       }
       CudaUtils::mallocAndCopyToDevice(name,weightsTransposed,filterBuf.buf,useFP16);
-      cudaDeviceSynchronize();
+      (void)cudaDeviceSynchronize();
     }
     else
       CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf.buf,useFP16);
@@ -1166,7 +1169,7 @@ struct ConvLayer {
         }
       }
       CudaUtils::mallocAndCopyToDevice(name,weightsTransposed,filterBuf.buf,useFP16);
-      hipDeviceSynchronize();
+      (void)hipDeviceSynchronize();
     }
     else
       CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf.buf,useFP16);
@@ -1324,9 +1327,8 @@ struct BatchNormLayer {
         customCudaApplyCScaleBiasNHWC((const half*)inputBuf,(half*)outputBuf,(const half*)mergedScaleBuf.buf,(const half*)mergedBiasBuf.buf,
                                       (const half*)maskBuf,
                                       batchSize,nnXLen*nnYLen,numChannels,activation);
-      CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
-
+    CUDA_ERR(name.c_str(),cudaPeekAtLastError());
   }
 
 };
@@ -1339,7 +1341,7 @@ struct MatMulLayer {
   const int inChannels;
   const int outChannels;
   const bool usingFP16;
-  void* matBuf;
+  OwnedDeviceBuf matBuf;
 
   MatMulLayer() = delete;
   MatMulLayer(const MatMulLayer&) = delete;
@@ -1359,16 +1361,8 @@ struct MatMulLayer {
 
     if(inChannels > 0 && outChannels > 0) {
       testAssert(desc->weights.size() == inChannels * outChannels);
-      CudaUtils::mallocAndCopyToDevice(name,desc->weights,matBuf,useFP16);
+      CudaUtils::mallocAndCopyToDevice(name,desc->weights,matBuf.buf,useFP16);
     }
-    else {
-      matBuf = NULL;
-    }
-  }
-
-  ~MatMulLayer() {
-    if(inChannels > 0 && outChannels > 0)
-      cudaFree(matBuf);
   }
 
   size_t requiredWorkspaceBytes(
@@ -1403,7 +1397,7 @@ struct MatMulLayer {
         batchSize,
         inChannels,
         &alpha,
-        (const float*)matBuf,outChannels,
+        (const float*)matBuf.buf,outChannels,
         (const float*)inputBuf,inChannels,
         &beta,
         (float*)outputBuf,outChannels
@@ -1426,7 +1420,7 @@ struct MatMulLayer {
         batchSize,
         inChannels,
         &alpha,
-        matBuf, HIP_R_16F, outChannels,
+        matBuf.buf, HIP_R_16F, outChannels,
         inputBuf, HIP_R_16F, inChannels,
         &beta,
         outputBuf, HIP_R_16F, outChannels,
@@ -1447,7 +1441,7 @@ struct MatMulLayer {
         batchSize,
         inChannels,
         alpha,
-        (const cublas_half_t*)matBuf,outChannels,
+        (const cublas_half_t*)matBuf.buf,outChannels,
         (const cublas_half_t*)inputBuf,inChannels,
         beta,
         (cublas_half_t*)outputBuf,outChannels
@@ -1467,7 +1461,7 @@ struct MatBiasLayer {
   const bool usingFP16;
   const int activation;
 
-  void* biasBuf;
+  OwnedDeviceBuf biasBuf;
 
   MatBiasLayer() = delete;
   MatBiasLayer(const MatBiasLayer&) = delete;
@@ -1487,15 +1481,8 @@ struct MatBiasLayer {
     (void)cudaHandles;
     if(numChannels > 0) {
       testAssert(desc->weights.size() == numChannels);
-      CudaUtils::mallocAndCopyToDevice(name,desc->weights,biasBuf,useFP16);
+      CudaUtils::mallocAndCopyToDevice(name,desc->weights,biasBuf.buf,useFP16);
     }
-    else
-      biasBuf = NULL;
-  }
-
-  ~MatBiasLayer() {
-    if(numChannels > 0)
-      cudaFree(biasBuf);
   }
 
   void apply(
@@ -1506,11 +1493,11 @@ struct MatBiasLayer {
     (void)cudaHandles;
     assert(numChannels > 0);
     if(!usingFP16) {
-      customCudaAddCBiasInplaceNC((float*)matBuf,(const float*)biasBuf,batchSize,numChannels,activation);
+      customCudaAddCBiasInplaceNC((float*)matBuf,(const float*)biasBuf.buf,batchSize,numChannels,activation);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
     else {
-      customCudaAddCBiasInplaceNC((half*)matBuf,(const half*)biasBuf,batchSize,numChannels,activation);
+      customCudaAddCBiasInplaceNC((half*)matBuf,(const half*)biasBuf.buf,batchSize,numChannels,activation);
       CUDA_ERR(name.c_str(),cudaPeekAtLastError());
     }
   }
@@ -2276,8 +2263,8 @@ struct TransformerAttentionBlock {
 #if KATAGO_CUDA_HAS_SDPA
     SDPAGraphCache* sdpaCache = cudaHandles->sdpaCache.get();
     // Report once if cudaDisableGraphSDPA is the only reason we are not taking the cudnn graph SDPA path,
-    // i.e. FP16 and a cache are available so SDPA would otherwise have been used.
-    if(usingFP16 && sdpaCache != NULL && cudaHandles->cudaDisableGraphSDPA && !cudaHandles->loggedGraphSDPADisabled) {
+    // i.e. FP16 and a still-enabled cache are available so SDPA would otherwise have been used.
+    if(usingFP16 && sdpaCache != NULL && sdpaCache->sdpaSupported && cudaHandles->cudaDisableGraphSDPA && !cudaHandles->loggedGraphSDPADisabled) {
       cudaHandles->loggedGraphSDPADisabled = true;
       if(cudaHandles->logger != NULL)
         cudaHandles->logger->write(
@@ -2301,6 +2288,7 @@ struct TransformerAttentionBlock {
         SizedBuf<void*> biasBuf(scratch->allocator, hasMask ? (size_t)batchSize * seqLen * seqLen * bytesPerElt : 1);
         if(hasMask) {
           customCudaMaskToAttnBiasFull((const half*)maskBuf, (half*)biasBuf.buf, batchSize, seqLen);
+          CUDA_ERR(name.c_str(),cudaPeekAtLastError());
           variant_pack[SDPAPlanForBatchSize::BIAS_UID] = biasBuf.buf;
         }
 
@@ -3872,23 +3860,23 @@ struct Buffers {
   }
 
   ~Buffers() {
-    cudaFree(inputBufFloat);
-    cudaFree(inputBuf);
-    cudaFree(inputGlobalBufFloat);
-    cudaFree(inputGlobalBuf);
+    (void)cudaFree(inputBufFloat);
+    (void)cudaFree(inputBuf);
+    (void)cudaFree(inputGlobalBufFloat);
+    (void)cudaFree(inputGlobalBuf);
     if(inputMetaBufFloat != NULL)
-      cudaFree(inputMetaBufFloat);
+      (void)cudaFree(inputMetaBufFloat);
     if(inputMetaBuf != NULL)
-      cudaFree(inputMetaBuf);
+      (void)cudaFree(inputMetaBuf);
 
-    cudaFree(policyPassBuf);
-    cudaFree(policyBuf);
+    (void)cudaFree(policyPassBuf);
+    (void)cudaFree(policyBuf);
 
-    cudaFree(valueBuf);
-    cudaFree(scoreValueBuf);
-    cudaFree(ownershipBuf);
+    (void)cudaFree(valueBuf);
+    (void)cudaFree(scoreValueBuf);
+    (void)cudaFree(ownershipBuf);
 
-    cudaFree(workspaceBuf);
+    (void)cudaFree(workspaceBuf);
   }
 
 };
@@ -4200,6 +4188,12 @@ ComputeHandle* NeuralNet::createComputeHandle(
       logger->write("ROCm backend: this build was compiled without FP16 kernel support; using FP32");
   }
 
+  // Mirror the CUDA backend's tensor-core rule: on archs whose matrix instructions make NHWC
+  // convolutions the fast path, NHWC "Auto" turns NHWC on together with FP16. Decided after the
+  // FP16-kernel check above so a build that just downgraded to FP32 does not also switch layouts.
+  if(context->useNHWCMode == enabled_t::Auto && useFP16 && isNhwcFp16PreferredArch(prop))
+    useNHWC = true;
+
   // The transformer block implementation (attention/RoPE/FFN) only supports NHWC, since its channel
   // projections assume the channel dim is contiguous per spatial position. Force NHWC for transformer
   // models regardless of the useNHWCMode decision above, matching the CUDA backend's behavior.
@@ -4265,10 +4259,15 @@ bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
 
 void NeuralNet::printDevices() {
   int numDevices = 0;
-  cudaGetDeviceCount(&numDevices);
+  //Best-effort listing, so a failure here prints nothing rather than aborting. The errors are
+  //checked rather than discarded because prop is left uninitialized on failure, and printing
+  //prop.name would then read uninitialized memory.
+  if(cudaGetDeviceCount(&numDevices) != cudaSuccess)
+    return;
   for(int i = 0; i<numDevices; i++) {
     cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, i);
+    if(cudaGetDeviceProperties(&prop, i) != cudaSuccess)
+      continue;
     cout << "Found " KATAGO_GPU_BACKEND_NAME " device " << i << ": " << prop.name << endl;
   }
 }
@@ -4406,8 +4405,10 @@ void NeuralNet::getOutput(
   NNResultBuf** inputBufs,
   vector<NNOutput*>& outputs
 ) {
-  assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
-  assert(numBatchEltsFilled > 0);
+  //testAssert rather than assert: these guard the sizes of every device memcpy below, so an
+  //oversized batch must fail loudly in release builds too rather than overflow GPU buffers.
+  testAssert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
+  testAssert(numBatchEltsFilled > 0);
   const int batchSize = numBatchEltsFilled;
   const int nnXLen = gpuHandle->nnXLen;
   const int nnYLen = gpuHandle->nnYLen;
@@ -4655,7 +4656,7 @@ bool NeuralNet::testEvaluateConv(
 ) {
   //If this build was compiled without FP16 kernel support, the half kernels are empty stubs.
   testAssert(!useFP16 || customCudaFp16KernelsCompiled());
-  cudaDeviceSynchronize();
+  (void)cudaDeviceSynchronize();
   CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
   size_t numInputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->inChannels;
@@ -4694,12 +4695,12 @@ bool NeuralNet::testEvaluateConv(
   outputBuffer.resize(numOutputFloats);
   CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceOutput, useFP16);
 
-  cudaFree(deviceWorkspace);
+  (void)cudaFree(deviceWorkspace);
 
   delete convLayer;
   delete manager;
-  cudaFree(deviceInput);
-  cudaFree(deviceOutput);
+  (void)cudaFree(deviceInput);
+  (void)cudaFree(deviceOutput);
   delete cudaHandles;
 
   return true;
@@ -4719,7 +4720,7 @@ bool NeuralNet::testEvaluateBatchNorm(
 ) {
   //If this build was compiled without FP16 kernel support, the half kernels are empty stubs.
   testAssert(!useFP16 || customCudaFp16KernelsCompiled());
-  cudaDeviceSynchronize();
+  (void)cudaDeviceSynchronize();
   CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
   size_t numInputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->numChannels;
@@ -4755,9 +4756,9 @@ bool NeuralNet::testEvaluateBatchNorm(
 
   delete batchNormLayer;
 
-  cudaFree(deviceInput);
-  cudaFree(deviceMask);
-  cudaFree(deviceOutput);
+  (void)cudaFree(deviceInput);
+  (void)cudaFree(deviceMask);
+  (void)cudaFree(deviceOutput);
   delete cudaHandles;
 
   return true;
@@ -4777,7 +4778,7 @@ bool NeuralNet::testEvaluateResidualBlock(
 ) {
   //If this build was compiled without FP16 kernel support, the half kernels are empty stubs.
   testAssert(!useFP16 || customCudaFp16KernelsCompiled());
-  cudaDeviceSynchronize();
+  (void)cudaDeviceSynchronize();
   CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
   size_t numInputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->preBN.numChannels;
@@ -4821,13 +4822,13 @@ bool NeuralNet::testEvaluateResidualBlock(
   outputBuffer.resize(numOutputFloats);
   CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
 
-  cudaFree(deviceWorkspace);
+  (void)cudaFree(deviceWorkspace);
 
   delete residualBlock;
   delete manager;
-  cudaFree(deviceInput);
-  cudaFree(deviceMask);
-  cudaFree(deviceScratch);
+  (void)cudaFree(deviceInput);
+  (void)cudaFree(deviceMask);
+  (void)cudaFree(deviceScratch);
   delete scratch;
   delete cudaHandles;
 
@@ -4847,7 +4848,7 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
 ) {
   //If this build was compiled without FP16 kernel support, the half kernels are empty stubs.
   testAssert(!useFP16 || customCudaFp16KernelsCompiled());
-  cudaDeviceSynchronize();
+  (void)cudaDeviceSynchronize();
   CudaHandles* cudaHandles = CudaHandles::cudaHandlesTesting();
 
   size_t numInputFloats = (size_t)desiredBatchSize * nnXLen * nnYLen * desc->preBN.numChannels;
@@ -4908,16 +4909,16 @@ bool NeuralNet::testEvaluateGlobalPoolingResidualBlock(
   outputBuffer.resize(numOutputFloats);
   CudaUtils::expensiveCopyFromDevice("copyResultsToHost", outputBuffer.data(), numOutputFloats, deviceInput, useFP16);
 
-  cudaFree(deviceWorkspace);
+  (void)cudaFree(deviceWorkspace);
 
   delete residualBlock;
   delete manager;
 
-  cudaFree(deviceInput);
-  cudaFree(deviceMask);
-  cudaFree(deviceMaskFloatOrig);
-  cudaFree(deviceMaskSum);
-  cudaFree(deviceScratch);
+  (void)cudaFree(deviceInput);
+  (void)cudaFree(deviceMask);
+  (void)cudaFree(deviceMaskFloatOrig);
+  (void)cudaFree(deviceMaskSum);
+  (void)cudaFree(deviceScratch);
   delete scratch;
   delete cudaHandles;
 

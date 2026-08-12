@@ -5,6 +5,11 @@
 // (cudaMalloc, cudaMemcpy, ...) to HIP. See cudaandrocmbackend.inc for the full contract of this
 // sharing pattern.
 
+#ifdef KATAGO_UTILS_INC_INCLUDED
+#error "cudaandrocmutils.inc may only be included once"
+#endif
+#define KATAGO_UTILS_INC_INCLUDED 1
+
 #include <iomanip>
 #include "../neuralnet/debugprint.h"
 
@@ -124,6 +129,8 @@ void CudaUtils::hostMallocZeroOneBufs(void*& zeroBuf, void*& oneBuf, bool useFP1
   if(!useFP16) {
     zeroBuf = malloc(sizeof(float));
     oneBuf = malloc(sizeof(float));
+    if(zeroBuf == NULL || oneBuf == NULL)
+      throw StringError("Buffers: out of host memory allocating zero/one constants");
     *((float*)zeroBuf) = 0.0f;
     *((float*)oneBuf) = 1.0f;
   }
@@ -131,15 +138,31 @@ void CudaUtils::hostMallocZeroOneBufs(void*& zeroBuf, void*& oneBuf, bool useFP1
     //Convert to FP16 on the device, then copy back so we have it in host memory
     float zero = 0.0f;
     float one = 1.0f;
-    void* zeroTmp;
-    void* oneTmp;
-    mallocAndCopyToDevice("Buffers",&zero,1,zeroTmp,useFP16);
-    mallocAndCopyToDevice("Buffers",&one,1,oneTmp,useFP16);
-    zeroBuf = malloc(sizeof(half_t));
-    oneBuf = malloc(sizeof(half_t));
-    CUDA_ERR("Buffers",cudaMemcpy(zeroBuf,zeroTmp,sizeof(half_t),cudaMemcpyDeviceToHost));
-    CUDA_ERR("Buffers",cudaMemcpy(oneBuf,oneTmp,sizeof(half_t),cudaMemcpyDeviceToHost));
-    cudaFree(zeroTmp);
-    cudaFree(oneTmp);
+    void* zeroTmp = NULL;
+    void* oneTmp = NULL;
+    zeroBuf = NULL;
+    oneBuf = NULL;
+    try {
+      mallocAndCopyToDevice("Buffers",&zero,1,zeroTmp,useFP16);
+      mallocAndCopyToDevice("Buffers",&one,1,oneTmp,useFP16);
+      zeroBuf = malloc(sizeof(half_t));
+      oneBuf = malloc(sizeof(half_t));
+      if(zeroBuf == NULL || oneBuf == NULL)
+        throw StringError("Buffers: out of host memory allocating zero/one constants");
+      CUDA_ERR("Buffers",cudaMemcpy(zeroBuf,zeroTmp,sizeof(half_t),cudaMemcpyDeviceToHost));
+      CUDA_ERR("Buffers",cudaMemcpy(oneBuf,oneTmp,sizeof(half_t),cudaMemcpyDeviceToHost));
+    }
+    catch(...) {
+      //Free everything so a throwing caller (whose destructor will not run) leaks nothing.
+      if(zeroTmp != NULL) (void)cudaFree(zeroTmp);
+      if(oneTmp != NULL) (void)cudaFree(oneTmp);
+      free(zeroBuf);
+      free(oneBuf);
+      zeroBuf = NULL;
+      oneBuf = NULL;
+      throw;
+    }
+    (void)cudaFree(zeroTmp);
+    (void)cudaFree(oneTmp);
   }
 }
