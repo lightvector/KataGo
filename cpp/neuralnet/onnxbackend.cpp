@@ -1,7 +1,7 @@
 // ONNX Runtime backend for KataGo.
 // Loads standard .bin.gz model files (builds ONNX graph from ModelDesc) or
 // raw .onnx model files directly, and runs inference via ONNX Runtime with a
-// configurable execution provider (CPU, OpenVINO, CUDA, TensorRT, MIGraphX, VitisAI, CoreML)
+// configurable execution provider (CPU, CUDA, TensorRT, MIGraphX, VitisAI, CoreML)
 // selected at
 // runtime via the onnxProvider config key.
 
@@ -104,10 +104,18 @@ struct LoadedModel {
   string rawOnnxBytes;
   string rawOnnxFileName; // only valid when isRawOnnx is true
 
+  // One-time scale8 transform (see maybeApplyScale8), only meaningful for the .bin.gz path. All
+  // server threads share this LoadedModel, so whichever ComputeHandle is created first decides
+  // for everyone.
+  mutable std::atomic<bool> scale8Resolved;
+  mutable std::mutex scale8Mutex;
+
   // Constructor for .bin.gz files
   LoadedModel(const string& fileName, const string& expectedSha256, bool rawOnnx)
     : isRawOnnx(rawOnnx)
   {
+    scale8Resolved.store(false);
+
     if(!rawOnnx) {
       ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
       return;
@@ -238,6 +246,20 @@ struct LoadedModel {
     );
 
     // postProcessParams gets default values from its constructor (already set)
+
+    scale8Resolved.store(true);  // scale8 only applies to modelDesc weights, which raw .onnx has none of.
+  }
+
+  // Apply the scale8 FP16-range workaround exactly once per model, unless skipped via
+  // onnxSkipScale8. Must run before any ComputeHandle builds the ONNX graph from modelDesc.
+  // No-op for the raw .onnx path (scale8Resolved is already true from the constructor above).
+  void maybeApplyScale8(bool skip) const {
+    std::lock_guard<std::mutex> lock(scale8Mutex);
+    if(!scale8Resolved.load()) {
+      if(!skip)
+        const_cast<LoadedModel*>(this)->modelDesc.applyScale8ToReduceActivations();
+      scale8Resolved.store(true);
+    }
   }
 
   LoadedModel() = delete;
@@ -265,10 +287,9 @@ struct ComputeContext {
   int nnXLen;
   int nnYLen;
   string providerName;
-  string openvinoDeviceType;
-  string openvinoDeviceId;
-  bool openvinoEnableNPUFastCompile;
-  string openvinoCacheDir;
+
+  bool transformerNHWC;  // run the trunk block stack channel-last (NHWC) for transformer models
+  bool skipScale8;        // skip the scale8 FP16-range workaround (see createComputeContext)
 
   // VitisAI (AMD Ryzen AI NPU) EP options.
   string vitisaiConfigFile;
@@ -306,10 +327,8 @@ struct ComputeContext {
       nnXLen(xLen),
       nnYLen(yLen),
       providerName(provider),
-      openvinoDeviceType("NPU"),
-      openvinoDeviceId(""),
-      openvinoEnableNPUFastCompile(false),
-      openvinoCacheDir(""),
+      transformerNHWC(true),
+      skipScale8(false),
       vitisaiConfigFile(
 #ifdef KATAGO_VITISAI_DEFAULT_CONFIG_FILE
         KATAGO_VITISAI_DEFAULT_CONFIG_FILE
@@ -600,13 +619,28 @@ struct ComputeHandle {
         logger->write("ONNX backend: building ONNX graph from model weights...");
       OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(
         loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen,
-        /*requireExactNNLen=*/false, /*transformerNHWC=*/false, logger, /*emitFusedMishOp=*/false
+        /*requireExactNNLen=*/false, ctx->transformerNHWC, logger, /*emitFusedMishOp=*/false
       );
       builtOnnxBytes = std::move(onnxResult.serializedModel);
       if(logger != NULL)
         logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(builtOnnxBytes.size()) + " bytes)");
       onnxData = builtOnnxBytes.data();
       onnxSize = builtOnnxBytes.size();
+
+      // Dump the ONNX model to a file when KATAGO_DUMP_ONNX is set (debug aid).
+      const char* dumpPath = getenv("KATAGO_DUMP_ONNX");
+      if(dumpPath != nullptr && dumpPath[0] != '\0') {
+        ofstream dumpFile(dumpPath, ios::binary);
+        if(dumpFile.is_open()) {
+          dumpFile.write(builtOnnxBytes.data(), (streamsize)builtOnnxBytes.size());
+          dumpFile.close();
+          if(logger != NULL)
+            logger->write(string("ONNX backend: dumped ONNX model to ") + dumpPath +
+                          " (" + Global::uint64ToString(builtOnnxBytes.size()) + " bytes)");
+        } else if(logger != NULL) {
+          logger->write(string("ONNX backend: WARNING - could not open dump path ") + dumpPath);
+        }
+      }
     }
 
     if(logger != NULL)
@@ -652,48 +686,6 @@ struct ComputeHandle {
       sessionOpts.AppendExecutionProvider_MIGraphX(migraphxOpts);
       if(logger != NULL)
         logger->write("ONNX backend: MIGraphX execution provider enabled, device_id=" + Global::intToString(migraphxOpts.device_id));
-    } else if(provider == "openvino") {
-      std::unordered_map<std::string, std::string> openvinoOpts;
-      openvinoOpts["device_type"] = ctx->openvinoDeviceType;
-      if(!ctx->openvinoDeviceId.empty())
-        openvinoOpts["device_id"] = ctx->openvinoDeviceId;
-      if(!ctx->openvinoCacheDir.empty())
-        openvinoOpts["cache_dir"] = ctx->openvinoCacheDir;
-
-      if(ctx->openvinoEnableNPUFastCompile && logger != NULL) {
-        logger->write(
-          "ONNX backend: onnxOpenVINOEnableNPUFastCompile requested, but this ORT build may not "
-          "accept 'enable_npu_fast_compile'; currently ignoring this option for compatibility."
-        );
-      }
-
-      // Some ORT OpenVINO builds may not accept optional keys like cache_dir.
-      // Retry with only core device keys if optional keys are rejected.
-      try {
-        sessionOpts.AppendExecutionProvider_OpenVINO_V2(openvinoOpts);
-      }
-      catch(const Ort::Exception& e) {
-        bool hadOptionalKeys = openvinoOpts.count("cache_dir") > 0;
-        if(!hadOptionalKeys)
-          throw;
-
-        if(logger != NULL) {
-          logger->write(
-            string("ONNX backend: OpenVINO optional provider options rejected, retrying without optional keys. Error: ") +
-            e.what()
-          );
-        }
-        openvinoOpts.erase("cache_dir");
-        sessionOpts.AppendExecutionProvider_OpenVINO_V2(openvinoOpts);
-      }
-
-      if(logger != NULL) {
-        string deviceId = openvinoOpts.count("device_id") > 0 ? openvinoOpts["device_id"] : "";
-        logger->write(
-          "ONNX backend: OpenVINO execution provider enabled, device_type=" + ctx->openvinoDeviceType +
-          (deviceId.empty() ? "" : (", device_id=" + deviceId))
-        );
-      }
     } else if(provider == "vitisai") {
 #ifdef ENABLE_PYTHON_ONNXRUNTIME
       if(usePythonRuntime) {
@@ -765,7 +757,7 @@ struct ComputeHandle {
       if(logger != NULL)
         logger->write("ONNX backend: using CPU execution provider");
     } else {
-      throw StringError("ONNX backend: unknown onnxProvider '" + provider + "', expected 'cpu', 'coreml', 'cuda', 'tensorrt', 'migraphx', 'openvino', or 'vitisai'");
+      throw StringError("ONNX backend: unknown onnxProvider '" + provider + "', expected 'cpu', 'coreml', 'cuda', 'tensorrt', 'migraphx', or 'vitisai'");
     }
 
     // Create session. For raw .onnx files we have the original file path, so prefer loading
@@ -944,8 +936,14 @@ ComputeContext* NeuralNet::createComputeContext(
   ConfigParser& cfg
 ) {
   (void)gpuIdxs;
-  (void)useFP16Mode;
   (void)loadedModel;
+  // The emitted ONNX graph is fp32; inference precision is chosen internally by the execution
+  // provider. KataGo's global useFP16 flag therefore cannot be honored here - fail loudly instead
+  // of silently ignoring a request.
+  if(useFP16Mode == enabled_t::True)
+    throw StringError(
+      "ONNX backend: the global useFP16 flag is not supported and cannot be honored. "
+      "Precision is controlled by the execution provider. Leave useFP16 unset or set it to false/auto.");
 
   string providerName = cfg.contains("onnxProvider") ? Global::toLower(cfg.getString("onnxProvider")) : "cpu";
 
@@ -966,11 +964,18 @@ ComputeContext* NeuralNet::createComputeContext(
   if(cfg.contains("onnxOutputValue")) ctx->outputValueName = cfg.getString("onnxOutputValue");
   if(cfg.contains("onnxOutputMiscvalue")) ctx->outputMiscvalueName = cfg.getString("onnxOutputMiscvalue");
   if(cfg.contains("onnxOutputOwnership")) ctx->outputOwnershipName = cfg.getString("onnxOutputOwnership");
-  if(cfg.contains("onnxOpenVINODeviceType")) ctx->openvinoDeviceType = cfg.getString("onnxOpenVINODeviceType");
-  if(cfg.contains("onnxOpenVINODeviceId")) ctx->openvinoDeviceId = cfg.getString("onnxOpenVINODeviceId");
-  if(cfg.contains("onnxOpenVINOEnableNPUFastCompile"))
-    ctx->openvinoEnableNPUFastCompile = cfg.getBool("onnxOpenVINOEnableNPUFastCompile");
-  if(cfg.contains("onnxOpenVINOCacheDir")) ctx->openvinoCacheDir = cfg.getString("onnxOpenVINOCacheDir");
+
+  // Trunk layout for transformer models. Default NHWC (channel-last), matching the TensorRT
+  // backend's trtTransformerNHWC default; ignored entirely for models without transformer blocks.
+  ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : true;
+
+  // Skip the scale8 FP16-range workaround (default false = apply it). scale8 keeps convnet
+  // activations 8x smaller so they stay inside typical FP16 execution-provider ranges; the cost is
+  // MISH_SCALE8 subgraphs that can block fused-Mish optimizations on some providers. Keep on
+  // (default); set true only for FP32 precision or workloads where FP16 overflow is not a
+  // practical risk.
+  ctx->skipScale8 = cfg.contains("onnxSkipScale8") ? cfg.getBool("onnxSkipScale8") : false;
+
   if(cfg.contains("onnxVitisAIConfigFile")) ctx->vitisaiConfigFile = cfg.getString("onnxVitisAIConfigFile");
   if(cfg.contains("onnxVitisAICacheDir")) ctx->vitisaiCacheDir = cfg.getString("onnxVitisAICacheDir");
   if(cfg.contains("onnxVitisAIDisableCPUFallback"))
@@ -1022,15 +1027,17 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(inputsUseNHWC)
     throw StringError("ONNX backend: inputsUseNHWC = true not supported, must use NCHW");
 
+  // Apply the scale8 FP16-range workaround exactly once per model (unless onnxSkipScale8),
+  // before this handle builds the ONNX graph from modelDesc.
+  loadedModel->maybeApplyScale8(context->skipScale8);
+
   if(logger != NULL) {
     logger->write("ONNX backend thread " + Global::intToString(serverThreadIdx) +
                   ": Model version " + Global::intToString(loadedModel->modelDesc.modelVersion));
     logger->write("ONNX backend thread " + Global::intToString(serverThreadIdx) +
                   ": Model name: " + loadedModel->modelDesc.name);
     string deviceInfo =
-      context->providerName == "openvino"
-      ? "n/a (use onnxOpenVINODeviceType/onnxOpenVINODeviceId)"
-      : context->providerName == "vitisai"
+      context->providerName == "vitisai"
       ? "n/a (single NPU device)"
       : Global::intToString(gpuIdxForThisThread);
     logger->write("ONNX backend thread " + Global::intToString(serverThreadIdx) +
@@ -1047,6 +1054,12 @@ void NeuralNet::freeComputeHandle(ComputeHandle* computeHandle) {
 
 bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   (void)handle;
+  return false;
+}
+
+bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
+  (void)handle;
+  (void)isWarmup;
   return false;
 }
 

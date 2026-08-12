@@ -111,6 +111,17 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   }
 #endif
 
+#if defined(USE_ONNX_BACKEND)
+  // Distributed selfplay (contribute) uploads training data, which must never contain FP16-overflow
+  // NaN rows, so always apply the scale8 workaround regardless of onnxSkipScale8.
+  if(setupFor == SETUP_FOR_DISTRIBUTED && cfg.contains("onnxSkipScale8") && cfg.getBool("onnxSkipScale8")) {
+    cfg.overrideKey("onnxSkipScale8", "false");
+    logger.write(
+      "WARNING: onnxSkipScale8 = true is not allowed for contribute (distributed selfplay); "
+      "forcing it to false so FP16-overflow NaNs cannot poison contributed training data.");
+  }
+#endif
+
   //Automatically flag keys that are for other backends as used so that we don't warn about unused keys
   //for those options
   for(const string& prefix: getBackendPrefixes()) {
