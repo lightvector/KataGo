@@ -44,7 +44,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT MIGRAPHX OPENCL EIGEN METAL)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -114,6 +114,11 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   elseif(USE_CACHE_TENSORRT_PLAN AND BUILD_DISTRIBUTED)
     message(FATAL_ERROR "Combining USE_CACHE_TENSORRT_PLAN with BUILD_DISTRIBUTED is not supported - it would consume excessive disk space and might worsen performance every time models are updated. Use only one at a time in a given build of KataGo.")
   endif()
+elseif(USE_BACKEND STREQUAL "MIGRAPHX")
+  message(STATUS "-DUSE_BACKEND=MIGRAPHX, using AMD ROCm MIGraphX backend.")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/migraphxbackend.cpp
+    )
 elseif(USE_BACKEND STREQUAL "METAL")
   message(STATUS "-DUSE_BACKEND=METAL, using Metal backend with hybrid MPSGraph + CoreML execution.")
   if(NOT "${CMAKE_GENERATOR}" STREQUAL "Ninja")
@@ -476,6 +481,64 @@ elseif(USE_BACKEND STREQUAL "TENSORRT")
   # CMake package config (e.g. vcpkg), the variable can resolve to the DLL itself rather
   # than the import lib, and it also omits protobuf's own dependencies such as abseil.
   target_link_libraries(katago ${TENSORRT_ONNXPARSER_LIBRARY} protobuf::libprotobuf)
+elseif(USE_BACKEND STREQUAL "MIGRAPHX")
+  target_compile_definitions(katago PRIVATE USE_MIGRAPHX_BACKEND)
+
+  # ROCm ships MIGraphX and HIP under the same prefix; ROCM_PATH lets a user point at a
+  # non-default or side-by-side install (e.g. /opt/rocm-6.4.1).
+  if(NOT DEFINED ROCM_PATH)
+    if(DEFINED ENV{ROCM_PATH})
+      set(ROCM_PATH $ENV{ROCM_PATH})
+    else()
+      set(ROCM_PATH "/opt/rocm")
+    endif()
+  endif()
+  list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH} ${ROCM_PATH}/hip)
+
+  find_package(hip REQUIRED)
+
+  find_path(MIGRAPHX_INCLUDE_DIR migraphx/migraphx.hpp HINTS ${ROCM_PATH} PATH_SUFFIXES include)
+  if(NOT MIGRAPHX_INCLUDE_DIR)
+    message(FATAL_ERROR "${ColorBoldRed} migraphx/migraphx.hpp was NOT found. Install migraphx-dev, or set ROCM_PATH to your ROCm install. ${ColorReset}")
+  endif()
+  # The C++ header migraphx.hpp is a header-only wrapper over the C API in libmigraphx_c, so that
+  # is the only MIGraphX library we need to link.
+  find_library(MIGRAPHX_C_LIBRARY NAMES migraphx_c HINTS ${ROCM_PATH} PATH_SUFFIXES lib lib64)
+  if(NOT MIGRAPHX_C_LIBRARY)
+    message(FATAL_ERROR "${ColorBoldRed} libmigraphx_c was NOT found. Install migraphx, or set ROCM_PATH to your ROCm install. ${ColorReset}")
+  endif()
+
+  # Like the TensorRT backend, this backend builds its network by emitting an ONNX ModelProto and
+  # handing the serialized bytes to the inference engine's ONNX parser, so it needs the same
+  # vendored ONNX schema compiled with protoc.
+  find_package(Protobuf REQUIRED)
+  message(STATUS "Found Protobuf version: ${Protobuf_VERSION}")
+  set(ONNX_PROTO_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/onnx")
+  protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS "${ONNX_PROTO_DIR}/onnx.proto")
+  # protoc-generated code is not ours to lint; silence its warnings to keep build output readable.
+  set_source_files_properties(${ONNX_PROTO_SRCS} PROPERTIES COMPILE_OPTIONS "-w")
+  target_sources(katago PRIVATE ${ONNX_PROTO_SRCS} neuralnet/onnxmodelbuilder.cpp)
+  # Generated onnx.pb.h lands in the build dir; let backend code include it.
+  target_include_directories(katago SYSTEM PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${Protobuf_INCLUDE_DIRS} ${MIGRAPHX_INCLUDE_DIR})
+
+  # Protobuf must be linked STATICALLY and its symbols kept out of the dynamic symbol table.
+  #
+  # libmigraphx_onnx bundles its own protobuf and exports ~160 protobuf symbols as *weak* template
+  # instantiations. If KataGo also pulls in a shared libprotobuf, the dynamic linker resolves those
+  # weak symbols to whichever copy is global — ours — and MIGraphX's parser then runs against a
+  # protobuf whose object layout it was not compiled for. That fails at parse time with
+  # "CHECK failed: (total_size_) > (0)" inside repeated_field.h.
+  #
+  # Linking the static archive with -Wl,--exclude-libs makes every protobuf symbol we pull in local
+  # to the katago binary, so MIGraphX resolves its bundled copy and the two never interact. This is
+  # the same isolation the TensorRT backend gets for free (nvonnxparser statically links its own
+  # protobuf and the handoff is serialized bytes).
+  find_library(PROTOBUF_STATIC_LIBRARY NAMES libprotobuf.a HINTS ${Protobuf_LIBRARY_DIRS} /usr/lib/x86_64-linux-gnu)
+  if(NOT PROTOBUF_STATIC_LIBRARY)
+    message(FATAL_ERROR "${ColorBoldRed} libprotobuf.a (static) was NOT found, but the MIGraphX backend requires it to avoid a protobuf symbol collision with libmigraphx_onnx. Install libprotobuf-dev. ${ColorReset}")
+  endif()
+  target_link_libraries(katago ${MIGRAPHX_C_LIBRARY} hip::host ${PROTOBUF_STATIC_LIBRARY})
+  target_link_options(katago PRIVATE -Wl,--exclude-libs,ALL)
 elseif(USE_BACKEND STREQUAL "METAL")
   target_compile_definitions(katago PRIVATE USE_METAL_BACKEND)
   target_link_libraries(katago KataGoSwift katagocoreml
