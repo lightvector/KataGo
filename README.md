@@ -12,6 +12,7 @@
     - [How To Use](#how-to-use)
       - [ONNX/OpenVINO Intel NPU Quick Start (Windows)](#onnxopenvino-intel-npu-quick-start-windows)
       - [ONNX/OpenVINO Intel NPU Quick Start (Linux)](#onnxopenvino-intel-npu-quick-start-linux)
+      - [ONNX/VitisAI AMD NPU Quick Start (Windows)](#onnxvitisai-amd-npu-quick-start-windows)
       - [Human-style Play and Analysis](#human-style-play-and-analysis)
       - [Other Commands:](#other-commands)
     - [Tuning for Performance](#tuning-for-performance)
@@ -99,14 +100,14 @@ The quick summary is:
   * Use Eigen with AVX2 if you don't have a GPU or if your GPU is too old/weak to work with OpenCL, and you just want a plain CPU KataGo.
   * Use Eigen without AVX2 if your CPU is old or on a low-end device that doesn't support AVX2.
   * The CUDA backend can work for NVIDIA GPUs with CUDA+CUDNN installed but is likely worse than TensorRT.
-  * ONNX backend uses ONNX Runtime execution providers (CPU/OpenVINO/CUDA/TensorRT/MIGraphX/CoreML). It is useful for Intel NPU (OpenVINO) and raw `.onnx` models.
+  * ONNX backend uses ONNX Runtime execution providers (CPU/OpenVINO/VitisAI/CUDA/TensorRT/MIGraphX/CoreML). It is useful for Intel NPU (OpenVINO), AMD Ryzen AI NPU (VitisAI), and raw `.onnx` models.
 
 More in detail:
   * OpenCL is a general GPU backend should be able to run with any GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), including NVIDIA GPUs, AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. This is the most general GPU version of KataGo and doesn't require a complicated install like CUDA does, so is most likely to work out of the box as long as you have a fairly modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer. Also, the quality of OpenCL implementations is sometimes inconsistent, particularly for Intel Integrated Graphics and for AMD GPUs that are older than several years, so it might not work for very old machines, as well as specific buggy newer AMD GPUs, see also [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers).
   * CUDA is a GPU backend specific to NVIDIA GPUs (it will not work with AMD or Intel or any other GPUs) and requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU. On most GPUs, the OpenCL implementation will actually beat NVIDIA's own CUDA/CUDNN at performance. The exception is for top-end NVIDIA GPUs that support FP16 and tensor cores, in which case sometimes one is better and sometimes the other is better.
   * TensorRT is similar to CUDA, but only uses NVIDIA's TensorRT framework to run the neural network with more optimized kernels. For modern NVIDIA GPUs, it should work whenever CUDA does and will usually be faster than CUDA or any other backend.
   * Eigen is a *CPU* backend that should work widely *without* needing a GPU or fancy drivers. Use this if you don't have a good GPU or really any GPU at all. It will be quite significantly slower than OpenCL or CUDA, but on a good CPU can still often get 10 to 20 playouts per second if using the smaller (15 or 20) block neural nets. Eigen can also be compiled with AVX2 and FMA support, which can provide a big performance boost for Intel and AMD CPUs from the last few years. However, it will not run at all on older CPUs (and possibly even some recent but low-power modern CPUs) that don't support these fancy vector instructions.
-  * ONNX backend uses [ONNX Runtime](https://onnxruntime.ai/). It can use CPU by default, OpenVINO for Intel hardware (including NPU on supported systems), CUDA/TensorRT for NVIDIA GPUs, MIGraphX for AMD GPUs, and CoreML on macOS. Multi-device assignment via `onnxDeviceToUseThread*` is mainly for CUDA/TensorRT/MIGraphX providers, while OpenVINO NPU setups are typically single-device.
+  * ONNX backend uses [ONNX Runtime](https://onnxruntime.ai/). It can use CPU by default, OpenVINO for Intel hardware (including NPU on supported systems), VitisAI for AMD Ryzen AI NPU, CUDA/TensorRT for NVIDIA GPUs, MIGraphX for AMD GPUs, and CoreML on macOS. Multi-device assignment via `onnxDeviceToUseThread*` is mainly for CUDA/TensorRT/MIGraphX providers, while NPU setups (OpenVINO/VitisAI) are typically single-device.
 
 For **any** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
 
@@ -183,6 +184,42 @@ Minimal commands:
 # If you don't prepare config file, use -override-config:
 ./katago gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.onnx -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
 ```
+
+#### ONNX/VitisAI AMD NPU Quick Start (Windows)
+
+If you want to use ONNX Runtime + VitisAI on an AMD Ryzen AI NPU:
+
+* Install the AMD Ryzen AI SDK: https://ryzenai.docs.amd.com/
+* Use the `ryzen-ai-<version>` conda environment (or equivalent) with Python's `onnxruntime` package matching the SDK.
+* This branch has a `PYTHON_ONNXRUNTIME` build option that embeds Python to work around a RyzenAI 1.7.1 C++ API bug when loading quantized models with many EPContext nodes.
+
+Build with:
+```bash
+cmake -S cpp -B cpp/build -G "Visual Studio 18 2026" -A x64 -DUSE_BACKEND=ONNX -DPYTHON_ONNXRUNTIME=ON
+cmake --build cpp/build --config Release -j
+```
+
+At runtime, to avoid Windows loading the wrong `onnxruntime.dll` from `C:\Windows\System32`, deploy `katago.exe` together with the matching `python312.dll` and the conda `onnxruntime.dll`. Also ensure `PATH` includes:
+* your conda environment directory,
+* `...\Lib\site-packages\onnxruntime\capi`,
+* `C:\Program Files\RyzenAI\<version>\xrt`,
+* `C:\Program Files\RyzenAI\<version>\voe-*-win_amd64`.
+
+A `.bat` wrapper is the recommended way to set PATH only for the KataGo process (see [Compiling.md](Compiling.md) for an example).
+
+Minimal commands:
+```bash
+# 1) Export .bin/.bin.gz to ONNX (default export size is 19x19)
+./katago.exe exportonnx -model <NEURALNET>.bin.gz -output <NEURALNET>.onnx
+
+# 2) Quantize to INT8 for VitisAI NPU (uses AMD quark in the RyzenAI conda env)
+python python/quantize_vitisai.py --input <NEURALNET>.onnx --calibration calib.npz --output <NEURALNET>-int8.onnx
+
+# 3) Run GTP for GUI tools
+./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>-int8.onnx -override-config onnxProvider=vitisai
+```
+
+First inference may take 15–30 seconds while the NPU compiles/caches the model. `katago benchmark` may time out with this workaround; it is mainly intended for interactive GTP play.
 
 #### Human-style Play and Analysis
 

@@ -718,6 +718,33 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   endif()
   target_link_libraries(katago ${ONNXRUNTIME_LIB})
 
+  # ---- Optional: embedded Python onnxruntime path for VitisAI ----
+  # The RyzenAI 1.7.1 SDK's VitisAI EP works through Python's onnxruntime binding but fails
+  # when the model is loaded via the public C/C++ API (Ort::Session). Allow users to opt into
+  # embedding a Python interpreter and using onnxruntime.InferenceSession directly for the
+  # VitisAI provider. Requires Python development headers/library and a numpy/onnxruntime
+  # environment that can reach the VitisAI provider (e.g. the ryzen-ai conda env).
+  if(WIN32)
+    set(PYTHON_ONNXRUNTIME OFF CACHE BOOL "Embed Python and route VitisAI inference through Python's onnxruntime")
+    if(PYTHON_ONNXRUNTIME)
+      if(DEFINED ENV{CONDA_PREFIX})
+        set(Python3_ROOT_DIR "$ENV{CONDA_PREFIX}")
+      endif()
+      find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+      if(Python3_FOUND)
+        target_compile_definitions(katago PRIVATE ENABLE_PYTHON_ONNXRUNTIME)
+        # Pass the Python interpreter path into the binary so Py_SetProgramName can point the
+        # embedded interpreter at the correct stdlib / site-packages (e.g. the ryzen-ai conda env).
+        target_compile_definitions(katago PRIVATE KATAGO_PYTHON_EXE_PATH="${Python3_EXECUTABLE}")
+        target_include_directories(katago SYSTEM PRIVATE ${Python3_INCLUDE_DIRS})
+        target_link_libraries(katago ${Python3_LIBRARIES})
+        message(STATUS "Python embedded onnxruntime enabled (VitisAI Python path): ${Python3_EXECUTABLE}")
+      else()
+        message(FATAL_ERROR "PYTHON_ONNXRUNTIME requested but Python3 development files were not found. Set CONDA_PREFIX or Python3_ROOT_DIR.")
+      endif()
+    endif()
+  endif()
+
   # Required by onnxmodelbuilder.cpp for building ONNX graphs from .bin.gz.
   # These are intentionally configurable because package layouts vary.
   set(ONNX_INCLUDE_DIR "" CACHE PATH "Directory containing onnx/onnx-ml.pb.h (required for .bin.gz -> ONNX conversion)")
@@ -1057,7 +1084,7 @@ if (WIN32) # handles both x86 and x64
   target_compile_definitions(katago PRIVATE LITTLE_ENDIAN=1234)
   target_compile_definitions(katago PRIVATE BIG_ENDIAN=4321)
   # core/rand.cpp uses winsock for a gethostname
-  target_link_libraries(katago ws2_32)
+  target_link_libraries(katago ws2_32 ole32)
   if (MINGW)
     message(STATUS "Setting up build for mingw.")
     if(USE_BACKEND STREQUAL "CUDA" OR USE_BACKEND STREQUAL "TENSORRT")

@@ -300,6 +300,48 @@ VitisAI only accelerates a quantized (INT8 QDQ) ONNX graph -- FP32 nodes fall ba
 
 This quantization step is entirely offline/manual -- `katago.exe` does not invoke it automatically.
 
+##### Windows AMD NPU with Python-Embedded ONNX Runtime (Workaround)
+
+On some Ryzen AI SDK versions (observed with 1.7.1), the native C++ VitisAI execution provider path can fail during session creation for quantized models with many `EPContext` nodes, producing repeated errors such as `Failed to create runner: Failed to open library '...\xrt_core.dll'`. This appears to be an SDK/ORT C++ API initialization issue: the C++ API creates a fresh runner per subgraph, while Python's `onnxruntime.InferenceSession` reuses a single XRT context.
+
+This branch provides an optional workaround that embeds a Python interpreter and routes VitisAI inference through Python's `onnxruntime.InferenceSession`. Enable it with:
+
+```
+cmake -S cpp -B cpp/build -G "Visual Studio 18 2026" -A x64 -DUSE_BACKEND=ONNX -DPYTHON_ONNXRUNTIME=ON
+cmake --build cpp/build --config Release -j
+```
+
+Requirements:
+* A Python installation with development headers/libs that matches the Ryzen AI SDK's recommended environment (e.g., the `ryzen-ai-1.7.1` conda env with Python 3.12). CMake uses `CONDA_PREFIX` if set, or you can point it with `Python3_ROOT_DIR`.
+* The `onnxruntime` Python package installed in that environment, with a version matching the SDK's bundled ONNX Runtime ABI.
+* The Ryzen AI SDK installed (auto-detected as described above).
+
+The build bakes in the path to the Python interpreter (`KATAGO_PYTHON_EXE_PATH`). At runtime, `katago.exe` initializes Python from that installation and imports `numpy` and `onnxruntime`.
+
+Deployment/runtime notes:
+* The directory containing `katago.exe` should also contain the matching `python312.dll` (or whichever Python version you built against) and the conda `onnxruntime.dll`. This prevents Windows from loading the older `C:\Windows\System32\onnxruntime.dll` (1.17.1), which causes API version mismatch errors such as `TarWriter` failures.
+* The conda `...\Lib\site-packages\onnxruntime\capi` directory must be on `PATH` so the VitisAI EP DLLs (`onnxruntime_vitisai_ep.dll`, etc.) are found.
+* `PATH` must also include the Ryzen AI SDK's `xrt` and `voe-*-win_amd64` directories.
+
+Example wrapper (`sabaki_katago.bat`) that keeps these PATH changes process-local:
+
+```bat
+@echo off
+setlocal
+set PATH=C:\Users\<user>\miniconda3\envs\ryzen-ai-1.7.1;%PATH%
+set PATH=C:\Users\<user>\miniconda3\envs\ryzen-ai-1.7.1\Lib\site-packages\onnxruntime\capi;%PATH%
+set PATH=C:\Program Files\RyzenAI\1.7.1\xrt;%PATH%
+set PATH=C:\Program Files\RyzenAI\1.7.1\voe-4.0-win_amd64;%PATH%
+cd /d "C:\Envs\katago-v1.16.5-vitisai1.7.1-windows-x64"
+katago.exe gtp -config gtp_npu.cfg -model kata1-zhizi-b40c768nbt-s11272M-d5935M-mish-int8_sdk_ctx.onnx
+endlocal
+```
+
+Caveats:
+* The Python C API holds the GIL around bookkeeping calls. `session.run` releases it internally, but multi-threaded throughput has not been fully benchmarked.
+* First inference can take 15–30 seconds while the NPU session is created and the model is compiled/cached.
+* `katago benchmark` may time out because it creates a second session while the first is still active. This workaround is mainly intended for interactive GTP play.
+
 ## MacOS
    * TLDR (Metal backend - recommended for most users, hybrid CPU+GPU+Neural Engine for maximum throughput):
      ```
