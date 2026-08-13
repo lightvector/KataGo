@@ -17,7 +17,7 @@ void Tests::runTimeControlsTests() {
 .........
 .........
 )%%");
-  BoardHistory hist9Early(board9Early,P_BLACK,Rules(),0);
+  BoardHistory hist9Early(board9Early,P_BLACK,Rules(),0,false);
 
   Board board9Late = Board::parseBoard(9,9,R"%%(
 ..xoo..x.
@@ -30,7 +30,7 @@ oox.ox...
 .o..ox.x.
 ...oxxx..
 )%%");
-  BoardHistory hist9Late(board9Late,P_BLACK,Rules(),0);
+  BoardHistory hist9Late(board9Late,P_BLACK,Rules(),0,false);
 
 
   Board board19Early = Board::parseBoard(19,19,R"%%(
@@ -54,7 +54,7 @@ oox.ox...
 ...................
 ...................
 )%%");
-  BoardHistory hist19Early(board19Early,P_BLACK,Rules(),0);
+  BoardHistory hist19Early(board19Early,P_BLACK,Rules(),0,false);
 
   Board board19Late = Board::parseBoard(19,19,R"%%(
    A B C D E F G H J K L M N O P Q R S T
@@ -78,7 +78,7 @@ oox.ox...
  2 . O . O X . X O O X1X . . . . X X O O
  1 . . O . . X .2X3. O . . . . . . . X .
 )%%");
-  BoardHistory hist19Late(board19Late,P_BLACK,Rules(),0);
+  BoardHistory hist19Late(board19Late,P_BLACK,Rules(),0,false);
 
   auto tryTimeControlsOnBoard = [](const string& s, const TimeControls& timeControls, const Board& board, const BoardHistory& hist, double lagBuffer) {
     double minTime;

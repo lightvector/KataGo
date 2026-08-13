@@ -8,12 +8,44 @@
 #include "Model.pb.h"
 #include "FeatureTypes.pb.h"
 #include "ModelPackage.hpp"
+#include <cerrno>
+#include <cstring>
 #include <fstream>
 #include <stdexcept>
 #include <filesystem>
 #include <unordered_map>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/io/coded_stream.h>
+#include <unistd.h>
 
 namespace katagocoreml {
+
+namespace {
+// Scratch dirs must be unique per call: the temp directory is machine-shared, so
+// a fixed name lets two concurrently-converting katago processes clobber each
+// other's spec/weights mid-package. mkdtemp (rather than a pid/counter name)
+// also makes the path unpredictable and guarantees the directory is freshly
+// created - a pre-existing path (stale leftover or another user's symlink)
+// fails instead of being silently reused.
+std::filesystem::path makeUniqueTempDir(const std::string& tag) {
+    std::string tmpl =
+        (std::filesystem::temp_directory_path() / ("katagocoreml_" + tag + "_XXXXXX")).string();
+    if (mkdtemp(tmpl.data()) == nullptr) {
+        throw std::runtime_error("Failed to create temp dir " + tmpl + ": " + std::strerror(errno));
+    }
+    return std::filesystem::path(tmpl);
+}
+
+// Removes the temp dir on scope exit, so failed conversions (disk full, bad
+// model spec, package errors) don't strand weight blobs in the shared temp dir.
+struct TempDirGuard {
+    std::filesystem::path dir;
+    ~TempDirGuard() {
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);  // best-effort; never throws in a destructor
+    }
+};
+}  // namespace
 
 CoreMLSerializer::CoreMLSerializer(int spec_version)
     : m_spec_version(spec_version) {}
@@ -22,9 +54,9 @@ void CoreMLSerializer::serialize(CoreML::Specification::MILSpec::Program* progra
                                  std::vector<WeightEntry>& weights,
                                  const std::string& output_path,
                                  const ConversionOptions& options) {
-    // Create temporary directory for weights
-    std::filesystem::path temp_dir = std::filesystem::temp_directory_path() / "katagocoreml_weights";
-    std::filesystem::create_directories(temp_dir);
+    // Create temporary directory for weights (removed by the guard on all paths)
+    std::filesystem::path temp_dir = makeUniqueTempDir("weights");
+    TempDirGuard temp_dir_guard{temp_dir};
     std::string weights_dir = temp_dir.string();
 
     // Determine if using FP16 precision
@@ -42,9 +74,6 @@ void CoreMLSerializer::serialize(CoreML::Specification::MILSpec::Program* progra
 
     // Create .mlpackage
     createPackage(output_path, model.get(), weights_dir);
-
-    // Cleanup temp directory
-    std::filesystem::remove_all(temp_dir);
 }
 
 std::unique_ptr<CoreML::Specification::Model> CoreMLSerializer::createModelSpec(
@@ -223,15 +252,29 @@ void CoreMLSerializer::createPackage(const std::string& output_path,
     // Create package using MPL::ModelPackage
     MPL::ModelPackage package(output_path, true, false);
 
-    // Serialize model spec to temp file
-    std::filesystem::path temp_spec = std::filesystem::temp_directory_path() / "model.mlmodel";
+    // Serialize model spec to temp file (dir removed by the guard on all paths)
+    std::filesystem::path temp_spec_dir = makeUniqueTempDir("spec");
+    TempDirGuard temp_spec_guard{temp_spec_dir};
+    std::filesystem::path temp_spec = temp_spec_dir / "model.mlmodel";
     {
         std::ofstream out(temp_spec, std::ios::binary);
         if (!out) {
             throw std::runtime_error("Failed to create temp model file");
         }
-        if (!model->SerializeToOstream(&out)) {
-            throw std::runtime_error("Failed to serialize model spec");
+        {
+            google::protobuf::io::OstreamOutputStream zos(&out);
+            google::protobuf::io::CodedOutputStream cos(&zos);
+            cos.SetSerializationDeterministic(true);
+            if (!model->SerializeToCodedStream(&cos)) {
+                throw std::runtime_error("Failed to serialize model spec");
+            }
+        }
+        // SerializeToCodedStream catches write errors during serialization, but the
+        // final buffer is flushed at close; a disk-full there would otherwise hand a
+        // silently-truncated spec to the package.
+        out.close();
+        if (!out) {
+            throw std::runtime_error("Failed to write temp model file (disk full?)");
         }
     }
 
@@ -241,8 +284,6 @@ void CoreMLSerializer::createPackage(const std::string& output_path,
     // Add weights
     package.addItem(weights_dir, "weights", "com.apple.CoreML", "Model Weights");
 
-    // Cleanup temp file
-    std::filesystem::remove(temp_spec);
 }
 
 void CoreMLSerializer::updateBlobOffsets(CoreML::Specification::MILSpec::Program* program,

@@ -55,7 +55,7 @@ xxxxxxxxx
 )%%");
 
     Rules rules = Rules::getTrompTaylorish();
-    BoardHistory hist(board,P_BLACK,rules,0);
+    BoardHistory hist(board,P_BLACK,rules,0,false);
     hist.endAndScoreGameNow(board);
 
     printScoreStats(board,hist);
@@ -82,7 +82,7 @@ xxxxxxxxx
 
     Rules rules = Rules::getTrompTaylorish();
     rules.komi = 7.0;
-    BoardHistory hist(board,P_BLACK,rules,0);
+    BoardHistory hist(board,P_BLACK,rules,0,false);
     hist.endAndScoreGameNow(board);
 
     printScoreStats(board,hist);
@@ -109,7 +109,7 @@ xxxxxxxxx
 
     Rules rules = Rules::getTrompTaylorish();
     rules.komi = 7.0;
-    BoardHistory hist(board,P_BLACK,rules,0);
+    BoardHistory hist(board,P_BLACK,rules,0,false);
     hist.endAndScoreGameNow(board);
 
     printScoreStats(board,hist);
@@ -133,7 +133,7 @@ xxxxx
 
     Rules rules = Rules::getTrompTaylorish();
     rules.komi = 7.0;
-    BoardHistory hist(board,P_BLACK,rules,0);
+    BoardHistory hist(board,P_BLACK,rules,0,false);
     hist.endAndScoreGameNow(board);
 
     printScoreStats(board,hist);

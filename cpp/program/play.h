@@ -94,7 +94,8 @@ class GameInitializer {
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps,
-    const Sgf::PositionSample* startPosSample
+    const Sgf::PositionSample* startPosSample,
+    bool alwaysComputePassAliveUnderSuicideRules
   );
 
   //A version that doesn't randomize params
@@ -104,7 +105,8 @@ class GameInitializer {
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps,
-    const Sgf::PositionSample* startPosSample
+    const Sgf::PositionSample* startPosSample,
+    bool alwaysComputePassAliveUnderSuicideRules
   );
 
   Rules randomizeScoringAndTaxRules(Rules rules, Rand& randToUse) const;
@@ -127,7 +129,8 @@ class GameInitializer {
     const InitialPosition* initialPosition,
     const PlaySettings& playSettings,
     OtherGameProperties& otherGameProps,
-    const Sgf::PositionSample* startPosSample
+    const Sgf::PositionSample* startPosSample,
+    bool alwaysComputePassAliveUnderSuicideRules
   );
   Rules createRulesUnsynchronized();
 

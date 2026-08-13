@@ -55,6 +55,7 @@ namespace MainCmds {
   int sampleinitializations(const std::vector<std::string>& args);
   int evalrandominits(const std::vector<std::string>& args);
   int searchentropyanalysis(const std::vector<std::string>& args);
+  int selfplaysurprisedump(const std::vector<std::string>& args);
 
   int sandbox();
 }

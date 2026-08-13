@@ -21,6 +21,7 @@ from katago.train.model_pytorch import RMSNormMask
 
 from katago.train import modelconfigs
 from katago.train.model_pytorch import Model, ResBlock, NestedBottleneckResBlock, TransformerAttentionBlock, TransformerFFNBlock, NestedBottleneckTransformerBlock
+from katago.train.model_pytorch import compute_attn_logit_dataless_bounds
 from katago.train.load_model import load_model
 
 #Command and args-------------------------------------------------------------------
@@ -38,6 +39,8 @@ parser.add_argument('-filename-prefix', help='filename prefix to save to within 
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
 parser.add_argument('-export-14-as-15', help='Export model version 14 as 15', action="store_true", required=False)
 parser.add_argument('-export-15-or-16-as-17', help='Export model version 15 or 16 as 17', action="store_true", required=False)
+parser.add_argument('-attn-logit-bound-limit', help='Refuse to export if the data-free attention logit bound of any layer exceeds this (inference backends mask off-board keys with -3e4 in fp16, so genuine logits must stay well below that)', type=float, default=2.5e4, required=False)
+parser.add_argument('-ignore-attn-logit-bound', help='Export anyway when the attention logit bound limit is exceeded', action="store_true", required=False)
 args = vars(parser.parse_args())
 
 
@@ -87,6 +90,32 @@ def main(args):
         model, swa_model, other_state_dict = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
     model_config = model.config
 
+    # ATTN LOGIT BOUND GUARD -------------------------------------------------------
+    # Data-free certification that attention logits can never approach the additive mask
+    # constants the inference backends use for off-board keys (-3e4 in fp16 backends).
+    # See compute_attn_logit_dataless_bounds for the derivation and its tightness.
+    model_to_export = swa_model if swa_model is not None else model
+    attn_logit_bounds = compute_attn_logit_dataless_bounds(model_to_export)
+    if len(attn_logit_bounds) > 0:
+        top = sorted(attn_logit_bounds.items(), key=lambda kv: -kv[1])[:5]
+        logging.info(
+            f"Data-free attention logit bound, max over {len(attn_logit_bounds)} layers: "
+            + ", ".join(f"{n}={v:.0f}" for n, v in top)
+        )
+        worst_name, worst = top[0]
+        if worst > args["attn_logit_bound_limit"]:
+            msg = (
+                f"Attention logit bound of layer {worst_name} is {worst:.0f}, exceeding the export limit "
+                f"{args['attn_logit_bound_limit']:.0f}. Logits of this magnitude threaten the correctness of the "
+                f"additive off-board masking constants in fp16 inference backends (-3e4). The bound is data-free "
+                f"and usually several times above actual logit magnitudes - measure the actual logits and/or "
+                f"consider train.py -attn-logit-penalty-cap. Use -ignore-attn-logit-bound to export anyway."
+            )
+            if args["ignore_attn_logit_bound"]:
+                logging.warning("WARNING (-ignore-attn-logit-bound): " + msg)
+            else:
+                raise Exception(msg)
+
     # WRITING MODEL ----------------------------------------------------------------
     extension = ".bin"
     mode = "wb"
@@ -120,6 +149,15 @@ def main(args):
         if model.trunk_final_rmsnorm:
             logging.warn("Autoupgrading v15 or v16 model to v17 due to trunk rmsnorm")
             version = 17
+        elif model_config.get("always_compute_pass_alive_under_suicide_rules"):
+            logging.warn("Autoupgrading v15 or v16 model to v17 due to always_compute_pass_alive_under_suicide_rules")
+            version = 17
+
+    if model_config.get("always_compute_pass_alive_under_suicide_rules") and version < 17:
+        raise Exception(
+            "always_compute_pass_alive_under_suicide_rules is set but model would be exported as version "
+            + str(version) + " < 17, which can technically represent it but we're not outputting in practice"
+        )
 
     writeln(model_name)
     writeln(version)
@@ -149,8 +187,14 @@ def main(args):
         else:
             writeln(0)
 
+        # preferPassAliveUnderSuicideRules: 1 if the model expects pass-alive area input features
+        # to be computed as if multi-stone suicide were always legal, regardless of the actual
+        # suicide rule. Only version 17+ engines parse nonzero values here (checked above).
+        if model_config.get("always_compute_pass_alive_under_suicide_rules"):
+            writeln(1)
+        else:
+            writeln(0)
         # Write some dummy placeholders for future features
-        writeln(0)
         writeln(0)
         writeln(0)
         writeln(0)

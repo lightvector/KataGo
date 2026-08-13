@@ -6,7 +6,11 @@
 #ifdef NO_GIT_REVISION
 #define GIT_REVISION "<omitted>"
 #else
-#include "program/gitinfo.h"
+// Angle-bracket (not quoted) include so this resolves ONLY via the -I search
+// paths, where the build dir's freshly-generated program/gitinfo.h lives. A
+// quoted include would search main.cpp's own directory first and pick up a
+// stale in-source cpp/program/gitinfo.h left over from an in-source build.
+#include <program/gitinfo.h>
 #endif
 
 #include <sstream>
@@ -46,6 +50,7 @@ gatekeeper : Poll directory for new nets and match them against the latest net s
 ---Testing/debugging subcommands-------------
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
 searchentropyanalysis : Analyze search entropy across test datasets.
+selfplaysurprisedump : Run selfplay games with a fixed model and dump per-position policy/value surprise stats to csv.
 
 testgpuerror : Print the average error of the neural net between current config and fp32 config.
 
@@ -159,6 +164,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::evalrandominits(subArgs);
   else if(subcommand == "searchentropyanalysis")
     return MainCmds::searchentropyanalysis(subArgs);
+  else if(subcommand == "selfplaysurprisedump")
+    return MainCmds::selfplaysurprisedump(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(subArgs);
   else if(subcommand == "runownershipspeedtest")
@@ -219,11 +226,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.16.5");
+  return string("1.17.2");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.16.5");
+  return string("KataGo v1.17.2");
 }
 
 string Version::getKataGoVersionFullInfo() {

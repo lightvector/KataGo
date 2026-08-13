@@ -49,7 +49,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 18;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -84,7 +85,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 36;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -118,7 +120,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -153,7 +156,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
     hist.setKomi(-7);
 
     MiscNNInputParams nnInputParams;
@@ -185,7 +189,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
     hist.setKomi(21);
 
     MiscNNInputParams nnInputParams;
@@ -220,7 +225,8 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 7;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared pass-alive computation mode.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, nnEval->modelPreferPassAliveUnderSuicideRules());
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -363,6 +369,56 @@ struct GpuErrorStats {
       100*getMaxPercentile(shorttermWinlossErrorError) <= wr*1.8 &&
       getMaxPercentile(shorttermScoreErrorError) <= score*0.75 &&
       100*getMaxPercentile(ownershipError) <= wr*4.0 // more lenient since ownership maxes over more stuff
+    );
+  }
+
+  // The largest ratio of measured error to its allowed limit across all metrics, for the same
+  // limits and scalings as checkStats99 (useMax=false) or checkStatsMax (useMax=true).
+  // A ratio > 1 means that metric failed its check; the largest ratio is the "closest" margin.
+  double worstRatioVsLimits(bool useMax, double wr, double score, double tpd, double pkld, std::string& whichMetricOut) {
+    sortErrors();
+    auto pct = [&](const std::vector<double>& v) { return useMax ? getMaxPercentile(v) : get99Percentile(v); };
+    const double ownershipMult = useMax ? 4.0 : 1.75;
+    const std::pair<const char*, double> ratios[] = {
+      {"winrateError", 100*pct(winrateError) / wr},
+      {"leadError", pct(leadError) / score},
+      {"scoreMeanError", pct(scoreMeanError) / score},
+      {"scoreStdevError", pct(scoreStdevError) / (score*0.6)},
+      {"topPolicyDelta", 100*pct(topPolicyDiff) / tpd},
+      {"policyKLDiv", pct(policyKLDiv) / pkld},
+      {"stWLErrorError", 100*pct(shorttermWinlossErrorError) / (wr*1.8)},
+      {"stScErrorError", pct(shorttermScoreErrorError) / (score*0.75)},
+      {"ownershipError", 100*pct(ownershipError) / (wr*ownershipMult)},
+    };
+    double worst = -1;
+    whichMetricOut = "";
+    for(const auto& r: ratios) {
+      if(r.second > worst) {
+        worst = r.second;
+        whichMetricOut = r.first;
+      }
+    }
+    return worst;
+  }
+
+  void reportClosestMargin(
+    const string& name, Logger& logger,
+    double wr99, double score99, double tpd99, double pkld99,
+    double wrMax, double scoreMax, double tpdMax, double pkldMax
+  ) {
+    auto rpad = [](const string& s, int n) {
+      if(s.size() < n)
+        return s + std::string(n - s.size(),' ');
+      return s;
+    };
+    std::string which99, whichMax;
+    double r99 = worstRatioVsLimits(false, wr99, score99, tpd99, pkld99, which99);
+    double rMax = worstRatioVsLimits(true, wrMax, scoreMax, tpdMax, pkldMax, whichMax);
+    logger.write(
+      rpad(name + " closest margin: ", 60) +
+      Global::strprintf(
+        " %.3gx of limit (%s 99%%), %.3gx of limit (%s max)",
+        r99, which99.c_str(), rMax, whichMax.c_str())
     );
   }
 
@@ -604,6 +660,8 @@ bool Tests::runBackendErrorTest(
     nnInputParams.policyOptimism = policyOptimismForTest;
     nnInputParams.playoutDoublingAdvantage = pdaForTest;
     nnInputParams.nnPolicyTemperature = (float)nnPolicyTemperatureForTest;
+    //Featurize per the model's own declared pass-alive computation mode.
+    nnInputParams.passAliveSuicideRulesOverride = nnE->modelPreferPassAliveUnderSuicideRules() ? 1 : 0;
 
     NNResultBuf buf;
     bool skipCache = true;
@@ -724,15 +782,21 @@ bool Tests::runBackendErrorTest(
   {
     GpuErrorStats stats;
     computeStats("fp32 error vs reference", fp32, stats);
-    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.225, 0.45, 0.0006);
+    // 99% score limit is looser than max/4 would give: leadError/scoreMeanError run a touch noisier on
+    // some backends (notably TensorRT, whose "fp32" uses TF32/fused tensor-core GEMMs) on rectangle boards.
+    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.34, 0.45, 0.0006);
     fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStatsMax(1.35, 0.900, 1.35, 0.0012);
+    if(verbose)
+      stats.reportClosestMargin("fp32 error vs reference", logger, 0.45, 0.34, 0.45, 0.0006, 1.35, 0.900, 1.35, 0.0012);
   }
 
   {
     GpuErrorStats stats;
     computeStats("batched fp32 error vs reference", fp32Batched, stats);
-    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.225, 0.45, 0.0006);
+    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.34, 0.45, 0.0006);
     fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStatsMax(1.35, 0.900, 1.35, 0.0012);
+    if(verbose)
+      stats.reportClosestMargin("batched fp32 error vs reference", logger, 0.45, 0.34, 0.45, 0.0006, 1.35, 0.900, 1.35, 0.0012);
   }
 
   if(nnEval32 != nnEval) {
@@ -741,12 +805,16 @@ bool Tests::runBackendErrorTest(
       computeStats("current cfg error vs reference", current, stats);
       success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
       success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
+      if(verbose)
+        stats.reportClosestMargin("current cfg error vs reference", logger, 2.0, 1.00, 2.50, 0.0020, 5.0, 3.00, 6.00, 0.0040);
     }
     {
       GpuErrorStats stats;
       computeStats("batched current cfg error vs reference", currentBatched, stats);
       success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
       success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
+      if(verbose)
+        stats.reportClosestMargin("batched current cfg error vs reference", logger, 2.0, 1.00, 2.50, 0.0020, 5.0, 3.00, 6.00, 0.0040);
     }
   }
 

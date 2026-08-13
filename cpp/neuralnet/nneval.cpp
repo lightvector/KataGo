@@ -95,6 +95,7 @@ NNEvaluator::NNEvaluator(
    maxBatchSize(maxBatchSz),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
+   m_numCacheHits(0),
    bufferMutex(),
    isKilled(false),
    numServerThreadsStartingUp(0),
@@ -299,6 +300,12 @@ bool NNEvaluator::supportsShorttermError() const {
   return modelVersion >= 9;
 }
 
+bool NNEvaluator::modelPreferPassAliveUnderSuicideRules() const {
+  if(loadedModel == NULL)
+    return false;
+  return NeuralNet::getModelDesc(loadedModel).preferPassAliveUnderSuicideRules;
+}
+
 bool NNEvaluator::getDoRandomize() const {
   return currentDoRandomize.load(std::memory_order_acquire);
 }
@@ -329,10 +336,14 @@ uint64_t NNEvaluator::numBatchesProcessed() const {
 double NNEvaluator::averageProcessedBatchSize() const {
   return (double)numRowsProcessed() / (double)numBatchesProcessed();
 }
+uint64_t NNEvaluator::numCacheHits() const {
+  return m_numCacheHits.load(std::memory_order_relaxed);
+}
 
 void NNEvaluator::clearStats() {
   m_numRowsProcessed.store(0);
   m_numBatchesProcessed.store(0);
+  m_numCacheHits.store(0);
 }
 
 void NNEvaluator::clearCache() {
@@ -497,7 +508,9 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   // Empty board of the configured size, default rules/params. Outputs are discarded; we only want
   // the forward passes to trigger graph compilation for every batch size that will be seen.
   Board board(nnXLen, nnYLen);
-  BoardHistory history(board, P_BLACK, Rules::getTrompTaylorish(), 0);
+  //Featurize the way this model expects (a no-op under Tromp-Taylorish rules, but robust if the
+  //warmup rules ever change).
+  BoardHistory history(board, P_BLACK, Rules::getTrompTaylorish(), 0, modelPreferPassAliveUnderSuicideRules());
   MiscNNInputParams nnInputParams;
   SGFMetadata sgfMeta;
   const SGFMetadata* sgfMetaPtr = NULL;
@@ -888,6 +901,7 @@ void NNEvaluator::evaluate(
   if(nnCacheTable != NULL && !skipCache && nnCacheTable->get(nnHash,buf.result)) {
     if(!(includeOwnerMap && buf.result->whiteOwnerMap == NULL))
     {
+      m_numCacheHits.fetch_add(1, std::memory_order_relaxed);
       buf.hasResult = true;
       return;
     }

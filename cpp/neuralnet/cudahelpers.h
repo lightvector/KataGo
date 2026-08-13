@@ -78,10 +78,8 @@ void customCudaApplyRoPELearnableRecompute(
 
 //Convert a [batchSize, seqLen] mask (0/1) into a fully-materialized additive attention bias of shape
 //[batchSize, seqLen, seqLen] suitable for cuDNN SDPA's [B, 1, S, S] bias input:
-//  bias[b, q, k] = (mask[b, k] != 0 ? 0 : -1e4).
-//cuDNN doesn't currently have plans for the [B, 1, 1, S] broadcast-over-q variant for our shape,
-//so we materialize the full bias. Using -1e4 (well within FP16 max ~65504) avoids -inf-minus-inf
-//NaNs in cuDNN's softmax.
+//  bias[b, q, k] = (mask[b, k] != 0 ? 0 : -3e4).
+//See the comment in cudahelpers.cu for why this bias value for the mask.
 void customCudaMaskToAttnBiasFull(const float* mask, float* outBias, int batchSize, int seqLen);
 void customCudaMaskToAttnBiasFull(const half* mask, half* outBias, int batchSize, int seqLen);
 

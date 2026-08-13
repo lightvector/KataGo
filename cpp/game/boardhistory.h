@@ -38,6 +38,13 @@ struct BoardHistory {
   bool whiteHasMoved;
   int overrideNumHandicapStones;
 
+  //If true, all computations of pass-alive area (for game-ending, final scoring, and nn featurization)
+  //are performed as if multi-stone suicide were legal, regardless of rules.multiStoneSuicideLegal.
+  //Actual move legality is NOT affected. Deliberately preserved by clear() - this is a mode applying to
+  //the whole session of usage of this history object rather than per-game state, set only via
+  //setAlwaysComputePassAliveUnderSuicideRules. Default false.
+  bool alwaysComputePassAliveUnderSuicideRules;
+
   static const int NUM_RECENT_BOARDS = 6;
   Board recentBoards[NUM_RECENT_BOARDS];
   int currentRecentBoardIdx;
@@ -104,7 +111,11 @@ struct BoardHistory {
   BoardHistory();
   ~BoardHistory();
 
-  BoardHistory(const Board& board, Player pla, const Rules& rules, int encorePhase);
+  //The alwaysComputePassAliveUnderSuicideRules argument is deliberately required, so that every
+  //construction site makes an explicit choice of the pass-alive computation mode (see field comment).
+  //Pass false for plain legacy behavior, or an appropriately resolved value (e.g. from
+  //Search::resolveAlwaysComputePassAliveUnderSuicideRules or a governing history/book/game).
+  BoardHistory(const Board& board, Player pla, const Rules& rules, int encorePhase, bool alwaysComputePassAliveUnderSuicideRules);
 
   BoardHistory(const BoardHistory& other);
   BoardHistory& operator=(const BoardHistory& other);
@@ -122,6 +133,13 @@ struct BoardHistory {
   void setAssumeMultipleStartingBlackMovesAreHandicap(bool b);
   //Set overrideNumHandicapStones and update bonus points accordingly
   void setOverrideNumHandicapStones(int n);
+  //Set alwaysComputePassAliveUnderSuicideRules. Does not re-adjudicate a game that is already ended
+  //and scored. Changes the result of getSituationRulesAndKoHash - callers responsible for invalidating
+  //anything cached based on that hash (e.g. clearing search).
+  void setAlwaysComputePassAliveUnderSuicideRules(bool b);
+  //The suicide legality that should be passed to Board::calculateArea and calculateIndependentLifeArea
+  //for all pass-alive area computations, taking alwaysComputePassAliveUnderSuicideRules into account.
+  bool suicideLegalForPassAlive() const;
 
   //Returns a copy of this board history rewound to the initial board, pla, etc, with other fields
   //(such as setInitialTurnNumber, setAssumeMultipleStartingBlackMovesAreHandicap) set identically.
@@ -195,6 +213,9 @@ struct BoardHistory {
   static Hash128 getSituationAndSimpleKoAndPrevPosHash(const Board& board, const BoardHistory& hist, Player nextPlayer);
   //Compute a hash that takes into account the full situation, the rules, discretized komi, and any immediate ko prohibitions.
   static Hash128 getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite);
+  //Same, but hashing as if hist.alwaysComputePassAliveUnderSuicideRules had the given value, for callers
+  //(e.g. nn featurization with a per-query override) that use a different value than the history's own.
+  static Hash128 getSituationRulesAndKoHash(const Board& board, const BoardHistory& hist, Player nextPlayer, double drawEquivalentWinsForWhite, bool alwaysComputePassAliveUnderSuicideRules);
 
 private:
   bool koHashOccursInHistory(Hash128 koHash, const KoHashTable* rootKoHashTable) const;
