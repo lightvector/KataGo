@@ -619,7 +619,35 @@ struct ComputeHandle {
       }
 
       int dmlDeviceId = deviceIdxForThread >= 0 ? deviceIdxForThread : 0;
-      Ort::ThrowOnError(dmlApi->SessionOptionsAppendExecutionProvider_DML(sessionOpts, dmlDeviceId));
+      try {
+        Ort::ThrowOnError(dmlApi->SessionOptionsAppendExecutionProvider_DML(sessionOpts, dmlDeviceId));
+      }
+      catch(const std::exception& e) {
+        // SessionOptionsAppendExecutionProvider_DML is where ORT creates the D3D12/DirectML
+        // device. A failure here (too-old DirectML, missing device, driver issue) would otherwise
+        // become a silent fastfail on Windows when it escapes the nn-server thread, so log the
+        // cause and the fix before rethrowing. DMLCreateDevice1 reports an unsupported minimum
+        // feature level as DXGI_ERROR_UNSUPPORTED (0x887A0004) - i.e. a DirectML runtime/driver
+        // too old for feature level 5.0 - and anything else is a different setup problem.
+        string what = string(e.what());
+        string low = Global::toLower(what);
+        bool versionTooOld = low.find("887a0004") != string::npos || low.find("dxgi_error_unsupported") != string::npos;
+        string msg = string("ONNX backend: DirectML init failed: ") + what + ". ";
+        if(versionTooOld) {
+          msg += "DirectML feature level 5.0 (DirectML.dll >= 1.8.0) is unavailable - Windows 10's "
+                 "inbox DirectML is only 1.1.0. Copy Microsoft.AI.DirectML's DirectML.dll"
+                 " next to onnxruntime.dll. Update the GPU driver if it still fails. "
+                 "See https://github.com/lightvector/KataGo/pull/1222#issuecomment-5278419866" ;
+        }
+        else {
+          msg += "Ensure DirectML.dll >= 1.8.0 sits next to onnxruntime.dll, \"onnxDeviceToUse\" is valid "
+                 "or update the GPU driver";
+        }
+        if(logger != NULL)
+          logger->write(msg);
+        cerr << msg << endl;
+        throw;
+      }
       if(logger != NULL)
         logger->write("ONNX backend: DirectML execution provider enabled, device_id=" + Global::intToString(dmlDeviceId));
 #else
