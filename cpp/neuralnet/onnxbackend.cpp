@@ -150,21 +150,14 @@ struct ComputeContext {
   string openvinoDeviceType;
   string openvinoCacheDir;
   // Optional OpenVINO provider options (empty = not passed to ORT)
-  string openvinoPrecision;      // FP16 / FP32 / ACCURACY
-  string openvinoNumStreams;     // 1-8
-  string openvinoNumOfThreads;   // positive int (infer requests per session)
-  string openvinoModelPriority;  // LOW / MEDIUM / HIGH / DEFAULT
+  string openvinoPrecision;   // FP16 / FP32 / ACCURACY (GPU only; the NPU is FP16-only)
+  string openvinoNumStreams;  // 1-8
   bool transformerNHWC;         // run the trunk block stack channel-last (NHWC)
   bool skipScale8;              // skip the scale8 FP16-range workaround (see createComputeContext)
 
   // Per-thread device type (index = serverThreadIdx). Filled with openvinoDeviceType
   // by default, and individual entries are replaced by onnxOpenVINODeviceTypeThread<N>.
   std::vector<std::string> perThreadDeviceType;
-
-  // Per-device-type EP option overrides.
-  // Outer key = short device name ("NPU", "GPU", "CPU").
-  // Inner key = ORT EP option key ("num_streams", "precision", ...).
-  std::unordered_map<std::string, std::unordered_map<std::string, std::string>> deviceConfigOverrides;
 
   ComputeContext(int xLen, int yLen)
     : env(ORT_LOGGING_LEVEL_WARNING, "KataGoOnnx"),
@@ -175,8 +168,6 @@ struct ComputeContext {
       openvinoCacheDir(""),
       openvinoPrecision(""),
       openvinoNumStreams(""),
-      openvinoNumOfThreads(""),
-      openvinoModelPriority(""),
       transformerNHWC(true),
       skipScale8(false)
   {}
@@ -217,8 +208,6 @@ ComputeContext* NeuralNet::createComputeContext(
   ctx->openvinoCacheDir = cfg.contains("onnxOpenVINOCacheDir") ? cfg.getString("onnxOpenVINOCacheDir") : "";
   ctx->openvinoPrecision = cfg.contains("onnxOpenVINOPrecision") ? cfg.getString("onnxOpenVINOPrecision") : "";
   ctx->openvinoNumStreams = cfg.contains("onnxOpenVINONumStreams") ? cfg.getString("onnxOpenVINONumStreams") : "";
-  ctx->openvinoNumOfThreads = cfg.contains("onnxOpenVINONumOfThreads") ? cfg.getString("onnxOpenVINONumOfThreads") : "";
-  ctx->openvinoModelPriority = cfg.contains("onnxOpenVINOModelPriority") ? cfg.getString("onnxOpenVINOModelPriority") : "";
 
   // useFP16 = false is an explicit request for full FP32 on every other backend. The only
   // provider here that downcasts an fp32 graph by default is OpenVINO (GPU/NPU run FP16
@@ -264,27 +253,19 @@ ComputeContext* NeuralNet::createComputeContext(
     }
   }
 
-  // --- Per-device-type EP option overrides ---
-  // onnxOpenVINODeviceConfig_<Device>_<OptionSuffix> = value
-  // e.g. onnxOpenVINODeviceConfig_NPU_NumStreams = 4
-  //         maps to deviceConfigOverrides["NPU"]["num_streams"] = "4"
-  {
-    static const char* knownDevices[] = {"NPU", "GPU", "CPU"};
-    struct OptMapping { const char* cfgSuffix; const char* ortKey; };
-    static const OptMapping epOptMappings[] = {
-      {"NumStreams",    "num_streams"},
-      {"Precision",     "precision"},
-      {"NumOfThreads",  "num_of_threads"},
-      {"ModelPriority", "model_priority"},
-      {"CacheDir",      "cache_dir"},
-    };
-    for(const char* dev : knownDevices) {
-      string devPrefix = string("onnxOpenVINODeviceConfig_") + dev + "_";
-      for(const auto& m : epOptMappings) {
-        string key = devPrefix + m.cfgSuffix;
-        if(cfg.contains(key))
-          ctx->deviceConfigOverrides[dev][m.ortKey] = cfg.getString(key);
-      }
+  // The OpenVINO provider is only used for GPU/NPU acceleration here: for CPU inference
+  // the plain cpu provider (or the Eigen backend) is the right tool, so reject a CPU
+  // device_type outright. Composite device strings may still list CPU (e.g. AUTO:GPU,CPU)
+  // as an OpenVINO-internal fallback; only the bare CPU device is rejected.
+  if(ctx->providerName == "openvino") {
+    for(int t = 0; t < (int)ctx->perThreadDeviceType.size(); t++) {
+      string dev = ctx->perThreadDeviceType[t];
+      Global::trim(dev);
+      if(dev == "CPU")
+        throw StringError(
+          "ONNX backend: OpenVINO provider with device_type = CPU is not supported. "
+          "For CPU inference use onnxProvider = cpu (or the Eigen backend); the OpenVINO "
+          "provider is for GPU/NPU acceleration only.");
     }
   }
 
@@ -344,13 +325,6 @@ static std::vector<std::string> parseDeviceNames(const std::string& deviceType) 
       names.push_back(name);
   }
   return names;
-}
-
-// Short device name used to match onnxOpenVINODeviceConfig_<Device>_<Option> keys. A composite
-// device string matches on the first device it lists.
-static std::string extractShortDeviceName(const std::string& deviceType) {
-  std::vector<std::string> names = parseDeviceNames(deviceType);
-  return names.empty() ? std::string() : names[0];
 }
 
 //--------------------------------------------------------------
@@ -501,23 +475,6 @@ struct ComputeHandle {
       if(serverThreadIdx >= 0 && serverThreadIdx < (int)ctx->perThreadDeviceType.size())
         threadDeviceType = ctx->perThreadDeviceType[serverThreadIdx];
 
-      // --- Look up per-device-type EP option overrides ---
-      string shortDev = extractShortDeviceName(threadDeviceType);
-      const std::unordered_map<std::string, std::string>* devOverrides = nullptr;
-      {
-        auto it = ctx->deviceConfigOverrides.find(shortDev);
-        if(it != ctx->deviceConfigOverrides.end())
-          devOverrides = &it->second;
-      }
-      auto resolveOpt = [&](const char* ortKey, const std::string& globalVal) -> std::string {
-        if(devOverrides) {
-          auto it = devOverrides->find(ortKey);
-          if(it != devOverrides->end())
-            return it->second;
-        }
-        return globalVal;
-      };
-
       // --- Build EP option map ---
       std::unordered_map<std::string, std::string> openvinoOpts;
 
@@ -537,23 +494,20 @@ struct ComputeHandle {
           "Select the device explicitly in onnxOpenVINODeviceType or the per-thread onnxOpenVINODeviceTypeThread<N> override.");
       openvinoOpts["device_type"] = deviceType;
 
-      auto setIfNotEmpty = [&](const char* ortKey, const std::string& globalVal) {
-        std::string val = resolveOpt(ortKey, globalVal);
+      auto setIfNotEmpty = [&](const char* ortKey, const std::string& val) {
         if(!val.empty())
           openvinoOpts[ortKey] = val;
       };
-      setIfNotEmpty("cache_dir",      ctx->openvinoCacheDir);
-      setIfNotEmpty("precision",      ctx->openvinoPrecision);
-      setIfNotEmpty("num_streams",    ctx->openvinoNumStreams);
-      setIfNotEmpty("num_of_threads", ctx->openvinoNumOfThreads);
-      setIfNotEmpty("model_priority", ctx->openvinoModelPriority);
+      setIfNotEmpty("cache_dir",   ctx->openvinoCacheDir);
+      setIfNotEmpty("precision",   ctx->openvinoPrecision);
+      setIfNotEmpty("num_streams", ctx->openvinoNumStreams);
 
-      // Some ORT OpenVINO builds reject optional keys (cache_dir, precision, num_streams,
-      // num_of_threads, model_priority). Retry with only the core device keys if optional keys
-      // are rejected, so that setting onnxOpenVINOCacheDir on an EP that doesn't support it
-      // degrades gracefully instead of crashing.
+      // Some ORT OpenVINO builds reject optional keys (cache_dir, precision, num_streams).
+      // Retry with only the core device keys if optional keys are rejected, so that setting
+      // onnxOpenVINOCacheDir on an EP that doesn't support it degrades gracefully instead of
+      // crashing.
       static const char* optionalKeys[] = {
-        "cache_dir", "precision", "num_streams", "num_of_threads", "model_priority"
+        "cache_dir", "precision", "num_streams"
       };
       try {
         sessionOpts.AppendExecutionProvider_OpenVINO_V2(openvinoOpts);
@@ -1160,7 +1114,7 @@ void NeuralNet::printDevices() {
   cout << "Set onnxProvider (e.g. 'openvino') plus provider-specific options in the config." << endl;
   cout << endl;
   cout << "OpenVINO provider options:" << endl;
-  cout << "  onnxOpenVINODeviceType = GPU            (default; CPU, GPU, NPU, GPU.0, GPU.1, etc.)" << endl;
+  cout << "  onnxOpenVINODeviceType = GPU            (default; GPU, NPU, GPU.0, GPU.1, etc.)" << endl;
   cout << "  Also supports OpenVINO multi-device strings:" << endl;
   cout << "    AUTO:GPU,CPU  MULTI:GPU,NPU  HETERO:GPU,CPU" << endl;
   cout << endl;
@@ -1168,9 +1122,10 @@ void NeuralNet::printDevices() {
   cout << "    onnxOpenVINODeviceTypeThread0 = NPU" << endl;
   cout << "    onnxOpenVINODeviceTypeThread1 = GPU" << endl;
   cout << endl;
-  cout << "  Per-device-type provider tuning (optional):" << endl;
-  cout << "    onnxOpenVINODeviceConfig_NPU_NumStreams = 4" << endl;
-  cout << "    onnxOpenVINODeviceConfig_GPU_NumStreams = 2" << endl;
+  cout << "  Optional tuning:" << endl;
+  cout << "    onnxOpenVINOCacheDir = katago_ov_cache" << endl;
+  cout << "    onnxOpenVINOPrecision = FP16" << endl;
+  cout << "    onnxOpenVINONumStreams = 2" << endl;
 }
 
 //--------------------------------------------------------------
