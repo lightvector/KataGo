@@ -30,6 +30,10 @@ inputs:
     description: OpenVINO toolkit download URL (from-source/openvino only)
     required: false
     default: ""
+  dml_version:
+    description: Microsoft.AI.DirectML redistributable version providing DirectML.dll (nuget/directml only)
+    required: false
+    default: "1.15.4"
   pb_version:
     description: protobuf version built for KataGo (3.x, no abseil dependency)
     required: false
@@ -173,6 +177,24 @@ runs:
         Copy-Item "$src\runtimes\win-x64\native\onnxruntime.lib" "$root\lib" -Force
         Get-ChildItem "$src\runtimes\win-x64\native\*.dll" | Copy-Item -Destination "$root\lib" -Force
         Get-ChildItem "$root\lib\*.dll" | Copy-Item -Destination "$root\bin" -Force
+
+    # NOTE: like the OpenVINO fetch below, this runs even on an ORT cache hit. DirectML.dll
+    # comes from the Microsoft.AI.DirectML redistributable (a dependency of the ORT DirectML
+    # package), not from deps/install/ort, so a cache-hit run would otherwise stage an artifact
+    # with no DirectML.dll in it - exactly the Windows 10 failure that orphaned DirectML.dll
+    # causes. DirectML.dll is delay-loaded by ORT, so it must sit next to onnxruntime.dll.
+    - name: Fetch DirectML runtime (Windows)
+      if: inputs.mode == 'nuget' && runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $src = "$env:RUNNER_TEMP\dmlrt"
+        New-Item -ItemType Directory -Force -Path "$src" | Out-Null
+        curl.exe -sfL -o "$src\dml.nupkg" "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/${{ inputs.dml_version }}/microsoft.ai.directml.${{ inputs.dml_version }}.nupkg"
+        tar -xzf "$src\dml.nupkg" -C "$src"
+        $dll = "$src\bin\x64-win\DirectML.dll"
+        if (-not (Test-Path $dll)) { throw "bin/x64-win/DirectML.dll not found in Microsoft.AI.DirectML ${{ inputs.dml_version }}" }
+        New-Item -ItemType Directory -Force -Path "deps\directml" | Out-Null
+        Copy-Item $dll "deps\directml\DirectML.dll" -Force
 
     # --- from-source: build ORT ourselves with the requested EP ---
     - name: Checkout ONNX Runtime source

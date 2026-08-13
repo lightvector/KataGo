@@ -131,6 +131,16 @@ runs:
           $tbb = Get-ChildItem "deps\openvino" -Recurse -Filter "tbb12.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($tbb) { Copy-Item $tbb.FullName "release\" }
         }
+        # DirectML.dll is delay-loaded by ORT and is NOT inside onnxruntime.dll, so it must be
+        # shipped next to it or the DirectML provider cannot initialize (Windows 10's inbox
+        # DirectML is too old; the app-local copy from Microsoft.AI.DirectML overrides it).
+        if ("${{ inputs.ep }}" -eq "directml") {
+          if (Test-Path "deps\directml\DirectML.dll") {
+            Copy-Item "deps\directml\DirectML.dll" "release\"
+          } else {
+            Write-Warning "DirectML.dll not found at deps\directml\DirectML.dll"
+          }
+        }
         Copy-Item "cpp\configs\gtp_example.cfg" "release\"
         Write-Output "--- release contents ---"
         Get-ChildItem "release" | Select-Object Name, Length
