@@ -99,9 +99,10 @@ void customCudaSwiGLU(const float* a, const float* b, float* out, int size);
 void customCudaSwiGLU(const half* a, const half* b, half* out, int size);
 
 //Convert mask [batchSize, seqLen] (0/1) into a fully-materialized additive attention bias of shape
-//[batchSize, seqLen, seqLen]: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -1e4). Used to feed KataGo's mask
+//[batchSize, seqLen, seqLen]: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -3e4). Used to feed KataGo's mask
 //into the CK FMHA fused attention path, which (unlike the plain kernel) needs the bias
 //pre-materialized rather than taking the raw per-position mask directly.
+//See the comment in rocmhelpers.hip for why this bias value for the mask.
 void customCudaMaskToAttnBiasFull(const float* mask, float* outBias, int batchSize, int seqLen);
 void customCudaMaskToAttnBiasFull(const half* mask, half* outBias, int batchSize, int seqLen);
 

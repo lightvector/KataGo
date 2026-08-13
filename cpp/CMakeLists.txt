@@ -66,9 +66,19 @@ function(katago_find_rocm_prefix out_var)
       endif()
     endforeach()
     if(_versioned)
-      list(SORT _versioned COMPARE NATURAL ORDER DESCENDING)
-      list(GET _versioned 0 _best)
-      string(REGEX REPLACE "^[^|]*\\|" "" _result "${_best}")
+      # Compare the version fields with real version semantics ("7.*" > "7"), not the raw
+      # "ver|path" strings - a plain string sort would rank the major-only "core-7" symlink
+      # above the real "core-7.*" dir ('.' < '|'), silently re-selecting the repointable
+      # alternatives symlink this function exists to avoid.
+      set(_best_ver "")
+      foreach(_entry ${_versioned})
+        string(REGEX REPLACE "\\|.*$" "" _ver "${_entry}")
+        string(REGEX REPLACE "^[^|]*\\|" "" _dir "${_entry}")
+        if(_best_ver STREQUAL "" OR _ver VERSION_GREATER _best_ver)
+          set(_best_ver "${_ver}")
+          set(_result "${_dir}")
+        endif()
+      endforeach()
     endif()
   endif()
   if(_result STREQUAL "" AND EXISTS "/opt/rocm")

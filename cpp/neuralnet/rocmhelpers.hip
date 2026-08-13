@@ -2566,7 +2566,13 @@ void customCudaFlashAttention(
 
 //--------------------------------------------------------------------------------------------------------------
 // Convert mask [batchSize, seqLen] (0/1) into a fully-materialized additive attention bias of shape
-// [batchSize, seqLen, seqLen]: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -1e4).
+// [batchSize, seqLen, seqLen]: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -3e4).
+// Note: the q dim is fully replicated since the mask only depends on k.
+//
+// The constant must be a large finite negative to avoid any chance of misbehavior in the fused
+// attention softmax, and it must fit in fp16 (max ~65504) since the bias tensor's dtype must match
+// Q/K/V's. We use -3e4, the largest round value that leaves fp16 headroom for the model's own
+// logits on top. Measured logit magnitudes on real models as of mid-2026 are < ~500.
 
 __global__
 void maskToAttnBiasFullKernel(const float* mask, float* outBias, int seqLen) {
@@ -2576,7 +2582,7 @@ void maskToAttnBiasFullKernel(const float* mask, float* outBias, int seqLen) {
   if(k >= seqLen)
     return;
   float m = mask[b * seqLen + k];
-  outBias[((size_t)b * seqLen + q) * seqLen + k] = (m != 0.0f) ? 0.0f : -1e4f;
+  outBias[((size_t)b * seqLen + q) * seqLen + k] = (m != 0.0f) ? 0.0f : -3e4f;
 }
 
 __global__
@@ -2588,7 +2594,7 @@ void maskToAttnBiasFullHalfKernel(const half* mask, half* outBias, int seqLen) {
   if(k >= seqLen)
     return;
   float m = __half2float(mask[b * seqLen + k]);
-  outBias[((size_t)b * seqLen + q) * seqLen + k] = __float2half((m != 0.0f) ? 0.0f : -1e4f);
+  outBias[((size_t)b * seqLen + q) * seqLen + k] = __float2half((m != 0.0f) ? 0.0f : -3e4f);
 #endif
 }
 
