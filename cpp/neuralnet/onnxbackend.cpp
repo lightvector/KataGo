@@ -173,6 +173,8 @@ struct ComputeContext {
   {}
 };
 
+static std::vector<std::string> parseDeviceNames(const std::string& deviceType);
+
 ComputeContext* NeuralNet::createComputeContext(
   const std::vector<int>& gpuIdxs,
   Logger* logger,
@@ -253,19 +255,44 @@ ComputeContext* NeuralNet::createComputeContext(
     }
   }
 
-  // The OpenVINO provider is only used for GPU/NPU acceleration here: for CPU inference
-  // the plain cpu provider (or the Eigen backend) is the right tool, so reject a CPU
-  // device_type outright. Composite device strings may still list CPU (e.g. AUTO:GPU,CPU)
-  // as an OpenVINO-internal fallback; only the bare CPU device is rejected.
+  // The OpenVINO provider is only used for GPU/NPU acceleration here. For CPU inference the
+  // plain cpu provider (or the Eigen backend) is the right tool, so reject any device string
+  // that resolves to CPU alone (CPU, cpu, CPU.0, AUTO:CPU, ...). Composite strings that also
+  // list a non-CPU device (e.g. AUTO:GPU,CPU) keep CPU only as an OpenVINO-internal fallback
+  // and are allowed.
   if(ctx->providerName == "openvino") {
     for(int t = 0; t < (int)ctx->perThreadDeviceType.size(); t++) {
-      string dev = ctx->perThreadDeviceType[t];
-      Global::trim(dev);
-      if(dev == "CPU")
+      std::vector<std::string> deviceNames = parseDeviceNames(ctx->perThreadDeviceType[t]);
+      bool allCpu = !deviceNames.empty();
+      for(const std::string& name : deviceNames) {
+        if(name != "CPU")
+          allCpu = false;
+      }
+      if(allCpu)
         throw StringError(
-          "ONNX backend: OpenVINO provider with device_type = CPU is not supported. "
-          "For CPU inference use onnxProvider = cpu (or the Eigen backend); the OpenVINO "
-          "provider is for GPU/NPU acceleration only.");
+          "ONNX backend: OpenVINO provider with device_type = " + ctx->perThreadDeviceType[t] +
+          " is not supported. For CPU inference use onnxProvider = cpu (or the Eigen backend); "
+          "the OpenVINO provider is for GPU/NPU acceleration only.");
+    }
+  }
+
+  // The NPU runs FP16 only, so an FP32 request (useFP16 = false, or an explicit
+  // onnxOpenVINOPrecision = FP32) cannot be honored on an NPU-only device. Fail loudly like
+  // other backends do for impossible precision requests, rather than letting the EP quietly
+  // run FP16 anyway. Mixed composite strings (e.g. AUTO:GPU,NPU) are left to the EP.
+  if(ctx->providerName == "openvino" && Global::toUpper(Global::trim(ctx->openvinoPrecision)) == "FP32") {
+    for(int t = 0; t < (int)ctx->perThreadDeviceType.size(); t++) {
+      std::vector<std::string> deviceNames = parseDeviceNames(ctx->perThreadDeviceType[t]);
+      bool allNpu = !deviceNames.empty();
+      for(const std::string& name : deviceNames) {
+        if(name != "NPU")
+          allNpu = false;
+      }
+      if(allNpu)
+        throw StringError(
+          "ONNX backend: FP32 precision was requested (useFP16 = false or onnxOpenVINOPrecision = FP32) "
+          "but device_type " + ctx->perThreadDeviceType[t] + " is an NPU, which only supports FP16 "
+          "inference. Unset useFP16 and onnxOpenVINOPrecision, or use a GPU device for this thread.");
     }
   }
 
@@ -464,10 +491,10 @@ struct ComputeHandle {
         logger->write("ONNX backend: MIGraphX execution provider enabled, device_id=" + Global::intToString((int)migraphxOpts.device_id));
     }
     else if(provider == "openvino") {
-      // The OpenVINO EP runs the graph nodes itself and manages its own inference threads via the
-      // num_of_threads provider option, leaving ORT's intra-op pool with only the few EP-external
-      // nodes. With one ORT session per nn-server thread, leaving the default intra-op thread count
-      // would oversubscribe the CPU with N x M worker pools. Pin it to 1 for this provider only.
+      // The OpenVINO EP runs the graph nodes itself with its own internal threading, leaving
+      // ORT's intra-op pool with only the few EP-external nodes. With one ORT session per
+      // nn-server thread, leaving the default intra-op thread count would oversubscribe the
+      // CPU with N x M worker pools. Pin it to 1 for this provider only.
       sessionOpts.SetIntraOpNumThreads(1);
 
       // --- Determine this thread's device_type ---
@@ -502,41 +529,58 @@ struct ComputeHandle {
       setIfNotEmpty("precision",   ctx->openvinoPrecision);
       setIfNotEmpty("num_streams", ctx->openvinoNumStreams);
 
-      // Some ORT OpenVINO builds reject optional keys (cache_dir, precision, num_streams).
-      // Retry with only the core device keys if optional keys are rejected, so that setting
-      // onnxOpenVINOCacheDir on an EP that doesn't support it degrades gracefully instead of
-      // crashing.
-      static const char* optionalKeys[] = {
-        "cache_dir", "precision", "num_streams"
+      // Some ORT OpenVINO builds reject optional keys. cache_dir and num_streams are
+      // tuning-only, so if the EP rejects the option set, retry without them and degrade
+      // gracefully. precision is never dropped: silently discarding a precision request
+      // (useFP16 = false or onnxOpenVINOPrecision) could run the net at a different precision
+      // than the user demanded, so a rejection with precision set stays fatal.
+      static const char* droppableKeys[] = {
+        "cache_dir", "num_streams"
+      };
+      // Wraps a final, non-retryable rejection. If a precision request is in play, explain why
+      // it was deliberately not dropped, since the EP's own error may be opaque. Only valid to
+      // call while handling an exception (the bare throw rethrows the current one).
+      auto throwFinalError = [&openvinoOpts](const Ort::Exception& err) {
+        if(openvinoOpts.count("precision") > 0)
+          throw StringError(
+            string("ONNX backend: OpenVINO provider rejected its options. The precision option "
+            "was kept because it was requested via useFP16 or onnxOpenVINOPrecision, and this "
+            "EP or device may not support it. Error: ") + err.what());
+        throw;
       };
       try {
         sessionOpts.AppendExecutionProvider_OpenVINO_V2(openvinoOpts);
       }
       catch(const Ort::Exception& e) {
-        bool hadOptionalKeys = false;
-        for(const char* k : optionalKeys) {
+        bool hadDroppableKeys = false;
+        for(const char* k : droppableKeys) {
           if(openvinoOpts.count(k) > 0) {
-            hadOptionalKeys = true;
+            hadDroppableKeys = true;
             break;
           }
         }
-        if(!hadOptionalKeys)
-          throw;
+        if(!hadDroppableKeys)
+          throwFinalError(e);
 
         if(logger != NULL) {
           logger->write(
-            string("ONNX backend: OpenVINO optional provider options rejected, retrying without optional keys. Error: ") +
+            string("ONNX backend: OpenVINO provider options rejected, retrying without cache_dir/num_streams. Error: ") +
             e.what()
           );
         }
-        for(const char* k : optionalKeys)
+        for(const char* k : droppableKeys)
           openvinoOpts.erase(k);
-        sessionOpts.AppendExecutionProvider_OpenVINO_V2(openvinoOpts);
+        try {
+          sessionOpts.AppendExecutionProvider_OpenVINO_V2(openvinoOpts);
+        }
+        catch(const Ort::Exception& e2) {
+          throwFinalError(e2);
+        }
       }
 
       if(logger != NULL) {
         string extras;
-        for(const char* k : optionalKeys) {
+        for(const char* k : {"cache_dir", "precision", "num_streams"}) {
           if(openvinoOpts.count(k) > 0)
             extras += string(", ") + k + "=" + openvinoOpts[k];
         }
@@ -589,13 +633,13 @@ struct ComputeHandle {
         string msg = string("ONNX backend: DirectML init failed: ") + what + ". ";
         if(versionTooOld) {
           msg += "DirectML feature level 5.0 (DirectML.dll >= 1.8.0) is unavailable - Windows 10's "
-                 "inbox DirectML is only 1.1.0. Copy Microsoft.AI.DirectML's DirectML.dll"
-                 " next to onnxruntime.dll. Update the GPU driver if it still fails. "
-                 "See https://github.com/lightvector/KataGo/pull/1222#issuecomment-5278419866" ;
+                 "inbox DirectML is only 1.1.0. Copy Microsoft.AI.DirectML's DirectML.dll "
+                 "next to onnxruntime.dll. Update the GPU driver if it still fails. "
+                 "See https://github.com/lightvector/KataGo/pull/1222#issuecomment-5278419866";
         }
         else {
-          msg += "Ensure DirectML.dll >= 1.8.0 sits next to onnxruntime.dll, \"onnxDeviceToUse\" is valid "
-                 "or update the GPU driver";
+          msg += "Check that DirectML.dll >= 1.8.0 sits next to onnxruntime.dll and that "
+                 "onnxDeviceToUse selects a valid device, or update the GPU driver.";
         }
         if(logger != NULL)
           logger->write(msg);

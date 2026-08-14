@@ -138,7 +138,7 @@ runs:
           if (Test-Path "deps\directml\DirectML.dll") {
             Copy-Item "deps\directml\DirectML.dll" "release\"
           } else {
-            Write-Warning "DirectML.dll not found at deps\directml\DirectML.dll"
+            throw "DirectML.dll not found at deps\directml\DirectML.dll - the artifact would fail DirectML init on Windows 10"
           }
         }
         Copy-Item "cpp\configs\gtp_example.cfg" "release\"

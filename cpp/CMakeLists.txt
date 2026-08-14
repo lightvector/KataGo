@@ -1233,7 +1233,9 @@ elseif(USE_BACKEND STREQUAL "ROCM")
                    PATH_SUFFIXES lib bin)
     else()
       # Linux: search the resolved prefix, then the ROCm env vars, then /opt/rocm. The env vars
-      # matter for ROCm installs outside /opt/rocm, which katago_find_rocm_prefix cannot find.
+      # are only a last-resort hint here. A ROCm fully outside /opt/rocm generally still needs
+      # CMAKE_PREFIX_PATH, since the compiler and package resolution earlier in the configure
+      # does not consult these env vars.
       find_path(HIP_INCLUDE_DIR hip/hip_runtime.h
                 HINTS ${CMAKE_PREFIX_PATH} ENV ROCM_PATH ENV HIP_PATH /opt/rocm
                 PATH_SUFFIXES include)

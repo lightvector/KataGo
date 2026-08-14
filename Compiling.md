@@ -255,7 +255,7 @@ Set `onnxProvider` in your config to choose the execution provider:
 | `cuda` | Lightly tested (Linux) | Windows / Linux | official prebuilt GPU package (`gpu_cuda12`), or built with `--use_cuda` | CUDA, cuDNN 9 |
 | `tensorrt` | Lightly tested (Linux) | Windows / Linux | official prebuilt GPU package (`gpu_cuda12`), or built with `--use_tensorrt` | CUDA, TensorRT 10 |
 | `migraphx` | Untested | Linux (AMD) | built from source with `--use_migraphx` | MIGraphX |
-| `directml` | Untested | Windows | Microsoft.ML.OnnxRuntime.DirectML package | DirectML |
+| `directml` | Tested (Windows) | Windows | Microsoft.ML.OnnxRuntime.DirectML package | DirectML |
 | `coreml` | Not working yet | macOS | built from source with `--use_coreml` | CoreML |
 
 "Tested" means KataGo's neural net tests give correct results with this provider. "Lightly tested" means correctness was checked but performance was not. "Untested" providers are implemented but have never been run - if you try one, sanity-check its results, for example against the `cpu` provider. The `directml` provider may also be slow, because it prefers fixed tensor sizes while KataGo's search varies its batch size.
@@ -281,6 +281,7 @@ Set `onnxProvider` in your config to choose the execution provider:
 ### Runtime
    * The `onnxruntime` shared library must be next to the executable or on your library path.
    * For the OpenVINO provider, the OpenVINO runtime DLLs (`openvino.dll`, `openvino_intel_gpu_plugin.dll`, `tbb12.dll`, `cache.json`, etc.) must also be next to the executable or on the system path.
+   * For the DirectML provider, `DirectML.dll` 1.8.0 or newer (from the Microsoft.AI.DirectML package) must be next to `onnxruntime.dll`. Without it, Windows 10 falls back to its much older inbox DirectML and the provider fails at startup.
    * Choose the provider and its options with the `onnx*` keys in your config, e.g. `onnxProvider = openvino` and `onnxOpenVINODeviceType = GPU`. The ONNX section of `configs/gtp_example.cfg` documents all the options.
 
 ### Working with .onnx files

@@ -31,7 +31,10 @@ inputs:
     required: false
     default: ""
   dml_version:
-    description: Microsoft.AI.DirectML redistributable version providing DirectML.dll (nuget/directml only)
+    description: >-
+      Microsoft.AI.DirectML redistributable version providing DirectML.dll (directml only).
+      Must satisfy the DirectML dependency declared by the Microsoft.ML.OnnxRuntime.DirectML
+      package for ort_version, so check it when bumping ort_version.
     required: false
     default: "1.15.4"
   pb_version:
@@ -184,13 +187,15 @@ runs:
     # with no DirectML.dll in it - exactly the Windows 10 failure that orphaned DirectML.dll
     # causes. DirectML.dll is delay-loaded by ORT, so it must sit next to onnxruntime.dll.
     - name: Fetch DirectML runtime (Windows)
-      if: inputs.mode == 'nuget' && runner.os == 'Windows'
+      if: inputs.ep == 'directml' && runner.os == 'Windows'
       shell: pwsh
       run: |
         $src = "$env:RUNNER_TEMP\dmlrt"
         New-Item -ItemType Directory -Force -Path "$src" | Out-Null
-        curl.exe -sfL -o "$src\dml.nupkg" "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/${{ inputs.dml_version }}/microsoft.ai.directml.${{ inputs.dml_version }}.nupkg"
+        curl.exe -sfSL -o "$src\dml.nupkg" "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/${{ inputs.dml_version }}/microsoft.ai.directml.${{ inputs.dml_version }}.nupkg"
+        if ($LASTEXITCODE -ne 0) { throw "Download of Microsoft.AI.DirectML ${{ inputs.dml_version }} failed (curl exit $LASTEXITCODE)" }
         tar -xzf "$src\dml.nupkg" -C "$src"
+        if ($LASTEXITCODE -ne 0) { throw "Extraction of Microsoft.AI.DirectML ${{ inputs.dml_version }} failed (tar exit $LASTEXITCODE)" }
         $dll = "$src\bin\x64-win\DirectML.dll"
         if (-not (Test-Path $dll)) { throw "bin/x64-win/DirectML.dll not found in Microsoft.AI.DirectML ${{ inputs.dml_version }}" }
         New-Item -ItemType Directory -Force -Path "deps\directml" | Out-Null
