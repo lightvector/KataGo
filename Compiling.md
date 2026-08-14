@@ -67,7 +67,13 @@ As also mentioned in the instructions below but repeated here for visibility, if
         No `-DCMAKE_PREFIX_PATH` is needed in the common case: the build auto-detects the ROCm
         install location, preferring the newer `/opt/rocm/core-<version>/` layout used since
         ROCm ~7.9 (picking the highest version present) and falling back to the older flat
-        `/opt/rocm/` layout. Pass `-DCMAKE_PREFIX_PATH=...` explicitly to override.
+        `/opt/rocm/` layout. Pass `-DCMAKE_PREFIX_PATH=...` explicitly to override - this is what to
+        use if your ROCm lives somewhere else entirely. It should name the install **prefix**, i.e.
+        the directory containing `include/hip/hip_runtime.h`, not a subdirectory of it.
+      * Always configure in a clean build directory. A `CMakeCache.txt` left over from an earlier
+        configure (especially one for a different backend) suppresses the automatic selection of
+        `hipcc` and of the GPU architecture list, which otherwise shows up as strange compile errors
+        like `unrecognized command-line option '-Xarch_host'`.
       * GPU architecture: by default the build targets a broad set of AMD GPU architectures
         (Vega 20, CDNA, and all RDNA generations) in a single "fat" binary, probing the installed compiler for
         which ones it actually supports, so the resulting `katago` runs on more than just the

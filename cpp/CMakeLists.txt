@@ -1232,12 +1232,13 @@ elseif(USE_BACKEND STREQUAL "ROCM")
                    HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
                    PATH_SUFFIXES lib bin)
     else()
-      # Linux: Search in /opt/rocm
+      # Linux: search the resolved prefix, then the ROCm env vars, then /opt/rocm. The env vars
+      # matter for ROCm installs outside /opt/rocm, which katago_find_rocm_prefix cannot find.
       find_path(HIP_INCLUDE_DIR hip/hip_runtime.h
-                HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
+                HINTS ${CMAKE_PREFIX_PATH} ENV ROCM_PATH ENV HIP_PATH /opt/rocm
                 PATH_SUFFIXES include)
       find_library(HIP_RUNTIME_LIB amdhip64
-                   HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
+                   HINTS ${CMAKE_PREFIX_PATH} ENV ROCM_PATH ENV HIP_PATH /opt/rocm
                    PATH_SUFFIXES lib lib64)
     endif()
     
@@ -1281,7 +1282,7 @@ elseif(USE_BACKEND STREQUAL "ROCM")
         endif()
         find_library(${_pkg}_LIB
                      NAMES ${_lib_names}
-                     HINTS ${CMAKE_PREFIX_PATH} /opt/rocm
+                     HINTS ${CMAKE_PREFIX_PATH} ENV ROCM_PATH ENV HIP_PATH /opt/rocm
                      PATH_SUFFIXES lib lib64)
       endif()
       
