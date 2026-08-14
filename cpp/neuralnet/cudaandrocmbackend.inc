@@ -343,21 +343,6 @@ static bool isCkFmhaSupportedArch(const hipDeviceProp_t& prop) {
     arch.compare(0, 5, "gfx94") == 0 || arch.compare(0, 5, "gfx95") == 0 ||
     arch.compare(0, 5, "gfx11") == 0 || arch.compare(0, 5, "gfx12") == 0;
 }
-
-// Archs where MIOpen's NHWC FP16 convolutions (MFMA implicit GEMM) are known faster than NCHW,
-// so NHWC mode "Auto" should enable NHWC when using FP16 - the analog of the CUDA backend
-// enabling NHWC on tensor-core (Volta+) GPUs. Currently the CDNA/MFMA family only, where NHWC
-// measured substantially faster on convnets. RDNA (WMMA) is unmeasured rather than known
-// slower. Extend this list if NHWC measures faster there too, testable via rocmUseNHWC=true.
-static bool isNhwcFp16PreferredArch(const hipDeviceProp_t& prop) {
-  std::string arch(prop.gcnArchName);
-  size_t colonPos = arch.find(':');
-  if(colonPos != std::string::npos)
-    arch = arch.substr(0, colonPos);
-  return
-    arch == "gfx908" || arch == "gfx90a" ||
-    arch.compare(0, 5, "gfx94") == 0 || arch.compare(0, 5, "gfx95") == 0;
-}
 #endif
 
 
@@ -466,6 +451,9 @@ struct CudaHandles {
   // the attempt (and its attention-bias materialization) entirely. Only touched by the single
   // server thread that owns this handle, hence no synchronization.
   bool fusedAttentionRuntimeDisabled;
+  // Controls whether 1x1 NHWC convs run as a hipBLAS GEMM (vs MIOpen). Auto = matmul iff FP16.
+  // True/False force the choice regardless of precision.
+  enabled_t use1x1MatmulMode;
 
   CudaHandles(int major, int minor, Logger* logger_, bool ckFmhaArchSupported_, bool disableFusedAttention_)
     : majorComputeCapability(major),
@@ -473,7 +461,8 @@ struct CudaHandles {
       logger(logger_),
       ckFmhaArchSupported(ckFmhaArchSupported_),
       disableFusedAttention(disableFusedAttention_),
-      fusedAttentionRuntimeDisabled(false)
+      fusedAttentionRuntimeDisabled(false),
+      use1x1MatmulMode(enabled_t::Auto)
   {
   }
 
@@ -1026,6 +1015,23 @@ struct ConvLayer {
   OwnedDesc<miopenConvolutionDescriptor_t, miopenDestroyConvolutionDescriptor> convolutionDescriptor;
   std::unique_ptr<ByBatchSize<miopenConvSolution_t>> convolutionAlgorithms; //array of one for each batch size
   OwnedDeviceBuf filterBuf;
+  // A 1x1 conv is equivalent to a matmul. When use1x1Matmul is set we run it as a hipBLAS GEMM over
+  // batch*spatial tokens and build NO MIOpen objects. This is the default for 1x1 NHWC FP16 convs
+  // (see rocmUse1x1Matmul). matmulWeightBuf is [inC, outC] column-major (hipBLAS order);
+  // matmulSpatialSize is the spatial length.
+  bool use1x1Matmul;
+  int matmulSpatialSize;
+  OwnedDeviceBuf matmulWeightBuf;
+  // When MIOpen can only offer its naive direct-conv fallback for an NHWC conv (weak NHWC solver
+  // coverage), we instead re-express the conv as NCHW at runtime: transpose input, run the NCHW
+  // conv, transpose output back. Only ever set for NHWC-in/out convs.
+  bool useNchwFallback;
+  ByBatchSizeView<miopenTensorDescriptor_t> nchwInputDescriptors;
+  ByBatchSizeView<miopenTensorDescriptor_t> nchwOutputDescriptors;
+  OwnedDesc<miopenTensorDescriptor_t, miopenDestroyTensorDescriptor> nchwFilterDescriptor;
+  OwnedDesc<miopenConvolutionDescriptor_t, miopenDestroyConvolutionDescriptor> nchwConvolutionDescriptor;
+  std::unique_ptr<ByBatchSize<miopenConvSolution_t>> nchwConvolutionAlgorithms;
+  OwnedDeviceBuf nchwFilterBuf;
 
   ConvLayer() = delete;
   ConvLayer(const ConvLayer&) = delete;
@@ -1066,10 +1072,101 @@ struct ConvLayer {
     testAssert(convXSize % 2 == 1);
     testAssert(convYSize % 2 == 1);
 
+    // A 1x1 conv is a matmul. MIOpen's NHWC conv solver coverage is weak on consumer GPUs in both
+    // FP16 and FP32 (e.g. on gfx1100 it picks CK grouped-conv WMMA kernels for FP16, ~2-4x slower
+    // per call than a GEMM with much more dispatch overhead, and falls back to its naive direct
+    // solver for some FP32 cases), while hipBLAS GEMM is fast - so on ROCm "auto" uses the GEMM
+    // whenever the layout allows it, regardless of precision. (The CUDA backend's FP32 exception
+    // was a cuDNN-specific benchmarking result and does not apply to MIOpen.) FP16 GEMMs use FP32
+    // compute for accuracy, matching MatMulLayer. Supports NHWC only (the GEMM assumes
+    // channel-contiguous-per-position layout).
+    use1x1Matmul = false;
+    useNchwFallback = false;
+    if(convXSize == 1 && convYSize == 1 && useNHWCIn && useNHWCOut) {
+      enabled_t mode = cudaHandles->use1x1MatmulMode;
+      use1x1Matmul = (mode == enabled_t::True) || (mode == enabled_t::Auto);
+    }
+    matmulSpatialSize = use1x1Matmul ? (manager->nnYLen * manager->nnXLen) : 0;
+
+    if(use1x1Matmul) {
+      // 1x1 conv weights are [outC, inC]. hipBLAS GEMM wants column-major, i.e. [inC, outC] in row-major notation.
+      // So transpose. No MIOpen objects are built.
+      vector<float> wT((size_t)inChannels * outChannels);
+      for(int oc = 0; oc < outChannels; oc++)
+        for(int ic = 0; ic < inChannels; ic++)
+          wT[(size_t)oc + (size_t)ic * outChannels] = desc->weights[(size_t)oc * inChannels + ic];
+      CudaUtils::mallocAndCopyToDevice(name + ":matmulW", wT, matmulWeightBuf.buf, useFP16);
+      return;
+    }
+
     inputDescriptors = manager->getTensorDesc4DByBatchSize(inChannels,useFP16,useNHWCIn);
     outputDescriptors = manager->getTensorDesc4DByBatchSize(outChannels,useFP16,useNHWCOut);
 
     bool filterNHWC = useNHWCOut && dilationY == 1 && dilationX == 1;
+
+    bool anyNaive = buildMiopenConvPath(
+      cudaHandles, name, desc, useFP16, useNHWCIn, useNHWCOut, filterNHWC, maxBatchSize,
+      inputDescriptors, outputDescriptors, filterDescriptor, convolutionDescriptor,
+      convolutionAlgorithms, filterBuf);
+
+    // MIOpen's NHWC solver coverage is patchy (e.g. on gfx1100 a 3x3 NHWC FP16 stem conv falls all
+    // the way back to ConvDirectNaiveConvFwd). When that happens, try re-expressing the conv as
+    // NCHW - MIOpen's NCHW solver coverage is much better - at the cost of a pair of transposes
+    // around each call.
+    if(anyNaive && useNHWCIn && useNHWCOut) {
+      string convDescStr = Global::intToString(inChannels) + "->" + Global::intToString(outChannels) +
+        " " + Global::intToString(convYSize) + "x" + Global::intToString(convXSize);
+      nchwInputDescriptors = manager->getTensorDesc4DByBatchSize(inChannels,useFP16,false);
+      nchwOutputDescriptors = manager->getTensorDesc4DByBatchSize(outChannels,useFP16,false);
+      bool nchwNaive = buildMiopenConvPath(
+        cudaHandles, name + ":nchw", desc, useFP16, false, false, false, maxBatchSize,
+        nchwInputDescriptors, nchwOutputDescriptors, nchwFilterDescriptor, nchwConvolutionDescriptor,
+        nchwConvolutionAlgorithms, nchwFilterBuf);
+      if(!nchwNaive) {
+        useNchwFallback = true;
+        if(cudaHandles->logger != NULL)
+          cudaHandles->logger->write(
+            "ROCm backend: MIOpen offers only its naive direct-conv fallback for NHWC conv layer '" +
+            name + "' (" + convDescStr + "); re-expressing it as NCHW with per-call transposes instead");
+      }
+      else if(cudaHandles->logger != NULL)
+        cudaHandles->logger->write(
+          "ROCm backend: WARNING: MIOpen offers only its naive direct-conv fallback for NHWC conv layer '" +
+          name + "' (" + convDescStr + "), and the NCHW alternative is naive too - expect reduced conv performance");
+    }
+    else if(anyNaive && cudaHandles->logger != NULL)
+      cudaHandles->logger->write(
+        "ROCm backend: WARNING: MIOpen offers only its naive direct-conv fallback for conv layer '" +
+        name + "' - expect reduced conv performance");
+  }
+
+  // Builds all the MIOpen objects for one layout choice of this conv across batch sizes, uploads
+  // the (layout-transposed if needed) filter, and compiles the chosen solution per batch size.
+  // Returns true if MIOpen's chosen solution for ANY batch size is its naive direct-conv fallback.
+  static bool buildMiopenConvPath(
+    CudaHandles* cudaHandles,
+    const string& name,
+    const ConvLayerDesc* desc,
+    bool useFP16,
+    bool useNHWCIn,
+    bool useNHWCOut,
+    bool filterNHWC,
+    int maxBatchSize,
+    ByBatchSizeView<miopenTensorDescriptor_t>& inputDescriptors,
+    ByBatchSizeView<miopenTensorDescriptor_t>& outputDescriptors,
+    OwnedDesc<miopenTensorDescriptor_t, miopenDestroyTensorDescriptor>& filterDescriptor,
+    OwnedDesc<miopenConvolutionDescriptor_t, miopenDestroyConvolutionDescriptor>& convolutionDescriptor,
+    std::unique_ptr<ByBatchSize<miopenConvSolution_t>>& convolutionAlgorithms,
+    OwnedDeviceBuf& filterBuf
+  ) {
+    int convYSize = desc->convYSize;
+    int convXSize = desc->convXSize;
+    int dilationY = desc->dilationY;
+    int dilationX = desc->dilationX;
+    int paddingX = (convXSize / 2) * dilationX;
+    int paddingY = (convYSize / 2) * dilationY;
+    int inChannels = desc->inChannels;
+    int outChannels = desc->outChannels;
 
     CUDNN_ERR(name.c_str(),miopenCreateTensorDescriptor(&filterDescriptor.desc));
     if(filterNHWC) {
@@ -1096,7 +1193,6 @@ struct ConvLayer {
     int yStride = 1;
     int xStride = 1;
 
-
     CUDNN_ERR(name.c_str(),miopenCreateConvolutionDescriptor(&convolutionDescriptor.desc));
     CUDNN_ERR(name.c_str(),miopenInitConvolutionDescriptor(
       convolutionDescriptor,
@@ -1115,6 +1211,7 @@ struct ConvLayer {
 
     convolutionAlgorithms = std::make_unique<ByBatchSize<miopenConvSolution_t>>(maxBatchSize);
 
+    bool anyNaive = false;
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
       const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
@@ -1144,6 +1241,11 @@ struct ConvLayer {
       if(returnedAlgoCount <= 0)
         throw StringError("miopenConvolutionForwardGetSolution returned no algorithms?");
       (*convolutionAlgorithms)[batchSize] = solutions[0];
+      // MIOpen hands back its naive direct-conv solver (ConvDirectNaiveConvFwd, registered solver
+      // id 55) as the last-resort fallback, stamped with a sentinel time of 1000ms. The numeric id
+      // is not a public-stable API, so treat the sentinel time as the primary signal.
+      if(solutions[0].time >= 999.0f || solutions[0].solution_id == 55)
+        anyNaive = true;
       CUDNN_ERR(name.c_str(),miopenConvolutionForwardCompileSolution(
         cudaHandles->cudnn,
         filterDescriptor,
@@ -1174,12 +1276,28 @@ struct ConvLayer {
     else
       CudaUtils::mallocAndCopyToDevice(name,desc->weights,filterBuf.buf,useFP16);
 
+    return anyNaive;
   }
 
   size_t requiredWorkspaceBytes(
     CudaHandles* cudaHandles,
     int batchSize
   ) const {
+    if(use1x1Matmul)
+      return 0;
+    if(useNchwFallback) {
+      size_t workspaceBytes = 0;
+      CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionWorkspaceSize(
+        cudaHandles->cudnn,
+        nchwFilterDescriptor,
+        nchwInputDescriptors[batchSize],
+        nchwConvolutionDescriptor,
+        nchwOutputDescriptors[batchSize],
+        (*nchwConvolutionAlgorithms)[batchSize].solution_id,
+        &workspaceBytes
+      ));
+      return workspaceBytes;
+    }
     size_t workspaceBytes = 0;
     CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionWorkspaceSize(
       cudaHandles->cudnn,
@@ -1203,6 +1321,57 @@ struct ConvLayer {
     void* workspaceBuf,
     size_t workspaceBytes
   ) const {
+    if(use1x1Matmul) {
+      // out[outC, tokens] = W[outC, inC] x in[inC, tokens]
+      // where tokens = batchSize * spatial. NHWC buffers are [tokens, C] row-major = [C, tokens] column-major
+      // matching hipBLAS's expectation. Same as MatMulLayer.
+      int tokens = batchSize * matmulSpatialSize;
+      if(!usingFP16) {
+        const float alpha = 1.0f;
+        const float beta = accumulate ? 1.0f : 0.0f;
+        CUBLAS_ERR(name.c_str(),cublasSgemm(
+          cudaHandles->cublas, CUBLAS_OP_N, CUBLAS_OP_N,
+          outChannels, tokens, inChannels,
+          &alpha, (const float*)matmulWeightBuf.buf, outChannels,
+          (const float*)inputBuf, inChannels,
+          &beta, (float*)outputBuf, outChannels));
+      }
+      else {
+#if defined(hipblasVersionMajor) && hipblasVersionMajor >= 2
+        // Use FP32 compute for the same accuracy reason as MatMulLayer (hipblasHgemm's FP16
+        // compute costs real accuracy on transformer nets).
+        const float alpha = 1.0f;
+        const float beta = accumulate ? 1.0f : 0.0f;
+        CUBLAS_ERR(name.c_str(),hipblasGemmEx(
+          cudaHandles->cublas,
+          HIPBLAS_OP_N,
+          HIPBLAS_OP_N,
+          outChannels,
+          tokens,
+          inChannels,
+          &alpha,
+          matmulWeightBuf.buf, HIP_R_16F, outChannels,
+          inputBuf, HIP_R_16F, inChannels,
+          &beta,
+          outputBuf, HIP_R_16F, outChannels,
+          HIPBLAS_COMPUTE_32F,
+          HIPBLAS_GEMM_DEFAULT
+        ));
+#else
+        // hipBLAS older than 2.0 (below ROCm 6.0, below the minimum Compiling.md documents):
+        // fall back to the FP16-compute spelling.
+        const cublas_half_t* alpha = (const cublas_half_t*)scratch->oneBuf;
+        const cublas_half_t* betaHalf = (const cublas_half_t*)(accumulate ? scratch->oneBuf : scratch->zeroBuf);
+        CUBLAS_ERR(name.c_str(),cublasHgemm(
+          cudaHandles->cublas, CUBLAS_OP_N, CUBLAS_OP_N,
+          outChannels, tokens, inChannels,
+          alpha, (const cublas_half_t*)matmulWeightBuf.buf, outChannels,
+          (const cublas_half_t*)inputBuf, inChannels,
+          betaHalf, (cublas_half_t*)outputBuf, outChannels));
+#endif
+      }
+      return;
+    }
     // miopenConvolutionForwardImmediate does NOT support alpha/beta (unlike cuDNN).
     // When accumulate=true, we need: outputBuf = conv(inputBuf) + outputBuf (residual skip
     // connection). Save outputBuf's contents to a scratch buffer, run the conv, then add back.
@@ -1222,6 +1391,43 @@ struct ConvLayer {
     if(accumulate) {
       accumBuf = std::make_unique<SizedBuf<void*>>(scratch->allocator, scratch->getBufSizeXY(outChannels));
       CUDA_ERR(name.c_str(), hipMemcpyAsync(accumBuf->buf, outputBuf, outputElts * elemSize, hipMemcpyDeviceToDevice));
+    }
+
+    if(useNchwFallback) {
+      // Re-expressed NCHW conv: transpose input NHWC->NCHW, run the conv, transpose the output
+      // back to NHWC. Buffers are max-batch-sized pool allocations, same as everywhere else here.
+      int xySize = nnXLen * nnYLen;
+      SizedBuf<void*> inNchw(scratch->allocator, scratch->getBufSizeXY(inChannels));
+      SizedBuf<void*> outNchw(scratch->allocator, scratch->getBufSizeXY(outChannels));
+      if(usingFP16)
+        customCudaCopyNHWCtoNCHW((const half*)inputBuf, (half*)inNchw.buf, batchSize, inChannels, xySize);
+      else
+        customCudaCopyNHWCtoNCHW((const float*)inputBuf, (float*)inNchw.buf, batchSize, inChannels, xySize);
+      CUDNN_ERR(name.c_str(), miopenConvolutionForwardImmediate(
+        cudaHandles->cudnn,
+        nchwFilterDescriptor,
+        nchwFilterBuf.buf,
+        nchwInputDescriptors[batchSize],
+        inNchw.buf,
+        nchwConvolutionDescriptor,
+        nchwOutputDescriptors[batchSize],
+        outNchw.buf,
+        workspaceBuf,
+        workspaceBytes,
+        (*nchwConvolutionAlgorithms)[batchSize].solution_id
+      ));
+      if(usingFP16)
+        customCudaCopyNCHWtoNHWC((const half*)outNchw.buf, (half*)outputBuf, batchSize, outChannels, xySize);
+      else
+        customCudaCopyNCHWtoNHWC((const float*)outNchw.buf, (float*)outputBuf, batchSize, outChannels, xySize);
+      if(accumulate) {
+        if(usingFP16)
+          customCudaAddTensorInplace((half*)outputBuf, (const half*)accumBuf->buf, (int)outputElts);
+        else
+          customCudaAddTensorInplace((float*)outputBuf, (const float*)accumBuf->buf, (int)outputElts);
+      }
+      CUDA_ERR(name.c_str(), hipPeekAtLastError());
+      return;
     }
 
     CUDNN_ERR(name.c_str(), miopenConvolutionForwardImmediate(
@@ -3885,6 +4091,8 @@ struct ComputeContext {
   enabled_t useFP16Mode;
   enabled_t useNHWCMode;
   bool disableFusedAttention;
+  // Whether 1x1 NHWC convs use the hipBLAS GEMM path. Auto = matmul iff FP16.
+  enabled_t use1x1MatmulMode;
 };
 #endif
 
@@ -3941,6 +4149,11 @@ ComputeContext* NeuralNet::createComputeContext(
   // the CUDA backend's cudaDisableGraphSDPA. Only meaningful for transformer models.
   bool disableFusedAttention =
     cfg.contains("rocmDisableFusedAttention") ? cfg.getBool("rocmDisableFusedAttention") : false;
+  // Mirrors the CUDA backend's cudaUse1x1Matmul. On ROCm this matters much more than on CUDA:
+  // MIOpen 7.x's NHWC FP16 conv solver coverage is weak (e.g. on gfx1100 it routes 1x1 convs to
+  // slow CK grouped-conv kernels), while hipBLAS GEMM is fast.
+  enabled_t use1x1MatmulMode =
+    cfg.contains("rocmUse1x1Matmul") ? cfg.getEnabled("rocmUse1x1Matmul") : enabled_t::Auto;
 
   ComputeContext* context = new ComputeContext();
   context->nnXLen = nnXLen;
@@ -3948,6 +4161,7 @@ ComputeContext* NeuralNet::createComputeContext(
   context->useFP16Mode = useFP16Mode;
   context->useNHWCMode = useNHWCMode;
   context->disableFusedAttention = disableFusedAttention;
+  context->use1x1MatmulMode = use1x1MatmulMode;
   return context;
 }
 #endif
@@ -4025,6 +4239,8 @@ struct ComputeHandle {
   {
     cudaHandles = std::make_unique<CudaHandles>(
       majorComputeCapability,minorComputeCapability,logger,ckFmhaArchSupported,context->disableFusedAttention);
+    // Must be set before building the model: ConvLayer reads it at construction to pick the 1x1 conv path.
+    cudaHandles->use1x1MatmulMode = context->use1x1MatmulMode;
     model = std::make_unique<Model>(
       cudaHandles.get(), &(loadedModel->modelDesc), maxBatchSize,
       nnXLen, nnYLen, inputsUseNHWC, useFP16, useNHWC
@@ -4172,11 +4388,12 @@ ComputeHandle* NeuralNet::createComputeHandle(
       logger->write("ROCm backend: this build was compiled without FP16 kernel support; using FP32");
   }
 
-  // Mirror the CUDA backend's tensor-core rule: on archs whose matrix instructions make NHWC
-  // convolutions the fast path, NHWC "Auto" turns NHWC on together with FP16. Decided after the
-  // FP16-kernel check above so a build that just downgraded to FP32 does not also switch layouts.
-  if(context->useNHWCMode == enabled_t::Auto && useFP16 && isNhwcFp16PreferredArch(prop))
-    useNHWC = true;
+  // ROCm defaults convnets to NCHW in "Auto" (unlike CUDA's tensor-core rule): MIOpen's NCHW
+  // solver coverage (Winograd / implicit GEMM / GEMM) is its most mature path on every arch we
+  // support, while its NHWC conv solvers are patchy (weak CK grouped-conv or outright naive
+  // fallbacks on e.g. gfx1100). NHWC is used only where it is forced (transformer models, below)
+  // or explicitly requested with rocmUseNHWC=true.
+  // (useNHWC stays false here unless rocmUseNHWC=true was set above.)
 
   // The transformer block implementation (attention/RoPE/FFN) only supports NHWC, since its channel
   // projections assume the channel dim is contiguous per spatial position. Force NHWC for transformer
