@@ -563,6 +563,14 @@ set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 50. Compil
 set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache. May use a lot of disk space. Only applies when USE_BACKEND is TENSORRT.")
 mark_as_advanced(USE_CACHE_TENSORRT_PLAN)
 
+# CUDA-backend opt-outs of optional compiled-in paths, replicating what a build gets when the
+# dependency is unavailable (no vendored CUTLASS / MSVC, cuDNN older than 8.9.3). Mainly for
+# testing those fallback configurations on a machine whose toolchain would otherwise enable them.
+set(NO_CUTLASS_FUSED_FFN 0 CACHE BOOL "CUDA backend: build without the CUTLASS fused FFN kernel even if CUTLASS is available.")
+set(NO_CUDNN_SDPA 0 CACHE BOOL "CUDA backend: build without the cudnn frontend graph SDPA attention path.")
+mark_as_advanced(NO_CUTLASS_FUSED_FFN)
+mark_as_advanced(NO_CUDNN_SDPA)
+
 # ---------- Auto-fetch missing third-party deps (e.g. zlib on a Windows ROCm/TheRock install that
 # doesn't ship a linkable zlib) via a local vcpkg clone in the build tree.
 # Defaults ON only on Windows ROCm builds, where the ROCm/TheRock toolchain genuinely may have no
@@ -682,7 +690,6 @@ if(USE_BACKEND STREQUAL "CUDA")
 
   enable_language(CUDA)
 
-  set(CUDA_STANDARD 11)
   # cudabackend.cpp, cudautils.cpp, and cudahelpers.cu are thin wrappers around
   # cudaandrocmbackend.inc, cudaandrocmutils.inc, and cudaandrocmhelpers.inc, which are shared
   # with the ROCm backend (tracked via compiler depfiles, so they do not appear here).
@@ -691,6 +698,26 @@ if(USE_BACKEND STREQUAL "CUDA")
     neuralnet/cudautils.cpp
     neuralnet/cudahelpers.cu
   )
+  # Optional vendored CUTLASS enables the fused transformer FFN kernel. The fused kernel is
+  # built on the DualGemm extension shipped in CUTLASS's example 45, so both the include tree
+  # and that example directory must be present. CUTLASS 4.x requires CUDA Toolkit 11.4+ and
+  # does not build under MSVC, so those builds skip the kernel rather than break.
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/external/cutlass/include/cutlass/cutlass.h
+     AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/external/cutlass/examples/45_dual_gemm/device/dual_gemm.h
+     AND CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 11.4
+     AND NOT MSVC
+     AND NOT NO_CUTLASS_FUSED_FFN)
+    message(STATUS "Found vendored CUTLASS at external/cutlass, enabling the fused FFN kernel.")
+    set(KATAGO_USE_CUTLASS_FUSED_FFN 1)
+    set(NEURALNET_BACKEND_SOURCES ${NEURALNET_BACKEND_SOURCES} neuralnet/cudafusedffn.cu)
+    # CUTLASS requires C++17. CUDA_STANDARD is a target property that is silently ignored when
+    # set per-source, and nvcc before CUDA 12 defaults to C++14, so pass -std explicitly (no
+    # conflict: CMAKE_CUDA_STANDARD is unset, so CMake adds no -std flag of its own).
+    set_source_files_properties(neuralnet/cudafusedffn.cu PROPERTIES
+      COMPILE_OPTIONS "-std=c++17;--expt-relaxed-constexpr")
+  else()
+    message(STATUS "Vendored CUTLASS not found, not usable with this toolchain, or disabled via NO_CUTLASS_FUSED_FFN; building without the fused FFN kernel.")
+  endif()
   # The vendored header-only cudnn_frontend library trips GCC's -Wnull-dereference from its -O2
   # interprocedural analysis (no source location, so an in-file #pragma can't suppress it). It's
   # benign third-party code; silence it just for the one source that includes cudnn_frontend.h.
@@ -1042,6 +1069,7 @@ add_executable(katago
   command/commandline.cpp
   command/analysis.cpp
   command/benchmark.cpp
+  command/benchmarknn.cpp
   command/contribute.cpp
   command/dumponnx.cpp
   command/evalsgf.cpp
@@ -1071,6 +1099,16 @@ if(USE_BACKEND STREQUAL "CUDA")
   find_library(CUDNN_LIBRARY cudnn HINTS ${CUDNN_ROOT_DIR} ${CUDAToolkit_LIBRARY_DIR} PATH_SUFFIXES lib64)
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   include_directories(SYSTEM external/cudnn-frontend/include) #SYSTEM suppresses warnings inside the vendored header-only cudnn_frontend library
+  if(KATAGO_USE_CUTLASS_FUSED_FFN)
+    target_compile_definitions(katago PRIVATE USE_CUTLASS_FUSED_FFN)
+    target_include_directories(katago SYSTEM PRIVATE
+      external/cutlass/include
+      external/cutlass/examples/45_dual_gemm)
+  endif()
+  if(NO_CUDNN_SDPA)
+    message(STATUS "-DNO_CUDNN_SDPA=1 is set, building without the cudnn graph SDPA attention path.")
+    target_compile_definitions(katago PRIVATE NO_CUDNN_SDPA)
+  endif()
   # cudnn_frontend's experimental OSS engine headers reference NVRTC symbols at link time
   # (we don't actually use those engines, but the references are pulled in by the header-only includes).
   target_link_libraries(katago CUDA::cublas ${CUDNN_LIBRARY} CUDA::nvrtc)

@@ -51,7 +51,6 @@ static NNEvaluator* startNNEval(
     seed,
     nnRandomize,
     defaultSymmetry,
-    false,
     cfg
   );
 

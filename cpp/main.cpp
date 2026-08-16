@@ -56,6 +56,7 @@ evalsgf : Utility/debug tool, analyze a single position of a game from an SGF fi
 searchentropyanalysis : Analyze search entropy across test datasets.
 selfplaysurprisedump : Run selfplay games with a fixed model and dump per-position policy/value surprise stats to csv.
 
+benchmarknn : Benchmark raw neural net forward throughput, without search.
 testgpuerror : Print the average error of the neural net between current config and fp32 config.
 testbackendreference : Test backend absolute outputs against compiled-in blended reference data.
 dumponnx : (TensorRT/ONNX only) Write out the ONNX graph KataGo builds for a model.
@@ -85,6 +86,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::analysis(subArgs);
   else if(subcommand == "benchmark")
     return MainCmds::benchmark(subArgs);
+  else if(subcommand == "benchmarknn")
+    return MainCmds::benchmarknn(subArgs);
   else if(subcommand == "contribute")
     return MainCmds::contribute(subArgs);
   else if(subcommand == "evalsgf")

@@ -66,6 +66,25 @@ struct NNResultBuf {
   NNResultBuf& operator=(const NNResultBuf& other) = delete;
 };
 
+// Result of NNEvaluator::benchmarkPureForward
+struct NNEvalBenchmarkResult {
+  int batchSize;
+  int numThreads;
+  int numIterations;
+  // Per thread, the wall time of each timed getOutput call, in order.
+  std::vector<std::vector<double>> perThreadIterationSeconds;
+  std::vector<double> perThreadMedianSeconds;
+  std::vector<double> perThreadNNEvalsPerSec;
+  // Sum over threads of batchSize / medianSeconds.
+  double sumMedianNNEvalsPerSec;
+  // Wall time of the timed region: all threads started together, ending at the last thread's
+  // final iteration (warmups and compute handle teardown excluded), and
+  // numThreads * batchSize * numIterations / that wall time. This is the primary
+  // throughput metric since it accounts for real concurrency between threads.
+  double actualWallSeconds;
+  double actualWallNNEvalsPerSec;
+};
+
 // Each server thread should allocate and re-use one of these
 struct NNServerBuf {
   InputBuffers* inputBuffers;
@@ -98,7 +117,6 @@ class NNEvaluator {
     const std::string& randSeed,
     bool doRandomize,
     int defaultSymmetry,
-    bool disableWarmup,
     // Consulted by the compute backend for its own custom options; not stored.
     ConfigParser& cfg
   );
@@ -213,6 +231,20 @@ class NNEvaluator {
   void setDoRandomize(bool b);
   void setDefaultSymmetry(int s);
 
+  // Benchmark raw NN forward throughput, bypassing the query queue and search.
+  // Spins up one thread per configured NN server thread, each with its own compute handle,
+  // fills a full batch once (cycling through boardSizes across the rows of the batch), then
+  // times numIterations calls of NeuralNet::getOutput per thread after numWarmups untimed
+  // calls, with all threads released simultaneously. Includes H2D/D2H transfer and host-side
+  // output postprocessing, excludes feature generation and search.
+  // Requires that server threads are NOT spawned (or have been killed).
+  // This function is not threadsafe.
+  NNEvalBenchmarkResult benchmarkPureForward(
+    int numWarmups,
+    int numIterations,
+    const std::vector<int>& boardSizes
+  );
+
   // Some stats
   uint64_t numRowsProcessed() const;
   uint64_t numBatchesProcessed() const;
@@ -234,7 +266,6 @@ class NNEvaluator {
   std::vector<int> gpuIdxByServerThread;
   const std::string randSeed;
   const bool debugSkipNeuralNet;
-  const bool disableWarmup;
 
   ComputeContext* computeContext;
   LoadedModel* loadedModel;

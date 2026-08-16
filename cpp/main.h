@@ -3,6 +3,7 @@
 namespace MainCmds {
   int analysis(const std::vector<std::string>& args);
   int benchmark(const std::vector<std::string>& args);
+  int benchmarknn(const std::vector<std::string>& args);
   int contribute(const std::vector<std::string>& args);
   int evalsgf(const std::vector<std::string>& args);
   int gatekeeper(const std::vector<std::string>& args);

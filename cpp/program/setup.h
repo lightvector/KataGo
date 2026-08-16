@@ -19,7 +19,10 @@ namespace Setup {
     SETUP_FOR_MATCH,
     SETUP_FOR_ANALYSIS,
     SETUP_FOR_OTHER,
-    SETUP_FOR_DISTRIBUTED
+    SETUP_FOR_DISTRIBUTED,
+    // Pure NN forward benchmark - does not spawn NN server threads, the benchmark drives
+    // compute handles itself. See NNEvaluator::benchmarkPureForward.
+    SETUP_FOR_BENCHMARKNN
   };
 
   NNEvaluator* initializeNNEvaluator(

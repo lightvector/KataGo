@@ -1,15 +1,15 @@
 #ifndef NEURALNET_ROCMINCLUDES_H
 #define NEURALNET_ROCMINCLUDES_H
 
-//Note: unlike the CUDA backend (which defines CUDA_API_PER_THREAD_DEFAULT_STREAM here), the ROCm
-//backend currently runs all work on the shared legacy null stream. HIP's analog would be defining
-//HIP_API_PER_THREAD_DEFAULT_STREAM (or compiling with -fgpu-default-stream=per-thread), but
-//flipping it also changes which stream MIOpen/hipBLAS calls run on relative to our own kernels
-//and memcpys, so it needs a careful audit of stream synchronization before enabling. Correctness
-//is unaffected either way. Multiple server threads sharing one GPU just serialize their GPU work.
-
 #include <hip/hip_runtime.h>
 #include <hip/hip_fp16.h>
+
+//The shared kernel launcher declarations (cudaandrocmhelpers.h) are written with the CUDA
+//stream type spelling. This alias must live here rather than in rocmcudanames.h because
+//rocmhelpers.hip reaches those declarations without including rocmcudanames.h. All backend work
+//for one compute handle runs on that handle's non-blocking stream (see OwnedComputeStream in
+//cudaandrocmbackend.inc), so multiple NN server threads sharing one GPU overlap their GPU work.
+using cudaStream_t = hipStream_t;
 
 // hipBLAS 2.x (ROCm 6.x) declared hipblasGemmEx's type arguments as the now-removed
 // hipblasDatatype_t. Defining HIPBLAS_V2 first selects the modern spelling (hipDataType plus

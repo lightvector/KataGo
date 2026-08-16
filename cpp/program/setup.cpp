@@ -269,6 +269,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("nnCacheSizePowerOfTwo") ? cfg.getInt("nnCacheSizePowerOfTwo", -1, 48) :
       setupFor == SETUP_FOR_GTP ? 20 :
       setupFor == SETUP_FOR_BENCHMARK ? 20 :
+      setupFor == SETUP_FOR_BENCHMARKNN ? 16 :
       setupFor == SETUP_FOR_DISTRIBUTED ? 19 :
       setupFor == SETUP_FOR_MATCH ? 21 :
       setupFor == SETUP_FOR_ANALYSIS ? 23 :
@@ -278,6 +279,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("nnMutexPoolSizePowerOfTwo") ? cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24) :
       setupFor == SETUP_FOR_GTP ? 16 :
       setupFor == SETUP_FOR_BENCHMARK ? 16 :
+      setupFor == SETUP_FOR_BENCHMARKNN ? 12 :
       setupFor == SETUP_FOR_DISTRIBUTED ? 16 :
       setupFor == SETUP_FOR_MATCH ? 17 :
       setupFor == SETUP_FOR_ANALYSIS ? 17 :
@@ -285,7 +287,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
 
 #ifndef USE_EIGEN_BACKEND
     int nnMaxBatchSize;
-    if(setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_DISTRIBUTED) {
+    if(setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_BENCHMARKNN || setupFor == SETUP_FOR_DISTRIBUTED) {
       nnMaxBatchSize = defaultMaxBatchSize;
     }
     else if(defaultMaxBatchSize > 0) {
@@ -310,11 +312,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     if(disableFP16)
       useFP16Mode = enabled_t::False;
 
-    //Pre-warm lazily-compiled backend graphs (e.g. cuDNN SDPA plans for transformer models) when each
-    //server thread's handle is created, so the first searches aren't stalled. On by default.
-    bool disableWarmup =
-      cfg.contains("cudaDisableWarmup") ? cfg.getBool("cudaDisableWarmup") : false;
-
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
       nnModelFile,
@@ -335,11 +332,12 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed,
       (forcedSymmetry >= 0 ? false : nnRandomize),
       defaultSymmetry,
-      disableWarmup,
       cfg
     );
 
-    nnEval->spawnServerThreads();
+    // benchmarkPureForward drives compute handles itself, without server threads.
+    if(setupFor != SETUP_FOR_BENCHMARKNN)
+      nnEval->spawnServerThreads();
 
     nnEvals.push_back(nnEval);
   }

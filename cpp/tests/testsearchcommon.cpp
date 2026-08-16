@@ -236,7 +236,6 @@ NNEvaluator* TestSearchCommon::startNNEval(
     nnRandSeed,
     nnRandomize,
     defaultSymmetry,
-    false,
     cfg
   );
 
