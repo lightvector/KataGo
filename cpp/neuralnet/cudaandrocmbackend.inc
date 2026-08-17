@@ -57,6 +57,7 @@
 
 #include "../core/simpleallocator.h"
 #include "../core/test.h"
+#include <string_view>
 #ifdef KATAGO_GPU_CUDA
 #include "../core/hash.h"
 #endif
@@ -338,10 +339,29 @@ static bool isCkFmhaSupportedArch(const hipDeviceProp_t& prop) {
   size_t colonPos = arch.find(':');  // e.g. "gfx942:sramecc+:xnack-"
   if(colonPos != std::string::npos)
     arch = arch.substr(0, colonPos);
+  static constexpr std::string_view gfx908 = "gfx908";
+  static constexpr std::string_view gfx90a = "gfx90a";
+  static constexpr std::string_view gfx94 = "gfx94";
+  static constexpr std::string_view gfx95 = "gfx95";
+  static constexpr std::string_view gfx11 = "gfx11";
+  static constexpr std::string_view gfx12 = "gfx12";
   return
-    arch == "gfx908" || arch == "gfx90a" ||
-    arch.compare(0, 5, "gfx94") == 0 || arch.compare(0, 5, "gfx95") == 0 ||
-    arch.compare(0, 5, "gfx11") == 0 || arch.compare(0, 5, "gfx12") == 0;
+    arch == gfx908 || arch == gfx90a ||
+    arch.compare(0, gfx94.size(), gfx94) == 0 || arch.compare(0, gfx95.size(), gfx95) == 0 ||
+    arch.compare(0, gfx11.size(), gfx11) == 0 || arch.compare(0, gfx12.size(), gfx12) == 0;
+}
+
+// Archs where MIOpen's NHWC convolutions are preferred in "Auto" mode. We enable NHWC
+// automatically on the gfx9 family (CDNA/MI etc.), where NHWC measured faster on convnets.
+// RDNA (gfx10/gfx11/gfx12) keeps NCHW as the "Auto" default because its NHWC solvers can
+// fall back to naive implementations. Users can still force NHWC with rocmUseNHWC=true.
+static bool isNhwcPreferredArch(const hipDeviceProp_t& prop) {
+  std::string arch(prop.gcnArchName);
+  size_t colonPos = arch.find(':');
+  if(colonPos != std::string::npos)
+    arch = arch.substr(0, colonPos);
+  static constexpr std::string_view prefix = "gfx9";
+  return arch.compare(0, prefix.size(), prefix) == 0;
 }
 #endif
 
@@ -4373,7 +4393,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
   bool useNHWC = false;
   if(context->useFP16Mode == enabled_t::True || context->useFP16Mode == enabled_t::Auto)
     useFP16 = true;
-  if(context->useNHWCMode == enabled_t::True)
+  if(context->useNHWCMode == enabled_t::True || (context->useNHWCMode == enabled_t::Auto && isNhwcPreferredArch(prop)))
     useNHWC = true;
 
   // Every arch in the default CMAKE_HIP_ARCHITECTURES list supports packed FP16, so FP16 "Auto"
@@ -4388,12 +4408,12 @@ ComputeHandle* NeuralNet::createComputeHandle(
       logger->write("ROCm backend: this build was compiled without FP16 kernel support; using FP32");
   }
 
-  // ROCm defaults convnets to NCHW in "Auto" (unlike CUDA's tensor-core rule): MIOpen's NCHW
-  // solver coverage (Winograd / implicit GEMM / GEMM) is its most mature path on every arch we
-  // support, while its NHWC conv solvers are patchy (weak CK grouped-conv or outright naive
-  // fallbacks on e.g. gfx1100). NHWC is used only where it is forced (transformer models, below)
-  // or explicitly requested with rocmUseNHWC=true.
-  // (useNHWC stays false here unless rocmUseNHWC=true was set above.)
+  // ROCm "Auto" NHWC policy: on the gfx9 family (CDNA/MI etc.) we enable NHWC automatically,
+  // since MIOpen's NHWC solvers measured faster on convnets there. RDNA and newer (gfx10/gfx11/gfx12)
+  // keep NCHW in "Auto" because their NHWC solvers can fall back to naive implementations.
+  // NHWC is still forced for transformer models below and can always be requested with
+  // rocmUseNHWC=true.
+  // (useNHWC stays false here on non-gfx9 archs unless rocmUseNHWC=true was set above.)
 
   // The transformer block implementation (attention/RoPE/FFN) only supports NHWC, since its channel
   // projections assume the channel dim is contiguous per spatial position. Force NHWC for transformer
