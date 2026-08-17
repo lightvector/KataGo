@@ -3,6 +3,7 @@
 #include <hip/hip_runtime.h>
 #include <migraphx/migraphx.hpp>
 
+#include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <fstream>
@@ -34,10 +35,27 @@ using namespace std;
 //
 // Two MIGraphX specifics drive the design here:
 //
-// 1. MIGraphX compiles for one static shape. There is no TensorRT-style optimization profile with
-//    a dynamic batch dimension, so the program is compiled at exactly maxBatchSize and smaller
-//    batches are run by zero-padding up to maxBatchSize. MCTS batches are near-full in practice,
-//    and a fixed shape lets MIGraphX pick the best kernels and fuse aggressively.
+// 1. MIGraphX compiles for one static shape, and there is no TensorRT-style optimization profile
+//    with a dynamic batch dimension. A single program compiled at maxBatchSize therefore has to
+//    zero-pad every short batch, and that padding is expensive: measured on MI325X at 3200 visits,
+//    compiling at maxBatchSize instead of near the actual batch size costs 1.68x at 192 threads
+//    and 1.53x at 160 (5 interleaved trials per point, sd <= 0.7%). The search's mean batch is
+//    ~89 while maxBatchSize is 192, i.e. under half the compute is useful.
+//
+//    So we compile a small set of BUCKETS and dispatch each eval to the smallest bucket that fits.
+//    Three measurements shaped this:
+//      - MIGraphX 2.15's dynamic-batch path is unusable: the graph parses with dynamic dims
+//        propagated correctly, then the GPU compile aborts in shape.cpp with
+//        "lens() called on a dynamic shape". Buckets are the only option available.
+//      - Per-slot throughput is FLAT across compiled shapes (4411 vs 4478 inf/s at bs=96 vs 192,
+//        a 1.5% difference), so the entire win comes from not computing padding rows and the
+//        buckets do not need to be finely spaced.
+//      - Batch sizes are not uniformly distributed; MCTS batches cluster near full. Bucket
+//        spacing is therefore geometric, which bounds worst-case padding to <2x while keeping
+//        the bucket count (and so the compile time and weight memory) small.
+//
+//    Cost: each compiled program bakes in its own copy of the weights (~100MB FP16 for
+//    b18c384nbt). The I/O buffers are NOT duplicated - see the note in ComputeHandle.
 //
 // 2. Manual device buffers (set_offload_copy(false)). With offload copy MIGraphX would allocate
 //    and copy every input and output on each eval; instead we hipMalloc each parameter once and
@@ -69,6 +87,7 @@ struct ComputeContext {
   bool transformerNHWC;  // ONNX emitter: run transformer blocks channel-last
   string dumpDebugModelToDir;
   bool useExhaustiveTune;  // MIGraphX exhaustive_tune: slower compile, faster kernels
+  bool useBatchBuckets;    // compile a ladder of batch sizes instead of only maxBatchSize
 };
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -117,6 +136,12 @@ ComputeContext* NeuralNet::createComputeContext(
   // compile time. It costs minutes per compile, so it is off unless asked for.
   context->useExhaustiveTune =
     cfg.contains("migraphxExhaustiveTune") ? cfg.getBool("migraphxExhaustiveTune") : false;
+  // Batch bucketing (on by default; see the rationale at the top of this file). Setting this
+  // false compiles a single program at maxBatchSize, which is the pre-bucketing behavior — it
+  // trades throughput for a shorter startup and one copy of the weights, and gives a way to
+  // A/B the feature or fall back if a future MIGraphX regresses on multi-program compiles.
+  context->useBatchBuckets =
+    cfg.contains("migraphxBatchBuckets") ? cfg.getBool("migraphxBatchBuckets") : true;
   return context;
 }
 
@@ -126,10 +151,13 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 struct LoadedModel {
   ModelDesc modelDesc;
+  //Whether applyScale8ToReduceActivations() actually rescaled the weights. The emitter records
+  //it in the graph, so it has to be captured rather than discarded.
+  bool scale8Applied;
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-    modelDesc.applyScale8ToReduceActivations();
+    scale8Applied = modelDesc.applyScale8ToReduceActivations();
   }
 
   LoadedModel() = delete;
@@ -171,14 +199,62 @@ struct ComputeHandle {
   // instrumenting the eval measured 10.294 ms blocked in hipStreamSynchronize against 0.028 ms
   // of host-side output decode per batch (avgRows 60.8), i.e. the host is 0.3% of the time.
   // Collapsing the ~12 driver calls per eval into one graph launch cannot beat that 0.3%.
-  migraphx::program prog;
-  migraphx::program_parameters params;
+  //
+  // One compiled program per bucket, ascending by batch size. Each carries its own
+  // program_parameters because the parameter shapes differ per bucket.
+  struct Bucket {
+    int batchSize;
+    migraphx::program prog;
+    migraphx::program_parameters params;
+  };
+  vector<Bucket> buckets;
+
   // Device allocations for every program parameter and output, keyed by name. Owned here.
+  //
+  // Shared across ALL buckets. This is safe and is what keeps bucketing cheap: every buffer is
+  // allocated at maxBatchSize, and a bucket compiled for a smaller batch simply uses a prefix of
+  // it. MIGraphX is handed a raw device pointer plus the shape it expects, so a bucket of size B
+  // reads/writes only the first B rows. Without this, each bucket would duplicate the full I/O
+  // working set on top of its weights.
+  //
+  // The one parameter that is NOT shared is MIGraphX's internal scratch ("main:scratch"), whose
+  // size is a property of the compiled program rather than of the batch dimension; each bucket
+  // gets its own, keyed by bucket index.
   map<string, void*> buffers;
   map<string, size_t> bufferBytes;
   map<string, size_t> bufferRowElts;
   // Output parameter names, in the order MIGraphX returns them from eval().
   vector<string> outputNames;
+
+  // Smallest bucket that can run batchSize rows. Buckets are ascending, and the last one is
+  // always maxBatchSize, so this always finds a home for any batchSize <= maxBatchSize.
+  const Bucket& bucketFor(int batchSize) const {
+    for(const Bucket& b: buckets) {
+      if(b.batchSize >= batchSize)
+        return b;
+    }
+    throw StringError(Global::strprintf(
+      "MIGraphX backend: batch size %d exceeds maxBatchSize %d", batchSize, maxBatchSize));
+  }
+
+  // Geometric ladder up to maxBatchSize: ..., max/8, max/4, max/2, max.
+  //
+  // Geometric rather than uniform because worst-case padding is then bounded by the RATIO between
+  // adjacent buckets (<2x) regardless of where the batch lands, whereas uniform spacing leaves
+  // small batches padding to a comparatively huge shape. Stops at 8 because below that the
+  // absolute waste is a handful of rows and each extra bucket costs a full compile plus a copy of
+  // the weights.
+  static vector<int> bucketSizesFor(int maxBatchSize, bool useBuckets) {
+    vector<int> sizes;
+    if(useBuckets) {
+      for(int b = maxBatchSize; b >= 8; b /= 2)
+        sizes.push_back(b);
+    }
+    if(sizes.empty())
+      sizes.push_back(maxBatchSize);
+    std::reverse(sizes.begin(), sizes.end());
+    return sizes;
+  }
 
   ComputeHandle(
     Logger* logger,
@@ -198,8 +274,13 @@ struct ComputeHandle {
 
     // Emit the same ONNX graph the TensorRT backend builds. Weights are baked in as initializers,
     // so the returned bytes are fully self-contained.
-    OnnxModelBuilder::Result onnxResult =
-      OnnxModelBuilder::build(desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
+    OnnxModelBuilder::BuildParams buildParams;
+    buildParams.nnXLen = ctx->nnXLen;
+    buildParams.nnYLen = ctx->nnYLen;
+    buildParams.requireExactNNLen = requireExactNNLen;
+    buildParams.transformerNHWC = ctx->transformerNHWC;
+    buildParams.scale8Applied = loadedModel->scale8Applied;
+    OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, buildParams, logger);
     const string& onnxBytes = onnxResult.serializedModel;
 
     if(!ctx->dumpDebugModelToDir.empty()) {
@@ -214,44 +295,63 @@ struct ComputeHandle {
         logger->write("MIGraphX backend: dumped emitted ONNX to " + onnxPath);
     }
 
-    // MIGraphX compiles a static shape, so pin the batch dimension of every input to maxBatchSize.
-    // The ONNX emitter declares batch as a dynamic dim; set_input_parameter_shape fixes it.
-    migraphx::onnx_options onnxOptions;
-    const size_t bs = (size_t)maxBatchSize;
-    onnxOptions.set_input_parameter_shape("InputMask", {bs, 1, (size_t)ctx->nnYLen, (size_t)ctx->nnXLen});
-    onnxOptions.set_input_parameter_shape(
-      "InputSpatial", {bs, (size_t)desc.numInputChannels, (size_t)ctx->nnYLen, (size_t)ctx->nnXLen});
-    onnxOptions.set_input_parameter_shape(
-      "InputGlobal", {bs, (size_t)desc.numInputGlobalChannels, 1, 1});
-    if(hasInputMeta)
-      onnxOptions.set_input_parameter_shape("InputMeta", {bs, (size_t)desc.numInputMetaChannels, 1, 1});
+    // MIGraphX compiles a static shape, so pin the batch dimension of every input. The ONNX
+    // emitter declares batch as a dynamic dim; set_input_parameter_shape fixes it. One compile
+    // per bucket; see the bucketing rationale at the top of this file.
+    const vector<int> bucketSizes = bucketSizesFor(maxBatchSize, ctx->useBatchBuckets);
 
+    usingFP16 = false;
     {
       lock_guard<mutex> lock(compileMutex);
 
-      prog = migraphx::parse_onnx_buffer(onnxBytes, onnxOptions);
+      for(int bucketBatchSize: bucketSizes) {
+        migraphx::onnx_options onnxOptions;
+        const size_t bs = (size_t)bucketBatchSize;
+        onnxOptions.set_input_parameter_shape("InputMask", {bs, 1, (size_t)ctx->nnYLen, (size_t)ctx->nnXLen});
+        onnxOptions.set_input_parameter_shape(
+          "InputSpatial", {bs, (size_t)desc.numInputChannels, (size_t)ctx->nnYLen, (size_t)ctx->nnXLen});
+        onnxOptions.set_input_parameter_shape(
+          "InputGlobal", {bs, (size_t)desc.numInputGlobalChannels, 1, 1});
+        if(hasInputMeta)
+          onnxOptions.set_input_parameter_shape("InputMeta", {bs, (size_t)desc.numInputMetaChannels, 1, 1});
 
-      usingFP16 = false;
-      if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
-        // quantize_fp16 converts convolutions and dots to FP16 while leaving the reductions that
-        // feed RMSNorm and the policy/value heads in FP32, which is the same split the TensorRT
-        // backend enforces via per-layer setPrecision. All CDNA parts have fast FP16 so Auto
-        // enables it, matching the TensorRT backend's platformHasFastFp16 behavior.
-        migraphx::quantize_fp16(prog);
-        usingFP16 = true;
+        migraphx::program bucketProg = migraphx::parse_onnx_buffer(onnxBytes, onnxOptions);
+
+        if(ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto) {
+          // quantize_fp16 converts convolutions and dots to FP16 while leaving the reductions that
+          // feed RMSNorm and the policy/value heads in FP32, which is the same split the TensorRT
+          // backend enforces via per-layer setPrecision. All CDNA parts have fast FP16 so Auto
+          // enables it, matching the TensorRT backend's platformHasFastFp16 behavior.
+          migraphx::quantize_fp16(bucketProg);
+          usingFP16 = true;
+        }
+
+        migraphx::compile_options options;
+        // Manage device memory ourselves; see the note at the top of this file.
+        options.set_offload_copy(false);
+        options.set_fast_math(true);
+        options.set_exhaustive_tune_flag(ctx->useExhaustiveTune);
+        bucketProg.compile(migraphx::target("gpu"), options);
+
+        Bucket bucket;
+        bucket.batchSize = bucketBatchSize;
+        bucket.prog = std::move(bucketProg);
+        buckets.push_back(std::move(bucket));
       }
-
-      migraphx::compile_options options;
-      // Manage device memory ourselves; see the note at the top of this file.
-      options.set_offload_copy(false);
-      options.set_fast_math(true);
-      options.set_exhaustive_tune_flag(ctx->useExhaustiveTune);
-      prog.compile(migraphx::target("gpu"), options);
     }
 
-    // Allocate a device buffer for every program parameter. This covers the graph inputs, the
-    // graph outputs (MIGraphX exposes each output as an "outputName" parameter when offload copy
-    // is off), and the internal scratch parameter.
+    // The largest bucket is maxBatchSize; use it to size the shared I/O buffers and to derive the
+    // name/shape metadata the rest of this file relies on.
+    migraphx::program& prog = buckets.back().prog;
+
+    // Allocate a device buffer for every program parameter of the LARGEST bucket. This covers the
+    // graph inputs, the graph outputs (MIGraphX exposes each output as an "outputName" parameter
+    // when offload copy is off), and the internal scratch parameter.
+    //
+    // Every batch-dimensioned buffer is sized for maxBatchSize and then SHARED by all buckets: a
+    // bucket compiled for B rows is handed the same base pointer with its own (smaller) shape, so
+    // it touches only the leading B rows. Only scratch is per-bucket, because its size comes from
+    // the compiled program rather than from the batch dimension.
     migraphx::program_parameter_shapes paramShapes = prog.get_parameter_shapes();
     // names() hands back pointers into MIGraphX-owned storage; copy them into strings we own.
     vector<string> paramNames;
@@ -276,8 +376,45 @@ struct ComputeHandle {
         rowElts = s.elements();
       }
       bufferRowElts[name] = rowElts;
+    }
 
-      params.add(name.c_str(), migraphx::argument(s, devPtr));
+    // Bind each bucket's parameters to those shared buffers, using that bucket's own shapes.
+    for(size_t bi = 0; bi < buckets.size(); bi++) {
+      Bucket& bucket = buckets[bi];
+      migraphx::program_parameter_shapes bucketShapes = bucket.prog.get_parameter_shapes();
+      vector<string> bucketNames;
+      for(const char* n: bucketShapes.names())
+        bucketNames.emplace_back(n);
+
+      // The set of parameters must not vary by bucket - only their batch extent may. If it does,
+      // the shared-buffer assumption is void, so fail loudly rather than bind a wrong pointer.
+      if(bucketNames.size() != paramNames.size())
+        throw StringError(Global::strprintf(
+          "MIGraphX backend: bucket %d has %llu parameters but the max bucket has %llu; the "
+          "compiled parameter set must not depend on batch size",
+          bucket.batchSize, (unsigned long long)bucketNames.size(),
+          (unsigned long long)paramNames.size()));
+
+      for(const string& name: bucketNames) {
+        migraphx::shape s = bucketShapes[name.c_str()];
+        auto it = buffers.find(name);
+        if(it == buffers.end())
+          throw StringError(
+            "MIGraphX backend: bucket " + Global::intToString(bucket.batchSize) +
+            " has parameter " + name + " that the max bucket does not");
+
+        void* devPtr = it->second;
+        if(s.bytes() > bufferBytes.at(name)) {
+          // Scratch can legitimately be larger for a smaller batch (different kernel choices), so
+          // give this bucket its own allocation rather than overrunning the shared one.
+          HIP_ERR("ComputeHandle", hipMalloc(&devPtr, s.bytes()));
+          HIP_ERR("ComputeHandle", hipMemset(devPtr, 0, s.bytes()));
+          string ownName = name + "#bucket" + Global::uint64ToString((uint64_t)bi);
+          buffers[ownName] = devPtr;
+          bufferBytes[ownName] = s.bytes();
+        }
+        bucket.params.add(name.c_str(), migraphx::argument(s, devPtr));
+      }
     }
 
     // Inputs are addressable by their ONNX names directly.
@@ -323,8 +460,11 @@ struct ComputeHandle {
     expectRowElts("OutputOwnership", (size_t)desc.numOwnershipChannels * area);
 
     if(logger != NULL) {
+      string bucketList;
+      for(const Bucket& b: buckets)
+        bucketList += (bucketList.empty() ? "" : ",") + Global::intToString(b.batchSize);
       logger->write(
-        "MIGraphX backend: compiled model at batch size " + Global::intToString(maxBatchSize) +
+        "MIGraphX backend: compiled model at batch sizes " + bucketList +
         " board " + Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) +
         " FP16 = " + Global::boolToString(usingFP16));
     }
@@ -630,8 +770,8 @@ void NeuralNet::getOutput(
   const int numPolicyChannels = inputBuffers->singlePolicyPassResultElts;
   assert(inputBuffers->singlePolicyResultElts == (size_t)numPolicyChannels * nnXLen * nnYLen);
 
-  // The program is compiled for exactly maxBatchSize, so only the first batchSize rows are copied
-  // in and read back; the padding rows' outputs are ignored.
+  // The selected bucket's program is compiled for exactly its own batch size, so only the first
+  // batchSize rows are copied in and read back; the padding rows' outputs are ignored.
   //
   // Padding rows must NOT be left as all-zero. When requireExactNNLen is false the emitted graph
   // takes masked means as Div(ReduceSum(x), maskSum), where maskSum is the per-row count of
@@ -645,12 +785,20 @@ void NeuralNet::getOutput(
   // and it was disproved (the error was bit-identical afterwards, because the single-position test
   // path never pads at all). This guard matters for the MCTS path, where short batches are real.
   // Re-padded on every call rather than cached: a larger batch overwrites this region with real
-  // data, so a later smaller batch would otherwise inherit stale rows. The copy is one contiguous
-  // memcpy of (maxBatchSize-batchSize) mask rows and is negligible next to the forward pass.
+  // data, so a later smaller batch would otherwise inherit stale rows. With bucketing this is
+  // doubly true, since consecutive evals may run different-sized programs over the same buffers.
+  // The copy is one contiguous memcpy of (shapeBatchSize-batchSize) mask rows and is negligible
+  // next to the forward pass.
   hipStream_t stream = gpuHandle->stream;
 
-  if(batchSize < inputBuffers->maxBatchSize) {
-    const int padRows = inputBuffers->maxBatchSize - batchSize;
+  // Dispatch to the smallest compiled bucket that fits, and pad only up to THAT bucket rather
+  // than up to maxBatchSize. This is the whole point of bucketing: at 192 threads the search's
+  // mean batch is ~89, so a single maxBatchSize program spends over half its compute on padding.
+  const ComputeHandle::Bucket& bucket = gpuHandle->bucketFor(batchSize);
+  const int shapeBatchSize = bucket.batchSize;
+
+  if(batchSize < shapeBatchSize) {
+    const int padRows = shapeBatchSize - batchSize;
     if(inputBuffers->paddingMaskOnes.size() != inputBuffers->singleMaskElts * (size_t)padRows)
       inputBuffers->paddingMaskOnes.assign(inputBuffers->singleMaskElts * (size_t)padRows, 1.0f);
     HIP_ERR(
@@ -685,7 +833,11 @@ void NeuralNet::getOutput(
 
   // run_async rather than eval: eval() runs on MIGraphX's own internal stream, which is not
   // ordered against the copies above, so the program could read inputs before they land.
-  gpuHandle->prog.run_async(gpuHandle->params, stream);
+  //
+  // const_cast: run_async is non-const in the MIGraphX C++ API, but selecting a bucket is a
+  // read-only operation on the handle and the buffers it writes are this handle's own.
+  const_cast<ComputeHandle::Bucket&>(bucket).prog.run_async(
+    const_cast<ComputeHandle::Bucket&>(bucket).params, stream);
 
   HIP_ERR(
     "getOutput",
