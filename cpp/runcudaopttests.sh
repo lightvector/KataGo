@@ -65,6 +65,8 @@ QKV_COMBINED="using combined QKV projection"
 # Masked-path-only: with requireMaxBoardSize (no mask) the residual add folds into the
 # projection GEMM instead, so there is no deferral to log on the exact-size path.
 FUSED_RESNORM="using fused residual add and pre-norm"
+# Fires once per handle, from the first 1x1 conv that takes the GEMM instead of a cuDNN conv.
+MATMUL_1X1="running 1x1 NHWC convolutions as a GEMM"
 
 NUM_PASS=0
 NUM_FAIL=0
@@ -354,7 +356,7 @@ run_case c_fp32_nhwc_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
 run_case c_1x1matmul_off_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,cudaUse1x1Matmul=false" \
   "" \
-  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
+  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM@$MATMUL_1X1"
 
 # The GEMM path also requires NHWC, which FP32 does not default to, so force it.
 run_case c_1x1matmul_fp32_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
