@@ -237,22 +237,43 @@ struct ComputeHandle {
       "MIGraphX backend: batch size %d exceeds maxBatchSize %d", batchSize, maxBatchSize));
   }
 
-  // Geometric ladder up to maxBatchSize: ..., max/8, max/4, max/2, max.
+  // Hybrid ladder: geometric (8,16,32,64) below the knee, then linear steps of 32 up to
+  // maxBatchSize.
   //
-  // Geometric rather than uniform because worst-case padding is then bounded by the RATIO between
-  // adjacent buckets (<2x) regardless of where the batch lands, whereas uniform spacing leaves
-  // small batches padding to a comparatively huge shape. Stops at 8 because below that the
-  // absolute waste is a handful of rows and each extra bucket costs a full compile plus a copy of
-  // the weights.
+  // Geometric spacing bounds worst-case padding by the RATIO between adjacent buckets, which is
+  // the right property for SMALL batches: a batch of 5 padding to 8 wastes a few rows, while
+  // uniform spacing would pad it to 32. But a ratio bound is scale-free, and above ~64 a 2x ratio
+  // means an absolute gap of 64+ rows, which is where the real waste lives.
+  //
+  // Two measurements drove this. First, throughput is governed by fill alone: padded rows/s is
+  // constant at ~2240 across every compiled shape (measured 2194-2266 for bs 64/96/128/192 on
+  // b11c768h12nbt3tflrs-fson-silu), so nnEvals/s = paddedRowsPerSec * (avgBatch / bucket). There
+  // is no "fast shape" to seek; there is only fill. Second, a purely geometric ladder halving
+  // DOWN from maxBatchSize=192 yields {12,24,48,96,192} - integer division never lands on 128 or
+  // 64 - so a batch of ~111 (the measured mean at 192 threads) padded all the way to 192, a fill
+  // of 58%. That single gap was this backend's only remaining loss to the ROCm backend.
+  //
+  // Anchoring the geometric part at fixed powers of two and stepping linearly above the knee
+  // keeps the ladder on round shapes and puts a rung near wherever the search's batch actually
+  // lands. Cost is bounded: each rung is one more compiled program with its own copy of the
+  // weights, so the step is kept coarse (32) rather than tracking the distribution exactly.
   static vector<int> bucketSizesFor(int maxBatchSize, bool useBuckets) {
     vector<int> sizes;
     if(useBuckets) {
-      for(int b = maxBatchSize; b >= 8; b /= 2)
+      static const int kKnee = 64;   // geometric below, linear above
+      static const int kStep = 32;   // linear step; coarse to bound the program count
+      for(int b = std::min(maxBatchSize, kKnee); b >= 8; b /= 2)
+        sizes.push_back(b);
+      for(int b = kKnee + kStep; b < maxBatchSize; b += kStep)
         sizes.push_back(b);
     }
-    if(sizes.empty())
-      sizes.push_back(maxBatchSize);
-    std::reverse(sizes.begin(), sizes.end());
+    sizes.push_back(maxBatchSize);
+    std::sort(sizes.begin(), sizes.end());
+    sizes.erase(std::unique(sizes.begin(), sizes.end()), sizes.end());
+    // Never emit a bucket above the cap: getOutput dispatches to the smallest that fits, so the
+    // largest rung has to be able to serve maxBatchSize itself.
+    while(sizes.size() > 1 && sizes.back() > maxBatchSize)
+      sizes.pop_back();
     return sizes;
   }
 
