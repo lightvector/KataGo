@@ -145,8 +145,8 @@ void BookHash::getHashAndSymmetry(const BoardHistory& hist, int repBound, BookHa
 
   for(int symmetry = 0; symmetry < numSymmetries; symmetry++) {
     boardsBySym[symmetry] = SymmetryHelpers::getSymBoard(hist.initialBoard,symmetry);
-    //Replay and hash under the same pass-alive computation mode as the history we're hashing.
-    histsBySym[symmetry] = BoardHistory(boardsBySym[symmetry], hist.initialPla, hist.rules, hist.initialEncorePhase, hist.alwaysComputePassAliveUnderSuicideRules);
+    //Replay and hash under the same BoardHistoryModes as the history we're hashing.
+    histsBySym[symmetry] = BoardHistory(boardsBySym[symmetry], hist.initialPla, hist.rules, hist.initialEncorePhase, hist.modes);
     accums[symmetry] = Hash128();
   }
 
@@ -861,14 +861,14 @@ Book::Book(
   const Rules& r,
   Player p,
   int rb,
-  bool alwaysPassAliveSuicide,
+  const BoardHistoryModes& hModes,
   BookParams bp
 ) : bookVersion(bversion),
     initialBoard(b),
     initialRules(r),
     initialPla(p),
     repBound(rb),
-    alwaysComputePassAliveUnderSuicideRules(alwaysPassAliveSuicide),
+    historyModes(hModes),
     params(bp),
     initialSymmetry(0),
     root(nullptr),
@@ -876,11 +876,17 @@ Book::Book(
     nodeIdxMapsByHash(nullptr),
     nextVisitedDoneValue(1)
 {
-  //Older binaries silently mis-hash flagged books rather than erroring, so flagged books must use
-  //a version those binaries reject. See comment on LATEST_BOOK_VERSION.
-  if(alwaysComputePassAliveUnderSuicideRules && bookVersion < 3)
+  //Older binaries silently mis-hash flagged books rather than erroring, so a book flagged with a
+  //mode must use at least the version that introduced that mode, which those binaries reject.
+  //See comment on LATEST_BOOK_VERSION.
+  if(historyModes.alwaysComputePassAliveUnderSuicideRules && bookVersion < 3)
     throw StringError(
       "Books with alwaysComputePassAliveUnderSuicideRules=true require book version >= 3, got version " +
+      Global::intToString(bookVersion)
+    );
+  if(historyModes.excludeTerritoryAdjacentToAtari && bookVersion < 4)
+    throw StringError(
+      "Books with excludeTerritoryAdjacentToAtari=true require book version >= 4, got version " +
       Global::intToString(bookVersion)
     );
 
@@ -891,7 +897,7 @@ Book::Book(
   vector<int> rootSymmetries;
 
   int initialEncorePhase = 0;
-  BoardHistory initialHist(initialBoard, initialPla, initialRules, initialEncorePhase, alwaysComputePassAliveUnderSuicideRules);
+  BoardHistory initialHist(initialBoard, initialPla, initialRules, initialEncorePhase, historyModes);
   BookHash::getHashAndSymmetry(initialHist, repBound, rootHash, symmetryToAlign, rootSymmetries, bookVersion);
 
   initialSymmetry = symmetryToAlign;
@@ -911,7 +917,7 @@ BoardHistory Book::getInitialHist() const {
 }
 BoardHistory Book::getInitialHist(int symmetry) const {
   int initialEncorePhase = 0;
-  return BoardHistory(SymmetryHelpers::getSymBoard(initialBoard,symmetry), initialPla, initialRules, initialEncorePhase, alwaysComputePassAliveUnderSuicideRules);
+  return BoardHistory(SymmetryHelpers::getSymBoard(initialBoard,symmetry), initialPla, initialRules, initialEncorePhase, historyModes);
 }
 
 size_t Book::size() const {
@@ -3017,7 +3023,8 @@ void Book::saveToStream(std::ostream& out) const {
     paramsDump["initialRules"] = initialRules.toJson();
     paramsDump["initialPla"] = PlayerIO::playerToString(initialPla);
     paramsDump["repBound"] = repBound;
-    paramsDump["alwaysComputePassAliveUnderSuicideRules"] = alwaysComputePassAliveUnderSuicideRules;
+    paramsDump["alwaysComputePassAliveUnderSuicideRules"] = historyModes.alwaysComputePassAliveUnderSuicideRules;
+    paramsDump["excludeTerritoryAdjacentToAtari"] = historyModes.excludeTerritoryAdjacentToAtari;
     paramsDump["errorFactor"] = params.errorFactor;
     paramsDump["costPerMove"] = params.costPerMove;
     paramsDump["costPerUCBWinLossLoss"] = params.costPerUCBWinLossLoss;
@@ -3147,26 +3154,29 @@ void Book::saveToStream(std::ostream& out) const {
   out << std::flush;
 }
 
-bool Book::readAlwaysComputePassAliveUnderSuicideRulesOfFileHeader(const std::string& fileName) {
+BoardHistoryModes Book::readHistoryModesOfFileHeader(const std::string& fileName) {
   std::ifstream in;
   FileUtils::open(in, fileName);
   try {
-    return readAlwaysComputePassAliveUnderSuicideRulesOfHeader(in);
+    return readHistoryModesOfHeader(in);
   }
   catch(const std::exception& e) {
     throw IOError("When parsing book file " + fileName + ": " + e.what());
   }
 }
 
-bool Book::readAlwaysComputePassAliveUnderSuicideRulesOfHeader(std::istream& in) {
+BoardHistoryModes Book::readHistoryModesOfHeader(std::istream& in) {
   std::string line;
   getline(in,line);
   if(!in)
     throw IOError("Could not load initial metadata line from book data");
   json params = json::parse(line);
+  BoardHistoryModes modes;
   if(params.contains("alwaysComputePassAliveUnderSuicideRules"))
-    return params["alwaysComputePassAliveUnderSuicideRules"].get<bool>();
-  return false;
+    modes.alwaysComputePassAliveUnderSuicideRules = params["alwaysComputePassAliveUnderSuicideRules"].get<bool>();
+  if(params.contains("excludeTerritoryAdjacentToAtari"))
+    modes.excludeTerritoryAdjacentToAtari = params["excludeTerritoryAdjacentToAtari"].get<bool>();
+  return modes;
 }
 
 Book* Book::loadFromFile(const std::string& fileName, int numThreadsForRecompute) {
@@ -3196,7 +3206,7 @@ Book* Book::loadFromStreamHelper(std::istream& in, int numThreadsForRecompute, c
       json params = json::parse(line);
       assertContains(params,"version");
       int bookVersion = params["version"].get<int>();
-      if(bookVersion != 1 && bookVersion != 2 && bookVersion != 3)
+      if(bookVersion != 1 && bookVersion != 2 && bookVersion != 3 && bookVersion != 4)
         throw IOError("Unsupported book version: " + Global::intToString(bookVersion));
 
       assertContains(params,"initialBoard");
@@ -3239,9 +3249,12 @@ Book* Book::loadFromStreamHelper(std::istream& in, int numThreadsForRecompute, c
       bookParams.visitsScaleLeaves = params.contains("visitsScaleLeaves") ? params["visitsScaleLeaves"].get<double>() : 1.0;
       bookParams.sharpScoreOutlierCap = params.contains("sharpScoreOutlierCap") ? params["sharpScoreOutlierCap"].get<double>() : 10000.0;
 
-      //Absent in older book files = false
-      bool alwaysComputePassAliveUnderSuicideRules =
+      //Absent flags in older book files = false
+      BoardHistoryModes historyModes;
+      historyModes.alwaysComputePassAliveUnderSuicideRules =
         params.contains("alwaysComputePassAliveUnderSuicideRules") ? params["alwaysComputePassAliveUnderSuicideRules"].get<bool>() : false;
+      historyModes.excludeTerritoryAdjacentToAtari =
+        params.contains("excludeTerritoryAdjacentToAtari") ? params["excludeTerritoryAdjacentToAtari"].get<bool>() : false;
 
       book = std::make_unique<Book>(
         bookVersion,
@@ -3249,7 +3262,7 @@ Book* Book::loadFromStreamHelper(std::istream& in, int numThreadsForRecompute, c
         initialRules,
         initialPla,
         repBound,
-        alwaysComputePassAliveUnderSuicideRules,
+        historyModes,
         bookParams
       );
 

@@ -1,18 +1,171 @@
 #include "../neuralnet/onnxmodelbuilder.h"
 
 #include <cmath>
+#include <map>
+#include <set>
 
+#include "../core/fileutils.h"
 #include "../core/global.h"
 #include "../core/test.h"
 #include "../neuralnet/activations.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/nninputs.h"
+#include "../neuralnet/sgfmetadata.h"
 
 #include "onnx.pb.h"
 
 using namespace std;
 
 namespace {
+
+// ---- Embedded KataGo metadata ----
+//
+// Every emitted graph carries a block of "katago." metadata_props holding the model parameters that
+// an ONNX graph cannot express: model version, channel counts, score post-processing multipliers,
+// and the build settings baked into the graph. Without the block a .onnx file cannot be loaded and
+// run (see OnnxModelBuilder::load).
+//
+// docs/ONNX_Model_Files.md documents this block and the graph's input/output contract for third
+// parties, who can write a conforming .onnx of their own. KEEP THAT DOCUMENT IN SYNC with changes
+// here, including the rules below.
+//
+// The block has two namespaces, and which one a new key belongs in is the first thing to decide:
+//
+//  - "katago." is must-understand. load() refuses any key here that this build does not know, since
+//    a key it cannot interpret is one whose instructions it would be ignoring. Everything that
+//    changes how KataGo evaluates a position, decodes an output, or adjudicates a game belongs
+//    here, and as a REQUIRED key rather than an optional one with a default: silently defaulting a
+//    semantic flag off is exactly the failure this namespace exists to prevent.
+//  - "katago.info." is safe to ignore. Unknown keys here pass, so an older build still loads a file
+//    that carries newer reporting keys. Only put things here that affect nothing but log lines and
+//    diagnostics.
+//
+// Keys outside "katago." are left alone entirely - ONNX defines conventional metadata_props of its
+// own, and other tooling in the pipeline may stamp the file.
+//
+// Versioning on top of that:
+//
+//  - Adding a key under "katago.info.": do NOT bump. Older readers ignore it, and newer readers
+//    fall back to the documented default when an older writer omitted it.
+//  - Adding a key under "katago.", changing the meaning or units of an existing one, or changing
+//    the graph IO contract: bump KATAGO_METADATA_VERSION. The bump is what lets an older build say
+//    which version it wanted; refusing the unknown key is only the backstop if the bump is missed.
+//  - Raise KATAGO_METADATA_VERSION_MIN_READ only when this build can no longer honor an older
+//    version's semantics. Leaving it alone is what keeps old files working.
+const int KATAGO_METADATA_VERSION = 1;
+const int KATAGO_METADATA_VERSION_MIN_READ = 1;
+
+// Namespace prefixes, per the contract above.
+const char* const META_PREFIX = "katago.";
+const char* const META_INFO_PREFIX = "katago.info.";
+
+const char* const META_VERSION = "katago.metadataVersion";
+const char* const META_NAME = "katago.name";
+const char* const META_SOURCE_SHA256 = "katago.info.sourceSha256";
+const char* const META_MODEL_VERSION = "katago.modelVersion";
+const char* const META_NUM_INPUT_CHANNELS = "katago.numInputChannels";
+const char* const META_NUM_INPUT_GLOBAL_CHANNELS = "katago.numInputGlobalChannels";
+const char* const META_NUM_INPUT_META_CHANNELS = "katago.numInputMetaChannels";
+const char* const META_NUM_POLICY_CHANNELS = "katago.numPolicyChannels";
+const char* const META_NUM_VALUE_CHANNELS = "katago.numValueChannels";
+const char* const META_NUM_SCORE_VALUE_CHANNELS = "katago.numScoreValueChannels";
+const char* const META_NUM_OWNERSHIP_CHANNELS = "katago.numOwnershipChannels";
+const char* const META_META_ENCODER_VERSION = "katago.metaEncoderVersion";
+const char* const META_PREFER_PASS_ALIVE = "katago.preferPassAliveUnderSuicideRules";
+const char* const META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI = "katago.preferExcludeTerritoryAdjacentToAtari";
+const char* const META_TD_SCORE_MULT = "katago.postProcess.tdScoreMultiplier";
+const char* const META_SCORE_MEAN_MULT = "katago.postProcess.scoreMeanMultiplier";
+const char* const META_SCORE_STDEV_MULT = "katago.postProcess.scoreStdevMultiplier";
+const char* const META_LEAD_MULT = "katago.postProcess.leadMultiplier";
+const char* const META_VARIANCE_TIME_MULT = "katago.postProcess.varianceTimeMultiplier";
+const char* const META_SHORTTERM_VALUE_ERROR_MULT = "katago.postProcess.shorttermValueErrorMultiplier";
+const char* const META_SHORTTERM_SCORE_ERROR_MULT = "katago.postProcess.shorttermScoreErrorMultiplier";
+const char* const META_OUTPUT_SCALE_MULT = "katago.postProcess.outputScaleMultiplier";
+const char* const META_NN_X_LEN = "katago.build.nnXLen";
+const char* const META_NN_Y_LEN = "katago.build.nnYLen";
+const char* const META_REQUIRE_EXACT_NNLEN = "katago.build.requireExactNNLen";
+const char* const META_TRANSFORMER_NHWC = "katago.build.transformerNHWC";
+const char* const META_SCALE8_APPLIED = "katago.build.scale8Applied";
+const char* const META_ARCH_TRUNK_DEPTH = "katago.info.arch.trunkSpatialConvDepth";
+const char* const META_ARCH_NUM_PARAMS = "katago.info.arch.numParameters";
+const char* const META_ARCH_HAS_TRANSFORMER = "katago.info.arch.hasAnyTransformerBlocks";
+const char* const META_ARCH_HAS_NBT = "katago.info.arch.hasAnyNestedBottleneckBlocks";
+const char* const META_FP32_NODES_TRUNKTIP_HEAD = "katago.fp32Nodes.trunkTipAndHead";
+const char* const META_FP32_NODES_RMSNORM = "katago.fp32Nodes.rmsNorm";
+
+// Every key in the must-understand namespace. load() rejects any "katago." key absent from this
+// list, so a key added to build() without being added here fails the dump/load round trip at once.
+const char* const KNOWN_META_KEYS[] = {
+  META_VERSION,
+  META_NAME,
+  META_MODEL_VERSION,
+  META_NUM_INPUT_CHANNELS,
+  META_NUM_INPUT_GLOBAL_CHANNELS,
+  META_NUM_INPUT_META_CHANNELS,
+  META_NUM_POLICY_CHANNELS,
+  META_NUM_VALUE_CHANNELS,
+  META_NUM_SCORE_VALUE_CHANNELS,
+  META_NUM_OWNERSHIP_CHANNELS,
+  META_META_ENCODER_VERSION,
+  META_PREFER_PASS_ALIVE,
+  META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI,
+  META_TD_SCORE_MULT,
+  META_SCORE_MEAN_MULT,
+  META_SCORE_STDEV_MULT,
+  META_LEAD_MULT,
+  META_VARIANCE_TIME_MULT,
+  META_SHORTTERM_VALUE_ERROR_MULT,
+  META_SHORTTERM_SCORE_ERROR_MULT,
+  META_OUTPUT_SCALE_MULT,
+  META_NN_X_LEN,
+  META_NN_Y_LEN,
+  META_REQUIRE_EXACT_NNLEN,
+  META_TRANSFORMER_NHWC,
+  META_SCALE8_APPLIED,
+  META_FP32_NODES_TRUNKTIP_HEAD,
+  META_FP32_NODES_RMSNORM,
+};
+
+// Graph IO tensor names, in the order they are declared / bound. Their shapes and the meaning of
+// every channel are part of the published contract in docs/ONNX_Model_Files.md.
+const char* const INPUT_SPATIAL = "InputSpatial";
+const char* const INPUT_GLOBAL = "InputGlobal";
+const char* const INPUT_META = "InputMeta";
+const char* const INPUT_MASK = "InputMask";
+const char* const OUTPUT_POLICY_PASS = "OutputPolicyPass";
+const char* const OUTPUT_POLICY = "OutputPolicy";
+const char* const OUTPUT_VALUE = "OutputValue";
+const char* const OUTPUT_SCORE_VALUE = "OutputScoreValue";
+const char* const OUTPUT_OWNERSHIP = "OutputOwnership";
+
+// Doubles and floats are written with enough digits to round-trip exactly, since they scale the
+// engine's score and value outputs.
+string doubleToMeta(double x) {
+  return Global::strprintf("%.17g", x);
+}
+string floatToMeta(float x) {
+  return Global::strprintf("%.9g", (double)x);
+}
+
+string joinLines(const vector<string>& strs) {
+  string result;
+  for(size_t i = 0; i < strs.size(); i++) {
+    if(i > 0)
+      result += "\n";
+    result += strs[i];
+  }
+  return result;
+}
+vector<string> splitLines(const string& str) {
+  vector<string> result;
+  if(str.empty())
+    return result;
+  for(const string& s : Global::split(str, '\n')) {
+    if(!s.empty())
+      result.push_back(s);
+  }
+  return result;
+}
 
 // Builder that accumulates ONNX nodes and initializers into a single GraphProto, handing back
 // tensor names as it goes. Tensors are float32; transformerNHWC selects a channel-last NHWC trunk
@@ -420,7 +573,11 @@ struct Builder {
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
     // meanSq over channels (axis 1), keepdims -> [N,1,H,W]
-    string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
+    // Pow(x, 2.0) rather than Mul(x, x): OpenVINO's RMSFusion pass only matches
+    // Power(x, const(2)) and silently skips Mul(x, x), which would leave every RMSNorm
+    // running as an unfused ReduceMean/Sqrt/Div chain.
+    string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
+    string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {1})},
                             uniq(desc.name + "/meansq"), desc.name + "/meansq");
     { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }
@@ -455,7 +612,9 @@ struct Builder {
     int C = desc.numChannels;
     testAssert((int)desc.weight.size() == C);
     int rmsStart = graph->node_size();
-    string sq = addNode("Mul", {input, input}, uniq(desc.name + "/sq"), desc.name + "/sq");
+    // Pow(x, 2.0) rather than Mul(x, x): see the NCHW variant above.
+    string twoName = addScalarInitializer(uniq(desc.name + "/pow2"), 2.0f);
+    string sq = addNode("Pow", {input, twoName}, uniq(desc.name + "/sq"), desc.name + "/sq");
     string meanSq = addNode("ReduceMean", {sq, addInt64Initializer(uniq(desc.name + "/axC"), {3})},  // C is axis 3 of [N,H,W,C]
                             uniq(desc.name + "/meansq"), desc.name + "/meansq");
     { onnx::NodeProto* n = lastNode(); onnx::AttributeProto* a = addAttr(n, "keepdims"); a->set_type(onnx::AttributeProto::INT); a->set_i(1); }
@@ -821,14 +980,37 @@ struct Builder {
 
 namespace OnnxModelBuilder {
 
+BuildParams::BuildParams()
+  : nnXLen(0),
+    nnYLen(0),
+    requireExactNNLen(false),
+    transformerNHWC(false),
+    scale8Applied(false)
+{}
+
+LoadResult::LoadResult()
+  : serializedModel(),
+    buildParams(),
+    metadataVersion(0),
+    sourceSha256(),
+    trunkTipAndHeadNodeNames(),
+    rmsNormNodeNames(),
+    danglingInputNotDeclaredLast(false)
+{}
+
 Result build(
   const ModelDesc& desc,
-  int nnXLen,
-  int nnYLen,
-  bool requireExactNNLen,
-  bool transformerNHWC,
+  const BuildParams& buildParams,
   Logger* logger
 ) {
+  const int nnXLen = buildParams.nnXLen;
+  const int nnYLen = buildParams.nnYLen;
+  const bool requireExactNNLen = buildParams.requireExactNNLen;
+  // Normalize to what the graph actually gets built with: a trunk with no transformer blocks has no
+  // NHWC region, so the flag means nothing there. Doing it here rather than ignoring it downstream
+  // keeps the recorded value accurate, which matters because TensorRT keys its caches on it.
+  const bool transformerNHWC = buildParams.transformerNHWC && desc.hasAnyTransformerBlocks();
+
   if(logger != NULL)
     logger->write("Building internal onnx model, requireExactNNLen=" + Global::boolToString(requireExactNNLen) + " transformerNHWC=" + Global::boolToString(transformerNHWC));
 
@@ -848,8 +1030,41 @@ Result build(
     m->set_key(k);
     m->set_value(v);
   };
-  addMeta("name", desc.name);
-  addMeta("modelVersion", Global::intToString(desc.modelVersion));
+  // Everything about the model that the graph itself cannot express. Kept in sync with the reader
+  // in load(); see the KATAGO_METADATA_VERSION comment above.
+  addMeta(META_VERSION, Global::intToString(KATAGO_METADATA_VERSION));
+  addMeta(META_NAME, desc.name);
+  addMeta(META_SOURCE_SHA256, desc.sha256);
+  addMeta(META_MODEL_VERSION, Global::intToString(desc.modelVersion));
+  addMeta(META_NUM_INPUT_CHANNELS, Global::intToString(desc.numInputChannels));
+  addMeta(META_NUM_INPUT_GLOBAL_CHANNELS, Global::intToString(desc.numInputGlobalChannels));
+  addMeta(META_NUM_INPUT_META_CHANNELS, Global::intToString(desc.numInputMetaChannels));
+  addMeta(META_NUM_POLICY_CHANNELS, Global::intToString(desc.numPolicyChannels));
+  addMeta(META_NUM_VALUE_CHANNELS, Global::intToString(desc.numValueChannels));
+  addMeta(META_NUM_SCORE_VALUE_CHANNELS, Global::intToString(desc.numScoreValueChannels));
+  addMeta(META_NUM_OWNERSHIP_CHANNELS, Global::intToString(desc.numOwnershipChannels));
+  addMeta(META_META_ENCODER_VERSION, Global::intToString(desc.metaEncoderVersion));
+  addMeta(META_PREFER_PASS_ALIVE, Global::boolToString(desc.preferPassAliveUnderSuicideRules));
+  addMeta(META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI, Global::boolToString(desc.preferExcludeTerritoryAdjacentToAtari));
+  addMeta(META_TD_SCORE_MULT, doubleToMeta(desc.postProcessParams.tdScoreMultiplier));
+  addMeta(META_SCORE_MEAN_MULT, doubleToMeta(desc.postProcessParams.scoreMeanMultiplier));
+  addMeta(META_SCORE_STDEV_MULT, doubleToMeta(desc.postProcessParams.scoreStdevMultiplier));
+  addMeta(META_LEAD_MULT, doubleToMeta(desc.postProcessParams.leadMultiplier));
+  addMeta(META_VARIANCE_TIME_MULT, doubleToMeta(desc.postProcessParams.varianceTimeMultiplier));
+  addMeta(META_SHORTTERM_VALUE_ERROR_MULT, doubleToMeta(desc.postProcessParams.shorttermValueErrorMultiplier));
+  addMeta(META_SHORTTERM_SCORE_ERROR_MULT, doubleToMeta(desc.postProcessParams.shorttermScoreErrorMultiplier));
+  addMeta(META_OUTPUT_SCALE_MULT, floatToMeta(desc.postProcessParams.outputScaleMultiplier));
+  addMeta(META_NN_X_LEN, Global::intToString(nnXLen));
+  addMeta(META_NN_Y_LEN, Global::intToString(nnYLen));
+  addMeta(META_REQUIRE_EXACT_NNLEN, Global::boolToString(requireExactNNLen));
+  addMeta(META_TRANSFORMER_NHWC, Global::boolToString(transformerNHWC));
+  addMeta(META_SCALE8_APPLIED, Global::boolToString(buildParams.scale8Applied));
+  // Architecture summary. Only used for reporting and for lenience thresholds in tests; a reloaded
+  // graph has no layer structure left to recompute these from.
+  addMeta(META_ARCH_TRUNK_DEPTH, doubleToMeta(desc.getTrunkSpatialConvDepth()));
+  addMeta(META_ARCH_NUM_PARAMS, Global::int64ToString(desc.getNumParameters()));
+  addMeta(META_ARCH_HAS_TRANSFORMER, Global::boolToString(desc.hasAnyTransformerBlocks()));
+  addMeta(META_ARCH_HAS_NBT, Global::boolToString(desc.hasAnyNestedBottleneckBlocks()));
 
   onnx::GraphProto* graph = model.mutable_graph();
   graph->set_name(desc.name.empty() ? "katago" : desc.name);
@@ -884,7 +1099,19 @@ Result build(
     shape->add_dim()->set_dim_value(1);
     shape->add_dim()->set_dim_value(1);
   };
-  addInput("InputMask", 1);
+  // Declaration order matters for the OpenVINO execution provider under ONNX Runtime (from ORT
+  // 1.23.0): the EP builds its name->index map skipping graph inputs that no node consumes, but
+  // does not adjust the indices it then binds tensors by, so every input after a dangling one is
+  // bound to the wrong buffer. Declaring InputMask first makes the EP misroute the [N,1,H,W] mask
+  // tensor into the InputSpatial port, failing at runtime with:
+  //   "can't handle input tensor ...:InputSpatial, because model input (shape=[?,22,19,19])
+  //    and tensor (shape=[1,1,19,19]) are incompatible"
+  // (observed on ORT 1.29 + OpenVINO 2026.2, Intel Arc B580). InputMask is exactly such a dangling
+  // input whenever requireExactNNLen skips all masking, which is why the failure shows up only
+  // there. Declaring it last keeps the live inputs at contiguous indices.
+  // This rule is part of the graph contract in docs/ONNX_Model_Files.md, since externally-produced
+  // models have to follow it too. Keep the two in sync.
+  // InputMeta, when the model has a metadata encoder, goes after InputGlobal and before InputMask.
   addInput("InputSpatial", numInputChannels);
   addInputNC11("InputGlobal", numInputGlobalChannels);
   // HumanSL-style nets additionally take a per-row SGF metadata vector. Only declare the input when
@@ -893,6 +1120,7 @@ Result build(
   bool hasMetaEncoder = desc.metaEncoderVersion > 0;
   if(hasMetaEncoder)
     addInputNC11("InputMeta", desc.numInputMetaChannels);
+  addInput("InputMask", 1);
 
   // ---- Mask-derived features ----
   if(!requireExactNNLen) {
@@ -1115,12 +1343,499 @@ Result build(
   //     logger->write("OnnxModelBuilder: DEBUG exposed all internal node outputs as graph outputs");
   // }
 
+  // Record the FP32-pinning node names in the metadata as well as returning them: the TensorRT
+  // backend needs them for a loaded .onnx too, where there is no emit step to produce them.
+  addMeta(META_FP32_NODES_TRUNKTIP_HEAD, joinLines(b.trunkTipAndHeadNodeNames));
+  addMeta(META_FP32_NODES_RMSNORM, joinLines(b.rmsNormNodeNames));
+
   OnnxModelBuilder::Result result;
   if(!model.SerializeToString(&result.serializedModel))
     throw StringError("OnnxModelBuilder: failed to serialize ModelProto");
   result.trunkTipAndHeadNodeNames = std::move(b.trunkTipAndHeadNodeNames);
   result.rmsNormNodeNames = std::move(b.rmsNormNodeNames);
   return result;
+}
+
+//--------------------------------------------------------------------------------------------------
+// Reading a .onnx model file
+//--------------------------------------------------------------------------------------------------
+
+bool isOnnxFileName(const string& fileName) {
+  string lower = Global::toLower(fileName);
+  return Global::isSuffix(lower, ".onnx") || Global::isSuffix(lower, ".onnx.gz");
+}
+
+namespace {
+
+// Metadata accessors. A key read through the plain getters is required: defaulting a missing one
+// would silently mis-decode the net rather than fail.
+struct MetaReader {
+  const map<string, string>& meta;
+  const string& fileName;
+
+  [[noreturn]] void fail(const string& msg) const {
+    throw StringError("Error loading ONNX model file " + fileName + ": " + msg);
+  }
+  const string& getString(const char* key) const {
+    auto iter = meta.find(key);
+    if(iter == meta.end())
+      fail(string("metadata is missing required key ") + key);
+    return iter->second;
+  }
+  bool has(const char* key) const {
+    return meta.count(key) > 0;
+  }
+  // Optional-key accessors. The defaults are part of the documented contract, so a file that omits
+  // a key means the same thing to every reader.
+  string getStringOr(const char* key, const string& dflt) const {
+    auto iter = meta.find(key);
+    return iter == meta.end() ? dflt : iter->second;
+  }
+  int getIntOr(const char* key, int dflt) const {
+    return has(key) ? getInt(key) : dflt;
+  }
+  int64_t getInt64Or(const char* key, int64_t dflt) const {
+    return has(key) ? getInt64(key) : dflt;
+  }
+  bool getBoolOr(const char* key, bool dflt) const {
+    return has(key) ? getBool(key) : dflt;
+  }
+  double getDoubleOr(const char* key, double dflt) const {
+    return has(key) ? getDouble(key) : dflt;
+  }
+  double getPositiveDoubleOr(const char* key, double dflt) const {
+    return has(key) ? getPositiveDouble(key) : dflt;
+  }
+  int getInt(const char* key) const {
+    int value = 0;
+    if(!Global::tryStringToInt(getString(key), value))
+      fail(string("metadata key ") + key + " is not an integer: " + getString(key));
+    return value;
+  }
+  int64_t getInt64(const char* key) const {
+    int64_t value = 0;
+    if(!Global::tryStringToInt64(getString(key), value))
+      fail(string("metadata key ") + key + " is not an integer: " + getString(key));
+    return value;
+  }
+  bool getBool(const char* key) const {
+    bool value = false;
+    if(!Global::tryStringToBool(getString(key), value))
+      fail(string("metadata key ") + key + " is not a boolean: " + getString(key));
+    return value;
+  }
+  double getPositiveDouble(const char* key) const {
+    double value = 0.0;
+    if(!Global::tryStringToDouble(getString(key), value))
+      fail(string("metadata key ") + key + " is not a number: " + getString(key));
+    if(!(value > 0) || !isfinite(value))
+      fail(string("metadata key ") + key + " must be a positive finite number, got: " + getString(key));
+    return value;
+  }
+  double getDouble(const char* key) const {
+    double value = 0.0;
+    if(!Global::tryStringToDouble(getString(key), value))
+      fail(string("metadata key ") + key + " is not a number: " + getString(key));
+    if(!isfinite(value))
+      fail(string("metadata key ") + key + " must be finite, got: " + getString(key));
+    return value;
+  }
+};
+
+// One expected graph input or output: its name, its channel count, and whether it is board-shaped
+// (H,W = nnYLen,nnXLen) or a per-row vector (H,W = 1,1).
+struct ExpectedTensor {
+  string name;
+  int channels;
+  bool spatial;
+};
+
+// Check that one declared graph tensor has the float32 [batch,channels,H,W] shape the backends bind
+// to it. A drifted IO signature otherwise fails deep inside the execution provider, or silently
+// reads the wrong buffer.
+void checkTensorMatches(
+  const MetaReader& reader,
+  const onnx::ValueInfoProto& vi,
+  const ExpectedTensor& expected,
+  int nnXLen,
+  int nnYLen,
+  const char* inOrOut
+) {
+  string what = string(inOrOut) + " '" + expected.name + "'";
+  if(!vi.type().has_tensor_type())
+    reader.fail("graph " + what + " is not a tensor");
+  const onnx::TypeProto::Tensor& t = vi.type().tensor_type();
+  if(t.elem_type() != onnx::TensorProto::FLOAT)
+    reader.fail(
+      "graph " + what + " has element type " + Global::intToString((int)t.elem_type()) +
+      ", but KataGo binds float32 (1) buffers to it. Graphs converted to another IO precision "
+      "(e.g. float16) cannot be run by this backend.");
+  const onnx::TensorShapeProto& shape = t.shape();
+  if(shape.dim_size() != 4)
+    reader.fail("graph " + what + " has rank " + Global::intToString(shape.dim_size()) + ", expected rank 4 (NCHW)");
+
+  // Dim 0 must stay symbolic: the backends run varying batch sizes through one session/engine.
+  if(shape.dim(0).has_dim_value())
+    reader.fail(
+      "graph " + what + " has a fixed batch dimension of " + Global::int64ToString(shape.dim(0).dim_value()) +
+      ", but KataGo needs a dynamic (symbolic) batch dimension");
+
+  const int64_t expectedDims[3] = {
+    (int64_t)expected.channels,
+    (int64_t)(expected.spatial ? nnYLen : 1),
+    (int64_t)(expected.spatial ? nnXLen : 1),
+  };
+  const char* dimNames[3] = {"channel", "height", "width"};
+  for(int i = 0; i < 3; i++) {
+    const onnx::TensorShapeProto::Dimension& dim = shape.dim(i + 1);
+    if(!dim.has_dim_value())
+      reader.fail(
+        "graph " + what + " has a symbolic " + dimNames[i] +
+        " dimension, but KataGo needs it fixed at " + Global::int64ToString(expectedDims[i]));
+    if(dim.dim_value() != expectedDims[i])
+      reader.fail(
+        "graph " + what + " has " + dimNames[i] + " dimension " + Global::int64ToString(dim.dim_value()) +
+        ", but the model metadata says it should be " + Global::int64ToString(expectedDims[i]));
+  }
+}
+
+// Check the graph declares exactly the expected inputs/outputs and nothing else.
+void checkGraphIO(
+  const MetaReader& reader,
+  const onnx::GraphProto& graph,
+  const vector<ExpectedTensor>& expected,
+  bool isInput,
+  int nnXLen,
+  int nnYLen
+) {
+  const char* inOrOut = isInput ? "input" : "output";
+  // Initializers may also be declared as graph inputs (a legacy ONNX convention some tooling
+  // reintroduces); those are weights, not IO, so they don't count as extra inputs.
+  set<string> initializerNames;
+  if(isInput) {
+    for(int i = 0; i < graph.initializer_size(); i++)
+      initializerNames.insert(graph.initializer(i).name());
+  }
+
+  map<string, const onnx::ValueInfoProto*> declared;
+  const int n = isInput ? graph.input_size() : graph.output_size();
+  for(int i = 0; i < n; i++) {
+    const onnx::ValueInfoProto& vi = isInput ? graph.input(i) : graph.output(i);
+    if(initializerNames.count(vi.name()) > 0)
+      continue;
+    if(declared.count(vi.name()) > 0)
+      reader.fail(string("graph declares ") + inOrOut + " '" + vi.name() + "' more than once");
+    declared[vi.name()] = &vi;
+  }
+
+  for(const ExpectedTensor& e : expected) {
+    auto iter = declared.find(e.name);
+    if(iter == declared.end())
+      reader.fail(string("graph has no ") + inOrOut + " named '" + e.name + "'");
+    checkTensorMatches(reader, *iter->second, e, nnXLen, nnYLen, inOrOut);
+    declared.erase(iter);
+  }
+  if(!declared.empty()) {
+    string extras;
+    for(const auto& kv : declared)
+      extras += (extras.empty() ? "" : ", ") + kv.first;
+    reader.fail(
+      string("graph declares unexpected ") + inOrOut + "(s): " + extras +
+      ". KataGo binds a fixed set of tensors by name and cannot feed or read anything else.");
+  }
+}
+
+}  // namespace
+
+LoadResult load(
+  const string& fileName,
+  const string& expectedSha256,
+  ModelDesc& descBuf,
+  Logger* logger
+) {
+  LoadResult result;
+  string sha256Buf;
+  {
+    string lower = Global::toLower(fileName);
+    if(Global::isSuffix(lower, ".gz"))
+      FileUtils::uncompressAndLoadFileIntoString(fileName, expectedSha256, result.serializedModel, &sha256Buf);
+    else
+      FileUtils::loadFileIntoString(fileName, expectedSha256, result.serializedModel, &sha256Buf);
+  }
+
+  // Parsing doubles peak memory for the length of this function: the raw bytes have to be kept too,
+  // since they are what gets handed to TensorRT or ONNX Runtime. The parsed copy is then dropped.
+  onnx::ModelProto model;
+  if(!model.ParseFromString(result.serializedModel))
+    throw StringError(
+      "Error loading ONNX model file " + fileName +
+      ": file could not be parsed as an ONNX ModelProto. Is it actually an ONNX file?");
+
+  map<string, string> meta;
+  for(int i = 0; i < model.metadata_props_size(); i++)
+    meta[model.metadata_props(i).key()] = model.metadata_props(i).value();
+  MetaReader reader{meta, fileName};
+
+  if(meta.count(META_VERSION) == 0)
+    throw StringError(
+      "Error loading ONNX model file " + fileName +
+      ": this is an ONNX model, but it carries no KataGo metadata, so KataGo cannot tell what its "
+      "inputs and outputs mean or how to decode them. An .onnx model KataGo can run must carry a "
+      "katago.* metadata block - 'katago dumponnx' writes one when converting a .bin.gz, and a "
+      "model from any other source needs one added.");
+  result.metadataVersion = reader.getInt(META_VERSION);
+  if(result.metadataVersion > KATAGO_METADATA_VERSION)
+    throw StringError(Global::strprintf(
+      "Error loading ONNX model file %s: its KataGo metadata is version %d, but this KataGo build "
+      "understands up to version %d. Use a newer KataGo, or write the file to version %d.",
+      fileName.c_str(), result.metadataVersion, KATAGO_METADATA_VERSION, KATAGO_METADATA_VERSION));
+  if(result.metadataVersion < KATAGO_METADATA_VERSION_MIN_READ)
+    throw StringError(Global::strprintf(
+      "Error loading ONNX model file %s: its KataGo metadata is version %d, which this KataGo build "
+      "no longer reads (minimum %d). Re-dump the model from its .bin.gz.",
+      fileName.c_str(), result.metadataVersion, KATAGO_METADATA_VERSION_MIN_READ));
+
+  // Refuse keys in the must-understand namespace that this build has no code for. Reaching here
+  // means the version check passed, so the file claims to be readable while carrying instructions
+  // this build would be ignoring - most likely a writer that added a key without bumping the
+  // version, or a typo in a hand-written block.
+  {
+    vector<string> unknownKeys;
+    for(const auto& keyAndValue: meta) {
+      const string& key = keyAndValue.first;
+      if(!Global::isPrefix(key, META_PREFIX) || Global::isPrefix(key, META_INFO_PREFIX))
+        continue;
+      bool known = false;
+      for(const char* knownKey: KNOWN_META_KEYS) {
+        if(key == knownKey) {
+          known = true;
+          break;
+        }
+      }
+      if(!known)
+        unknownKeys.push_back(key);
+    }
+    if(unknownKeys.size() > 0)
+      throw StringError(
+        "Error loading ONNX model file " + fileName + ": its KataGo metadata has key(s) this build "
+        "does not know: " + Global::concat(unknownKeys, ", ") +
+        ". Keys under \"katago.\" have to be understood to run the model correctly. Re-dump the "
+        "model with this KataGo, use a newer KataGo, or drop the keys if they do not apply - purely "
+        "informational ones belong under \"katago.info.\" instead.");
+  }
+
+  descBuf = ModelDesc();
+  descBuf.name = reader.getString(META_NAME);
+  ModelDesc::checkNameValid(descBuf.name);
+  descBuf.sha256 = sha256Buf;
+  result.sourceSha256 = reader.getStringOr(META_SOURCE_SHA256, string());
+
+  descBuf.modelVersion = reader.getInt(META_MODEL_VERSION);
+  if(descBuf.modelVersion < NNModelVersion::oldestModelVersionImplemented)
+    throw StringError(
+      "Error loading ONNX model file " + fileName +
+      ": model version " + Global::intToString(descBuf.modelVersion) + " is no longer supported by the engine.");
+  if(descBuf.modelVersion > NNModelVersion::latestModelVersionImplemented)
+    throw StringError(
+      "Error loading ONNX model file " + fileName + ": model version " + Global::intToString(descBuf.modelVersion) +
+      " requires a newer KataGo version. Obtain a newer KataGo at https://github.com/lightvector/KataGo.");
+
+  descBuf.numInputChannels = reader.getInt(META_NUM_INPUT_CHANNELS);
+  descBuf.numInputGlobalChannels = reader.getInt(META_NUM_INPUT_GLOBAL_CHANNELS);
+  descBuf.numInputMetaChannels = reader.getInt(META_NUM_INPUT_META_CHANNELS);
+  descBuf.numPolicyChannels = reader.getInt(META_NUM_POLICY_CHANNELS);
+  descBuf.numValueChannels = reader.getInt(META_NUM_VALUE_CHANNELS);
+  descBuf.numScoreValueChannels = reader.getInt(META_NUM_SCORE_VALUE_CHANNELS);
+  descBuf.numOwnershipChannels = reader.getInt(META_NUM_OWNERSHIP_CHANNELS);
+  // These entered the .bin.gz header at model version 15, and are gated here the same way: a model
+  // too old to have them cannot have meant anything but the defaults. The prefer* flags govern how
+  // the caller featurizes and adjudicates for this model, so a graph that needs one set has to say
+  // so rather than silently defaulting off.
+  if(descBuf.modelVersion >= 15) {
+    descBuf.metaEncoderVersion = reader.getInt(META_META_ENCODER_VERSION);
+    descBuf.preferPassAliveUnderSuicideRules = reader.getBool(META_PREFER_PASS_ALIVE);
+    descBuf.preferExcludeTerritoryAdjacentToAtari = reader.getBool(META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI);
+  }
+  else {
+    descBuf.metaEncoderVersion = reader.getIntOr(META_META_ENCODER_VERSION, 0);
+    descBuf.preferPassAliveUnderSuicideRules = reader.getBoolOr(META_PREFER_PASS_ALIVE, false);
+    descBuf.preferExcludeTerritoryAdjacentToAtari = reader.getBoolOr(META_PREFER_EXCLUDE_TERRITORY_ADJ_ATARI, false);
+  }
+
+  // The input encoding and output decoding are fixed by the model version, so every channel count
+  // has exactly one legal value. Checking them here means a corrupted or hand-edited metadata block
+  // fails at load rather than producing plausible-looking but wrong evaluations.
+  auto checkChannels = [&](const char* what, int actual, int expected) {
+    if(actual != expected)
+      reader.fail(Global::strprintf(
+        "%s is %d, but model version %d requires %d", what, actual, descBuf.modelVersion, expected));
+  };
+  checkChannels("numInputChannels", descBuf.numInputChannels, NNModelVersion::getNumSpatialFeatures(descBuf.modelVersion));
+  checkChannels("numInputGlobalChannels", descBuf.numInputGlobalChannels, NNModelVersion::getNumGlobalFeatures(descBuf.modelVersion));
+  if(descBuf.metaEncoderVersion < 0 || descBuf.metaEncoderVersion > 1)
+    reader.fail("metaEncoderVersion is not implemented: " + Global::intToString(descBuf.metaEncoderVersion));
+  if(descBuf.metaEncoderVersion > 0 && descBuf.modelVersion < 15)
+    reader.fail("metaEncoderVersion > 0 requires model version >= 15");
+  checkChannels(
+    "numInputMetaChannels", descBuf.numInputMetaChannels,
+    NNModelVersion::getNumInputMetaChannels(descBuf.metaEncoderVersion));
+  if(descBuf.metaEncoderVersion > 0 && descBuf.numInputMetaChannels != SGFMetadata::METADATA_INPUT_NUM_CHANNELS)
+    reader.fail(Global::strprintf(
+      "numInputMetaChannels (%d) != METADATA_INPUT_NUM_CHANNELS (%d)",
+      descBuf.numInputMetaChannels, SGFMetadata::METADATA_INPUT_NUM_CHANNELS));
+  // Policy channels: 1 for old nets, 2 once the optimism channel exists, 4 from v16 on.
+  if(!(descBuf.numPolicyChannels == 1 || descBuf.numPolicyChannels == 2 ||
+       (descBuf.numPolicyChannels == 4 && descBuf.modelVersion >= 16)))
+    reader.fail(Global::strprintf(
+      "numPolicyChannels (%d) is not supported for model version %d",
+      descBuf.numPolicyChannels, descBuf.modelVersion));
+  checkChannels("numValueChannels", descBuf.numValueChannels, 3);
+  checkChannels("numOwnershipChannels", descBuf.numOwnershipChannels, 1);
+  {
+    int expectedScoreValueChannels =
+      descBuf.modelVersion >= 9 ? 6 :
+      descBuf.modelVersion >= 8 ? 4 :
+      descBuf.modelVersion >= 4 ? 2 : 1;
+    checkChannels("numScoreValueChannels", descBuf.numScoreValueChannels, expectedScoreValueChannels);
+  }
+
+  // The score post-processing multipliers entered the .bin.gz header at model version 13; below that
+  // every model uses the built-in defaults, so the keys are optional exactly there.
+  {
+    const ModelPostProcessParams dflt;
+    ModelPostProcessParams& p = descBuf.postProcessParams;
+    if(descBuf.modelVersion >= 13) {
+      p.tdScoreMultiplier = reader.getPositiveDouble(META_TD_SCORE_MULT);
+      p.scoreMeanMultiplier = reader.getPositiveDouble(META_SCORE_MEAN_MULT);
+      p.scoreStdevMultiplier = reader.getPositiveDouble(META_SCORE_STDEV_MULT);
+      p.leadMultiplier = reader.getPositiveDouble(META_LEAD_MULT);
+      p.varianceTimeMultiplier = reader.getPositiveDouble(META_VARIANCE_TIME_MULT);
+      p.shorttermValueErrorMultiplier = reader.getPositiveDouble(META_SHORTTERM_VALUE_ERROR_MULT);
+      p.shorttermScoreErrorMultiplier = reader.getPositiveDouble(META_SHORTTERM_SCORE_ERROR_MULT);
+    }
+    else {
+      p.tdScoreMultiplier = reader.getPositiveDoubleOr(META_TD_SCORE_MULT, dflt.tdScoreMultiplier);
+      p.scoreMeanMultiplier = reader.getPositiveDoubleOr(META_SCORE_MEAN_MULT, dflt.scoreMeanMultiplier);
+      p.scoreStdevMultiplier = reader.getPositiveDoubleOr(META_SCORE_STDEV_MULT, dflt.scoreStdevMultiplier);
+      p.leadMultiplier = reader.getPositiveDoubleOr(META_LEAD_MULT, dflt.leadMultiplier);
+      p.varianceTimeMultiplier = reader.getPositiveDoubleOr(META_VARIANCE_TIME_MULT, dflt.varianceTimeMultiplier);
+      p.shorttermValueErrorMultiplier =
+        reader.getPositiveDoubleOr(META_SHORTTERM_VALUE_ERROR_MULT, dflt.shorttermValueErrorMultiplier);
+      p.shorttermScoreErrorMultiplier =
+        reader.getPositiveDoubleOr(META_SHORTTERM_SCORE_ERROR_MULT, dflt.shorttermScoreErrorMultiplier);
+    }
+    // Not a .bin.gz field: it exists only because a graph may have been emitted with its activations
+    // rescaled. A graph that was not rescaled says 1, which is also the default.
+    p.outputScaleMultiplier = (float)reader.getPositiveDoubleOr(META_OUTPUT_SCALE_MULT, dflt.outputScaleMultiplier);
+  }
+
+  // Reporting only: log lines and the tolerances in the neural net tests. A graph has no layer
+  // structure to recompute these from, so absent means unknown, reported as zero.
+  descBuf.archSummary.present = true;
+  descBuf.archSummary.trunkSpatialConvDepth = reader.getDoubleOr(META_ARCH_TRUNK_DEPTH, 0.0);
+  descBuf.archSummary.numParameters = reader.getInt64Or(META_ARCH_NUM_PARAMS, 0);
+  descBuf.archSummary.hasAnyTransformerBlocks = reader.getBoolOr(META_ARCH_HAS_TRANSFORMER, false);
+  descBuf.archSummary.hasAnyNestedBottleneckBlocks = reader.getBoolOr(META_ARCH_HAS_NBT, false);
+
+  result.buildParams.nnXLen = reader.getInt(META_NN_X_LEN);
+  result.buildParams.nnYLen = reader.getInt(META_NN_Y_LEN);
+  result.buildParams.requireExactNNLen = reader.getBool(META_REQUIRE_EXACT_NNLEN);
+  // Both describe how the graph was produced rather than how to run it: NHWC only buckets TensorRT's
+  // caches, and the scale8 compensation is already folded into outputScaleMultiplier above.
+  result.buildParams.transformerNHWC = reader.getBoolOr(META_TRANSFORMER_NHWC, false);
+  result.buildParams.scale8Applied = reader.getBoolOr(META_SCALE8_APPLIED, false);
+  if(result.buildParams.nnXLen < 2 || result.buildParams.nnXLen > NNPos::MAX_BOARD_LEN ||
+     result.buildParams.nnYLen < 2 || result.buildParams.nnYLen > NNPos::MAX_BOARD_LEN)
+    reader.fail(Global::strprintf(
+      "graph board size %dx%d is outside the supported range 2 to %d",
+      result.buildParams.nnXLen, result.buildParams.nnYLen, NNPos::MAX_BOARD_LEN));
+
+  // Optional: which nodes TensorRT must keep in FP32, for reductions that would overflow. Absent or
+  // empty means none are needed, which the TensorRT backend warns about when running in FP16.
+  result.trunkTipAndHeadNodeNames = splitLines(reader.getStringOr(META_FP32_NODES_TRUNKTIP_HEAD, string()));
+  result.rmsNormNodeNames = splitLines(reader.getStringOr(META_FP32_NODES_RMSNORM, string()));
+
+  // Now that the metadata is known to be self-consistent, check the graph agrees with it.
+  {
+    const int nnXLen = result.buildParams.nnXLen;
+    const int nnYLen = result.buildParams.nnYLen;
+    vector<ExpectedTensor> expectedInputs;
+    expectedInputs.push_back({INPUT_SPATIAL, descBuf.numInputChannels, true});
+    expectedInputs.push_back({INPUT_GLOBAL, descBuf.numInputGlobalChannels, false});
+    if(descBuf.metaEncoderVersion > 0)
+      expectedInputs.push_back({INPUT_META, descBuf.numInputMetaChannels, false});
+    expectedInputs.push_back({INPUT_MASK, 1, true});
+    checkGraphIO(reader, model.graph(), expectedInputs, true, nnXLen, nnYLen);
+
+    vector<ExpectedTensor> expectedOutputs;
+    expectedOutputs.push_back({OUTPUT_POLICY_PASS, descBuf.numPolicyChannels, false});
+    expectedOutputs.push_back({OUTPUT_POLICY, descBuf.numPolicyChannels, true});
+    expectedOutputs.push_back({OUTPUT_VALUE, descBuf.numValueChannels, false});
+    expectedOutputs.push_back({OUTPUT_SCORE_VALUE, descBuf.numScoreValueChannels, false});
+    expectedOutputs.push_back({OUTPUT_OWNERSHIP, descBuf.numOwnershipChannels, true});
+    checkGraphIO(reader, model.graph(), expectedOutputs, false, nnXLen, nnYLen);
+  }
+
+  // Flag the input-declaration hazard described where build() declares its inputs: ONNX Runtime's
+  // OpenVINO execution provider mis-binds every graph input declared after one that no node
+  // consumes. Only that provider is affected, so the backends warn rather than refusing a graph
+  // that is fine everywhere else.
+  {
+    const onnx::GraphProto& graph = model.graph();
+    set<string> consumed;
+    for(int i = 0; i < graph.node_size(); i++) {
+      for(int j = 0; j < graph.node(i).input_size(); j++)
+        consumed.insert(graph.node(i).input(j));
+    }
+    for(int i = 0; i + 1 < graph.input_size(); i++) {
+      if(consumed.count(graph.input(i).name()) == 0)
+        result.danglingInputNotDeclaredLast = true;
+    }
+  }
+
+  if(logger != NULL) {
+    logger->write(
+      "Loaded ONNX model file " + fileName + ": model " + descBuf.name +
+      " (" + descBuf.getShortInfoString() + "), model version " + Global::intToString(descBuf.modelVersion));
+    string sourceStr = result.sourceSha256.empty() ? string() : (", from model sha256 " + result.sourceSha256);
+    logger->write(Global::strprintf(
+      "ONNX graph was emitted for %dx%d, requireExactNNLen=%s, transformerNHWC=%s, scale8Applied=%s%s",
+      result.buildParams.nnXLen,
+      result.buildParams.nnYLen,
+      Global::boolToString(result.buildParams.requireExactNNLen).c_str(),
+      Global::boolToString(result.buildParams.transformerNHWC).c_str(),
+      Global::boolToString(result.buildParams.scale8Applied).c_str(),
+      sourceStr.c_str()));
+  }
+
+  return result;
+}
+
+void checkRuntimeParams(
+  const LoadResult& loadResult,
+  const string& modelFileName,
+  int nnXLen,
+  int nnYLen,
+  bool requireExactNNLen
+) {
+  const BuildParams& params = loadResult.buildParams;
+  if(params.nnXLen != nnXLen || params.nnYLen != nnYLen)
+    throw StringError(Global::strprintf(
+      "ONNX model file %s was emitted for a %dx%d board buffer, but this run needs %dx%d. The board "
+      "size is baked into the graph, so re-dump the model with -nn-x-len %d -nn-y-len %d, or change "
+      "the config (maxBoardSizeForNNBuffer) to match the graph.",
+      modelFileName.c_str(), params.nnXLen, params.nnYLen, nnXLen, nnYLen, nnXLen, nnYLen));
+
+  // A graph emitted with requireExactNNLen skips all masking and is only correct when every
+  // position fills the whole buffer. The reverse (a masked graph run where every position happens to
+  // fill the buffer) is correct, just slightly slower, so it is allowed.
+  if(params.requireExactNNLen && !requireExactNNLen)
+    throw StringError(
+      "ONNX model file " + modelFileName +
+      " was emitted with requireExactNNLen (no board masking), so it can only evaluate positions that "
+      "fill the whole " + Global::intToString(params.nnXLen) + "x" + Global::intToString(params.nnYLen) +
+      " buffer, but this run allows smaller boards. Either set requireMaxBoardSize = true in the config, "
+      "or re-dump the model without -require-exact-nnlen.");
 }
 
 }  // namespace OnnxModelBuilder

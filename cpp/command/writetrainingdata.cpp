@@ -721,11 +721,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
   SearchParams params = SearchParams::basicDecentParams();
-  //Pass-alive computation mode, applied uniformly to game replay/adjudication, featurization,
-  //training targets, and the searches below. Auto resolves to the model's declared preference.
+  //BoardHistoryModes, applied uniformly to game replay/adjudication, featurization,
+  //training targets, and the searches below. Auto resolves to the model's declared preferences.
   if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"))
     params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules");
-  const bool alwaysComputePassAliveUnderSuicideRules = Search::resolveAlwaysComputePassAliveUnderSuicideRules(params, nnEval);
+  if(cfg.contains("excludeTerritoryAdjacentToAtari"))
+    params.excludeTerritoryAdjacentToAtari = cfg.getEnabled("excludeTerritoryAdjacentToAtari");
+  const BoardHistoryModes historyModes = Search::resolveHistoryModes(params, nnEval);
   params.maxVisits = maxVisits;
   params.chosenMoveTemperatureEarly = 0.1;
   params.chosenMoveTemperature = 0.1;
@@ -1384,7 +1386,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     try {
       //Set up before replaying so game replay/adjudication, featurization, and targets are all uniform
       //with each other and with the searches (whose setPosition resolves to the same value from params).
-      sgf->setupInitialBoardAndHist(rules, board, nextPla, hist, alwaysComputePassAliveUnderSuicideRules);
+      sgf->setupInitialBoardAndHist(rules, board, nextPla, hist, historyModes);
     }
     catch(const StringError& e) {
       logger.write("Bad initial setup in sgf " + fileName + " " + e.what());

@@ -44,6 +44,9 @@ namespace Client {
     size_t bytes;
     std::string sha256;
     bool isRandom;
+    //Optional per-network lenience factor for the backend reference output check, from the
+    //server's network properties. 1.0 when the server does not provide it.
+    double backendRefTestLenienceFactor = 1.0;
 
     void failIfSha256Mismatch(const std::string& modelPath) const;
   };
@@ -81,6 +84,9 @@ namespace Client {
       const Url& proxyUrl,
       const std::string& modelDownloadMirrorBaseUrl,
       bool mirrorUseProxy,
+      // Short runtime detail distinguishing configurations of the same compiled backend (NeuralNet::getRuntimeBackendDetail)
+      // Appended to the git revision reported to the server. Empty for most backends.
+      const std::string& runtimeBackendDetail,
       Logger* logger
     );
     ~Connection();
@@ -164,6 +170,9 @@ namespace Client {
 
     std::string modelDownloadMirrorBaseUrl;
     bool mirrorUseProxy;
+
+    //Git revision + compile-time backend + runtime backend detail, as reported to the server
+    std::string gitRevisionWithBackendForServer;
 
     //Fixed string different on every startup but shared across all requests for this run of the client
     std::string clientInstanceId;

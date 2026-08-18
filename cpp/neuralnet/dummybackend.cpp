@@ -94,6 +94,11 @@ bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
 void NeuralNet::printDevices() {
 }
 
+std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
+  (void)cfg;
+  return std::string();
+}
+
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
   (void)loadedModel;
   (void)maxBatchSize;

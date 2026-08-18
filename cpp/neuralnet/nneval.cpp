@@ -140,12 +140,15 @@ NNEvaluator::NNEvaluator(
     modelVersion = desc.modelVersion;
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     numInputMetaChannels = desc.numInputMetaChannels;
-    postProcessParams = desc.postProcessParams;
     computeContext = NeuralNet::createComputeContext(
       gpuIdxs,logger,nnXLen,nnYLen,
       homeDataDirOverride,
       usingFP16Mode,loadedModel,cfg
     );
+    // Snapshot postProcessParams only after createComputeContext: backends may apply
+    // config-dependent transforms to the model desc there (e.g. the ONNX backend's
+    // scale8 workaround multiplies outputScaleMultiplier by 8).
+    postProcessParams = desc.postProcessParams;
   }
   else {
     internalModelName = "random";
@@ -292,6 +295,18 @@ double NNEvaluator::getTrunkSpatialConvDepth() const {
   return NeuralNet::getModelDesc(loadedModel).getTrunkSpatialConvDepth();
 }
 
+int64_t NNEvaluator::getNumModelParameters() const {
+  return NeuralNet::getModelDesc(loadedModel).getNumParameters();
+}
+
+bool NNEvaluator::modelHasAnyTransformerBlocks() const {
+  return NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks();
+}
+
+bool NNEvaluator::modelHasAnyNestedBottleneckBlocks() const {
+  return NeuralNet::getModelDesc(loadedModel).hasAnyNestedBottleneckBlocks();
+}
+
 enabled_t NNEvaluator::getUsingFP16Mode() const {
   return usingFP16Mode;
 }
@@ -304,6 +319,12 @@ bool NNEvaluator::modelPreferPassAliveUnderSuicideRules() const {
   if(loadedModel == NULL)
     return false;
   return NeuralNet::getModelDesc(loadedModel).preferPassAliveUnderSuicideRules;
+}
+
+bool NNEvaluator::modelPreferExcludeTerritoryAdjacentToAtari() const {
+  if(loadedModel == NULL)
+    return false;
+  return NeuralNet::getModelDesc(loadedModel).preferExcludeTerritoryAdjacentToAtari;
 }
 
 bool NNEvaluator::getDoRandomize() const {
@@ -510,7 +531,10 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   Board board(nnXLen, nnYLen);
   //Featurize the way this model expects (a no-op under Tromp-Taylorish rules, but robust if the
   //warmup rules ever change).
-  BoardHistory history(board, P_BLACK, Rules::getTrompTaylorish(), 0, modelPreferPassAliveUnderSuicideRules());
+  BoardHistory history(
+    board, P_BLACK, Rules::getTrompTaylorish(), 0,
+    BoardHistoryModes(modelPreferPassAliveUnderSuicideRules(), modelPreferExcludeTerritoryAdjacentToAtari())
+  );
   MiscNNInputParams nnInputParams;
   SGFMetadata sgfMeta;
   const SGFMetadata* sgfMetaPtr = NULL;
