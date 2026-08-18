@@ -164,13 +164,10 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 struct LoadedModel {
   ModelDesc modelDesc;
-  //Whether applyScale8ToReduceActivations() actually rescaled the weights. The emitter records
-  //it in the graph, so it has to be captured rather than discarded.
-  bool scale8Applied;
 
   LoadedModel(const string& fileName, const string& expectedSha256) {
     ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-    scale8Applied = modelDesc.applyScale8ToReduceActivations();
+    modelDesc.applyScale8ToReduceActivations();
   }
 
   LoadedModel() = delete;
@@ -372,13 +369,12 @@ struct ComputeHandle {
 
     // Emit the same ONNX graph the TensorRT backend builds. Weights are baked in as initializers,
     // so the returned bytes are fully self-contained.
-    OnnxModelBuilder::BuildParams buildParams;
-    buildParams.nnXLen = ctx->nnXLen;
-    buildParams.nnYLen = ctx->nnYLen;
-    buildParams.requireExactNNLen = requireExactNNLen;
-    buildParams.transformerNHWC = ctx->transformerNHWC;
-    buildParams.scale8Applied = loadedModel->scale8Applied;
-    OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, buildParams, logger);
+    //
+    // This branch's builder takes positional arguments and does not carry scale8Applied; the
+    // compensation for scale8 lives in postProcessParams.outputScaleMultiplier, which the emitter
+    // already reads off the ModelDesc, so nothing is lost by not passing the flag through.
+    OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(
+      desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
     const string& onnxBytes = onnxResult.serializedModel;
 
     if(!ctx->dumpDebugModelToDir.empty()) {
