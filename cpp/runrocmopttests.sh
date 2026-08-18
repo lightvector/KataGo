@@ -68,6 +68,8 @@ FP16_NHWC="useFP16 = true useNHWC = true"
 FP16_NCHW="useFP16 = true useNHWC = false"
 FP32_NHWC="useFP16 = false useNHWC = true"
 FP32_NCHW="useFP16 = false useNHWC = false"
+# Fires once per handle, from the first 1x1 conv that takes the GEMM instead of a MIOpen conv.
+MATMUL_1X1="running 1x1 NHWC convolutions as a GEMM"
 
 NUM_PASS=0
 NUM_FAIL=0
@@ -256,6 +258,13 @@ run_case t_share_weights_fp32_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizer
   "$FUSED_RESNORM@$FP32_NHWC" \
   "$CK_USED"
 
+# The 1x1 GEMM on a transformer. Transformers force NHWC on every architecture, so this is the
+# shape in which non-CDNA users get the GEMM by default.
+run_case t_1x1matmul_on_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect_quick.txt \
+  "requireMaxBoardSize=False,rocmUse1x1Matmul=true" \
+  "$CK_USED@$FUSED_RESNORM@$FP16_NHWC@$MATMUL_1X1" \
+  "$CK_UNAVAIL@$CK_KNOB_OFF"
+
 #--------------------------------------------------------------------------------------------
 # Largest transformer (768 trunk channels, 12 heads), on the masked path.
 
@@ -312,17 +321,50 @@ run_case c_default_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
 run_case c_nchw_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,rocmUseNHWC=false" \
   "$FP16_NCHW" \
-  "$CK_USED@$FUSED_RESNORM@$FP16_NHWC"
+  "$CK_USED@$FUSED_RESNORM@$FP16_NHWC@$MATMUL_1X1"
 
 run_case c_fp32_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,useFP16=false" \
   "$FP32_NCHW" \
-  "$CK_USED@$FUSED_RESNORM@$FP16_NHWC"
+  "$CK_USED@$FUSED_RESNORM@$FP16_NHWC@$MATMUL_1X1"
 
 run_case c_fp32_nhwc_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,useFP16=false,rocmUseNHWC=true" \
   "$FP32_NHWC" \
   "$CK_USED@$FUSED_RESNORM@$FP16_NHWC"
+
+# 1x1 NHWC convolutions as a hipBLAS GEMM instead of a MIOpen conv. There is no path-selection
+# log line for this knob (nor for the CUDA backend's equivalent), so these cases assert numerical
+# correctness and the layout the GEMM requires, not the dispatch itself. On CDNA the resolved
+# default is off, so the =true cases are the ones covering what ships as the default elsewhere.
+run_case c_1x1matmul_on_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
+  "requireMaxBoardSize=False,rocmUse1x1Matmul=true" \
+  "$FP16_NHWC@$MATMUL_1X1" \
+  "$CK_USED@$FUSED_RESNORM"
+
+# Mask-free path, where the spatial extent the GEMM folds into its token count is the full buffer.
+run_case c_1x1matmul_on_exact19 "$CMODEL" 19 full "$CMODELBASE"_size19.txt \
+  "requireMaxBoardSize=True,rocmUse1x1Matmul=true" \
+  "$FP16_NHWC@$MATMUL_1X1" \
+  "$CK_USED@$FUSED_RESNORM"
+
+run_case c_1x1matmul_off_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
+  "requireMaxBoardSize=False,rocmUse1x1Matmul=false" \
+  "$FP16_NHWC" \
+  "$CK_USED@$FUSED_RESNORM@$MATMUL_1X1"
+
+# FP32 forced through the GEMM, which is a different hipBLAS entry point than the FP16 one.
+run_case c_1x1matmul_fp32_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
+  "requireMaxBoardSize=False,useFP16=false,rocmUseNHWC=true,rocmUse1x1Matmul=true" \
+  "$FP32_NHWC@$MATMUL_1X1" \
+  "$CK_USED@$FUSED_RESNORM@$FP16_NHWC"
+
+# The GEMM weights are a second entry in the sharing registry, keyed on the same descriptor as
+# the conv filter and distinguished only by kind.
+run_case c_1x1matmul_share_weights_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
+  "requireMaxBoardSize=False,rocmUse1x1Matmul=true,numNNServerThreadsPerModel=2,rocmShareModelWeights=true" \
+  "$FP16_NHWC@$MATMUL_1X1" \
+  "$CK_USED@$FUSED_RESNORM"
 
 run_case c_share_weights_exact19 "$CMODEL" 19 full "$CMODELBASE"_size19.txt \
   "requireMaxBoardSize=True,numNNServerThreadsPerModel=2,rocmShareModelWeights=true" \
