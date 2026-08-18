@@ -1,0 +1,894 @@
+{
+  "manifest_version": 1,
+  "generated_by": "cpp/neuralnet/ryzenai/kernels/build_kernels.py",
+  "generated_at": "2026-08-13T02:43:20+00:00",
+  "design": {
+    "template": "mlir-aie programming_examples/basic/matrix_multiplication/whole_array",
+    "gemm": "bf16 x bf16 -> fp32 (fp32 accumulate), row-major A/B/C host buffers",
+    "bfp16_note": "dtype=bfp16 uses AIE2P BFP16-emulated bf16 MMUL (mac_dims (8,8,8)); same host ABI as bf16",
+    "n_aie_rows": 4,
+    "lookup": "artifacts[] by (arch, dtype, n_aie_cols, M, K, N)"
+  },
+  "abi": {
+    "kernel_name": "MLIR_AIE",
+    "arg_slots": [
+      {
+        "slot": 0,
+        "name": "opcode",
+        "kind": "scalar",
+        "value": 3,
+        "note": "ERT start-kernel-with-instruction-buffer opcode; pass as a 32-bit scalar (xclbin metadata declares uint64, only the low 32 bits are used)"
+      },
+      {
+        "slot": 1,
+        "name": "instr",
+        "kind": "bo",
+        "flags": "XCL_BO_FLAGS_CACHEABLE",
+        "group_id": "kernel.group_id(1)",
+        "content": "raw bytes of the .insts.bin file"
+      },
+      {
+        "slot": 2,
+        "name": "n_instr",
+        "kind": "scalar",
+        "unit": "uint32_words",
+        "note": "official mlir-aie C++ harness passes the word count (insts_bytes / 4); the Python iron runtime passes the byte count.  Both were verified to run correctly on XRT 2.21 / Strix (the TXN control code self-describes its length).  Use the word count for consistency with the C++ harness."
+      },
+      {
+        "slot": 3,
+        "name": "A",
+        "kind": "bo",
+        "flags": "XRT_BO_FLAGS_HOST_ONLY",
+        "group_id": "kernel.group_id(3)"
+      },
+      {
+        "slot": 4,
+        "name": "B",
+        "kind": "bo",
+        "flags": "XRT_BO_FLAGS_HOST_ONLY",
+        "group_id": "kernel.group_id(4)"
+      },
+      {
+        "slot": 5,
+        "name": "C",
+        "kind": "bo",
+        "flags": "XRT_BO_FLAGS_HOST_ONLY",
+        "group_id": "kernel.group_id(5)"
+      }
+    ],
+    "data_arg_order": [
+      "A",
+      "B",
+      "C"
+    ],
+    "declared_bo_slots": 5,
+    "declared_bo_slots_note": "the xclbin declares 5 data BO slots (bo0..bo4, kernel args 3..7); this design uses the first 3.  Never pass more than 5 data BOs.",
+    "group_id_note": "group_id values are assigned by XRT at load time; always query kernel.group_id(n) at runtime, never hardcode the observed numbers.",
+    "data_layout": {
+      "A": "M x K bfloat16, plain row-major contiguous (row stride = K elements), 2 bytes little-endian per element, no tiling or packing in the host buffer",
+      "B": "K x N bfloat16, plain row-major contiguous (row stride = N elements), 2 bytes little-endian per element, no tiling or packing in the host buffer",
+      "C": "M x N float32, plain row-major contiguous (row stride = N elements), written by the NPU, no tiling or packing in the host buffer",
+      "note": "all (r,s,t) sub-tile reordering required by the MMUL intrinsic is performed on-chip by the shim/memtile/core DMAs; the host buffers stay plain row-major"
+    },
+    "sync": "sync instr + A + B + C XCL_BO_SYNC_BO_TO_DEVICE after filling them (C sync is only needed if the host wrote to it); sync C XCL_BO_SYNC_BO_FROM_DEVICE after run.wait()",
+    "dispatch_cpp": "xrt::device dev(0); auto x = xrt::xclbin(xclbin_path); dev.register_xclbin(x); xrt::hw_context ctx(dev, x.get_uuid()); xrt::kernel k(ctx, \"MLIR_AIE\"); xrt::bo instr(dev, insts_bytes, XCL_BO_FLAGS_CACHEABLE, k.group_id(1)); xrt::bo a(dev, M*K*2, XRT_BO_FLAGS_HOST_ONLY, k.group_id(3)); xrt::bo b(dev, K*N*2, XRT_BO_FLAGS_HOST_ONLY, k.group_id(4)); xrt::bo c(dev, M*N*4, XRT_BO_FLAGS_HOST_ONLY, k.group_id(5)); xrt::run r(k); r.set_arg(0, 3); r.set_arg(1, instr); r.set_arg(2, insts_bytes/4); r.set_arg(3, a); r.set_arg(4, b); r.set_arg(5, c); r.start(); r.wait();"
+  },
+  "artifacts": [
+    {
+      "xclbin": "bf16/npu1_4col/gemm_bf16_M512K384N384.xclbin",
+      "insts": "bf16/npu1_4col/gemm_bf16_M512K384N384.insts.bin",
+      "arch": "npu1",
+      "dtype": "bf16",
+      "n_aie_cols": 4,
+      "M": 512,
+      "K": 384,
+      "N": 384,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 48
+      },
+      "mac_dims": [
+        4,
+        8,
+        4
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 1292,
+      "xclbin_bytes": 80926,
+      "xclbin_sha256": "09253c368a044ac44d5ee1776956ea5456d0753ebd1104cf72fed909b59d2166",
+      "insts_bytes": 5168,
+      "insts_sha256": "6ee5b46c5c3093571a731d70608455fb3c3009b2830c005cfe37c1f383ed3697",
+      "bo_sizes_bytes": {
+        "A": 393216,
+        "B": 294912,
+        "C": 786432
+      },
+      "hardware_verified": false,
+      "compile_seconds": 11.7
+    },
+    {
+      "xclbin": "bf16/npu1_4col/gemm_bf16_M512K512N512.xclbin",
+      "insts": "bf16/npu1_4col/gemm_bf16_M512K512N512.insts.bin",
+      "arch": "npu1",
+      "dtype": "bf16",
+      "n_aie_cols": 4,
+      "M": 512,
+      "K": 512,
+      "N": 512,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        4
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 1292,
+      "xclbin_bytes": 75294,
+      "xclbin_sha256": "2355c501070130d288f573306c401e409a833954d845cb557a1a5907e74fbc34",
+      "insts_bytes": 5168,
+      "insts_sha256": "e8eba035c40cf34dccbad9b9308b618e15809c6575ad813940377d7ea9ca10e2",
+      "bo_sizes_bytes": {
+        "A": 524288,
+        "B": 524288,
+        "C": 1048576
+      },
+      "hardware_verified": false,
+      "compile_seconds": 10.0
+    },
+    {
+      "xclbin": "bf16/npu1_4col/gemm_bf16_M512K768N768.xclbin",
+      "insts": "bf16/npu1_4col/gemm_bf16_M512K768N768.insts.bin",
+      "arch": "npu1",
+      "dtype": "bf16",
+      "n_aie_cols": 4,
+      "M": 512,
+      "K": 768,
+      "N": 768,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        4
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 1292,
+      "xclbin_bytes": 75294,
+      "xclbin_sha256": "d5927c3ee36767b7967ef33ebb592195786fea05f29cc148828cdb1873dce77b",
+      "insts_bytes": 5168,
+      "insts_sha256": "0ec974baa93d488a7616563445a8da5863370ac03ce3206328b736ea8a7c7626",
+      "bo_sizes_bytes": {
+        "A": 786432,
+        "B": 1179648,
+        "C": 1572864
+      },
+      "hardware_verified": false,
+      "compile_seconds": 9.9
+    },
+    {
+      "xclbin": "bf16/npu1_1col/gemm_bf16_M512K384N384.xclbin",
+      "insts": "bf16/npu1_1col/gemm_bf16_M512K384N384.insts.bin",
+      "arch": "npu1",
+      "dtype": "bf16",
+      "n_aie_cols": 1,
+      "M": 512,
+      "K": 384,
+      "N": 384,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 48
+      },
+      "mac_dims": [
+        4,
+        8,
+        4
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 326,
+      "xclbin_bytes": 25992,
+      "xclbin_sha256": "5877ac0160d710727cfa784c134937dce32505fb8e23a5d4917f9fbef74263f5",
+      "insts_bytes": 1304,
+      "insts_sha256": "2ebffa614ea2feb73cb68f41f15d9af2fb2aa9cf9571551fd8a0d205c5955a16",
+      "bo_sizes_bytes": {
+        "A": 393216,
+        "B": 294912,
+        "C": 786432
+      },
+      "hardware_verified": false,
+      "compile_seconds": 6.9
+    },
+    {
+      "xclbin": "bf16/npu1_1col/gemm_bf16_M512K512N512.xclbin",
+      "insts": "bf16/npu1_1col/gemm_bf16_M512K512N512.insts.bin",
+      "arch": "npu1",
+      "dtype": "bf16",
+      "n_aie_cols": 1,
+      "M": 512,
+      "K": 512,
+      "N": 512,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        4
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 326,
+      "xclbin_bytes": 24584,
+      "xclbin_sha256": "ecc71a1a490366bac779a9ad7a70a0cdadad608a7cf9998987ad77282e93a1e9",
+      "insts_bytes": 1304,
+      "insts_sha256": "dcff95ae97b99ee11f823f30dd3631e05a62a78fe300ff9127386aa45c78caed",
+      "bo_sizes_bytes": {
+        "A": 524288,
+        "B": 524288,
+        "C": 1048576
+      },
+      "hardware_verified": false,
+      "compile_seconds": 7.7
+    },
+    {
+      "xclbin": "bf16/npu1_1col/gemm_bf16_M512K768N768.xclbin",
+      "insts": "bf16/npu1_1col/gemm_bf16_M512K768N768.insts.bin",
+      "arch": "npu1",
+      "dtype": "bf16",
+      "n_aie_cols": 1,
+      "M": 512,
+      "K": 768,
+      "N": 768,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        4
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 326,
+      "xclbin_bytes": 24584,
+      "xclbin_sha256": "26ab701bb20d6cc48887eeafd30bfea4779eb7b3c5ad30515fd9e2ccb08d11e5",
+      "insts_bytes": 1304,
+      "insts_sha256": "69d9ddceeebaec17d92a1766008b67377463a215a67be514dadc93b0efb3cbca",
+      "bo_sizes_bytes": {
+        "A": 786432,
+        "B": 1179648,
+        "C": 1572864
+      },
+      "hardware_verified": false,
+      "compile_seconds": 7.0
+    },
+    {
+      "xclbin": "bf16/npu2_8col/gemm_bf16_M512K384N384.xclbin",
+      "insts": "bf16/npu2_8col/gemm_bf16_M512K384N384.insts.bin",
+      "arch": "npu2",
+      "dtype": "bf16",
+      "n_aie_cols": 8,
+      "M": 512,
+      "K": 384,
+      "N": 384,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 48
+      },
+      "mac_dims": [
+        4,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 2100,
+      "xclbin_bytes": 145230,
+      "xclbin_sha256": "fac999294a6d1daa779e3c8315655bfe6317e44352604c22143eb2332d5b7f90",
+      "insts_bytes": 8400,
+      "insts_sha256": "274294c4864594591c01afa7fb5794ad66fe4df6e7db17b6322e72994201846f",
+      "bo_sizes_bytes": {
+        "A": 393216,
+        "B": 294912,
+        "C": 786432
+      },
+      "hardware_verified": true,
+      "compile_seconds": 32.4
+    },
+    {
+      "xclbin": "bf16/npu2_8col/gemm_bf16_M512K512N512.xclbin",
+      "insts": "bf16/npu2_8col/gemm_bf16_M512K512N512.insts.bin",
+      "arch": "npu2",
+      "dtype": "bf16",
+      "n_aie_cols": 8,
+      "M": 512,
+      "K": 512,
+      "N": 512,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 2100,
+      "xclbin_bytes": 155470,
+      "xclbin_sha256": "fe38a588635df848f7e427736e6b57d24f8e19ed1700fc7100cb02e48e45e2bb",
+      "insts_bytes": 8400,
+      "insts_sha256": "08d5727f5f47de1315af95c8a2f30e96787608d4576ddbb2663b60eee3b1aac3",
+      "bo_sizes_bytes": {
+        "A": 524288,
+        "B": 524288,
+        "C": 1048576
+      },
+      "hardware_verified": true,
+      "compile_seconds": 36.0
+    },
+    {
+      "xclbin": "bf16/npu2_8col/gemm_bf16_M512K768N768.xclbin",
+      "insts": "bf16/npu2_8col/gemm_bf16_M512K768N768.insts.bin",
+      "arch": "npu2",
+      "dtype": "bf16",
+      "n_aie_cols": 8,
+      "M": 512,
+      "K": 768,
+      "N": 768,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 2100,
+      "xclbin_bytes": 177998,
+      "xclbin_sha256": "ca6f9ab1edb8960cc1973aeefe1a72db06256f8e18dca3512b0a73ab275c934d",
+      "insts_bytes": 8400,
+      "insts_sha256": "e8614292674a4946074446354f86aff268ff9bec581dd8cd04441b1ad68f16ab",
+      "bo_sizes_bytes": {
+        "A": 786432,
+        "B": 1179648,
+        "C": 1572864
+      },
+      "hardware_verified": true,
+      "compile_seconds": 39.9
+    },
+    {
+      "xclbin": "bf16/npu2_4col/gemm_bf16_M512K384N384.xclbin",
+      "insts": "bf16/npu2_4col/gemm_bf16_M512K384N384.insts.bin",
+      "arch": "npu2",
+      "dtype": "bf16",
+      "n_aie_cols": 4,
+      "M": 512,
+      "K": 384,
+      "N": 384,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 48
+      },
+      "mac_dims": [
+        4,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 1292,
+      "xclbin_bytes": 76142,
+      "xclbin_sha256": "fbdb691f2b846213dc8341e92cd635043157f70ea7c3425cc866c4767c7d407a",
+      "insts_bytes": 5168,
+      "insts_sha256": "77aa4246090925aa8a8580dcbe702f636d059806886b6ccc07f594290e75d8db",
+      "bo_sizes_bytes": {
+        "A": 393216,
+        "B": 294912,
+        "C": 786432
+      },
+      "hardware_verified": true,
+      "compile_seconds": 24.5
+    },
+    {
+      "xclbin": "bf16/npu2_4col/gemm_bf16_M512K512N512.xclbin",
+      "insts": "bf16/npu2_4col/gemm_bf16_M512K512N512.insts.bin",
+      "arch": "npu2",
+      "dtype": "bf16",
+      "n_aie_cols": 4,
+      "M": 512,
+      "K": 512,
+      "N": 512,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 1292,
+      "xclbin_bytes": 81262,
+      "xclbin_sha256": "da7b65ac807c2a5883d376b035cb113548fba3ae20f256d04848568e83f4c0a9",
+      "insts_bytes": 5168,
+      "insts_sha256": "e8f42bb5b265fb51d50191844250afe8321ea7d2b735986fd882e62de8bcdea4",
+      "bo_sizes_bytes": {
+        "A": 524288,
+        "B": 524288,
+        "C": 1048576
+      },
+      "hardware_verified": true,
+      "compile_seconds": 20.5
+    },
+    {
+      "xclbin": "bf16/npu2_4col/gemm_bf16_M512K768N768.xclbin",
+      "insts": "bf16/npu2_4col/gemm_bf16_M512K768N768.insts.bin",
+      "arch": "npu2",
+      "dtype": "bf16",
+      "n_aie_cols": 4,
+      "M": 512,
+      "K": 768,
+      "N": 768,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 1292,
+      "xclbin_bytes": 92526,
+      "xclbin_sha256": "d45773b5755dd9359a96096225f97e104ff8cc8f14ebcb8d200f2144ec88126e",
+      "insts_bytes": 5168,
+      "insts_sha256": "a5288db6688002b9b32f169e15ae32c473e1f05fa6090ba7764ebc87b0306118",
+      "bo_sizes_bytes": {
+        "A": 786432,
+        "B": 1179648,
+        "C": 1572864
+      },
+      "hardware_verified": true,
+      "compile_seconds": 23.3
+    },
+    {
+      "xclbin": "bf16/npu2_1col/gemm_bf16_M512K384N384.xclbin",
+      "insts": "bf16/npu2_1col/gemm_bf16_M512K384N384.insts.bin",
+      "arch": "npu2",
+      "dtype": "bf16",
+      "n_aie_cols": 1,
+      "M": 512,
+      "K": 384,
+      "N": 384,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 48
+      },
+      "mac_dims": [
+        4,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 326,
+      "xclbin_bytes": 24776,
+      "xclbin_sha256": "b7b0ac807bfe0fb0920e28e7bd4a36461a1e0a507836206b13add7f0bd3a8389",
+      "insts_bytes": 1304,
+      "insts_sha256": "cf1e307b8a68b83590126bfde26ea157530cd219c1867eb04867f5a2f4fb1a2b",
+      "bo_sizes_bytes": {
+        "A": 393216,
+        "B": 294912,
+        "C": 786432
+      },
+      "hardware_verified": true,
+      "compile_seconds": 18.0
+    },
+    {
+      "xclbin": "bf16/npu2_1col/gemm_bf16_M512K512N512.xclbin",
+      "insts": "bf16/npu2_1col/gemm_bf16_M512K512N512.insts.bin",
+      "arch": "npu2",
+      "dtype": "bf16",
+      "n_aie_cols": 1,
+      "M": 512,
+      "K": 512,
+      "N": 512,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 326,
+      "xclbin_bytes": 26056,
+      "xclbin_sha256": "90ee826c18937809151e0ff4c43d1705e426ebf065e8531d45786b94c3a40825",
+      "insts_bytes": 1304,
+      "insts_sha256": "2382f2e853c9ba939466ab84acca02b3087ff261972eb62d38402a1f1d77a909",
+      "bo_sizes_bytes": {
+        "A": 524288,
+        "B": 524288,
+        "C": 1048576
+      },
+      "hardware_verified": true,
+      "compile_seconds": 10.0
+    },
+    {
+      "xclbin": "bf16/npu2_1col/gemm_bf16_M512K768N768.xclbin",
+      "insts": "bf16/npu2_1col/gemm_bf16_M512K768N768.insts.bin",
+      "arch": "npu2",
+      "dtype": "bf16",
+      "n_aie_cols": 1,
+      "M": 512,
+      "K": 768,
+      "N": 768,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        4,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 326,
+      "xclbin_bytes": 28872,
+      "xclbin_sha256": "347637ed652ca26cfba0d9d90bd513cfe68d8f3ec8bd43666079481774b397e4",
+      "insts_bytes": 1304,
+      "insts_sha256": "6b4a2a790b460eb92efc46aaab6e2ddf080178d40e75affd1e9cfa0f0e9e0d17",
+      "bo_sizes_bytes": {
+        "A": 786432,
+        "B": 1179648,
+        "C": 1572864
+      },
+      "hardware_verified": true,
+      "compile_seconds": 9.3
+    },
+    {
+      "xclbin": "bfp16/npu2_8col/gemm_bf16_M512K384N384.xclbin",
+      "insts": "bfp16/npu2_8col/gemm_bf16_M512K384N384.insts.bin",
+      "arch": "npu2",
+      "dtype": "bfp16",
+      "n_aie_cols": 8,
+      "M": 512,
+      "K": 384,
+      "N": 384,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 48
+      },
+      "mac_dims": [
+        8,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 2100,
+      "xclbin_bytes": 142670,
+      "xclbin_sha256": "6264bd24fe75554fee7164a8ebe05e74f1b72684d598f9f4b9984970a205cd0e",
+      "insts_bytes": 8400,
+      "insts_sha256": "274294c4864594591c01afa7fb5794ad66fe4df6e7db17b6322e72994201846f",
+      "bo_sizes_bytes": {
+        "A": 393216,
+        "B": 294912,
+        "C": 786432
+      },
+      "hardware_verified": false,
+      "compile_seconds": 17.0
+    },
+    {
+      "xclbin": "bfp16/npu2_8col/gemm_bf16_M512K512N512.xclbin",
+      "insts": "bfp16/npu2_8col/gemm_bf16_M512K512N512.insts.bin",
+      "arch": "npu2",
+      "dtype": "bfp16",
+      "n_aie_cols": 8,
+      "M": 512,
+      "K": 512,
+      "N": 512,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        8,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 2100,
+      "xclbin_bytes": 151886,
+      "xclbin_sha256": "759e4c06fd9eea81055e649d1255fb54fc1c8c9ba8966c9af1dd2d3415132ce7",
+      "insts_bytes": 8400,
+      "insts_sha256": "08d5727f5f47de1315af95c8a2f30e96787608d4576ddbb2663b60eee3b1aac3",
+      "bo_sizes_bytes": {
+        "A": 524288,
+        "B": 524288,
+        "C": 1048576
+      },
+      "hardware_verified": false,
+      "compile_seconds": 20.0
+    },
+    {
+      "xclbin": "bfp16/npu2_8col/gemm_bf16_M512K768N768.xclbin",
+      "insts": "bfp16/npu2_8col/gemm_bf16_M512K768N768.insts.bin",
+      "arch": "npu2",
+      "dtype": "bfp16",
+      "n_aie_cols": 8,
+      "M": 512,
+      "K": 768,
+      "N": 768,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        8,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 2100,
+      "xclbin_bytes": 174414,
+      "xclbin_sha256": "94baa0eae6363ed609b834e03574407649b86ecb6e21874732d4d64bdbc463fe",
+      "insts_bytes": 8400,
+      "insts_sha256": "e8614292674a4946074446354f86aff268ff9bec581dd8cd04441b1ad68f16ab",
+      "bo_sizes_bytes": {
+        "A": 786432,
+        "B": 1179648,
+        "C": 1572864
+      },
+      "hardware_verified": false,
+      "compile_seconds": 25.5
+    },
+    {
+      "xclbin": "bfp16/npu2_4col/gemm_bf16_M512K384N384.xclbin",
+      "insts": "bfp16/npu2_4col/gemm_bf16_M512K384N384.insts.bin",
+      "arch": "npu2",
+      "dtype": "bfp16",
+      "n_aie_cols": 4,
+      "M": 512,
+      "K": 384,
+      "N": 384,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 48
+      },
+      "mac_dims": [
+        8,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 1292,
+      "xclbin_bytes": 74862,
+      "xclbin_sha256": "9353f2bbc9746edae37aca13441e70d4d1c3618b5b68a852fb24184197586bf4",
+      "insts_bytes": 5168,
+      "insts_sha256": "77aa4246090925aa8a8580dcbe702f636d059806886b6ccc07f594290e75d8db",
+      "bo_sizes_bytes": {
+        "A": 393216,
+        "B": 294912,
+        "C": 786432
+      },
+      "hardware_verified": false,
+      "compile_seconds": 15.1
+    },
+    {
+      "xclbin": "bfp16/npu2_4col/gemm_bf16_M512K512N512.xclbin",
+      "insts": "bfp16/npu2_4col/gemm_bf16_M512K512N512.insts.bin",
+      "arch": "npu2",
+      "dtype": "bfp16",
+      "n_aie_cols": 4,
+      "M": 512,
+      "K": 512,
+      "N": 512,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        8,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 1292,
+      "xclbin_bytes": 79470,
+      "xclbin_sha256": "24eaa3d3ef86293b83fb571b3f628ab6cfafc72b1168843d344fd2ee6e505de0",
+      "insts_bytes": 5168,
+      "insts_sha256": "e8f42bb5b265fb51d50191844250afe8321ea7d2b735986fd882e62de8bcdea4",
+      "bo_sizes_bytes": {
+        "A": 524288,
+        "B": 524288,
+        "C": 1048576
+      },
+      "hardware_verified": false,
+      "compile_seconds": 11.9
+    },
+    {
+      "xclbin": "bfp16/npu2_4col/gemm_bf16_M512K768N768.xclbin",
+      "insts": "bfp16/npu2_4col/gemm_bf16_M512K768N768.insts.bin",
+      "arch": "npu2",
+      "dtype": "bfp16",
+      "n_aie_cols": 4,
+      "M": 512,
+      "K": 768,
+      "N": 768,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        8,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 1292,
+      "xclbin_bytes": 90734,
+      "xclbin_sha256": "b91967c2a06d25291179ad748655e40300f5b7afb356c9bf272507f85c3001a9",
+      "insts_bytes": 5168,
+      "insts_sha256": "a5288db6688002b9b32f169e15ae32c473e1f05fa6090ba7764ebc87b0306118",
+      "bo_sizes_bytes": {
+        "A": 786432,
+        "B": 1179648,
+        "C": 1572864
+      },
+      "hardware_verified": false,
+      "compile_seconds": 12.8
+    },
+    {
+      "xclbin": "bfp16/npu2_1col/gemm_bf16_M512K384N384.xclbin",
+      "insts": "bfp16/npu2_1col/gemm_bf16_M512K384N384.insts.bin",
+      "arch": "npu2",
+      "dtype": "bfp16",
+      "n_aie_cols": 1,
+      "M": 512,
+      "K": 384,
+      "N": 384,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 48
+      },
+      "mac_dims": [
+        8,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 326,
+      "xclbin_bytes": 24456,
+      "xclbin_sha256": "4a81b7e99e330c8a95f0c9dedc6224ff6d779bd65694b7b62ccb984db945948e",
+      "insts_bytes": 1304,
+      "insts_sha256": "cf1e307b8a68b83590126bfde26ea157530cd219c1867eb04867f5a2f4fb1a2b",
+      "bo_sizes_bytes": {
+        "A": 393216,
+        "B": 294912,
+        "C": 786432
+      },
+      "hardware_verified": false,
+      "compile_seconds": 9.1
+    },
+    {
+      "xclbin": "bfp16/npu2_1col/gemm_bf16_M512K512N512.xclbin",
+      "insts": "bfp16/npu2_1col/gemm_bf16_M512K512N512.insts.bin",
+      "arch": "npu2",
+      "dtype": "bfp16",
+      "n_aie_cols": 1,
+      "M": 512,
+      "K": 512,
+      "N": 512,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        8,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 326,
+      "xclbin_bytes": 25608,
+      "xclbin_sha256": "fe666f21f7a0e09e69507096a37487fd50401a56abce51ae716a4d90715a48a4",
+      "insts_bytes": 1304,
+      "insts_sha256": "2382f2e853c9ba939466ab84acca02b3087ff261972eb62d38402a1f1d77a909",
+      "bo_sizes_bytes": {
+        "A": 524288,
+        "B": 524288,
+        "C": 1048576
+      },
+      "hardware_verified": false,
+      "compile_seconds": 10.2
+    },
+    {
+      "xclbin": "bfp16/npu2_1col/gemm_bf16_M512K768N768.xclbin",
+      "insts": "bfp16/npu2_1col/gemm_bf16_M512K768N768.insts.bin",
+      "arch": "npu2",
+      "dtype": "bfp16",
+      "n_aie_cols": 1,
+      "M": 512,
+      "K": 768,
+      "N": 768,
+      "tile": {
+        "m": 32,
+        "k": 64,
+        "n": 32
+      },
+      "mac_dims": [
+        8,
+        8,
+        8
+      ],
+      "core_kernel": "MLIR_AIE",
+      "zero_kernel": "zero_f32",
+      "n_instr_words": 326,
+      "xclbin_bytes": 28424,
+      "xclbin_sha256": "6c3843f37343c3c3d110929c607ff6e6b2cf59a1849b8a3ec9ba1a7a875791f1",
+      "insts_bytes": 1304,
+      "insts_sha256": "6b4a2a790b460eb92efc46aaab6e2ddf080178d40e75affd1e9cfa0f0e9e0d17",
+      "bo_sizes_bytes": {
+        "A": 786432,
+        "B": 1179648,
+        "C": 1572864
+      },
+      "hardware_verified": false,
+      "compile_seconds": 9.9
+    }
+  ]
+}

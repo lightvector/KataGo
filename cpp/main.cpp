@@ -271,6 +271,8 @@ string Version::getKataGoVersionFullInfo() {
 #endif
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
+#elif defined(USE_RYZENAI_BACKEND)
+  out << "Using RyzenAI (AMD NPU) backend" << endl;
 #elif defined(USE_ONNX_BACKEND)
   out << "Using ONNX Runtime backend" << endl;
 #else
@@ -311,6 +313,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
   s += "-eigen";
+#elif defined(USE_RYZENAI_BACKEND)
+  s += "-ryzenai";
 #elif defined(USE_ONNX_BACKEND)
   s += "-onnx";
 #else

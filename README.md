@@ -8,7 +8,7 @@
     - [GUIs](#guis)
     - [Windows and Linux](#windows-and-linux)
     - [MacOS](#macos)
-    - [OpenCL vs CUDA vs TensorRT vs ROCm vs Eigen](#opencl-vs-cuda-vs-tensorrt-vs-rocm-vs-eigen)
+    - [OpenCL vs CUDA vs TensorRT vs ROCm vs RyzenAI vs Eigen](#opencl-vs-cuda-vs-tensorrt-vs-rocm-vs-ryzenai-vs-eigen)
     - [How To Use](#how-to-use)
       - [Human-style Play and Analysis](#human-style-play-and-analysis)
       - [Other Commands:](#other-commands)
@@ -88,8 +88,8 @@ The community also provides KataGo packages for [Homebrew](https://brew.sh) on M
 
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep 'gtp.*\.cfg') -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
-### OpenCL vs CUDA vs TensorRT vs ROCm vs Eigen
-KataGo has five backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), ROCm (GPU), and Eigen (CPU). (On macOS there is also a Metal backend, most easily obtained via homebrew - see above.)
+### OpenCL vs CUDA vs TensorRT vs ROCm vs RyzenAI vs Eigen
+KataGo has six backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), ROCm (GPU), RyzenAI (AMD NPU), and Eigen (CPU). (On macOS there is also a Metal backend, most easily obtained via homebrew - see above.)
 
 As of v1.17, KataGo supports transformer neural nets, which are generally much stronger for the same compute cost and which the main training run is switching to. Transformer models are more demanding on the GPU backend than the older convolutional nets, so the backend recommendations below matter more for them - in particular OpenCL is noticeably slower on transformers, and on NVIDIA the CUDNN and TensorRT versions make a large difference.
 
@@ -100,12 +100,14 @@ The quick summary is:
   * Use Eigen without AVX2 if your CPU is old or on a low-end device that doesn't support AVX2.
   * The CUDA+CUDNN backend can also work well for NVIDIA GPUs. It has faster startup than TensorRT and is competitive on transformers if using CUDNN >= 9.8.0, though TensorRT 10.16 is often still slightly faster.
   * The ROCm backend can work for AMD GPUs with ROCm+MIOpen installed, and is much faster than OpenCL on AMD datacenter (CDNA) GPUs.
+  * Use RyzenAI on a Ryzen AI laptop, if you would rather run on its NPU than on its integrated GPU or CPU.
 
 More in detail:
   * OpenCL is a general GPU backend should be able to run with any GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), including NVIDIA GPUs, AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. This is the most general GPU version of KataGo and doesn't require a complicated install like CUDA does, so is most likely to work out of the box as long as you have a fairly modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer. Also, the quality of OpenCL implementations is sometimes inconsistent, particularly for Intel Integrated Graphics and for AMD GPUs that are older than several years, so it might not work for very old machines, as well as specific buggy newer AMD GPUs, see also [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers). OpenCL is not as optimized as the NVIDIA-specific backends and will generally be slower, particularly for transformer models.
   * CUDA is a GPU backend specific to NVIDIA GPUs (it will not work with AMD or Intel or any other GPUs) and requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU. For older convolutional nets, on many GPUs the OpenCL implementation can match or beat NVIDIA's own CUDA/CUDNN, with the exception of top-end NVIDIA GPUs that support FP16 and tensor cores. For transformer nets, CUDA+CUDNN clearly outperforms OpenCL, but you should use CUDNN >= 9.8.0 if at all possible - the older CUDNN 8.9.7 is a LOT slower on transformer models. Compared to TensorRT, CUDA+CUDNN has faster startup times and is often only slightly slower (and occasionally faster) on transformers.
   * TensorRT is similar to CUDA, but uses NVIDIA's TensorRT framework to run the neural network with more optimized kernels. For modern NVIDIA GPUs it should work whenever CUDA does, and will usually be the fastest backend, though it has much longer startup times on every launch. As of v1.17.0, TensorRT versions older than 10 are no longer supported. For transformer models, recent versions like CUDA 13 + TensorRT 10.16 are best, while older TensorRT versions can be outperformed by CUDA+CUDNN.
   * ROCm is a GPU backend specific to AMD GPUs (it will not work with NVIDIA or Intel or any other GPUs) and requires installing [ROCm](https://rocm.docs.amd.com) and [MIOpen](https://rocm.docs.amd.com/projects/MIOpen) and a modern AMD GPU. It supports both **Linux** (via official ROCm packages, ROCm 6.4+) and **Windows** (via [AMD TheRock](https://github.com/ROCm/TheRock) builds). Performance relative to OpenCL depends on the GPU. On AMD's datacenter accelerators (CDNA), ROCm is much faster than OpenCL: measured on an MI300X at roughly 2.5x for convolutional nets and 6-12x for transformers. On consumer (RDNA) GPUs the two are closer and either may win depending on the GPU and driver, so if you want the best choice, run KataGo's benchmark with both. Transformer/attention-based neural nets (model version 17+) are supported on all AMD GPUs, and get an additional fused-attention speedup on CDNA and RDNA3/RDNA3.5/RDNA4 GPUs when AMD's Composable Kernel library is also installed (see [Compiling.md](Compiling.md)).
+  * RyzenAI is a backend for the *NPU* built into AMD Ryzen AI laptop processors (XDNA1 as in Phoenix/Hawk Point, XDNA2 as in Strix). It will not work with anything else - not AMD GPUs, and not older Ryzen chips without an NPU. It needs only AMD's NPU driver and the [XRT runtime](https://github.com/Xilinx/XRT); the compiled NPU kernels ship with KataGo, so there is no tuning step and no per-model setup. It reads `.bin.gz` models directly like every other backend. On a Strix laptop it runs roughly 5-11x faster than the Eigen CPU backend on the same machine, with the larger nets gaining the most, and it leaves the CPU almost entirely free for the search itself. Whether it beats that laptop's integrated GPU under OpenCL depends on the model and the machine, so run KataGo's benchmark with both if you want the best choice. Accuracy note: the NPU computes in bfloat16 or block floating point rather than fp32, which shifts the network's outputs slightly - enough to change the engine's choice between two moves it considers nearly equal, not enough to affect playing strength. See [Compiling.md](Compiling.md) for build instructions, and `ryzenaiDtype` in the example config to trade a little speed for more accuracy.
   * Eigen is a *CPU* backend that should work widely *without* needing a GPU or fancy drivers. Use this if you don't have a good GPU or really any GPU at all. It will be quite significantly slower than OpenCL or CUDA, but on a good CPU can still often get 10 to 20 playouts per second if using the smaller (15 or 20) block neural nets. Eigen can also be compiled with AVX2 and FMA support, which can provide a big performance boost for Intel and AMD CPUs from the last few years. However, it will not run at all on older CPUs (and possibly even some recent but low-power modern CPUs) that don't support these fancy vector instructions.
 
 For **any** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
@@ -180,6 +182,27 @@ The most important parameter to optimize for KataGo's performance is the number 
 
 Secondarily, you can also read over the parameters in your GTP config (`default_gtp.cfg` or `gtp_example.cfg` or `configs/gtp_example.cfg`, etc). A lot of other settings are described in there that you can set to adjust KataGo's resource usage, or choose which GPUs to use. You can also adjust things like KataGo's resign threshold, pondering behavior or utility function. Most parameters are documented directly inline in the [example config file](cpp/configs/gtp_example.cfg). Many can also be interactively set when generating a config via the `genconfig` command described above.
 
+
+#### RyzenAI config parameters
+
+All of these are optional - the defaults are what you want unless you are measuring something. Add them to whichever config you run with.
+
+| Parameter | Values | Default | What it does |
+| --- | --- | --- | --- |
+| `ryzenaiDtype` | `auto`, `bf16`, `bfp16` | `auto` | Numeric format for the NPU kernels. `auto` picks block floating point on XDNA2 and bf16 on XDNA1, which is the only format XDNA1 has. `bf16` is the more accurate of the two and costs roughly 10% throughput; set it explicitly if you would rather have the precision. |
+| `ryzenaiMaxColumns` | 0-64 | `4` | How many of the NPU's columns one kernel may use. More is not automatically better: a small net gets *slower* with more columns, because each distinct kernel is its own hardware context and the driver ends up switching between them. Large nets do benefit. Measure with `katago benchmark` before changing it. |
+| `ryzenaiForceNpuOnly` | bool | `false` | Refuse to fall back to the CPU. Normally a layer with no matching kernel quietly runs on the CPU instead, which is correct but slower; this turns that into a hard failure, which is what you want when verifying that the NPU is really being used. |
+| `ryzenaiArtifactDir` | path | next to the executable | Where the `.xclbin` kernels live. Pointing it at a nonexistent directory forces the whole network onto the CPU reference path, which is the simplest way to compare NPU output against CPU output. |
+| `ryzenaiVerboseDispatch` | bool | `false` | Log where the time went: host-side packing, NPU dispatch, unpacking, and the operators still running on the CPU. Also reports any kernel that was wanted but missing. Start here when performance is not what you expect. |
+| `ryzenaiShapeReport` | bool | `false` | Log every matrix shape the loaded model asks for. Needed only when generating kernels for a new network - see [Compiling.md](Compiling.md). |
+| `ryzenaiForceK` | -1 to 65536 | `-1` | Collapse every layer onto one kernel by padding their reduction dimensions up to this value, trading wasted arithmetic for fewer context switches. `-1` lets KataGo decide per model, which is almost always right. |
+| `ryzenaiSelfTest` | bool | `false` | Run a built-in matrix-multiply check against the NPU at startup. |
+| `ryzenaiDeviceToUse` | int | `0` | Which NPU, on a machine with more than one. `ryzenaiDeviceToUseThread0`, `...Thread1` and so on assign devices per neural net thread, exactly as the equivalent OpenCL and CUDA settings do. |
+
+Two things worth knowing beyond the parameters:
+
+  * **Threads matter more here than the settings above.** The NPU pays a fixed cost per dispatch, and KataGo amortizes it by batching evaluations from several search threads into one. Going from `numSearchThreads = 1` to `16` measured about 1.9x more evaluations per second on the same hardware - a bigger win than anything in the table. `katago benchmark` will suggest a value for your machine.
+  * **The NPU does not compute in fp32**, so its policy and value outputs differ slightly from the CPU backends. The difference is small enough that the top moves come out the same, but large enough to flip the engine's choice between two moves it considers nearly equal. If you need bit-reproducibility across machines, use a CPU backend.
 
 ### Common Questions and Issues
 This section summarizes a number of common questions and issues when running KataGo.

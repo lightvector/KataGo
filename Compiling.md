@@ -100,6 +100,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
       * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them. I'm unsure how version compatibility works with CUDA, there's a good chance that later versions than these work just as well, but they have not been tested.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
+      * If using the RyzenAI backend, an AMD Ryzen AI processor with its NPU enabled, AMD's NPU driver, and the [XRT SDK for Windows](https://github.com/Xilinx/XRT). Nothing else - the NPU kernels ship with KataGo. See the RyzenAI notes below.
       * If using the Eigen backend, Eigen3, version 3.3.x. (http://eigen.tuxfamily.org/index.php?title=Main_Page#Download).
       * zlib. Easy way to build zlib on Windows is to use vcpkg. Run in Powershell:
          * git clone https://github.com/microsoft/vcpkg.git
@@ -146,6 +147,24 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * For MinGW it's recommended to configure the project in the following ways:
      * Use the default MinGW toolchain in [CLion IDE](https://www.jetbrains.com/clion/) (free for Non-Commercial use)
      * Use [MSYS2](https://www.msys2.org/) MinGW toolchain. Befor configuring, install gcc compiler using pacman package manager: `pacman -S mingw-w64-x86_64-gcc`
+   * **RyzenAI backend (Windows):**
+      * Runs the neural net on the NPU built into AMD Ryzen AI processors (XDNA1 as in Phoenix/Hawk Point, XDNA2 as in Strix). The compiled NPU kernels are committed to this repository, so there is no tuning step, no model conversion, and nothing to install beyond the two requirements below.
+      * Requirements:
+         * AMD's NPU driver, and the NPU enabled in the BIOS. `katago benchmark` reports which NPU it found, or says none was found.
+         * The [XRT SDK for Windows](https://github.com/Xilinx/XRT). CMake looks in `%XILINX_XRT%` and then `C:\Xilinx\XRT`; pass `-DXRT_ROOT=<dir>` if it lives elsewhere.
+         * Visual Studio Build Tools with the "Desktop development with C++" workload, and zlib (conda and vcpkg both ship one).
+      * Build. CMake locates the C++ toolchain, the XRT SDK and zlib itself, so an ordinary shell is enough - a Developer Command Prompt is *not* required:
+        ```
+        cd cpp
+        mkdir build
+        cd build
+        cmake .. -G Ninja -DUSE_BACKEND=RYZENAI -DCMAKE_BUILD_TYPE=Release
+        cmake --build . --parallel
+        ```
+        `ninja` works in place of `cmake --build .` if you have it on your PATH. If CMake cannot find something it names what and where to get it; `-DZLIB_ROOT=...` and `-DXRT_RUNTIME_DLL_DIR=...` override the search.
+      * The build directory runs as-is: `katago.exe`, the XRT runtime DLLs beside it, and the NPU kernels in a `ryzenai` subdirectory. Copy all three together if you move it.
+      * **Precision:** on XDNA2 the default is block floating point, which is faster; `ryzenaiDtype = bf16` in the config selects the more accurate format instead. XDNA1 only has bf16. Either way the NPU is not computing in fp32, so its outputs differ slightly from the CPU backends - enough to pick differently between two nearly-equal moves, not enough to matter for strength.
+      * **Regenerating the NPU kernels** - only needed for a network shape that has no kernel yet, which is rare: the shipped set covers every reduction dimension up to 6912. See [python/ryzenai_kernels/README.md](python/ryzenai_kernels/README.md).
    * Done! You should now have a compiled `katago.exe` executable in your working directory.
    * Note: You may need to copy the ".dll" files corresponding to the various ".lib" (".a") files you compiled with into the directory containing katago.exe.
      * MinGW has different dlls. If you use pacman, the necessary dlls (`libbz2-1.dll`, `libzip.dll`, `libzstd.dll`, `liblzma-5.dll`) should be copied from MinGW bin directory (like `C:\msys64\mingw64\bin`).
@@ -158,7 +177,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * The ROCm (MIOpen) backend supports Windows via [AMD TheRock](https://github.com/ROCm/TheRock) (tested with TheRock 7.13 / ROCm 7.13, RX 7900 XTX / gfx1100), including transformer/attention models (model version 17+) and the optional Composable Kernel (CK) fused-attention fast path.
       * **Prerequisites:**
          * Download [AMD TheRock](https://github.com/ROCm/TheRock) and extract it to e.g. `C:\TheRock\build`, adjusting the paths below if you extract elsewhere.
-         * Install **Visual Studio Build Tools or Community** with the "Desktop development with C++" workload, for the MSVC toolchain and Windows SDK the HIP compiler needs. A **v143 toolset (MSVC 14.3x or 14.4x)** must be among the installed toolsets - newer toolsets alone (14.5x+) are not accepted by the HIP clang compatibility check. If more than one is installed side by side, `CMakeLists.txt` automatically probes them at configure time and picks a compatible one itself (see "Fully automatic" below), no manual toolset selection needed.
+         * Install **Visual Studio Build Tools or Community** with the "Desktop development with C++" workload, for the MSVC toolchain and Windows SDK the HIP compiler needs. If several toolsets are installed side by side, `CMakeLists.txt` probes them at configure time - newest first - and picks the first one the HIP compiler actually accepts (see "Fully automatic" below), no manual toolset selection needed. Note that a very new MSVC STL can be ahead of the clang bundled with TheRock; if configure reports that no installed toolset works, add an older one such as **MSVC v143 (14.3x/14.4x)** from the Visual Studio Installer's "Individual Components" tab.
          * Install [Ninja](https://ninja-build.org) build tool: `winget install Ninja-build.Ninja`.
          * Set the following **system environment variables** (via System Properties -> Advanced -> Environment Variables):
            ```
@@ -186,9 +205,9 @@ As also mentioned in the instructions below but repeated here for visibility, if
         Windows-specific setup automatically at configure/build time:
          * **MSVC toolset selection:** if more than one MSVC toolset is installed side by side, a
            newer one can conflict with TheRock's bundled clang (newer MSVC STL headers are not yet
-           compatible with it). `CMakeLists.txt` finds the installed v143-family toolsets via
-           `vswhere` and probes each with a real compile until one works, with no user action
-           needed.
+           compatible with it). `CMakeLists.txt` enumerates every installed toolset via
+           `vswhere` and probes them newest-first with a real compile until one works, with
+           no user action needed.
          * **zlib:** TheRock's Windows package ships `zlib.h` but (as of 7.13) no longer ships a
            linkable `.lib`. `CMakeLists.txt` automatically bootstraps a local
            [vcpkg](https://github.com/microsoft/vcpkg) clone under `<build dir>/deps/vcpkg` (this
