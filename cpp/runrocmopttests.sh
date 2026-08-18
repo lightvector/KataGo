@@ -333,9 +333,7 @@ run_case c_fp32_nhwc_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "$FP32_NHWC" \
   "$CK_USED@$FUSED_RESNORM@$FP16_NHWC"
 
-# 1x1 NHWC convolutions as a hipBLAS GEMM instead of a MIOpen conv. There is no path-selection
-# log line for this knob (nor for the CUDA backend's equivalent), so these cases assert numerical
-# correctness and the layout the GEMM requires, not the dispatch itself. On CDNA the resolved
+# 1x1 NHWC convolutions as a hipBLAS GEMM instead of a MIOpen conv. On CDNA the resolved
 # default is off, so the =true cases are the ones covering what ships as the default elsewhere.
 run_case c_1x1matmul_on_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,rocmUse1x1Matmul=true" \

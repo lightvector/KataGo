@@ -200,7 +200,7 @@ run_fail_case() {
 
 run_case t_default_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect_quick.txt \
   "requireMaxBoardSize=False" \
-  "$MMA_USED@$QKV_COMBINED@$FUSED_RESNORM@$FFN_USED" \
+  "$MMA_USED@$QKV_COMBINED@$FUSED_RESNORM@$FFN_USED@$MATMUL_1X1" \
   "$SDPA_USED@$MMA_REJECTED@$FFN_REJECTED"
 
 run_case t_default_exact19 "$TMODEL" 19 quick "$TMODELBASE"_size19_quick.txt \
@@ -334,23 +334,23 @@ run_case trsnh_default_rectbuffer "$TRSNH" 9 full "$TRSNHBASE"_size9_rectbuffer.
 
 run_case c_default_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False" \
-  "" \
+  "$MATMUL_1X1" \
   "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
 
 run_case c_nchw_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,cudaUseNHWC=false" \
   "" \
-  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
+  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM@$MATMUL_1X1"
 
 run_case c_fp32_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,useFP16=false" \
   "" \
-  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
+  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM@$MATMUL_1X1"
 
 run_case c_fp32_nhwc_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,useFP16=false,cudaUseNHWC=true" \
   "" \
-  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
+  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM@$MATMUL_1X1"
 
 # 1x1 convolutions via cuDNN instead of the default FP16 cuBLAS GEMM, and forced GEMM in FP32.
 run_case c_1x1matmul_off_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
@@ -361,19 +361,19 @@ run_case c_1x1matmul_off_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.tx
 # The GEMM path also requires NHWC, which FP32 does not default to, so force it.
 run_case c_1x1matmul_fp32_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,useFP16=false,cudaUseNHWC=true,cudaUse1x1Matmul=true" \
-  "" \
+  "$MATMUL_1X1" \
   "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
 
 run_case c_share_weights_exact19 "$CMODEL" 19 full "$CMODELBASE"_size19.txt \
   "requireMaxBoardSize=True,numNNServerThreadsPerModel=2,cudaShareModelWeights=true" \
-  "" \
+  "$MATMUL_1X1" \
   "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
 
 # NCHW convolutions with weight sharing, which uploads the untransposed filter layout.
 run_case c_nchw_share_weights_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
   "requireMaxBoardSize=False,cudaUseNHWC=false,numNNServerThreadsPerModel=2,cudaShareModelWeights=true" \
   "" \
-  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
+  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM@$MATMUL_1X1"
 
 #--------------------------------------------------------------------------------------------
 # Invalid combinations must fail loudly at startup.
