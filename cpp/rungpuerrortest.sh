@@ -178,6 +178,8 @@ runtest "$MODELBASE13"_sizerect_quick.txt -model "$MODEL13" -config configs/gtp_
          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}"
 runtest "$MODELBASE13"_size9_rectbuffer_quick.txt -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 9 -quick \
          -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=16,maxBoardYSizeForNNBuffer=11,maxBatchSize=9${EXTRA_OVERRIDE}"
+runtest "$MODELBASE13"_size10x14_quick.txt -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 10x14 -quick \
+         -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}"
 
 runtest "$MODELBASE15"_size19_quick.txt -model "$MODEL15" -config configs/gtp_example.cfg -boardsize 19 -quick \
          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}"

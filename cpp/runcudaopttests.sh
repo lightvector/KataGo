@@ -211,6 +211,12 @@ run_case t_default_rectbuffer "$TMODEL" 9 quick "$TMODELBASE"_size9_rectbuffer_q
   "$MMA_USED@$QKV_COMBINED@$FUSED_RESNORM@$FFN_USED" \
   "$SDPA_USED@$MMA_REJECTED@$FFN_REJECTED"
 
+# Exact-size path on a non-square NN buffer (RoPE and attention at nnX != nnY, no mask).
+run_case t_default_exact10x14 "$TMODEL" 10x14 quick "$TMODELBASE"_size10x14_quick.txt \
+  "requireMaxBoardSize=True" \
+  "$MMA_USED@$QKV_COMBINED@$FFN_USED" \
+  "$SDPA_USED@$MMA_REJECTED@$FFN_REJECTED@$FUSED_RESNORM"
+
 #--------------------------------------------------------------------------------------------
 # Knob variants on the masked non-square scenario (the most indexing-sensitive path).
 
@@ -226,11 +232,23 @@ run_case t_mma_off_exact19 "$TMODEL" 19 quick "$TMODELBASE"_size19_quick.txt \
   "$SDPA_ANY@$FFN_USED" \
   "$MMA_USED@$QKV_COMBINED@$FUSED_RESNORM"
 
+# SDPA on the exact-size non-square buffer.
+run_case t_mma_off_exact10x14 "$TMODEL" 10x14 quick "$TMODELBASE"_size10x14_quick.txt \
+  "requireMaxBoardSize=True,cudaUseMmaAttention=false" \
+  "$SDPA_ANY@$FFN_USED" \
+  "$MMA_USED@$QKV_COMBINED@$FUSED_RESNORM"
+
 # Disabling both mma and SDPA must fall back to the plain scalar attention kernel.
 run_case t_plain_attention_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect_quick.txt \
   "requireMaxBoardSize=False,cudaUseMmaAttention=false,cudaDisableGraphSDPA=true" \
   "$SDPA_KNOB_OFF@$FUSED_RESNORM" \
   "$MMA_USED@$SDPA_USED@$QKV_COMBINED"
+
+# Same on the mask-free exact-size path (the plain kernel's mask == NULL branch).
+run_case t_plain_attention_exact19 "$TMODEL" 19 quick "$TMODELBASE"_size19_quick.txt \
+  "requireMaxBoardSize=True,cudaUseMmaAttention=false,cudaDisableGraphSDPA=true" \
+  "$SDPA_KNOB_OFF" \
+  "$MMA_USED@$SDPA_USED@$QKV_COMBINED@$FUSED_RESNORM"
 
 # Disabling SDPA alone changes nothing when mma handles all shapes.
 run_case t_sdpa_off_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect_quick.txt \
@@ -273,6 +291,13 @@ run_case t_share_weights_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect_q
   "requireMaxBoardSize=False,numNNServerThreadsPerModel=2,cudaShareModelWeights=true" \
   "$MMA_USED@$QKV_COMBINED@$FUSED_RESNORM@$FFN_USED" \
   "$SDPA_USED"
+
+# Weight sharing in FP32, which keys the registry on a different precision and uploads the
+# unconverted float weights.
+run_case t_share_weights_fp32_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect_quick.txt \
+  "requireMaxBoardSize=False,numNNServerThreadsPerModel=2,cudaShareModelWeights=true,useFP16=false" \
+  "$FUSED_RESNORM" \
+  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED"
 
 #--------------------------------------------------------------------------------------------
 # GQA transformer with mma-unsupported head dims (qk 32, v 16): the mma kernel must reject the
@@ -331,13 +356,20 @@ run_case c_1x1matmul_off_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.tx
   "" \
   "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
 
+# The GEMM path also requires NHWC, which FP32 does not default to, so force it.
 run_case c_1x1matmul_fp32_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
-  "requireMaxBoardSize=False,useFP16=false,cudaUse1x1Matmul=true" \
+  "requireMaxBoardSize=False,useFP16=false,cudaUseNHWC=true,cudaUse1x1Matmul=true" \
   "" \
   "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
 
 run_case c_share_weights_exact19 "$CMODEL" 19 full "$CMODELBASE"_size19.txt \
   "requireMaxBoardSize=True,numNNServerThreadsPerModel=2,cudaShareModelWeights=true" \
+  "" \
+  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
+
+# NCHW convolutions with weight sharing, which uploads the untransposed filter layout.
+run_case c_nchw_share_weights_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
+  "requireMaxBoardSize=False,cudaUseNHWC=false,numNNServerThreadsPerModel=2,cudaShareModelWeights=true" \
   "" \
   "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
 
