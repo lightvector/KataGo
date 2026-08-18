@@ -10,6 +10,7 @@
   * [OpenCL vs CUDA vs TensorRT vs RyzenAI vs Eigen](#opencl-vs-cuda-vs-tensorrt-vs-ryzenai-vs-eigen)
   * [How To Use](#how-to-use)
   * [Tuning for Performance](#tuning-for-performance)
+    * [RyzenAI config parameters](#ryzenai-config-parameters)
   * [Common Questions and Issues](#common-questions-and-issues)
     * [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers)
     * [Common Problems](#common-problems)
@@ -173,6 +174,27 @@ The most important parameter to optimize for KataGo's performance is the number 
 
 Secondarily, you can also read over the parameters in your GTP config (`default_gtp.cfg` or `gtp_example.cfg` or `configs/gtp_example.cfg`, etc). A lot of other settings are described in there that you can set to adjust KataGo's resource usage, or choose which GPUs to use. You can also adjust things like KataGo's resign threshold, pondering behavior or utility function. Most parameters are documented directly inline in the [example config file](cpp/configs/gtp_example.cfg). Many can also be interactively set when generating a config via the `genconfig` command described above.
 
+
+#### RyzenAI config parameters
+
+All of these are optional - the defaults are what you want unless you are measuring something. Add them to whichever config you run with.
+
+| Parameter | Values | Default | What it does |
+| --- | --- | --- | --- |
+| `ryzenaiDtype` | `auto`, `bf16`, `bfp16` | `auto` | Numeric format for the NPU kernels. `auto` picks block floating point on XDNA2 and bf16 on XDNA1, which is the only format XDNA1 has. `bf16` is the more accurate of the two and costs roughly 10% throughput; set it explicitly if you would rather have the precision. |
+| `ryzenaiMaxColumns` | 0-64 | `4` | How many of the NPU's columns one kernel may use. More is not automatically better: a small net gets *slower* with more columns, because each distinct kernel is its own hardware context and the driver ends up switching between them. Large nets do benefit. Measure with `katago benchmark` before changing it. |
+| `ryzenaiForceNpuOnly` | bool | `false` | Refuse to fall back to the CPU. Normally a layer with no matching kernel quietly runs on the CPU instead, which is correct but slower; this turns that into a hard failure, which is what you want when verifying that the NPU is really being used. |
+| `ryzenaiArtifactDir` | path | next to the executable | Where the `.xclbin` kernels live. Pointing it at a nonexistent directory forces the whole network onto the CPU reference path, which is the simplest way to compare NPU output against CPU output. |
+| `ryzenaiVerboseDispatch` | bool | `false` | Log where the time went: host-side packing, NPU dispatch, unpacking, and the operators still running on the CPU. Also reports any kernel that was wanted but missing. Start here when performance is not what you expect. |
+| `ryzenaiShapeReport` | bool | `false` | Log every matrix shape the loaded model asks for. Needed only when generating kernels for a new network - see [Compiling.md](Compiling.md). |
+| `ryzenaiForceK` | -1 to 65536 | `-1` | Collapse every layer onto one kernel by padding their reduction dimensions up to this value, trading wasted arithmetic for fewer context switches. `-1` lets KataGo decide per model, which is almost always right. |
+| `ryzenaiSelfTest` | bool | `false` | Run a built-in matrix-multiply check against the NPU at startup. |
+| `ryzenaiDeviceToUse` | int | `0` | Which NPU, on a machine with more than one. `ryzenaiDeviceToUseThread0`, `...Thread1` and so on assign devices per neural net thread, exactly as the equivalent OpenCL and CUDA settings do. |
+
+Two things worth knowing beyond the parameters:
+
+  * **Threads matter more here than the settings above.** The NPU pays a fixed cost per dispatch, and KataGo amortizes it by batching evaluations from several search threads into one. Going from `numSearchThreads = 1` to `16` measured about 1.9x more evaluations per second on the same hardware - a bigger win than anything in the table. `katago benchmark` will suggest a value for your machine.
+  * **The NPU does not compute in fp32**, so its policy and value outputs differ slightly from the CPU backends. The difference is small enough that the top moves come out the same, but large enough to flip the engine's choice between two moves it considers nearly equal. If you need bit-reproducibility across machines, use a CPU backend.
 
 ### Common Questions and Issues
 This section summarizes a number of common questions and issues when running KataGo.
