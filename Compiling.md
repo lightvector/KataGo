@@ -177,7 +177,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * The ROCm (MIOpen) backend supports Windows via [AMD TheRock](https://github.com/ROCm/TheRock) (tested with TheRock 7.13 / ROCm 7.13, RX 7900 XTX / gfx1100), including transformer/attention models (model version 17+) and the optional Composable Kernel (CK) fused-attention fast path.
       * **Prerequisites:**
          * Download [AMD TheRock](https://github.com/ROCm/TheRock) and extract it to e.g. `C:\TheRock\build`, adjusting the paths below if you extract elsewhere.
-         * Install **Visual Studio Build Tools or Community** with the "Desktop development with C++" workload, for the MSVC toolchain and Windows SDK the HIP compiler needs. A **v143 toolset (MSVC 14.3x or 14.4x)** must be among the installed toolsets - newer toolsets alone (14.5x+) are not accepted by the HIP clang compatibility check. If more than one is installed side by side, `CMakeLists.txt` automatically probes them at configure time and picks a compatible one itself (see "Fully automatic" below), no manual toolset selection needed.
+         * Install **Visual Studio Build Tools or Community** with the "Desktop development with C++" workload, for the MSVC toolchain and Windows SDK the HIP compiler needs. If several toolsets are installed side by side, `CMakeLists.txt` probes them at configure time - newest first - and picks the first one the HIP compiler actually accepts (see "Fully automatic" below), no manual toolset selection needed. Note that a very new MSVC STL can be ahead of the clang bundled with TheRock; if configure reports that no installed toolset works, add an older one such as **MSVC v143 (14.3x/14.4x)** from the Visual Studio Installer's "Individual Components" tab.
          * Install [Ninja](https://ninja-build.org) build tool: `winget install Ninja-build.Ninja`.
          * Set the following **system environment variables** (via System Properties -> Advanced -> Environment Variables):
            ```
@@ -205,9 +205,9 @@ As also mentioned in the instructions below but repeated here for visibility, if
         Windows-specific setup automatically at configure/build time:
          * **MSVC toolset selection:** if more than one MSVC toolset is installed side by side, a
            newer one can conflict with TheRock's bundled clang (newer MSVC STL headers are not yet
-           compatible with it). `CMakeLists.txt` finds the installed v143-family toolsets via
-           `vswhere` and probes each with a real compile until one works, with no user action
-           needed.
+           compatible with it). `CMakeLists.txt` enumerates every installed toolset via
+           `vswhere` and probes them newest-first with a real compile until one works, with
+           no user action needed.
          * **zlib:** TheRock's Windows package ships `zlib.h` but (as of 7.13) no longer ships a
            linkable `.lib`. `CMakeLists.txt` automatically bootstraps a local
            [vcpkg](https://github.com/microsoft/vcpkg) clone under `<build dir>/deps/vcpkg` (this
