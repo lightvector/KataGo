@@ -2,12 +2,14 @@
 
 #include <hip/hip_runtime.h>
 #include <migraphx/migraphx.hpp>
+#include <migraphx/version.h>
 
 #include <algorithm>
 #include <atomic>
 #include <cstdint>
 #include <fstream>
 #include <mutex>
+#include <random>
 #include <set>
 
 #include "../core/fileutils.h"
@@ -87,6 +89,7 @@ struct ComputeContext {
   bool transformerNHWC;  // ONNX emitter: run transformer blocks channel-last
   string dumpDebugModelToDir;
   bool useExhaustiveTune;  // MIGraphX exhaustive_tune: slower compile, faster kernels
+  bool useProgramCache;    // persist compiled programs to disk (see createComputeContext)
   bool useBatchBuckets;    // compile a ladder of batch sizes instead of only maxBatchSize
 };
 
@@ -136,6 +139,16 @@ ComputeContext* NeuralNet::createComputeContext(
   // compile time. It costs minutes per compile, so it is off unless asked for.
   context->useExhaustiveTune =
     cfg.contains("migraphxExhaustiveTune") ? cfg.getBool("migraphxExhaustiveTune") : false;
+  // Persist compiled programs to disk. Bucketing compiles one program per bucket at startup, which
+  // costs initialization time rather than throughput, but on a MIGraphX build without rocMLIR every
+  // conv and GEMM falls back to MIOpen/rocBLAS JIT and that cost becomes severe. Caching makes it a
+  // one-time cost per machine: measured on MI325X, a 38.5s compile reloads in 1.1s.
+  //
+  // Default OFF because the cache is large - roughly 160MB per bucket, so a full ladder exceeds a
+  // gigabyte per (model, board size, precision) combination, and that should not land in a user's
+  // home directory unasked.
+  context->useProgramCache =
+    cfg.contains("migraphxProgramCache") ? cfg.getBool("migraphxProgramCache") : false;
   // Batch bucketing (on by default; see the rationale at the top of this file). Setting this
   // false compiles a single program at maxBatchSize, which is the pre-bucketing behavior — it
   // trades throughput for a shorter startup and one copy of the weights, and gives a way to
@@ -181,6 +194,70 @@ const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
 // one ComputeHandle per server thread, all of which compile the same model at startup. Serialize
 // compiles so that N threads do not race inside the compiler.
 static mutex compileMutex;
+
+// Bump to invalidate every previously written cache entry, e.g. if the emitted graph or the
+// bucketing scheme changes in a way the key below would not otherwise capture.
+static constexpr int kProgramCacheSalt = 1;
+
+// Path for one cached compiled program.
+//
+// The key MUST capture everything that can change the compiled result. Loading a stale entry would
+// silently run a program built for different weights and return wrong answers, which is a worse
+// outcome than the slow compile this avoids. So it covers:
+//   - a hash of the emitted ONNX bytes (weights, board size, layout, scale8, NHWC choice: the
+//     emitter bakes all of these in, so the bytes are the authority)
+//   - the bucket's batch size, since every bucket is a separately compiled shape
+//   - FP16 vs FP32 and exhaustive tuning, both of which change kernel selection
+//   - the GPU architecture, since a program built for gfx942 is meaningless on gfx1100
+//   - the MIGraphX version, whose serialized format and codegen are not stable across releases
+static string programCachePath(
+  const string& cacheDir,
+  const string& onnxBytes,
+  int bucketBatchSize,
+  bool willUseFP16,
+  bool exhaustiveTune,
+  const string& gcnArchName
+) {
+  char onnxHash[65];
+  SHA2::get256(onnxBytes.c_str(), onnxHash);
+  string key = Global::strprintf(
+    "%s-bs%d-%s-%s-%s-mgx%d%d%d.%s-salt%d",
+    string(onnxHash).substr(0, 32).c_str(),
+    bucketBatchSize,
+    willUseFP16 ? "fp16" : "fp32",
+    exhaustiveTune ? "exh" : "std",
+    gcnArchName.c_str(),
+    MIGRAPHX_VERSION_MAJOR, MIGRAPHX_VERSION_MINOR, MIGRAPHX_VERSION_PATCH,
+    MIGRAPHX_VERSION_TWEAK,
+    kProgramCacheSalt);
+  return cacheDir + "/" + key + ".mxr";
+}
+
+// Write to a unique temp path and rename, so neither a crash nor two racing processes can leave a
+// half-written .mxr for a later run to load. Mirrors the TensorRT backend's cache write.
+// A failure here is never fatal: we already hold the compiled program.
+static void saveProgramCache(const migraphx::program& prog, const string& path, Logger* logger) {
+  static const uint64_t randBase = std::random_device{}();
+  static std::atomic<uint64_t> counter{0};
+  string tmpPath = Global::strprintf(
+    "%s.tmp_%llx_%llu", path.c_str(),
+    (unsigned long long)randBase, (unsigned long long)counter.fetch_add(1));
+  try {
+    migraphx::file_options fo;
+    fo.set_file_format("msgpack");
+    migraphx::save(prog, tmpPath.c_str(), fo);
+    if(!FileUtils::tryRename(tmpPath, path)) {
+      FileUtils::tryRemoveFile(tmpPath);
+      if(logger != NULL)
+        logger->write("MIGraphX backend: could not rename program cache file, continuing uncached");
+    }
+  }
+  catch(const std::exception& e) {
+    FileUtils::tryRemoveFile(tmpPath);
+    if(logger != NULL)
+      logger->write(string("MIGraphX backend: failed to write program cache (continuing): ") + e.what());
+  }
+}
 
 struct ComputeHandle {
   ComputeContext* ctx;
@@ -321,11 +398,62 @@ struct ComputeHandle {
     // per bucket; see the bucketing rationale at the top of this file.
     const vector<int> bucketSizes = bucketSizesFor(maxBatchSize, ctx->useBatchBuckets);
 
+    // FP16 is decided by config alone, so it is known before any bucket is built and can go into
+    // the cache key. The per-bucket code below still sets usingFP16 as it quantizes.
+    const bool willUseFP16 =
+      (ctx->useFP16Mode == enabled_t::True || ctx->useFP16Mode == enabled_t::Auto);
+
+    // Resolve the cache directory once. Failure to create it disables caching rather than aborting.
+    string cacheDir;
+    string gcnArchName;
+    if(ctx->useProgramCache) {
+      try {
+        hipDeviceProp_t cacheProp;
+        int cacheDev = 0;
+        HIP_ERR("ComputeHandle", hipGetDevice(&cacheDev));
+        HIP_ERR("ComputeHandle", hipGetDeviceProperties(&cacheProp, cacheDev));
+        gcnArchName = string(cacheProp.gcnArchName);
+        cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride) + "/migraphxcache";
+        MakeDir::make(cacheDir);
+      }
+      catch(const std::exception& e) {
+        cacheDir.clear();
+        if(logger != NULL)
+          logger->write(string("MIGraphX backend: program cache unavailable (continuing): ") + e.what());
+      }
+    }
+
     usingFP16 = false;
     {
       lock_guard<mutex> lock(compileMutex);
 
       for(int bucketBatchSize: bucketSizes) {
+        // Try the cache first. Every failure path here falls through to a normal compile: a
+        // missing, truncated or foreign entry must cost time, never correctness.
+        string cachePath;
+        if(!cacheDir.empty()) {
+          cachePath = programCachePath(
+            cacheDir, onnxBytes, bucketBatchSize, willUseFP16, ctx->useExhaustiveTune, gcnArchName);
+          if(FileUtils::exists(cachePath)) {
+            try {
+              migraphx::program cachedProg = migraphx::load(cachePath.c_str());
+              Bucket cachedBucket;
+              cachedBucket.batchSize = bucketBatchSize;
+              cachedBucket.prog = std::move(cachedProg);
+              buckets.push_back(std::move(cachedBucket));
+              usingFP16 = willUseFP16;
+              if(logger != NULL)
+                logger->write(Global::strprintf(
+                  "MIGraphX backend: loaded cached program for batch size %d", bucketBatchSize));
+              continue;
+            }
+            catch(const std::exception& e) {
+              if(logger != NULL)
+                logger->write(string("MIGraphX backend: cached program unusable, recompiling: ") + e.what());
+            }
+          }
+        }
+
         migraphx::onnx_options onnxOptions;
         const size_t bs = (size_t)bucketBatchSize;
         onnxOptions.set_input_parameter_shape("InputMask", {bs, 1, (size_t)ctx->nnYLen, (size_t)ctx->nnXLen});
@@ -353,6 +481,9 @@ struct ComputeHandle {
         options.set_fast_math(true);
         options.set_exhaustive_tune_flag(ctx->useExhaustiveTune);
         bucketProg.compile(migraphx::target("gpu"), options);
+
+        if(!cachePath.empty())
+          saveProgramCache(bucketProg, cachePath, logger);
 
         Bucket bucket;
         bucket.batchSize = bucketBatchSize;
