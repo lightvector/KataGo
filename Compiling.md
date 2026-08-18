@@ -33,7 +33,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * If using the OpenCL backend, a modern GPU that supports OpenCL 1.2 or greater, or else something like [this](https://software.intel.com/en-us/opencl-sdk) for CPU. But if using CPU, Eigen should be better.
       * If using the CUDA backend, CUDA 11 or later and a compatible version of CUDNN based on your CUDA version (https://developer.nvidia.com/cuda-toolkit) (https://developer.nvidia.com/cudnn) and a GPU capable of supporting them.
       * If using the TensorRT backend, in addition to a compatible CUDA Toolkit (https://developer.nvidia.com/cuda-toolkit), you also need TensorRT (https://developer.nvidia.com/tensorrt) that is at least version 8.5.
-      * If using the ROCm backend, ROCm 7.x (https://rocm.docs.amd.com/en/latest/install/rocm.html) and a GPU capable of supporting it. Install the ROCm developer packages, not just the ROCm runtime packages.
+      * If using the ROCm backend, ROCm 6.4 or later (https://rocm.docs.amd.com/projects/install-on-linux/en/latest/) and a GPU capable of supporting it. Install the ROCm developer packages, not just the ROCm runtime packages.
       * If using the Eigen backend, Eigen3. With Debian packages, (i.e. apt or apt-get), this should be `libeigen3-dev`.
       * zlib, libzip. With Debian packages (i.e. apt or apt-get), these should be `zlib1g-dev`, `libzip-dev`.
       * If you want to do self-play training and research, probably Google perftools `libgoogle-perftools-dev` for TCMalloc or some other better malloc implementation. For unknown reasons, the allocation pattern in self-play with large numbers of threads and parallel games causes a lot of memory fragmentation under glibc malloc that will eventually run your machine out of memory, but better mallocs handle it fine.
@@ -56,13 +56,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device when you run it (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
    * **ROCm backend (Linux) - additional notes:**
-      * Install ROCm following the [official guide](https://rocm.docs.amd.com/en/latest/install/rocm.html). On the guide's selector panel, choose your Device family, your GPU, your Operating system and its version, Use case = **Compute**, and Installation method = the system package manager (e.g. `apt` on Ubuntu). **If you have ROCm 7.2.4 or older installed, please uninstall it before proceeding** (the guide documents `sudo amdgpu-uninstall` for that).
-      * Install the prerequisite libraries, then the ROCm 7.14 packages (developer stack, not just the runtime):
-        ```
-        sudo apt install libatomic1 libquadmath0
-        sudo apt install amdrocm7.14 amdrocm-core-dev7.14 amdrocm-developer-tools7.14 amdrocm-opencl7.14 amdrocm-core-sdk7.14
-        ```
-      * Verify the installation with `amd-smi` (it should report the ROCm version and list your GPU); `rocminfo` works too.
+      * Install ROCm following the [official guide](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/). Install the full developer stack (not just runtime): `sudo apt install rocm-dev miopen-hip-dev hipblas-dev rocblas-dev`.
       * Build:
         ```
         cd KataGo/cpp
@@ -179,13 +173,13 @@ As also mentioned in the instructions below but repeated here for visibility, if
    * You will probably want to edit `configs/gtp_example.cfg` (see "Tuning for Performance" above).
    * If using OpenCL, you will want to verify that KataGo is picking up the correct device (e.g. some systems may have both an Intel CPU OpenCL and GPU OpenCL, if KataGo appears to pick the wrong one, you can correct this by specifying `openclGpuToUse` in `configs/gtp_example.cfg`).
 
-   * **ROCm backend (Windows):**
-      * The ROCm (MIOpen) backend supports Windows, including transformer/attention models (model version 17+) and the optional Composable Kernel (CK) fused-attention fast path.
+   * **ROCm backend (Windows) - building via AMD TheRock:**
+      * The ROCm (MIOpen) backend supports Windows via [AMD TheRock](https://github.com/ROCm/TheRock) (tested with TheRock 7.13 / ROCm 7.13, RX 7900 XTX / gfx1100), including transformer/attention models (model version 17+) and the optional Composable Kernel (CK) fused-attention fast path.
       * **Prerequisites:**
-         * Install ROCm for Windows following the [official guide](https://rocm.docs.amd.com/en/latest/install/rocm.html). On the guide's selector panel, choose your Device family, your GPU, and Operating system = **Windows**, then follow the method it presents (the tarball method gives a system-wide install with all components, HIP/MIOpen/clang toolchain included). **If you have ROCm 7.2.4 or older installed, please uninstall it before proceeding.**
+         * Download [AMD TheRock](https://github.com/ROCm/TheRock) and extract it to e.g. `C:\TheRock\build`, adjusting the paths below if you extract elsewhere.
          * Install **Visual Studio Build Tools or Community** with the "Desktop development with C++" workload, for the MSVC toolchain and Windows SDK the HIP compiler needs. A **v143 toolset (MSVC 14.3x or 14.4x)** must be among the installed toolsets - newer toolsets alone (14.5x+) are not accepted by the HIP clang compatibility check. If more than one is installed side by side, `CMakeLists.txt` automatically probes them at configure time and picks a compatible one itself (see "Fully automatic" below), no manual toolset selection needed.
          * Install [Ninja](https://ninja-build.org) build tool: `winget install Ninja-build.Ninja`.
-         * Set the following **system environment variables** (via System Properties -> Advanced -> Environment Variables), adjusting the paths if you extracted the tarball elsewhere:
+         * Set the following **system environment variables** (via System Properties -> Advanced -> Environment Variables):
            ```
            HIP_PATH=C:/TheRock/build
            HIP_PLATFORM=amd
@@ -210,12 +204,12 @@ As also mentioned in the instructions below but repeated here for visibility, if
         install are needed beyond the prerequisites above. `CMakeLists.txt` handles the rest of the
         Windows-specific setup automatically at configure/build time:
          * **MSVC toolset selection:** if more than one MSVC toolset is installed side by side, a
-           newer one can conflict with the HIP clang (newer MSVC STL headers are not yet
+           newer one can conflict with TheRock's bundled clang (newer MSVC STL headers are not yet
            compatible with it). `CMakeLists.txt` finds the installed v143-family toolsets via
            `vswhere` and probes each with a real compile until one works, with no user action
            needed.
-         * **zlib:** if the ROCm Windows package on your system ships `zlib.h` but no
-           linkable `.lib`, `CMakeLists.txt` automatically bootstraps a local
+         * **zlib:** TheRock's Windows package ships `zlib.h` but (as of 7.13) no longer ships a
+           linkable `.lib`. `CMakeLists.txt` automatically bootstraps a local
            [vcpkg](https://github.com/microsoft/vcpkg) clone under `<build dir>/deps/vcpkg` (this
            needs internet access and `git` on `PATH` the first time; subsequent reconfigures reuse
            the same local install) and builds zlib through it, via the
