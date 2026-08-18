@@ -164,7 +164,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
       * The ROCm (MIOpen) backend supports Windows, including transformer/attention models (model version 17+) and the optional Composable Kernel (CK) fused-attention fast path.
       * **Prerequisites:**
          * Install ROCm for Windows following the [official guide](https://rocm.docs.amd.com/en/latest/install/rocm.html). On the guide's selector panel, choose your Device family, your GPU, and Operating system = **Windows**, then follow the method it presents (the tarball method gives a system-wide install with all components, HIP/MIOpen/clang toolchain included). **If you have ROCm 7.2.4 or older installed, please uninstall it before proceeding.**
-         * Install **Visual Studio Build Tools or Community** with the "Desktop development with C++" workload, for the MSVC toolchain and Windows SDK the HIP compiler needs. A **v143 toolset (MSVC 14.3x or 14.4x)** must be among the installed toolsets - newer toolsets alone (14.5x+) are not accepted by the HIP clang compatibility check. If more than one is installed side by side, `CMakeLists.txt` automatically probes them at configure time and picks a compatible one itself (see "Fully automatic" below), no manual toolset selection needed.
+         * Install **Visual Studio Build Tools or Community** with the "Desktop development with C++" workload, for the MSVC toolchain and Windows SDK the HIP compiler needs. If several toolsets are installed side by side, `CMakeLists.txt` probes them at configure time - newest first - and picks the first one the HIP compiler actually accepts (see "Fully automatic" below), no manual toolset selection needed. Note that a very new MSVC STL can be ahead of the clang bundled with your ROCm install; if configure reports that no installed toolset works, add an older one such as **MSVC v143 (14.3x/14.4x)** from the Visual Studio Installer's "Individual Components" tab.
          * Install [Ninja](https://ninja-build.org) build tool: `winget install Ninja-build.Ninja`.
          * Set the following **system environment variables** (via System Properties -> Advanced -> Environment Variables), adjusting the paths if you extracted the tarball elsewhere:
            ```
@@ -192,9 +192,9 @@ As also mentioned in the instructions below but repeated here for visibility, if
         Windows-specific setup automatically at configure/build time:
          * **MSVC toolset selection:** if more than one MSVC toolset is installed side by side, a
            newer one can conflict with the HIP clang (newer MSVC STL headers are not yet
-           compatible with it). `CMakeLists.txt` finds the installed v143-family toolsets via
-           `vswhere` and probes each with a real compile until one works, with no user action
-           needed.
+           compatible with it). `CMakeLists.txt` enumerates every installed toolset via
+           `vswhere` and probes them newest-first with a real compile until one works, with
+           no user action needed.
          * **zlib:** if the ROCm Windows package on your system ships `zlib.h` but no
            linkable `.lib`, `CMakeLists.txt` automatically bootstraps a local
            [vcpkg](https://github.com/microsoft/vcpkg) clone under `<build dir>/deps/vcpkg` (this

@@ -32,7 +32,7 @@ cpp/tests/results/matchsgfs2/games.sgfs
 
 cpp/data/
 versions/
-cpp/build
+cpp/build*
 cpp/out
 
 export_model_cuda.sh
@@ -92,3 +92,5 @@ cpp/build.ninja
 cpp/KataGoSwift.*
 cpp/include/KataGoSwift/KataGoSwift-swift.h
 cpp/external/katagocoreml/proto/
+
+.claude

@@ -137,15 +137,32 @@ function(katago_win_apply_vcvarsall vcvarsall_bat vcvars_ver)
   if(NOT _rc EQUAL 0 OR NOT EXISTS "${_out_file}")
     return()
   endif()
-  # Read line-by-line via file(STRINGS) rather than splitting the raw output ourselves - INCLUDE/
-  # LIB/PATH are themselves semicolon-separated, which would corrupt a naive string(REPLACE "\n" ";"
-  # ...) split. file(STRINGS) keeps each real line, with its embedded semicolons, as one entry.
-  file(STRINGS "${_out_file}" _env_lines)
-  foreach(_line IN LISTS _env_lines)
+  # Walk the dump one line at a time with plain string operations, NOT via a cmake list (which is
+  # what file(STRINGS) hands back). Two properties of this output make list handling wrong:
+  # INCLUDE/LIB/PATH are themselves semicolon-separated, and Windows values routinely end in a
+  # backslash (VSINSTALLDIR, WindowsSdkBinPath, ...). A line ending in "\" turns the list
+  # separator that follows it into an escaped ";" when the list is expanded, silently gluing the
+  # next variable onto this one's value (e.g. VSINSTALLDIR ending up as
+  # "...\BuildTools;windir=C:\Windows") and losing that next variable entirely. A corrupt
+  # VSINSTALLDIR in turn breaks any *subsequent* vcvarsall call, whose -vcvars_ver check resolves
+  # against it ("Version '...' is not valid; directory does not exist"), which is exactly what
+  # probing more than one toolset in a single configure run does.
+  file(READ "${_out_file}" _env_raw)
+  string(REPLACE "\r\n" "\n" _env_raw "${_env_raw}")
+  while(NOT _env_raw STREQUAL "")
+    string(FIND "${_env_raw}" "\n" _nl)
+    if(_nl EQUAL -1)
+      set(_line "${_env_raw}")
+      set(_env_raw "")
+    else()
+      string(SUBSTRING "${_env_raw}" 0 ${_nl} _line)
+      math(EXPR _nl_next "${_nl} + 1")
+      string(SUBSTRING "${_env_raw}" ${_nl_next} -1 _env_raw)
+    endif()
     if(_line MATCHES "^([A-Za-z_][A-Za-z0-9_().]*)=(.*)$")
       set(ENV{${CMAKE_MATCH_1}} "${CMAKE_MATCH_2}")
     endif()
-  endforeach()
+  endwhile()
 endfunction()
 
 # Helper: with the given HIP compiler and whatever environment is currently active, try compiling a
@@ -184,22 +201,23 @@ function(katago_win_pathlist_to_flags pathlist flagprefix out_var)
   set(${out_var} "${_flags}" PARENT_SCOPE)
 endfunction()
 
-# Helper: find an MSVC "v143" toolset (possibly one of several 14.3x/14.4x versions installed
-# side-by-side under one or more VS installs) whose STL doesn't conflict with the HIP compiler's
-# own CUDA/HIP math forward-declare headers, apply the vcvarsall.bat environment for it (so the
-# rest of THIS configure run - the HIP arch probing below, and project()'s own HIP compiler ABI
-# test - see it), and also bake the resulting INCLUDE/LIB paths into cached compiler/linker flags
-# so a later, separate `ninja` invocation (which does NOT inherit this configure run's environment
-# - see katago_win_apply_vcvarsall's comment) keeps working too.
+# Helper: find an MSVC toolset (possibly one of several versions installed side-by-side under one
+# or more VS installs) whose STL doesn't conflict with the HIP compiler's own CUDA/HIP math
+# forward-declare headers, apply the vcvarsall.bat environment for it (so the rest of THIS
+# configure run - the HIP arch probing below, and project()'s own HIP compiler ABI test - see it),
+# and also bake the resulting INCLUDE/LIB paths into cached compiler/linker flags so a later,
+# separate `ninja` invocation (which does NOT inherit this configure run's environment - see
+# katago_win_apply_vcvarsall's comment) keeps working too.
 #
-# Deliberately pinned to the v143 toolset family (MSVC 14.3x/14.4x) rather than probing every
-# installed toolset regardless of version: a newer MSVC STL (seen with a VS "18" preview-channel
-# toolset, MSVC 14.51+, i.e. the next "v144" family) declares math functions like isgreater/isless
-# in a way that conflicts with clang's forward declarations for CUDA/HIP device overloads ("device
-# function cannot overload host device function"), because that clang version predates the STL's
-# newly-added declarations. v143 is the toolset known to work with TheRock's clang. Probe within
-# the v143 family (oldest first) rather than hardcoding one exact version, since multiple v143
-# point releases can be installed side by side and this needs one that's actually present.
+# Every installed toolset is a candidate, probed NEWEST FIRST, and the compile probe - not a
+# hardcoded version range - decides which one gets used. The conflict this guards against is real:
+# some MSVC STL versions (first seen with a VS "18" preview-channel toolset, MSVC 14.51, i.e. the
+# "v144" family) declare math functions like isgreater/isless in a way that clashes with clang's
+# forward declarations for CUDA/HIP device overloads ("device function cannot overload host device
+# function"), when that clang predates the STL's newly-added declarations. But that is a property
+# of the specific STL/clang pair in front of us, not of the toolset family, so newer TheRock
+# builds are free to start accepting newer toolsets without an edit here - they just get picked
+# up. If the newest toolset fails the probe, the next-newest is tried, on down to the oldest.
 function(katago_win_autoselect_msvc_toolset hip_compiler)
   katago_win_find_vswhere(_vswhere)
   if(NOT _vswhere)
@@ -226,11 +244,6 @@ function(katago_win_autoselect_msvc_toolset hip_compiler)
     foreach(_t IN LISTS _tool_dirs)
       if(IS_DIRECTORY "${_t}" AND EXISTS "${_t}/include/cmath")
         get_filename_component(_ver "${_t}" NAME)
-        # v143 toolset versions are 14.3x/14.4x (the next-generation "v144" toolset, seen with
-        # VS 18 preview builds, starts at 14.5x and is the one known to conflict - see above).
-        if(NOT _ver MATCHES "^14\\.[34][0-9]\\.")
-          continue()
-        endif()
         set(_vcvarsall "${_install_path}/VC/Auxiliary/Build/vcvarsall.bat")
         if(EXISTS "${_vcvarsall}")
           list(APPEND _toolsets "${_ver}|${_vcvarsall}")
@@ -240,12 +253,28 @@ function(katago_win_autoselect_msvc_toolset hip_compiler)
   endforeach()
 
   if(NOT _toolsets)
-    message(FATAL_ERROR "No installed MSVC v143 toolset (14.3x/14.4x) found. Open the Visual Studio Installer, choose \"Modify\" on your VS installation, go to \"Individual Components\", and install \"MSVC v143 - VS 2022 C++ x64/x86 build tools\" (a newer toolset alone, e.g. a VS 18 preview's v144, is not compatible with TheRock's bundled clang).")
+    message(FATAL_ERROR "No installed MSVC toolset found under any Visual Studio installation. Open the Visual Studio Installer, choose \"Modify\" on your VS installation, go to \"Individual Components\", and install an \"MSVC ... C++ x64/x86 build tools\" component.")
   endif()
   list(REMOVE_DUPLICATES _toolsets)
-  list(SORT _toolsets COMPARE NATURAL ORDER ASCENDING)
+  # Newest first: prefer the most recent toolset installed, falling back to older ones only if the
+  # probe below rejects it.
+  list(SORT _toolsets COMPARE NATURAL ORDER DESCENDING)
+
+  # vcvarsall.bat PREPENDS to these rather than replacing them, so probing a second toolset in the
+  # same cmake process would otherwise leave the rejected toolset's directories trailing behind the
+  # accepted one's - and those leftovers would get baked into the cached flags below. Snapshot the
+  # pre-vcvars values and restore them before each attempt so every probe starts from the same
+  # clean environment.
+  # Held in one variable per name rather than a list: these values are themselves
+  # semicolon-separated, which a cmake list would happily shred.
+  foreach(_env_var PATH INCLUDE LIB LIBPATH)
+    set(_orig_env_${_env_var} "$ENV{${_env_var}}")
+  endforeach()
 
   foreach(_entry IN LISTS _toolsets)
+    foreach(_env_var PATH INCLUDE LIB LIBPATH)
+      set(ENV{${_env_var}} "${_orig_env_${_env_var}}")
+    endforeach()
     string(REPLACE "|" ";" _entry_list "${_entry}")
     list(GET _entry_list 0 _ver)
     list(GET _entry_list 1 _vcvarsall)
@@ -292,7 +321,7 @@ function(katago_win_autoselect_msvc_toolset hip_compiler)
       message(STATUS "MSVC toolset ${_ver} conflicts with the HIP compiler's CUDA/HIP math headers; trying another")
     endif()
   endforeach()
-  message(FATAL_ERROR "None of the installed MSVC v143 toolset(s) (14.3x/14.4x) compiled cleanly against TheRock's HIP compiler. This indicates a problem beyond the usual v143-vs-newer-toolset conflict this check is meant to catch - please report this along with the MSVC/TheRock versions involved.")
+  message(FATAL_ERROR "None of the installed MSVC toolsets compiled cleanly against TheRock's HIP compiler. A newer MSVC STL can conflict with an older bundled clang (\"device function cannot overload host device function\"); if every installed toolset is affected, install an older one - e.g. \"MSVC v143 - VS 2022 C++ x64/x86 build tools\" from the Visual Studio Installer's \"Individual Components\" tab - or use a newer TheRock distribution.")
 endfunction()
 
 # Normalize case here too (it is normalized again later next to the cache definition): the
