@@ -1,8 +1,182 @@
 cmake_minimum_required(VERSION 3.18.2)
+
+#--------------------------- MSVC ENVIRONMENT BOOTSTRAP (Windows, pre-project) -----------------------------------------
+#
+# Configuring with Ninja normally requires a Developer Command Prompt, because cl.exe reads
+# INCLUDE/LIB/PATH that only vcvarsall.bat sets. Finding and applying that automatically lets a
+# plain shell do the documented thing:
+#
+#   cd cpp && mkdir build && cd build
+#   cmake .. -G Ninja -DUSE_BACKEND=RYZENAI -DCMAKE_BUILD_TYPE=Release && ninja
+#
+# Nothing here hardcodes an install path, edition or version. vswhere sits at a location Microsoft
+# documents as stable, it reports where Visual Studio actually is, and the newest installed toolset
+# wins. Running inside a Developer Command Prompt still works - the bootstrap sees the environment
+# is already set up and does nothing.
+
+# Locate vswhere.exe via the Program Files env vars (its documented install location), so we never
+# hardcode a drive letter or edition-specific path.
+function(katago_win_find_vswhere out_var)
+  foreach(_pf_var "ProgramFiles(x86)" "ProgramFiles")
+    if(DEFINED ENV{${_pf_var}})
+      file(TO_CMAKE_PATH "$ENV{${_pf_var}}" _pf)
+      set(_candidate "${_pf}/Microsoft Visual Studio/Installer/vswhere.exe")
+      if(EXISTS "${_candidate}")
+        set(${out_var} "${_candidate}" PARENT_SCOPE)
+        return()
+      endif()
+    endif()
+  endforeach()
+  set(${out_var} "" PARENT_SCOPE)
+endfunction()
+
+# Apply the environment vcvarsall.bat would set into THIS cmake process, which is what every
+# compiler check during this configure run needs (execute_process children inherit it).
+function(katago_win_apply_vcvarsall vcvarsall_bat vcvars_ver)
+  # Generate a tiny .bat wrapper rather than passing the whole "call ... && set" pipeline as one
+  # execute_process COMMAND argument - CMake's argument quoting mangles a string that complex
+  # (embedded quotes plus '&&'), even though it works typed straight into a shell.
+  set(_bat_file "${CMAKE_BINARY_DIR}/_katago_vcvars_dump.bat")
+  set(_out_file "${CMAKE_BINARY_DIR}/_katago_vcvars_env.txt")
+  file(WRITE "${_bat_file}" "@echo off\r\ncall \"${vcvarsall_bat}\" x64 -vcvars_ver=${vcvars_ver} >NUL 2>NUL\r\nset\r\n")
+  execute_process(COMMAND cmd /c "${_bat_file}" OUTPUT_FILE "${_out_file}" RESULT_VARIABLE _rc)
+  if(NOT _rc EQUAL 0 OR NOT EXISTS "${_out_file}")
+    set(${out_var} 0 PARENT_SCOPE)
+    return()
+  endif()
+  # Read line by line with file(STRINGS) rather than splitting the raw output ourselves: INCLUDE,
+  # LIB and PATH contain semicolons, which a string(REPLACE "\n" ";") split would corrupt.
+  file(STRINGS "${_out_file}" _env_lines)
+  foreach(_line IN LISTS _env_lines)
+    if(_line MATCHES "^([A-Za-z_][A-Za-z0-9_().]*)=(.*)$")
+      set(ENV{${CMAKE_MATCH_1}} "${CMAKE_MATCH_2}")
+    endif()
+  endforeach()
+endfunction()
+
+# Newest MSVC toolset across every Visual Studio install, as "<version>|<vcvarsall.bat>".
+function(katago_win_find_newest_msvc out_var)
+  katago_win_find_vswhere(_vswhere)
+  if(NOT _vswhere)
+    set(${out_var} "" PARENT_SCOPE)
+    return()
+  endif()
+  execute_process(
+    COMMAND "${_vswhere}" -all -products * -property installationPath
+    OUTPUT_VARIABLE _raw OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+  string(REPLACE "\r\n" "\n" _raw "${_raw}")
+  string(REPLACE "\n" ";" _install_paths "${_raw}")
+
+  set(_best_ver "")
+  set(_best_bat "")
+  foreach(_install_path IN LISTS _install_paths)
+    if(_install_path STREQUAL "")
+      continue()
+    endif()
+    file(TO_CMAKE_PATH "${_install_path}" _install_path)
+    set(_vcvarsall "${_install_path}/VC/Auxiliary/Build/vcvarsall.bat")
+    if(NOT EXISTS "${_vcvarsall}")
+      continue()
+    endif()
+    # Version comes from the toolset directory name; require the C++ headers to actually be there,
+    # so a partially-installed toolset is not selected.
+    file(GLOB _tool_dirs "${_install_path}/VC/Tools/MSVC/*")
+    foreach(_t IN LISTS _tool_dirs)
+      if(IS_DIRECTORY "${_t}" AND EXISTS "${_t}/include/cmath")
+        get_filename_component(_ver "${_t}" NAME)
+        # Compare as versions, not strings: list(SORT) mis-orders e.g. 14.9 against 14.40.
+        if(_ver MATCHES "^[0-9]+\\.[0-9]+" AND (_best_ver STREQUAL "" OR _ver VERSION_GREATER _best_ver))
+          set(_best_ver "${_ver}")
+          set(_best_bat "${_vcvarsall}")
+        endif()
+      endif()
+    endforeach()
+  endforeach()
+  if(_best_ver STREQUAL "")
+    set(${out_var} "" PARENT_SCOPE)
+  else()
+    set(${out_var} "${_best_ver}|${_best_bat}" PARENT_SCOPE)
+  endif()
+endfunction()
+
+# Turn a semicolon-separated path list (the INCLUDE or LIB env var) into quoted compiler flags.
+function(katago_win_pathlist_to_flags pathlist flagprefix out_var)
+  set(_flags "")
+  # Split as a plain string via regex: CMake's own ';' list handling would fight the semicolons
+  # already inside the path list.
+  string(REGEX MATCHALL "[^;]+" _dirs "${pathlist}")
+  foreach(_dir IN LISTS _dirs)
+    if(NOT _dir STREQUAL "")
+      set(_flags "${_flags} ${flagprefix}\"${_dir}\"")
+    endif()
+  endforeach()
+  set(${out_var} "${_flags}" PARENT_SCOPE)
+endfunction()
+
+# CMAKE_HOST_WIN32, not WIN32: the latter is a result of platform detection inside project(), so
+# it is still undefined this early.
+#
+# The guard asks whether the environment is usable, not whether a variable happens to exist: a
+# stray empty or whitespace VCToolsInstallDir would otherwise make this skip the bootstrap and
+# leave the build with no compiler at all.
+set(_katago_vctools "$ENV{VCToolsInstallDir}")
+set(_katago_include "$ENV{INCLUDE}")
+string(STRIP "${_katago_vctools}" _katago_vctools)
+string(STRIP "${_katago_include}" _katago_include)
+if(CMAKE_HOST_WIN32 AND NOT CMAKE_CXX_COMPILER
+   AND (_katago_vctools STREQUAL "" OR _katago_include STREQUAL ""))
+  katago_win_find_newest_msvc(_katago_msvc)
+  if(_katago_msvc)
+    string(REPLACE "|" ";" _katago_msvc_list "${_katago_msvc}")
+    list(GET _katago_msvc_list 0 _katago_msvc_ver)
+    list(GET _katago_msvc_list 1 _katago_msvc_bat)
+    katago_win_apply_vcvarsall("${_katago_msvc_bat}" "${_katago_msvc_ver}")
+    message(STATUS "KataGo: using MSVC toolset ${_katago_msvc_ver} (found via vswhere)")
+
+    # The environment applied above lasts only for this configure run. A later, separate `ninja`
+    # (or `cmake --build`) is a sibling process that inherits none of it, so cl.exe would be found
+    # by its baked-in full path and then fail on <algorithm>. Bake the resolved INCLUDE/LIB into
+    # flags below, once project() has created the variables to append them to.
+    katago_win_pathlist_to_flags("$ENV{INCLUDE}" "/I" _katago_msvc_incflags)
+    katago_win_pathlist_to_flags("$ENV{LIB}" "/LIBPATH:" _katago_msvc_libflags)
+
+    # Visual Studio bundles Ninja, but only on the IDE's private PATH, so a plain shell asking for
+    # -G Ninja would otherwise need a separate install.
+    if(CMAKE_GENERATOR MATCHES "Ninja" AND NOT CMAKE_MAKE_PROGRAM)
+      find_program(_katago_ninja ninja)
+      if(NOT _katago_ninja)
+        get_filename_component(_vs_root "${_katago_msvc_bat}" DIRECTORY)
+        get_filename_component(_vs_root "${_vs_root}/../../.." ABSOLUTE)
+        set(_bundled "${_vs_root}/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe")
+        if(EXISTS "${_bundled}")
+          set(CMAKE_MAKE_PROGRAM "${_bundled}" CACHE FILEPATH "" FORCE)
+          message(STATUS "KataGo: using Ninja bundled with Visual Studio: ${_bundled}")
+        endif()
+      endif()
+    endif()
+  else()
+    message(WARNING "KataGo: no Visual Studio C++ toolchain found via vswhere. Install the "
+                    "\"Desktop development with C++\" workload, or configure from a Developer "
+                    "Command Prompt.")
+  endif()
+endif()
+#-----------------------------------------------------------------------------------------------------------------------
+
 if(USE_BACKEND STREQUAL "METAL")
   project(katago LANGUAGES CXX Swift)
 else()
   project(katago)
+endif()
+
+# See the bootstrap block above: these carry the auto-detected toolchain's header and library
+# search paths into the generated build files, so building later from a plain shell works.
+if(_katago_msvc_incflags)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}${_katago_msvc_incflags}" CACHE STRING "" FORCE)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}${_katago_msvc_incflags}" CACHE STRING "" FORCE)
+  foreach(_lk EXE SHARED MODULE)
+    set(CMAKE_${_lk}_LINKER_FLAGS "${CMAKE_${_lk}_LINKER_FLAGS}${_katago_msvc_libflags}"
+        CACHE STRING "" FORCE)
+  endforeach()
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -44,7 +218,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL RYZENAI)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -164,8 +338,19 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
+elseif(USE_BACKEND STREQUAL "RYZENAI")
+  message(STATUS "-DUSE_BACKEND=RYZENAI, using AMD Ryzen AI NPU (XDNA/XDNA2) backend.")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/ryzenaibackend.cpp
+    neuralnet/ryzenaidevice.cpp
+    neuralnet/ryzenaikernel.cpp
+    neuralnet/ryzenaireference.cpp
+    neuralnet/ryzenaisequence.cpp
+    neuralnet/ryzenaishapes.cpp
+    neuralnet/ryzenaimatmul.cpp
+    )
 elseif(USE_BACKEND STREQUAL "")
-  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN to compile with the respective backend.${ColorReset}")
+  message(WARNING "${ColorBoldRed}WARNING: Using dummy neural net backend, intended for non-neural-net testing only, will fail on any code path requiring a neural net. To use neural net, specify -DUSE_BACKEND=CUDA or -DUSE_BACKEND=TENSORRT or -DUSE_BACKEND=OPENCL or -DUSE_BACKEND=EIGEN or -DUSE_BACKEND=RYZENAI to compile with the respective backend.${ColorReset}")
   set(NEURALNET_BACKEND_SOURCES neuralnet/dummybackend.cpp)
 else()
   message(FATAL_ERROR "Unrecognized backend: " ${USE_BACKEND})
@@ -535,6 +720,96 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
       message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
     endif()
   endif()
+elseif(USE_BACKEND STREQUAL "RYZENAI")
+  target_compile_definitions(katago PRIVATE USE_RYZENAI_BACKEND)
+  message(STATUS "RyzenAI backend: talks to the NPU directly through XRT.")
+  message(STATUS "  It does NOT require the AMD Ryzen AI Software SDK, ONNX Runtime, or Python.")
+  message(STATUS "  Build time needs the XRT SDK; run time needs only the NPU driver.")
+
+  # ---- XRT SDK discovery ----
+  # Nothing here hardcodes a path or a version. Resolution order:
+  #   1. -DXRT_ROOT=... given on the command line
+  #   2. the XILINX_XRT environment variable (set by XRT's own setup scripts on
+  #      Linux, and by the Windows XRT SDK install step)
+  #   3. CMake's normal search paths
+  set(XRT_ROOT "" CACHE PATH "Root of the XRT SDK. Falls back to the XILINX_XRT environment variable.")
+  # Consult both every configure. Seeding the cache entry from the environment
+  # instead would stick on whatever the first configure saw, so installing the
+  # SDK afterwards would not be picked up without wiping the build directory.
+  set(_katago_xrt_hints "")
+  if(XRT_ROOT)
+    list(APPEND _katago_xrt_hints "${XRT_ROOT}")
+  endif()
+  if(DEFINED ENV{XILINX_XRT} AND NOT "$ENV{XILINX_XRT}" STREQUAL "")
+    list(APPEND _katago_xrt_hints "$ENV{XILINX_XRT}")
+  endif()
+  find_path(XRT_INCLUDE_DIR
+    NAMES xrt/xrt_device.h
+    HINTS ${_katago_xrt_hints}
+    PATH_SUFFIXES include
+    DOC "Directory containing xrt/xrt_device.h"
+  )
+  find_library(XRT_COREUTIL_LIBRARY
+    NAMES xrt_coreutil
+    HINTS ${_katago_xrt_hints}
+    PATH_SUFFIXES lib lib64
+    DOC "The xrt_coreutil library"
+  )
+  if(NOT XRT_INCLUDE_DIR OR NOT XRT_COREUTIL_LIBRARY)
+    message(FATAL_ERROR "${ColorBoldRed}The XRT SDK was not found. Install it and either set the XILINX_XRT environment variable to its root or pass -DXRT_ROOT=<path>. On Windows, download xrt_windows_sdk.zip from the Xilinx/XRT releases and extract its xrt_sdk/xrt directory; on Linux, install the XRT packages (typically /opt/xilinx/xrt).${ColorReset}")
+  endif()
+  message(STATUS "  XRT include dir: ${XRT_INCLUDE_DIR}")
+  message(STATUS "  XRT library:     ${XRT_COREUTIL_LIBRARY}")
+  target_include_directories(katago SYSTEM PRIVATE "${XRT_INCLUDE_DIR}")
+  target_link_libraries(katago "${XRT_COREUTIL_LIBRARY}")
+
+  # XRT's headers select std::any vs boost::any on __cplusplus. MSVC reports
+  # 199711L there unless told otherwise, which sends xrt/detail/any.h looking for
+  # a Boost that we do not ship. Set per-target so the compiler defaults CMake
+  # supplies (notably /EHsc) are left intact.
+  target_compile_options(katago PRIVATE $<$<CXX_COMPILER_ID:MSVC>:/Zc:__cplusplus>)
+
+  # ---- NPU kernel binaries (xclbin) ----
+  # Shipped as build artifacts next to the executable, in a "ryzenai" subdir.
+  # The backend resolves them relative to the executable at run time, so a
+  # deployed install is just exe + dlls + this directory.
+  set(RYZENAI_ARTIFACT_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/ryzenai_artifacts")
+  add_custom_command(TARGET katago POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:katago>/ryzenai"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+      "${RYZENAI_ARTIFACT_SRC_DIR}" "$<TARGET_FILE_DIR:katago>/ryzenai"
+    COMMENT "Copying RyzenAI NPU kernel artifacts next to katago"
+  )
+
+  if(WIN32)
+    # The XRT runtime DLLs ship with the NPU driver rather than with the SDK, so
+    # they are picked up from the Windows driver store. Located by globbing on
+    # top of %SystemRoot%, so neither a path nor a driver version is hardcoded.
+    # Override with -DXRT_RUNTIME_DLL_DIR=<dir> if the driver lives elsewhere.
+    set(XRT_RUNTIME_DLL_DIR "" CACHE PATH "Directory containing xrt_coreutil.dll. Auto-detected from the NPU driver store if empty.")
+    if(NOT XRT_RUNTIME_DLL_DIR)
+      file(GLOB _katago_xrt_driver_dirs
+        "$ENV{SystemRoot}/System32/DriverStore/FileRepository/*/xrt_coreutil.dll")
+      if(_katago_xrt_driver_dirs)
+        # Several driver revisions can coexist in the store; take the newest.
+        list(SORT _katago_xrt_driver_dirs COMPARE FILE_BASENAME ORDER DESCENDING)
+        list(GET _katago_xrt_driver_dirs 0 _katago_xrt_dll)
+        get_filename_component(XRT_RUNTIME_DLL_DIR "${_katago_xrt_dll}" DIRECTORY)
+      endif()
+    endif()
+    if(XRT_RUNTIME_DLL_DIR)
+      message(STATUS "  XRT runtime DLLs: ${XRT_RUNTIME_DLL_DIR}")
+      file(GLOB _katago_xrt_runtime_dlls "${XRT_RUNTIME_DLL_DIR}/xrt_*.dll")
+      foreach(_katago_xrt_dll IN LISTS _katago_xrt_runtime_dlls)
+        add_custom_command(TARGET katago POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_katago_xrt_dll}" "$<TARGET_FILE_DIR:katago>"
+        )
+      endforeach()
+    else()
+      message(WARNING "${ColorBoldRed}Could not locate xrt_coreutil.dll in the driver store. katago will need it on PATH at run time, or pass -DXRT_RUNTIME_DLL_DIR=<dir>.${ColorReset}")
+    endif()
+  endif()
 endif()
 
 if(USE_BIGGER_BOARDS_EXPENSIVE)
@@ -543,6 +818,49 @@ endif()
 
 if(NO_GIT_REVISION AND (NOT BUILD_DISTRIBUTED))
   target_compile_definitions(katago PRIVATE NO_GIT_REVISION)
+endif()
+
+# Windows has no system zlib, so a plain `cmake .. -G Ninja` would fail here even though a usable
+# copy is almost always already on the machine - conda ships one, so does vcpkg. Look in the roots
+# those tools advertise through the environment before giving up. Explicit -DZLIB_ROOT= still wins,
+# and nothing here names a fixed drive, user or version.
+if(CMAKE_HOST_WIN32 AND NOT ZLIB_ROOT AND NOT ZLIB_LIBRARY)
+  set(_katago_zlib_roots "")
+  if(DEFINED ENV{CONDA_PREFIX})
+    file(TO_CMAKE_PATH "$ENV{CONDA_PREFIX}" _p)
+    list(APPEND _katago_zlib_roots "${_p}/Library")
+  endif()
+  if(DEFINED ENV{VCPKG_ROOT})
+    file(TO_CMAKE_PATH "$ENV{VCPKG_ROOT}" _p)
+    list(APPEND _katago_zlib_roots "${_p}/installed/x64-windows")
+  endif()
+  if(DEFINED ENV{USERPROFILE})
+    file(TO_CMAKE_PATH "$ENV{USERPROFILE}" _home)
+    # A base conda install is not "activated", so it exports no CONDA_PREFIX; its default location
+    # under the user profile is the only thing to go on.
+    foreach(_dist miniconda3 anaconda3 miniforge3 mambaforge)
+      list(APPEND _katago_zlib_roots "${_home}/${_dist}/Library")
+    endforeach()
+  endif()
+  foreach(_root IN LISTS _katago_zlib_roots)
+    if(EXISTS "${_root}/include/zlib.h")
+      # Prefer the import library for the DLL over the static one: KataGo links the rest of its
+      # dependencies dynamically here, and mixing runtimes is what produces the confusing
+      # duplicate-symbol failures at link time.
+      foreach(_cand zdll.lib zlib.lib z.lib)
+        if(EXISTS "${_root}/lib/${_cand}")
+          set(ZLIB_ROOT "${_root}" CACHE PATH "Root of a zlib install" FORCE)
+          set(ZLIB_INCLUDE_DIR "${_root}/include" CACHE PATH "" FORCE)
+          set(ZLIB_LIBRARY "${_root}/lib/${_cand}" CACHE FILEPATH "" FORCE)
+          message(STATUS "KataGo: using zlib from ${_root}")
+          break()
+        endif()
+      endforeach()
+    endif()
+    if(ZLIB_ROOT)
+      break()
+    endif()
+  endforeach()
 endif()
 
 find_package(ZLIB)
