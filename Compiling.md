@@ -127,22 +127,7 @@ As also mentioned in the instructions below but repeated here for visibility, if
         `ninja` works in place of `cmake --build .` if you have it on your PATH. If CMake cannot find something it names what and where to get it; `-DZLIB_ROOT=...` and `-DXRT_RUNTIME_DLL_DIR=...` override the search.
       * The build directory runs as-is: `katago.exe`, the XRT runtime DLLs beside it, and the NPU kernels in a `ryzenai` subdirectory. Copy all three together if you move it.
       * **Precision:** on XDNA2 the default is block floating point, which is faster; `ryzenaiDtype = bf16` in the config selects the more accurate format instead. XDNA1 only has bf16. Either way the NPU is not computing in fp32, so its outputs differ slightly from the CPU backends - enough to pick differently between two nearly-equal moves, not enough to matter for strength.
-      * **Regenerating the NPU kernels** - only needed for a network shape that has no kernel yet. The shipped set already covers every reduction dimension up to 6912, so most new models need nothing at all. Run katago with `-override-config ryzenaiShapeReport=true` to see what a model asks for; the log names any shape that fell back to the CPU.
-         * This needs the [mlir-aie](https://github.com/Xilinx/mlir-aie) toolchain, which is several gigabytes and is installed into a virtual environment of your choosing:
-           ```
-           cd python\ryzenai_kernels
-           .\setup_env.ps1 -Prefix C:\Envs\mlir-aie              # report the plan, download nothing
-           .\setup_env.ps1 -Prefix C:\Envs\mlir-aie -Execute     # install for real
-           ```
-           `-Prefix` is required and has no default - any path works, e.g. `-Prefix D:\tools\mlir-aie`. Without `-Execute` the script only checks prerequisites and prints what it would do.
-         * Then generate. Artifacts land in `cpp/external/ryzenai_artifacts` in the layout the loader expects, intermediate build trees are cleaned up, and the next `cmake --build` copies everything next to `katago.exe`:
-           ```
-           activate_iron.bat
-           python make_artifacts.py --list --for-model 512 8            # plan only
-           python make_artifacts.py --for-model 512 8 --ffn-hidden 768  # transformer
-           python make_artifacts.py --for-model 768 0                   # convnet
-           ```
-           The arguments are trunk channels, attention heads (0 for a convnet), and optionally board points (default 361, i.e. 19x19). `--ffn-hidden` is the FFN hidden width from the shape report; without it the SwiGLU activation runs unfused, which costs a few percent.
+      * **Regenerating the NPU kernels** - only needed for a network shape that has no kernel yet, which is rare: the shipped set covers every reduction dimension up to 6912. See [python/ryzenai_kernels/README.md](python/ryzenai_kernels/README.md).
    * Done! You should now have a compiled `katago.exe` executable in your working directory.
    * Note: You may need to copy the ".dll" files corresponding to the various ".lib" (".a") files you compiled with into the directory containing katago.exe.
      * MinGW has different dlls. If you use pacman, the necessary dlls (`libbz2-1.dll`, `libzip.dll`, `libzstd.dll`, `liblzma-5.dll`) should be copied from MinGW bin directory (like `C:\msys64\mingw64\bin`).
