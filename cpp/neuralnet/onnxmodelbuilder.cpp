@@ -112,6 +112,27 @@ struct Builder {
     return graph->mutable_node(graph->node_size() - 1);
   }
 
+  // Split a tensor into two equal halves along `axis`, returning both output names.
+  //
+  // Used by the fused SwiGLU FFN, where one matmul produces [.., 2*ffnC] and the two halves feed
+  // the SiLU and gate branches. Split rather than a pair of Slices: it states "two equal halves"
+  // in one node, so the parser sees a single producer with two consumers instead of two
+  // independent strided reads of the same buffer, and it needs no index initializers at all
+  // (which is also what keeps this collision-free when several FFN blocks share a name prefix).
+  pair<string, string> splitInHalf(const string& input, int axis, const string& nameBase) {
+    string outA = uniq(nameBase + "/lo");
+    string outB = uniq(nameBase + "/hi");
+    onnx::NodeProto* node = graph->add_node();
+    node->set_op_type("Split");
+    node->set_name(nameBase);
+    node->add_input(input);
+    node->add_output(outA);
+    node->add_output(outB);
+    { onnx::AttributeProto* a = addAttr(node, "axis"); a->set_type(onnx::AttributeProto::INT); a->set_i(axis); }
+    { onnx::AttributeProto* a = addAttr(node, "num_outputs"); a->set_type(onnx::AttributeProto::INT); a->set_i(2); }
+    return std::make_pair(outA, outB);
+  }
+
   string elementwise(const string& op, const string& a, const string& b, const string& name) {
     return addNode(op, {a, b}, uniq(name), name);
   }
@@ -545,8 +566,36 @@ struct Builder {
     if(!ffn.useSwiGLU)
       throw StringError("OnnxModelBuilder: non-SwiGLU transformer FFN not supported");
     string xn = transformerRMSNormNhwc(inNhwc, ffn.preLN);        // [N,H,W,C]
-    string a = projMatMulNhwc(xn, ffn.linear1);     // [N,H,W,ffnC]
-    string g = projMatMulNhwc(xn, ffn.linearGate);  // [N,H,W,ffnC]
+
+    // linear1 and linearGate both read xn and differ only in weights, so they are one matmul with
+    // the two weight matrices concatenated along the output axis. PR #1239 fuses these too, but
+    // only via CUTLASS under `#if defined(KATAGO_GPU_CUDA)`, so on CDNA its FFN stays unfused.
+    int inC = ffn.linear1.inChannels, ffnC = ffn.linear1.outChannels;
+    testAssert(ffn.linearGate.inChannels == inC);
+    testAssert(ffn.linearGate.outChannels == ffnC);
+    testAssert((int)ffn.linear1.weights.size() == inC * ffnC);
+    testAssert((int)ffn.linearGate.weights.size() == inC * ffnC);
+
+    // Weights are inC x outC (CK), which is already what MatMul wants here, so the concatenation
+    // is a row-wise interleave: each input row keeps its linear1 half followed by its gate half.
+    vector<float> fusedWeights((size_t)inC * 2 * ffnC);
+    for(int ic = 0; ic < inC; ic++) {
+      for(int oc = 0; oc < ffnC; oc++) {
+        fusedWeights[(size_t)ic * 2 * ffnC + oc] = ffn.linear1.weights[(size_t)ic * ffnC + oc];
+        fusedWeights[(size_t)ic * 2 * ffnC + ffnC + oc] = ffn.linearGate.weights[(size_t)ic * ffnC + oc];
+      }
+    }
+    // uniq() on the initializer name: addInitializer does not deduplicate, and a net has one FFN
+    // block per transformer layer, so a bare ffn.name prefix collides across blocks.
+    string fusedWName = addInitializer(
+      uniq(ffn.name + ".fused_linear1_gate"), {inC, 2 * ffnC}, fusedWeights.data(), fusedWeights.size());
+    string fused = addNode("MatMul", {xn, fusedWName}, uniq(ffn.name + "/fused"), ffn.name + "/fused");  // [N,H,W,2*ffnC]
+
+    // C is the last axis in NHWC.
+    pair<string, string> halves = splitInHalf(fused, 3, ffn.name + "/split");
+    const string& a = halves.first;   // [N,H,W,ffnC]
+    const string& g = halves.second;  // [N,H,W,ffnC]
+
     string sig = addNode("Sigmoid", {a}, uniq(ffn.name + "/silu/sig"), ffn.name + "/silu/sig");
     string silu = addNode("Mul", {a, sig}, uniq(ffn.name + "/silu"), ffn.name + "/silu");
     string gated = addNode("Mul", {silu, g}, uniq(ffn.name + "/swiglu"), ffn.name + "/swiglu");
@@ -560,8 +609,41 @@ struct Builder {
     if(!ffn.useSwiGLU)
       throw StringError("OnnxModelBuilder: non-SwiGLU transformer FFN not supported");
     string xn = transformerRMSNorm(input, ffn.preLN, maskName);
-    string a = projConv(xn, ffn.linear1);     // [N, ffnC, H, W]
-    string g = projConv(xn, ffn.linearGate);  // [N, ffnC, H, W]
+
+    // Same fusion as the NHWC path, expressed as one 1x1 conv over 2*ffnC output channels.
+    int inC = ffn.linear1.inChannels, ffnC = ffn.linear1.outChannels;
+    testAssert(ffn.linearGate.inChannels == inC);
+    testAssert(ffn.linearGate.outChannels == ffnC);
+    testAssert((int)ffn.linear1.weights.size() == inC * ffnC);
+    testAssert((int)ffn.linearGate.weights.size() == inC * ffnC);
+
+    // Desc weights are inC x outC (CK); Conv wants [outC,inC,1,1] (KC), the same transpose
+    // buildMatMul does. linear1 takes output channels [0,ffnC), linearGate takes [ffnC,2*ffnC),
+    // which is the channel split Split undoes below.
+    vector<float> fusedWeights((size_t)2 * ffnC * inC);
+    for(int oc = 0; oc < ffnC; oc++) {
+      for(int ic = 0; ic < inC; ic++) {
+        fusedWeights[(size_t)oc * inC + ic] = ffn.linear1.weights[(size_t)ic * ffnC + oc];
+        fusedWeights[(size_t)(ffnC + oc) * inC + ic] = ffn.linearGate.weights[(size_t)ic * ffnC + oc];
+      }
+    }
+    // uniq(): addInitializer does not deduplicate and every FFN block would emit this same name.
+    string fusedWName = addInitializer(
+      uniq(ffn.name + ".fused_linear1_gate"), {2 * ffnC, inC, 1, 1}, fusedWeights.data(), fusedWeights.size());
+    string fused = uniq(ffn.name + "/fused");
+    addNode("Conv", {xn, fusedWName}, fused, ffn.name + "/fused");  // [N, 2*ffnC, H, W]
+    // kernel_shape is mandatory here for the same reason buildMatMul sets it: every other Conv this
+    // emitter produces declares it, and leaving it to be inferred from the weight tensor is a
+    // parser-dependent behavior we do not want to rely on.
+    { onnx::NodeProto* node = lastNode();
+      onnx::AttributeProto* a = addAttr(node, "kernel_shape");
+      a->set_type(onnx::AttributeProto::INTS); a->add_ints(1); a->add_ints(1); }
+
+    // C is axis 1 in NCHW.
+    pair<string, string> halves = splitInHalf(fused, 1, ffn.name + "/split");
+    const string& a = halves.first;   // [N, ffnC, H, W]
+    const string& g = halves.second;  // [N, ffnC, H, W]
+
     // SwiGLU: SiLU(a) * g
     string sig = addNode("Sigmoid", {a}, uniq(ffn.name + "/silu/sig"), ffn.name + "/silu/sig");
     string silu = addNode("Mul", {a, sig}, uniq(ffn.name + "/silu"), ffn.name + "/silu");
