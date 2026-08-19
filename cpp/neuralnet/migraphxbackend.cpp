@@ -319,10 +319,19 @@ struct ComputeHandle {
   // uniform spacing would pad it to 32. But a ratio bound is scale-free, and above ~64 a 2x ratio
   // means an absolute gap of 64+ rows, which is where the real waste lives.
   //
-  // Two measurements drove this. First, throughput is governed by fill alone: padded rows/s is
-  // constant at ~2240 across every compiled shape (measured 2194-2266 for bs 64/96/128/192 on
-  // b11c768h12nbt3tflrs-fson-silu), so nnEvals/s = paddedRowsPerSec * (avgBatch / bucket). There
-  // is no "fast shape" to seek; there is only fill. Second, a purely geometric ladder halving
+  // Two measurements drove this. First, throughput appeared to be governed by fill alone: padded
+  // rows/s measured constant at ~2240 across compiled shapes (2194-2266 for bs 64/96/128/192 on
+  // b11c768h12nbt3tflrs-fson-silu), so nnEvals/s = paddedRowsPerSec * (avgBatch / bucket).
+  //
+  // That is too strong, and the counterexample matters for anyone retuning this ladder: the
+  // constant was taken on ONE net over shapes >= 64. On b18c384 at 64 threads the per-row rate is
+  // 255/254/204 rows/s for shapes 16/24/32 - a ~20% step between 24 and 32 - while fill moves only
+  // 0.980 -> 0.971. Fill cannot produce a 20% change from a 0.9% difference, so some compiled
+  // shapes really are cheaper per row than others, presumably via convolution algorithm selection.
+  // Rung placement is thus an open question, not a solved one: rungs currently sit on round
+  // numbers because fit was believed to be all that mattered.
+  //
+  // Second, a purely geometric ladder halving
   // DOWN from maxBatchSize=192 yields {12,24,48,96,192} - integer division never lands on 128 or
   // 64 - so a batch of ~111 (the measured mean at 192 threads) padded all the way to 192, a fill
   // of 58%. That single gap was this backend's only remaining loss to the ROCm backend.
