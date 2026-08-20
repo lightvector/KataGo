@@ -2,6 +2,7 @@
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 5 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s103408384-d26419149 (convnet, 1025157 params)
+: CUDA backend: running 1x1 NHWC convolutions as a GEMM
 HASH: CB68B3094EEB7B7B88E4579363578B4B
    A B C D E F G H J
 13 . . . . . . . . .
