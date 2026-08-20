@@ -81,7 +81,9 @@ As also mentioned in the instructions below but repeated here for visibility, if
         gfx target) to build for only your own GPU instead, which is faster to compile.
       * The build bakes the resolved ROCm lib directory into the binary's RPATH, so the built
         `katago` doesn't depend on `/opt/rocm` still pointing at the same install later (e.g. after
-        installing a different ROCm version) or on `LD_LIBRARY_PATH` being set when run.
+        installing a different ROCm version) or on `LD_LIBRARY_PATH` being set when run. The
+        generic `/opt/rocm/lib` path is included as a fallback after the pinned path, so the binary
+        can also run on a machine with a different (soname-compatible) ROCm version installed.
       * On first run, MIOpen will search for optimal convolution algorithms for your specific GPU and network size. This may take up to a minute and results are cached (compiled kernels in `~/.cache/miopen/`, the tuning find-db in `~/.config/miopen/`) for subsequent runs.
       * **Transformer/attention models (model version 17+):** supported on all architectures via a
         built-in kernel. If a matching version of AMD's Composable Kernel (CK, packaged as

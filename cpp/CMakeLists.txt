@@ -27,9 +27,14 @@ function(katago_default_hip_archs out_var)
     if(NOT EXISTS "${_probe_src}")
       file(WRITE "${_probe_src}" "int main(){return 0;}\n")
     endif()
+    # -nogpulib -nogpuinc: the probe only tests whether the compiler recognizes
+    # the arch name (unknown archs fail at the driver stage regardless). Pulling
+    # in the HIP headers and device libs would make every probe fail whenever
+    # clang can't autodetect the ROCm path, e.g. an SDK outside /opt/rocm,
+    # silently shrinking the default arch list to just the required archs.
     foreach(_arch IN LISTS _optional_archs)
       execute_process(
-        COMMAND "${CMAKE_HIP_COMPILER}" --offload-arch=${_arch} -x hip -c
+        COMMAND "${CMAKE_HIP_COMPILER}" --offload-arch=${_arch} -nogpulib -nogpuinc -x hip -c
                 "${_probe_src}" -o "${_probe_dir}/probe_${_arch}.o"
         RESULT_VARIABLE _rc
         OUTPUT_QUIET ERROR_QUIET)
@@ -1406,12 +1411,22 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   # install this was actually built and tested against - which is not guaranteed, especially for a
   # binary meant to be copied to another machine. CMAKE_SKIP_BUILD_RPATH/INSTALL_RPATH aren't set by
   # this project, so this also takes effect for the build-tree binary, not just `make install`.
+  #
+  # The generic /opt/rocm/lib symlink path is appended as a fallback, after the pinned path, for
+  # binaries run on machines that have a ROCm runtime but not the exact build-machine version
+  # (ROCm's packages don't register their lib dir with ldconfig, so without this the loader finds
+  # nothing). Sonames carry ROCm's major version, so a wrong-major install found there is skipped
+  # rather than mis-linked.
   if(KATAGO_ROCM_PREFIX)
+    set(_katago_rocm_rpath "${KATAGO_ROCM_PREFIX}/lib")
+    if(NOT "${KATAGO_ROCM_PREFIX}" STREQUAL "/opt/rocm")
+      list(APPEND _katago_rocm_rpath "/opt/rocm/lib")
+    endif()
     set_target_properties(katago PROPERTIES
-      BUILD_RPATH "${KATAGO_ROCM_PREFIX}/lib"
-      INSTALL_RPATH "${KATAGO_ROCM_PREFIX}/lib"
+      BUILD_RPATH "${_katago_rocm_rpath}"
+      INSTALL_RPATH "${_katago_rocm_rpath}"
     )
-    message(STATUS "Set katago RPATH to ${KATAGO_ROCM_PREFIX}/lib")
+    message(STATUS "Set katago RPATH to ${_katago_rocm_rpath}")
   endif()
 
   # ---------- Optional: Composable Kernel FMHA (fused attention) ----------
