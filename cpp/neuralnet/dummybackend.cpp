@@ -99,6 +99,11 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
   return std::string();
 }
 
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  (void)cfg;
+  return NeuralNet::BatchPolicy::Dynamic;
+}
+
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
   (void)loadedModel;
   (void)maxBatchSize;

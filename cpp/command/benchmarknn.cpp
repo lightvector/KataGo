@@ -139,7 +139,7 @@ int MainCmds::benchmarknn(const vector<string>& args) {
   try {
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      nnLen,nnLen,maxBatchSize,requireExactNNLen,disableFP16,
+      nnLen,nnLen,Setup::MaxBatchSizeRequest::explicitSize(maxBatchSize),requireExactNNLen,disableFP16,
       Setup::SETUP_FOR_BENCHMARKNN
     );
 

@@ -26,13 +26,12 @@ void Tests::runOwnershipTests(const string& configFile, const string& modelFile)
   {
     Setup::initializeSession(cfg);
     const int expectedConcurrentEvals = params.numThreads;
-    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     const bool requireExactNNLen = false;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      nnXLen,nnYLen,defaultMaxBatchSize,requireExactNNLen,disableFP16,
+      nnXLen,nnYLen,Setup::MaxBatchSizeRequest::fromConcurrency(),requireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
   }

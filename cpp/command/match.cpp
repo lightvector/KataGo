@@ -200,13 +200,12 @@ int MainCmds::match(const vector<string>& args) {
   //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
-  const int defaultMaxBatchSize = -1;
   const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
   const bool disableFP16 = false;
   const vector<string> expectedSha256s;
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
     nnModelNames,nnModelFiles,expectedSha256s,cfg,logger,seedRand,expectedConcurrentEvals,
-    maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+    maxBoardXSizeUsed,maxBoardYSizeUsed,Setup::MaxBatchSizeRequest::requireFromConfig(),defaultRequireExactNNLen,disableFP16,
     Setup::SETUP_FOR_MATCH
   );
   logger.write("Loaded neural net");

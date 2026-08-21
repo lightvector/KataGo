@@ -107,7 +107,7 @@ NNEvaluator::NNEvaluator(
    waitingForFinish(),
    currentDoRandomize(doRandomize),
    currentDefaultSymmetry(defaultSymmetry),
-   currentBatchSize(maxBatchSz),
+   maxRowsToSendPerBatch(maxBatchSz),
    queryQueue()
 {
   if(nnXLen > NNPos::MAX_BOARD_LEN)
@@ -242,13 +242,13 @@ bool NNEvaluator::isNeuralNetLess() const {
 int NNEvaluator::getMaxBatchSize() const {
   return maxBatchSize;
 }
-int NNEvaluator::getCurrentBatchSize() const {
-  return currentBatchSize.load(std::memory_order_acquire);
+int NNEvaluator::getMaxRowsToSendPerBatch() const {
+  return maxRowsToSendPerBatch.load(std::memory_order_acquire);
 }
-void NNEvaluator::setCurrentBatchSize(int batchSize) {
-  if(batchSize <= 0 || batchSize > maxBatchSize)
-    throw StringError("Invalid setting for batch size");
-  currentBatchSize.store(batchSize,std::memory_order_release);
+void NNEvaluator::setMaxRowsToSendPerBatch(int maxRows) {
+  if(maxRows <= 0 || maxRows > maxBatchSize)
+    throw StringError("Invalid setting for max rows to send per batch");
+  maxRowsToSendPerBatch.store(maxRows,std::memory_order_release);
 }
 bool NNEvaluator::requiresSGFMetadata() const {
   return numInputMetaChannels > 0;
@@ -812,7 +812,7 @@ void NNEvaluator::serve(
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
     resultBufs.clear();
-    int desiredBatchSize = std::min(maxBatchSize, currentBatchSize.load(std::memory_order_acquire));
+    int desiredBatchSize = std::min(maxBatchSize, maxRowsToSendPerBatch.load(std::memory_order_acquire));
     bool gotAnything = queryQueue.waitPopUpToN(resultBufs,desiredBatchSize);
     // Queue being closed is a signal that we're done.
     if(!gotAnything)

@@ -1878,6 +1878,11 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
   return std::string();
 }
 
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  (void)cfg;
+  return NeuralNet::BatchPolicy::Dynamic;
+}
+
 struct InputBuffers {
   int maxBatchSize;
 
