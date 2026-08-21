@@ -1103,11 +1103,38 @@ Result build(
 
     // Outputs
     auto markOutput = [&](const string& tensorName, const string& outName, int channels, bool spatial) {
-      // Rename via Identity so the graph output has the exact expected name.
+      // Rename so the graph output has the exact expected name.
+      //
+      // Identity for most outputs, but a RESHAPE when the output is both multi-channel and
+      // spatial. That case is the transformer NHWC policy bug: the trunk emits a trailing
+      // tonchw Transpose, and MIGraphX folds it into this parameter's STRIDES instead of
+      // materialising it. The shape stays {N,C,H,W} but the strides become channel-last
+      // ({722,1,38,2} for {N,2,19,19}), and a backend that allocates from lengths() and
+      // byte-copies the result reads the policy plane permuted, with nothing raising an error.
+      //
+      // A Reshape defeats the fold because it must reinterpret memory order, forcing a
+      // standard-layout buffer. Identity and Add(0) do NOT: both are elementwise, so MIGraphX
+      // keeps the strided view and folds straight through them. Measured, not assumed.
+      //
+      // Only C>1 AND spatial can be affected: a transpose is observable in the layout only when
+      // the tensor has both multiple channels and multiple spatial positions. Value/ScoreValue/
+      // PolicyPass have H=W=1 and Ownership has C=1, so their NCHW and NHWC layouts coincide -
+      // which is precisely why only the policy head ever corrupted.
+      const bool needsContiguous = spatial && channels > 1;
       onnx::NodeProto* node = graph->add_node();
-      node->set_op_type("Identity");
-      node->set_name(outName + "/out");
-      node->add_input(tensorName);
+      if(needsContiguous) {
+        vector<int64_t> outShape = {-1, (int64_t)channels, (int64_t)nnYLen, (int64_t)nnXLen};
+        string shapeName = b.addInt64Initializer(outName + "/contigshape", outShape);
+        node->set_op_type("Reshape");
+        node->set_name(outName + "/out");
+        node->add_input(tensorName);
+        node->add_input(shapeName);
+      }
+      else {
+        node->set_op_type("Identity");
+        node->set_name(outName + "/out");
+        node->add_input(tensorName);
+      }
       node->add_output(outName);
       onnx::ValueInfoProto* vi = graph->add_output();
       vi->set_name(outName);

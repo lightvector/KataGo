@@ -523,6 +523,46 @@ struct ComputeHandle {
       buffers[name] = devPtr;
       bufferBytes[name] = bytes;
 
+      // Reject any parameter the compiler decided to hand us non-contiguously.
+      //
+      // MIGraphX may fold a Transpose into a parameter's STRIDES rather than materialising it.
+      // That happens with the transformer NHWC path: the emitter's trailing tonchw Transpose is
+      // absorbed, so OutputPolicy keeps shape {N,2,H,W} but gains strides {.., 1, W*C, C} - it is
+      // channel-last in memory. Sizes and element counts are unchanged, so nothing below notices,
+      // and getOutput would copy raw bytes into a host buffer the caller reads as contiguous
+      // NCHW: the policy plane comes back permuted with no error anywhere. Outputs with H=W=1 or
+      // a single channel are unaffected, which is why such a bug looks like "only policy is
+      // wrong". Fail loudly instead; the fix is to de-permute on the host, not to ignore this.
+      {
+        vector<size_t> lens = s.lengths();
+        vector<size_t> strides = s.strides();
+        if(strides.size() == lens.size()) {
+          size_t expected = 1;
+          bool contiguous = true;
+          for(size_t i = lens.size(); i-- > 0;) {
+            if(lens[i] != 1 && strides[i] != expected)
+              contiguous = false;
+            expected *= lens[i];
+          }
+          if(!contiguous) {
+            string got, want;
+            size_t e = 1;
+            vector<size_t> exp(lens.size(), 1);
+            for(size_t i = lens.size(); i-- > 0;) { exp[i] = e; e *= lens[i]; }
+            for(size_t i = 0; i < lens.size(); i++) {
+              got += (i ? "," : "") + Global::uint64ToString((uint64_t)strides[i]);
+              want += (i ? "," : "") + Global::uint64ToString((uint64_t)exp[i]);
+            }
+            throw StringError(
+              "MIGraphX backend: parameter " + name + " is not contiguous (strides {" + got +
+              "}, contiguous would be {" + want + "}). MIGraphX folded a layout change into this "
+              "buffer instead of materialising it, so a plain byte copy would silently permute the "
+              "data. Emit a Reshape on this output so the compiler cannot fold the layout change "
+              "into its strides, or de-permute in getOutput using the strides above.");
+          }
+        }
+      }
+
       // Row elements: elements per batch element. The scratch parameter has no batch dim, so guard.
       vector<size_t> lens = s.lengths();
       size_t rowElts = 1;

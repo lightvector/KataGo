@@ -1,4 +1,5 @@
 #include "../tests/testsearchcommon.h"
+#include <cstdlib>
 
 #include "../dataio/sgf.h"
 #include "../search/searchnode.h"
@@ -206,6 +207,14 @@ NNEvaluator* TestSearchCommon::startNNEval(
   //NHWC layout is no longer a generic NNEvaluator option; only the CUDA backend reads it (off cfg).
   //Route the test's useNHWC param into a cudaUseNHWC override so it still drives the CUDA layout.
   cfg.overrideKey("cudaUseNHWC", useNHWC ? "true" : "false");
+  //The MIGraphX backend reads migraphxTransformerNHWC off the cfg, but this test builds an
+  //empty ConfigParser, so an NHWC A/B run through runnnonmanyposestest silently compares
+  //NCHW against NCHW. Route an env var in so the layout can actually be toggled under test.
+  {
+    const char* nhwcEnv = std::getenv("MIGRAPHX_TRANSFORMER_NHWC");
+    if(nhwcEnv != NULL && string(nhwcEnv) != "")
+      cfg.overrideKey("migraphxTransformerNHWC", string(nhwcEnv));
+  }
   int numNNServerThreadsPerModel = 1;
   bool nnRandomize = false;
   string nnRandSeed = "runSearchTestsRandSeed"+seed;
