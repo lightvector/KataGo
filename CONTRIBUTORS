@@ -68,3 +68,4 @@ Reid McIlroy-Young ("reidmcy") - for discussion of AlphaZero and policy conditio
 "jaysephjw", and "gcmutator" - for finding some typos.
 "luotiany" - for significant contribution and bug testing on distributed training
 Gregory Clark ("w-hat") - Minor typo fixes for graph search doc.
+"wyz"/"doomoooo" - Indicating and finding major CUDA optimization opportunities
