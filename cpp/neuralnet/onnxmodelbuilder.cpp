@@ -242,14 +242,27 @@ struct Builder {
       // mish(x)         = x * tanh(softplus(x))           = x * tanh(log(1+exp(x)))
       // mish_scale8(x)  = x * tanh(softplus_{beta=8}(x))  = x * tanh(log(1+exp(8x)))
       // The SCALE8 variant is the runtime applyScale8ToReduceActivations() transform that keeps
-      // FP16 activations small. ONNX Softplus has no beta, so for SCALE8 we
-      // scale the input by 8 before Softplus and do NOT scale the result.
-      string spIn = input;
+      // FP16 activations small. ONNX Softplus has no beta, so SCALE8 needs the input scaled by 8
+      // before the Softplus.
+      //
+      // The naive emission for that is Softplus(8x) -> Tanh -> Mul(x, .), but the final Mul's other
+      // operand is then x rather than 8x, which no longer matches the canonical Mish pattern
+      // Mul(u, Tanh(Softplus(u))). Execution providers that pattern-match Mish (notably OpenVINO)
+      // therefore fail to fuse it and run the whole chain unfused -- measured ~3.7x slower on
+      // convnets on the Intel NPU. Instead substitute u = 8x and use the identity
+      //   mish_scale8(x) = x * tanh(softplus(8x)) = mish(8x)/8 = mish(u)/8
+      // which keeps the exact canonical Mish subgraph on u (so it still fuses) and pays only two
+      // extra elementwise scalar multiplies.
       if(act == ACTIVATION_MISH_SCALE8) {
         string bName = addScalarInitializer(uniq(desc.name + "/beta8"), 8.0f);
-        spIn = addNode("Mul", {input, bName}, uniq(desc.name + "/beta8mul"), desc.name + "/beta8mul");
+        string u = addNode("Mul", {input, bName}, uniq(desc.name + "/beta8mul"), desc.name + "/beta8mul");
+        string spU = addNode("Softplus", {u}, uniq(desc.name + "/softplus"), desc.name + "/softplus");
+        string thU = addNode("Tanh", {spU}, uniq(desc.name + "/tanh"), desc.name + "/tanh");
+        string mishU = addNode("Mul", {u, thU}, uniq(desc.name + "/mish8"), desc.name + "/mish8");
+        string invName = addScalarInitializer(uniq(desc.name + "/inv8"), 0.125f);
+        return addNode("Mul", {mishU, invName}, uniq(desc.name), desc.name);
       }
-      string sp = addNode("Softplus", {spIn}, uniq(desc.name + "/softplus"), desc.name + "/softplus");
+      string sp = addNode("Softplus", {input}, uniq(desc.name + "/softplus"), desc.name + "/softplus");
       string th = addNode("Tanh", {sp}, uniq(desc.name + "/tanh"), desc.name + "/tanh");
       return addNode("Mul", {input, th}, uniq(desc.name), desc.name);
     }

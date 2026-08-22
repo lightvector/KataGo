@@ -156,9 +156,12 @@ If you want to use ONNX Runtime + OpenVINO on Intel NPU:
 
 Minimal commands, using the `.bin.gz` model directly:
 ```
-# NPU only
+# Simplest: let KataGo pick the device (NPU if present, else GPU, else CPU)
+./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino
+./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino
+
+# Or force a specific device
 ./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
-./katago.exe gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
 
 # Intel iGPU only (same as above, but device type GPU)
 ./katago.exe benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=GPU
@@ -180,6 +183,42 @@ for the full list of `onnx*` and `nnMaxBatchSizeThread<N>` keys, including per-d
 (`onnxOpenVINODeviceConfig_<NPU|GPU|CPU>_<Option>`) and OpenVINO precision/cache-dir options — or
 save your chosen overrides into a `.cfg` file instead of repeating `-override-config` every time.
 
+##### Choosing the device (and why you usually don't have to)
+
+If you do **not** set `onnxOpenVINODeviceType`, KataGo probes which devices this machine actually
+provides and uses the first one that works, in the order **NPU -> GPU -> CPU**. The choice is
+printed in the log as `auto-selected '<DEVICE>'`. So:
+
+| Your machine | What you need to configure | What you get |
+| --- | --- | --- |
+| Has an NPU | nothing | NPU |
+| Only an Intel iGPU, no NPU | nothing | GPU |
+| Neither (CPU only) | nothing | CPU |
+| Has both, but you want the iGPU | `onnxOpenVINODeviceType = GPU` | GPU |
+| Has both, want both at once | see the hybrid example above | NPU + GPU |
+
+Setting `onnxOpenVINODeviceType` explicitly always wins. Note that an explicit device the machine
+does not have is a hard error (`[OpenVINO] Device X is not available`) — only the automatic mode
+falls back. Accepted values are `NPU`, `GPU`, `CPU`, an indexed device like `GPU.0` / `GPU.1` /
+`NPU.0`, or an OpenVINO multi-device string like `AUTO:GPU,CPU`, `MULTI:NPU,GPU`, `HETERO:NPU,CPU`.
+
+##### Transformer trunk layout is also chosen per device
+
+The two OpenVINO plugins want **opposite** memory layouts for transformer nets, so `onnxTransformerNHWC`
+is defaulted per device instead of being one fixed value:
+
+| Device the OpenVINO threads target | Default layout | Why |
+| --- | --- | --- |
+| Any thread on an NPU | `NCHW` (`onnxTransformerNHWC = false`) | NCHW is ~2.7x faster on NPU |
+| GPU / CPU only | `NHWC` (`onnxTransformerNHWC = true`) | NHWC is ~1.3x faster on GPU |
+| Bare `AUTO` | `NCHW` | OpenVINO picks at runtime and may land on the NPU; guessing NCHW costs a GPU only ~1.3x but saves an NPU ~2.7x |
+| Mixed NPU + GPU | `NCHW` | One setting is shared by all threads, so the larger NPU penalty wins |
+| `onnxProvider` other than `openvino` | `NHWC` | Matches the TensorRT backend default |
+
+Measured on `b11c768h12nbt3` at 19x19, single server thread: NPU 10.2 vs 3.8 visits/s (NCHW wins),
+GPU 14.3 vs 11.2 nnEvals/s (NHWC wins). Convnet models ignore this setting entirely. Set
+`onnxTransformerNHWC` explicitly to force one layout everywhere.
+
 If you'd rather export a portable raw `.onnx` file first (default export size is 19x19):
 ```
 ./katago.exe exportonnx -model <NEURALNET>.bin.gz -output <NEURALNET>.onnx
@@ -197,9 +236,12 @@ If you want to use ONNX Runtime + OpenVINO on Intel NPU:
 
 Minimal commands, using the `.bin.gz` model directly:
 ```bash
-# NPU only
+# Simplest: let KataGo pick the device (NPU if present, else GPU, else CPU)
+./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino
+./katago gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino
+
+# Or force a specific device
 ./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
-./katago gtp -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=NPU
 
 # Intel iGPU only (same as above, but device type GPU)
 ./katago benchmark -config cpp/configs/gtp_example.cfg -model <NEURALNET>.bin.gz -override-config onnxProvider=openvino,onnxOpenVINODeviceType=GPU
@@ -220,6 +262,42 @@ See the "ONNX backend settings" section of [`cpp/configs/gtp_example.cfg`](cpp/c
 for the full list of `onnx*` and `nnMaxBatchSizeThread<N>` keys, including per-device-type EP tuning
 (`onnxOpenVINODeviceConfig_<NPU|GPU|CPU>_<Option>`) and OpenVINO precision/cache-dir options — or
 save your chosen overrides into a `.cfg` file instead of repeating `-override-config` every time.
+
+##### Choosing the device (and why you usually don't have to)
+
+If you do **not** set `onnxOpenVINODeviceType`, KataGo probes which devices this machine actually
+provides and uses the first one that works, in the order **NPU -> GPU -> CPU**. The choice is
+printed in the log as `auto-selected '<DEVICE>'`. So:
+
+| Your machine | What you need to configure | What you get |
+| --- | --- | --- |
+| Has an NPU | nothing | NPU |
+| Only an Intel iGPU, no NPU | nothing | GPU |
+| Neither (CPU only) | nothing | CPU |
+| Has both, but you want the iGPU | `onnxOpenVINODeviceType = GPU` | GPU |
+| Has both, want both at once | see the hybrid example above | NPU + GPU |
+
+Setting `onnxOpenVINODeviceType` explicitly always wins. Note that an explicit device the machine
+does not have is a hard error (`[OpenVINO] Device X is not available`) — only the automatic mode
+falls back. Accepted values are `NPU`, `GPU`, `CPU`, an indexed device like `GPU.0` / `GPU.1` /
+`NPU.0`, or an OpenVINO multi-device string like `AUTO:GPU,CPU`, `MULTI:NPU,GPU`, `HETERO:NPU,CPU`.
+
+##### Transformer trunk layout is also chosen per device
+
+The two OpenVINO plugins want **opposite** memory layouts for transformer nets, so `onnxTransformerNHWC`
+is defaulted per device instead of being one fixed value:
+
+| Device the OpenVINO threads target | Default layout | Why |
+| --- | --- | --- |
+| Any thread on an NPU | `NCHW` (`onnxTransformerNHWC = false`) | NCHW is ~2.7x faster on NPU |
+| GPU / CPU only | `NHWC` (`onnxTransformerNHWC = true`) | NHWC is ~1.3x faster on GPU |
+| Bare `AUTO` | `NCHW` | OpenVINO picks at runtime and may land on the NPU; guessing NCHW costs a GPU only ~1.3x but saves an NPU ~2.7x |
+| Mixed NPU + GPU | `NCHW` | One setting is shared by all threads, so the larger NPU penalty wins |
+| `onnxProvider` other than `openvino` | `NHWC` | Matches the TensorRT backend default |
+
+Measured on `b11c768h12nbt3` at 19x19, single server thread: NPU 10.2 vs 3.8 visits/s (NCHW wins),
+GPU 14.3 vs 11.2 nnEvals/s (NHWC wins). Convnet models ignore this setting entirely. Set
+`onnxTransformerNHWC` explicitly to force one layout everywhere.
 
 If you'd rather export a portable raw `.onnx` file first (default export size is 19x19):
 ```bash

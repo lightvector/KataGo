@@ -231,8 +231,9 @@ struct LoadedModel {
   }
 
   // Apply the scale8 FP16-range workaround exactly once per model, unless skipped via
-  // onnxSkipScale8. Must run before any ComputeHandle builds the ONNX graph from modelDesc.
-  // No-op for the raw .onnx path (scale8Resolved is already true from the constructor above).
+  // onnxSkipScale8. Called from createComputeContext -- see the call site for why it must run
+  // there and not later. No-op for the raw .onnx path (scale8Resolved is already true from the
+  // constructor above).
   void maybeApplyScale8(bool skip) const {
     std::lock_guard<std::mutex> lock(scale8Mutex);
     if(!scale8Resolved.load()) {
@@ -341,6 +342,26 @@ struct ComputeContext {
   {}
 };
 
+// Probe whether the OpenVINO EP can actually use a given device_type.
+//
+// AppendExecutionProvider_OpenVINO_V2 resolves and validates device_type immediately, throwing
+// "[OpenVINO] Device X is not available" for a device this machine/package cannot provide, so this
+// is a real availability signal and needs no model or session. (ONNX Runtime's own device
+// enumeration is NOT usable for this: on a provider-bridge OpenVINO build it reports CPU only,
+// even on machines that do have an NPU and an iGPU.)
+static bool openvinoDeviceAvailable(const string& deviceType) {
+  try {
+    Ort::SessionOptions probeOpts;
+    std::unordered_map<std::string, std::string> probeEpOpts;
+    probeEpOpts["device_type"] = deviceType;
+    probeOpts.AppendExecutionProvider_OpenVINO_V2(probeEpOpts);
+    return true;
+  }
+  catch(const std::exception&) {
+    return false;
+  }
+}
+
 ComputeContext* NeuralNet::createComputeContext(
   const std::vector<int>& gpuIdxs,
   Logger* logger,
@@ -352,7 +373,6 @@ ComputeContext* NeuralNet::createComputeContext(
   ConfigParser& cfg
 ) {
   (void)gpuIdxs;
-  (void)loadedModel;
   // The emitted ONNX graph is fp32; inference precision is chosen internally by the execution
   // provider (e.g. OpenVINO downcasts to FP16 per onnxOpenVINOPrecision). KataGo's global useFP16
   // flag therefore cannot be honored here -- fail loudly instead of silently ignoring a request.
@@ -379,7 +399,32 @@ ComputeContext* NeuralNet::createComputeContext(
   ctx->providerName = providerName;
 
   // OpenVINO EP options.
-  if(cfg.contains("onnxOpenVINODeviceType")) ctx->openvinoDeviceType = cfg.getString("onnxOpenVINODeviceType");
+  // When onnxOpenVINODeviceType is left unset we try NPU first and fall back to GPU then CPU at
+  // session-creation time (see ComputeHandle). We deliberately do NOT try to enumerate hardware up
+  // front: ONNX Runtime's device enumeration only reports devices for EPs it has registered, and
+  // on a provider-bridge OpenVINO build it reports CPU only even on machines that do have an NPU
+  // and an iGPU, so trusting it would silently downgrade exactly the setups this fork targets.
+  // Letting a real session creation succeed or fail is the only reliable signal.
+  if(cfg.contains("onnxOpenVINODeviceType")) {
+    ctx->openvinoDeviceType = cfg.getString("onnxOpenVINODeviceType");
+  }
+  else if(providerName == "openvino") {
+    // No device configured: pick the first one this machine actually provides, preferring the NPU
+    // (this fork's target), then a GPU, then CPU. This makes a GPU-only machine work out of the box
+    // instead of failing with "Device NPU is not available". If none of them probe as available we
+    // keep the NPU default so the real error surfaces at session creation rather than being masked.
+    static const char* candidates[] = {"NPU", "GPU", "CPU"};
+    for(const char* cand : candidates) {
+      if(openvinoDeviceAvailable(cand)) {
+        ctx->openvinoDeviceType = cand;
+        break;
+      }
+    }
+    if(logger != NULL)
+      logger->write(
+        string("ONNX backend: onnxOpenVINODeviceType not set, auto-selected '") +
+        ctx->openvinoDeviceType + "'");
+  }
   if(cfg.contains("onnxOpenVINODeviceId")) ctx->openvinoDeviceId = cfg.getString("onnxOpenVINODeviceId");
   if(cfg.contains("onnxOpenVINOEnableNPUFastCompile"))
     ctx->openvinoEnableNPUFastCompile = cfg.getBool("onnxOpenVINOEnableNPUFastCompile");
@@ -401,18 +446,6 @@ ComputeContext* NeuralNet::createComputeContext(
   // b11-class transformer models). Only valid when every query uses the exact nnXLen x nnYLen
   // board size (e.g. GTP play on a fixed board size); do NOT enable for mixed-size analysis.
   ctx->openvinoNPUExactBoard = cfg.contains("onnxOpenVINONPUExactBoard") ? cfg.getBool("onnxOpenVINONPUExactBoard") : false;
-
-  // Trunk layout for transformer models. Default NHWC (channel-last), matching the TensorRT
-  // backend's trtTransformerNHWC default; NHWC is markedly faster for transformer trunks on
-  // OpenVINO GPU/NPU and ignored entirely for models without transformer blocks.
-  ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : true;
-
-  // Skip the scale8 FP16-range workaround (default false = apply it). scale8 keeps convnet
-  // activations 8x smaller so they stay inside the FP16 range OpenVINO infers in; the cost is
-  // MISH_SCALE8 subgraphs that block OpenVINO's fused-Mish (~2x slower on large-board convnets).
-  // Keep on (default); set true only for FP32 precision or small-board/transformer workloads
-  // where FP16 overflow is not a practical risk.
-  ctx->skipScale8 = cfg.contains("onnxSkipScale8") ? cfg.getBool("onnxSkipScale8") : false;
 
   // --- Per-thread device type assignment ---
   // Pre-parse onnxOpenVINODeviceTypeThread<N> keys so ComputeHandle can look up the device type
@@ -452,6 +485,59 @@ ComputeContext* NeuralNet::createComputeContext(
       }
     }
   }
+
+  // Trunk layout for transformer models, defaulted per device.
+  //
+  // NHWC matches the TensorRT backend's trtTransformerNHWC default and is faster on the OpenVINO
+  // GPU plugin, but it is markedly SLOWER on the OpenVINO NPU plugin, which prefers the NCHW
+  // trunk. Measured on b11c768h12nbt3 at 19x19, single server thread:
+  //   NPU: NHWC 3.8 visits/s vs NCHW 10.2 visits/s   (NCHW ~2.7x faster)
+  //   GPU: NHWC 14.3 nnEvals/s vs NCHW 11.2 nnEvals/s (NHWC ~1.3x faster)
+  // So default to NCHW whenever any OpenVINO server thread targets an NPU (the NPU's penalty for
+  // the wrong layout is far larger than the GPU's, which also makes NCHW the better compromise for
+  // hybrid NPU+GPU setups, since this setting is context-wide), and NHWC otherwise.
+  // Ignored entirely for models without transformer blocks.
+  {
+    // A device string counts as "may run on an NPU" if it names one, or if it is a bare AUTO,
+    // where OpenVINO picks the device at runtime and could land on the NPU. Guessing NCHW for a
+    // bare AUTO costs a GPU ~1.3x if wrong but saves an NPU ~2.7x if right, so it is the lower
+    // expected loss.
+    auto mayBeNPU = [](const string& dev) {
+      string upper = Global::toUpper(Global::trim(dev));
+      if(upper.find("NPU") != string::npos)
+        return true;
+      return upper == "AUTO";
+    };
+    bool anyNPU = false;
+    if(ctx->providerName == "openvino") {
+      if(mayBeNPU(ctx->openvinoDeviceType))
+        anyNPU = true;
+      for(const string& dev : ctx->perThreadDeviceType) {
+        if(mayBeNPU(dev))
+          anyNPU = true;
+      }
+    }
+    ctx->transformerNHWC =
+      cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : !anyNPU;
+  }
+
+  // Skip the scale8 FP16-range workaround (default false = apply it). scale8 rescales convnet
+  // activations to 1/8 and compensates with MISH_SCALE8 subgraphs so activations stay well inside
+  // the FP16 range that execution providers may infer in. The cost is that the emitted
+  // Mul(x,8)->Softplus->Tanh->Mul(x,.) chain no longer matches the canonical Mish pattern that
+  // OpenVINO fuses into a single op, so it runs unfused; on the NPU that is ~3.7x slower on convnet
+  // models (11 vs 41 visits/s measured on b28c512nbt). Set true to trade the FP16 headroom for that
+  // speed, or set onnxOpenVINOPrecision=FP32 and skip it safely.
+  ctx->skipScale8 = cfg.contains("onnxSkipScale8") ? cfg.getBool("onnxSkipScale8") : false;
+
+  // Apply the scale8 transform HERE, not lazily at compute-handle creation.
+  // applyScale8ToReduceActivations() multiplies postProcessParams.outputScaleMultiplier by 8 to
+  // compensate for the 1/8-scaled graph outputs, and NNEvaluator snapshots postProcessParams
+  // immediately after createComputeContext returns (see nneval.cpp). Applying it any later would
+  // leave NNEvaluator decoding 1/8-scale outputs with a stale multiplier of 1, silently producing
+  // wrong winrates/leads. This also happens-before the server threads spawn and read modelDesc in
+  // OnnxModelBuilder::build().
+  loadedModel->maybeApplyScale8(ctx->skipScale8);
 
   // --- Raw .onnx compatibility: configurable node names, model version override ---
   if(cfg.contains("onnxInputMask")) ctx->inputMaskName = cfg.getString("onnxInputMask");
@@ -808,10 +894,6 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(inputsUseNHWC)
     throw StringError("ONNX backend: inputsUseNHWC = true not supported, must use NCHW");
 
-  // Apply the scale8 FP16-range workaround exactly once per model (unless onnxSkipScale8),
-  // before this handle builds the ONNX graph from modelDesc.
-  loadedModel->maybeApplyScale8(context->skipScale8);
-
   if(logger != NULL) {
     logger->write("ONNX backend thread " + Global::intToString(serverThreadIdx) +
                   ": Model version " + Global::intToString(loadedModel->modelDesc.modelVersion));
@@ -1156,11 +1238,16 @@ void NeuralNet::getOutput(
 }
 
 void NeuralNet::printDevices() {
-  cout << "ONNX backend: device enumeration is execution-provider-specific." << endl;
+  // Deliberately not enumerating devices here: ONNX Runtime only reports devices for EPs it has
+  // registered, and a provider-bridge OpenVINO build reports CPU only even when an NPU and iGPU are
+  // present, so any listing we printed would be actively misleading. Use OpenVINO's own
+  // hello_query_device sample, or just let the auto fallback below pick a device.
+  cout << "ONNX backend: device selection is execution-provider-specific." << endl;
   cout << "Set onnxProvider (e.g. 'openvino') plus provider-specific options in the config." << endl;
   cout << endl;
   cout << "OpenVINO EP options:" << endl;
-  cout << "  onnxOpenVINODeviceType = NPU            (default; also CPU, GPU, NPU.0, GPU.1, AUTO:GPU,CPU, etc.)" << endl;
+  cout << "  onnxOpenVINODeviceType = NPU | GPU | CPU | NPU.0 | GPU.1 | AUTO:GPU,CPU | MULTI:NPU,GPU | HETERO:NPU,CPU" << endl;
+  cout << "  If left unset, KataGo tries NPU, then GPU, then CPU, and uses the first that works." << endl;
   cout << endl;
   cout << "  Multi-device per-thread assignment:" << endl;
   cout << "    onnxOpenVINODeviceTypeThread0 = NPU" << endl;

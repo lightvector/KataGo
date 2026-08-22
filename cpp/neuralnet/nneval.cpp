@@ -150,12 +150,15 @@ NNEvaluator::NNEvaluator(
     modelVersion = desc.modelVersion;
     inputsVersion = NNModelVersion::getInputsVersion(modelVersion);
     numInputMetaChannels = desc.numInputMetaChannels;
-    postProcessParams = desc.postProcessParams;
     computeContext = NeuralNet::createComputeContext(
       gpuIdxs,logger,nnXLen,nnYLen,
       homeDataDirOverride,
       usingFP16Mode,loadedModel,cfg
     );
+    // Snapshot postProcessParams only after createComputeContext: backends may apply
+    // config-dependent transforms to the model desc there (e.g. the ONNX backend's
+    // scale8 workaround multiplies outputScaleMultiplier by 8).
+    postProcessParams = desc.postProcessParams;
   }
   else {
     internalModelName = "random";
