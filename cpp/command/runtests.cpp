@@ -396,6 +396,8 @@ int MainCmds::runtinynntests(const vector<string>& args) {
     );
     istringstream in(cfgStr);
     cfg.initialize(in);
+    //The ONNX backend requires an explicit provider choice in real configs, so tests set cpu.
+    cfg.overrideKey("onnxProvider", "cpu");
   }
 
   const bool logToStdoutDefault = true;

@@ -142,6 +142,20 @@ const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
 
 //--------------------------------------------------------------
 
+// The provider choice is required rather than defaulted, since a cpu default silently runs
+// many times slower than the user's hardware allows.
+static string getRequiredProviderLowercase(ConfigParser& cfg) {
+  if(!cfg.contains("onnxProvider"))
+    throw StringError(
+      "ONNX backend: onnxProvider is not set in the config. Set it to choose what hardware runs "
+      "the neural net: openvino (Intel GPUs and NPUs), directml (DirectX 12 GPUs, Windows only), "
+      "cuda or tensorrt (NVIDIA GPUs), migraphx (AMD GPUs, Linux only), or cpu (no GPU or NPU, "
+      "slow).");
+  return Global::toLower(cfg.getString("onnxProvider"));
+}
+
+//--------------------------------------------------------------
+
 struct ComputeContext {
   Ort::Env env;
   int nnXLen;
@@ -206,9 +220,8 @@ ComputeContext* NeuralNet::createComputeContext(
 
   ComputeContext* ctx = new ComputeContext(nnXLen, nnYLen);
 
-  // Provider selection. Defaults to CPU. OpenVINO is the EP used for Intel Arc GPUs.
-  string providerName = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
-  ctx->providerName = Global::toLower(providerName);
+  // Provider selection. OpenVINO is the EP used for Intel Arc GPUs.
+  ctx->providerName = getRequiredProviderLowercase(cfg);
 
   // OpenVINO EP options.
   ctx->openvinoDeviceType = cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
@@ -1193,7 +1206,11 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
   // Every piece of the result is a fixed string rather than any of the config text it was derived
   // from, so that whoever aggregates these sees a small closed set of values and never something a
   // user typed.
-  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+  // A missing or unknown provider is a config error, but one that createComputeContext raises
+  // later than this runs, so report nothing here.
+  if(!cfg.contains("onnxProvider"))
+    return string();
+  string provider = Global::toLower(cfg.getString("onnxProvider"));
 
   string detail;
   for(const char* knownProvider : kKnownProviders) {
@@ -1202,8 +1219,6 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
       break;
     }
   }
-  // An unknown provider is a config error, but one that createComputeContext raises later than
-  // this runs. Report nothing rather than anything derived from the offending value.
   if(detail.empty())
     return detail;
 
@@ -1235,6 +1250,9 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
 }
 
 int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  // Tolerate a missing onnxProvider rather than requiring it like getBatchPolicy and
+  // createComputeContext do: the NNEvaluator constructor calls this even for neural-net-less
+  // test evaluators that never select a provider at all.
   string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
   if(provider != "openvino") {
     std::set<int> distinctDevices(gpuIdxByServerThread.begin(), gpuIdxByServerThread.end());
@@ -1263,7 +1281,7 @@ NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
   // nnMaxBatchSize covers every server thread, so a thread that pads makes the whole evaluator
   // FixedShape: padding a batch that did not need it costs some wasted rows, while failing to pad
   // one that did costs a recompile per evaluation.
-  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+  string provider = getRequiredProviderLowercase(cfg);
   enabled_t padBatchMode = cfg.contains("onnxPadBatch") ? cfg.getEnabled("onnxPadBatch") : enabled_t::Auto;
 
   string defaultDeviceType =
