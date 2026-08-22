@@ -315,8 +315,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
         // Every batch gets padded up to this size, so overshooting wastes real arithmetic on every
         // evaluation. Server threads sharing a device share its concurrency, hence dividing by the
         // number of distinct devices rather than by the thread count.
-        std::set<int> distinctDevices(gpuIdxByServerThread.begin(), gpuIdxByServerThread.end());
-        derived = computeFixedShapeMaxBatchSize(expectedConcurrentEvals, (int)distinctDevices.size());
+        const int numDevices = NeuralNet::getNumEffectiveDevices(cfg, gpuIdxByServerThread);
+        derived = computeFixedShapeMaxBatchSize(expectedConcurrentEvals, numDevices);
       }
       else if(maxBatchSizeRequest.kind == MaxBatchSizeRequest::FROM_CONCURRENCY_STRICT) {
         // The caller means exactly the concurrency it gave.

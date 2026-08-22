@@ -69,6 +69,12 @@ namespace NeuralNet {
   };
   BatchPolicy getBatchPolicy(ConfigParser& cfg);
 
+  // The number of distinct devices that server threads with these gpu indices will run on, for
+  // per-device sizing such as Setup::computeFixedShapeMaxBatchSize. Most backends identify a
+  // device by the gpu index alone. The ONNX backend's OpenVINO provider instead selects devices
+  // by device-type string, which it reads from the same config keys createComputeContext does.
+  int getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread);
+
   // Model I/O -----------------------------------------------------------------
 
   LoadedModel* loadModelFile(const std::string& file, const std::string& expectedSha256);

@@ -29,8 +29,9 @@ namespace Setup {
   // is about to do, and the backend's NeuralNet::BatchPolicy decides how that turns into a batch
   // size, since the right answer differs between GPU backends, fixed-shape backends and CPU
   // backends.
-  // A user-specified nnMaxBatchSize still wins over all of these, except where setupFor forces the
-  // caller's value (benchmarks sweeping thread counts, and distributed).
+  // A user-specified nnMaxBatchSize wins over the concurrency-based kinds, except where setupFor
+  // forces the caller's value (benchmarks sweeping thread counts, and distributed). It never
+  // applies under EXPLICIT_SIZE, nor for CpuLocal backends, which ignore it entirely.
   struct MaxBatchSizeRequest {
     enum Kind {
       // Size it for expectedConcurrentEvals, with room to spare: this is a search whose threads all

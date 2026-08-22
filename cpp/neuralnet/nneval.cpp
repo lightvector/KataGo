@@ -94,6 +94,7 @@ NNEvaluator::NNEvaluator(
    numServerThreadsEverSpawned(0),
    serverThreads(),
    maxBatchSize(maxBatchSz),
+   numEffectiveDevices(NeuralNet::getNumEffectiveDevices(cfg, gpuIdxByServerThr)),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
    m_numCacheHits(0),
@@ -255,15 +256,7 @@ bool NNEvaluator::requiresSGFMetadata() const {
 }
 
 int NNEvaluator::getNumGpus() const {
-#ifdef USE_EIGEN_BACKEND
-  return 1;
-#else
-  std::set<int> gpuIdxs;
-  for(int i = 0; i<gpuIdxByServerThread.size(); i++) {
-    gpuIdxs.insert(gpuIdxByServerThread[i]);
-  }
-  return (int)gpuIdxs.size();
-#endif
+  return numEffectiveDevices;
 }
 int NNEvaluator::getNumServerThreads() const {
   return (int)gpuIdxByServerThread.size();

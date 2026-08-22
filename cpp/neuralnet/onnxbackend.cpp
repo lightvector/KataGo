@@ -389,10 +389,10 @@ static bool padsBatchForDevice(const string& providerName, enabled_t padBatchMod
   if(providerName == "directml")
     return true;
   if(providerName == "openvino") {
-    for(const string& name : parseDeviceNames(deviceType)) {
-      if(name == "NPU")
-        return true;
-    }
+    // Match NPU anywhere in the raw string rather than only in parsed device names, so that
+    // composite strings with prefixes other than AUTO/MULTI/HETERO (e.g. BATCH:NPU) still count.
+    if(Global::toUpper(deviceType).find("NPU") != string::npos)
+      return true;
   }
   return false;
 }
@@ -1232,6 +1232,28 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
       detail += "-" + name;
   }
   return detail;
+}
+
+int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+  if(provider != "openvino") {
+    std::set<int> distinctDevices(gpuIdxByServerThread.begin(), gpuIdxByServerThread.end());
+    return std::max(1, (int)distinctDevices.size());
+  }
+  // OpenVINO selects devices by device-type string, with the thread's gpu index only refining it
+  // to a "GPU.1"-style suffix, mirroring createComputeHandle.
+  string defaultDeviceType =
+    cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
+  std::set<string> distinctDevices;
+  for(int t = 0; t < (int)gpuIdxByServerThread.size(); t++) {
+    string key = "onnxOpenVINODeviceTypeThread" + Global::intToString(t);
+    string deviceType = Global::toUpper(cfg.contains(key) ? cfg.getString(key) : defaultDeviceType);
+    const int deviceIdx = gpuIdxByServerThread[t];
+    if(deviceIdx > 0 && deviceType.find('.') == string::npos && deviceType.find(':') == string::npos)
+      deviceType += "." + Global::intToString(deviceIdx);
+    distinctDevices.insert(deviceType);
+  }
+  return std::max(1, (int)distinctDevices.size());
 }
 
 NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {

@@ -291,6 +291,8 @@ class NNEvaluator {
   std::vector<std::thread*> serverThreads;
 
   const int maxBatchSize;
+  // NeuralNet::getNumEffectiveDevices at construction, see getNumGpus()
+  const int numEffectiveDevices;
 
   // Counters for statistics
   std::atomic<uint64_t> m_numRowsProcessed;

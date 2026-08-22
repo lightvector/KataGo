@@ -47,6 +47,15 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
 // user gets by only setting numSearchThreads in their config.
 enum class BatchSizeScheme { BACKEND_DEFAULT, EXACT, HALF_THREADS };
 
+// -half-batch-size means half the search threads, rounding up. On fixed-shape backends this
+// shares computeFixedShapeMaxBatchSize's floor of 2, so the flag cannot request the batch size 1
+// that the floor exists to avoid.
+static int computeHalfBatchSize(NeuralNet::BatchPolicy backendPolicy, int numThreads) {
+  if(backendPolicy == NeuralNet::BatchPolicy::FixedShape)
+    return Setup::computeFixedShapeMaxBatchSize(numThreads, 1);
+  return (numThreads+1)/2;
+}
+
 static int computeDesiredBatchSize(
   BatchSizeScheme scheme,
   int fixedBatchSize,
@@ -57,7 +66,7 @@ static int computeDesiredBatchSize(
   if(scheme == BatchSizeScheme::EXACT)
     return fixedBatchSize;
   if(scheme == BatchSizeScheme::HALF_THREADS)
-    return (numThreads+1)/2;
+    return computeHalfBatchSize(backendPolicy, numThreads);
   // BACKEND_DEFAULT: mirror what the backend's policy would derive for this thread count.
   // For a fixed-shape backend this is the batch size to rebuild the evaluator with (see
   // prepareNNEvalForNumThreads), so that low thread counts are not measured paying for
@@ -91,11 +100,12 @@ static void printBatchSizeAdvice(
     return;
   }
 
-  // -half-batch-size coincides with the fixed-shape default when there is one device, so treat it
-  // as the default rather than as an override.
+  // -half-batch-size coincides with the fixed-shape default when there is one device (the floor
+  // of 2 is shared), so treat it as the default rather than as an override.
   const bool matchesBackendDefault =
     scheme == BatchSizeScheme::BACKEND_DEFAULT ||
-    (scheme == BatchSizeScheme::HALF_THREADS && backendPolicy == NeuralNet::BatchPolicy::FixedShape && nnEval->getNumGpus() <= 1);
+    (scheme == BatchSizeScheme::HALF_THREADS && backendPolicy == NeuralNet::BatchPolicy::FixedShape &&
+     computeHalfBatchSize(backendPolicy, exampleNumThreads) == Setup::computeFixedShapeMaxBatchSize(exampleNumThreads, nnEval->getNumGpus()));
 
   if(!matchesBackendDefault) {
     if(scheme == BatchSizeScheme::EXACT)
@@ -103,11 +113,11 @@ static void printBatchSizeAdvice(
            << fixedBatchSize << " in your config." << endl;
     else
       cout << "NOTE: You overrode this benchmark's batch sizing with -half-batch-size. To make normal runs match what was measured, set nnMaxBatchSize in your config to half the numSearchThreads you choose, rounding up (e.g. "
-           << (exampleNumThreads+1)/2 << " if you use " << exampleNumThreads << " threads)." << endl;
+           << computeHalfBatchSize(backendPolicy, exampleNumThreads) << " if you use " << exampleNumThreads << " threads)." << endl;
     if(configHasBatchSize)
-      cout << "      (Your config currently sets nnMaxBatchSize = " << configBatchSizeStr << ".)" << endl;
+      cout << "(Your config currently sets nnMaxBatchSize = " << configBatchSizeStr << ".)" << endl;
     else
-      cout << "      (Your config does not currently set nnMaxBatchSize.)" << endl;
+      cout << "(Your config does not currently set nnMaxBatchSize.)" << endl;
   }
   else if(configHasBatchSize) {
     cout << "WARNING: Your config hardcodes nnMaxBatchSize = " << configBatchSizeStr
@@ -287,11 +297,15 @@ int MainCmds::benchmark(const vector<string>& args) {
 
   NNEvaluator* nnEval = NULL;
   auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
+    // On a fixed-shape backend prepareNNEvalForNumThreads rebuilds per tested thread count anyway,
+    // so growing the allocation up front would only build an evaluator that is thrown away.
+    if(backendPolicy == NeuralNet::BatchPolicy::FixedShape && nnEval != NULL)
+      return;
     if(nnEval != NULL)
       delete nnEval;
     Setup::MaxBatchSizeRequest request =
       batchSizeScheme == BatchSizeScheme::EXACT ? Setup::MaxBatchSizeRequest::explicitSize(fixedBatchSize) :
-      batchSizeScheme == BatchSizeScheme::HALF_THREADS ? Setup::MaxBatchSizeRequest::explicitSize((maxNumThreads+1)/2) :
+      batchSizeScheme == BatchSizeScheme::HALF_THREADS ? Setup::MaxBatchSizeRequest::explicitSize(computeHalfBatchSize(backendPolicy, maxNumThreads)) :
       Setup::MaxBatchSizeRequest::fromConcurrency();
     nnEval = createNNEval(maxNumThreads, request, *sgf, modelFile, logger, cfg, params);
   };
@@ -313,9 +327,8 @@ int MainCmds::benchmark(const vector<string>& args) {
     if(backendPolicy == NeuralNet::BatchPolicy::FixedShape && nnEval->getMaxBatchSize() != desiredBatchSize) {
       cout << "(Rebuilding neural net evaluator for " << numThreads << " threads, batch size " << desiredBatchSize << ")" << endl;
       Setup::MaxBatchSizeRequest request =
-        batchSizeScheme == BatchSizeScheme::EXACT ? Setup::MaxBatchSizeRequest::explicitSize(fixedBatchSize) :
-        batchSizeScheme == BatchSizeScheme::HALF_THREADS ? Setup::MaxBatchSizeRequest::explicitSize((numThreads+1)/2) :
-        Setup::MaxBatchSizeRequest::fromConcurrency();
+        batchSizeScheme == BatchSizeScheme::BACKEND_DEFAULT ? Setup::MaxBatchSizeRequest::fromConcurrency() :
+        Setup::MaxBatchSizeRequest::explicitSize(desiredBatchSize);
       delete nnEval;
       nnEval = NULL;
       nnEval = createNNEval(numThreads, request, *sgf, modelFile, logger, cfg, params);
@@ -1027,6 +1040,10 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     int maxNumThreadsForCurrentNNEval = -1;
     NNEvaluator* nnEval = NULL;
     auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
+      // See the note in MainCmds::benchmark: fixed-shape evaluators get rebuilt per tested thread
+      // count anyway, so only the initial build is needed here.
+      if(backendPolicy == NeuralNet::BatchPolicy::FixedShape && nnEval != NULL)
+        return;
       if(nnEval != NULL && maxNumThreads <= maxNumThreadsForCurrentNNEval)
         return;
       if(nnEval != NULL)
