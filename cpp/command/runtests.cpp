@@ -390,6 +390,8 @@ int MainCmds::runtinynntests(const vector<string>& args) {
       maxTime,
       maxPonderTime,
       std::vector<int>(),
+      1,
+      -1,
       nnCacheSizePowerOfTwo,
       nnMutexPoolSizePowerOfTwo,
       numSearchThreads

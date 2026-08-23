@@ -261,6 +261,9 @@ int NNEvaluator::getNumGpus() const {
 int NNEvaluator::getNumServerThreads() const {
   return (int)gpuIdxByServerThread.size();
 }
+const std::vector<int>& NNEvaluator::getGpuIdxByServerThread() const {
+  return gpuIdxByServerThread;
+}
 std::set<int> NNEvaluator::getGpuIdxs() const {
   std::set<int> gpuIdxs;
 #ifdef USE_EIGEN_BACKEND
