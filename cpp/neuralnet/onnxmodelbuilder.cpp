@@ -400,8 +400,13 @@ struct Builder {
       // Mish fusion pass we know of: they match the canonical shape Mul(u, Tanh(Softplus(u))),
       // and here the outer Mul takes x while Softplus takes 8x, so the operands differ and the
       // pattern does not match. OpenVINO in particular then runs Softplus, Tanh and Mul as three
-      // separate ops over the full trunk, which costs several times the throughput of a fused
-      // Mish on the Intel NPU.
+      // separate ops over the full trunk. That costs about 4.8x the throughput on an Intel NPU,
+      // and on the OpenVINO GPU plugin it is not merely slow: the unfused chain produces
+      // non-finite outputs and KataGo dies with "Got nonfinite for policy sum". Presumably the
+      // intermediate log(1+exp(8x)) overflows the FP16 the plugin infers in, which the fused Mish
+      // avoids by evaluating it stably. Both were reproduced against two binaries differing only
+      // in this file, and both disappear with onnxSkipScale8 = true, which takes the plain Mish
+      // path below.
       //
       // Emit mish_scale8 through its own definition instead, mish_scale8(x) = mish(8x)/8 (see
       // desc.cpp applyScale8ToReduceActivations), substituting u = 8x:
