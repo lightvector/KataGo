@@ -5066,6 +5066,11 @@ struct ComputeHandle {
   }
 #endif
   ~ComputeHandle() {
+    // The member destructors below free device and host buffers without waiting for pending
+    // stream work. Normal paths are safe because getOutput ends with a stream synchronize, but
+    // teardown after an error partway through getOutput could otherwise free memory that async
+    // copies or kernels still reference.
+    (void)cudaStreamSynchronize(cudaHandles->stream.stream);
   }
 
   ComputeHandle() = delete;
@@ -5492,7 +5497,9 @@ void NeuralNet::getOutput(
   for(int nIdx = 0; nIdx<batchSize; nIdx++) {
     float* rowSpatialInput = inputBuffers->userInputBuffer + (inputBuffers->singleInputElts * nIdx);
     float* rowGlobalInput = inputBuffers->userInputGlobalBuffer + (inputBuffers->singleInputGlobalElts * nIdx);
-    float* rowMetaInput = inputBuffers->userInputMetaBuffer + (inputBuffers->singleInputMetaElts * nIdx);
+    // userInputMetaBuffer is NULL when the model has no meta channels, so don't do pointer
+    // arithmetic on it in that case.
+    float* rowMetaInput = numMetaFeatures > 0 ? inputBuffers->userInputMetaBuffer + (inputBuffers->singleInputMetaElts * nIdx) : NULL;
 
     const float* rowGlobal = inputBufs[nIdx]->rowGlobalBuf.data();
     const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();

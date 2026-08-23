@@ -378,18 +378,16 @@ bool NNEvaluator::isAnyThreadUsingFP16() const {
 
 static void serveEvals(
   string randSeedThisThread,
-  NNEvaluator* nnEval, const LoadedModel* loadedModel,
+  NNEvaluator* nnEval,
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
-  NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeedThisThread);
 
   // Used to have a try catch around this but actually we're in big trouble if this raises an exception
   // and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
   // toplevel for easier debugging
-  nnEval->serve(*buf,rand,gpuIdxForThisThread,serverThreadIdx);
-  delete buf;
+  nnEval->serve(rand,gpuIdxForThisThread,serverThreadIdx);
 }
 
 void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
@@ -416,7 +414,7 @@ void NNEvaluator::spawnServerThreads() {
     string randSeedThisThread = randSeed + ":NNEvalServerThread:" + Global::intToString(numServerThreadsEverSpawned);
     numServerThreadsEverSpawned++;
     std::thread* thread = new std::thread(
-      &serveEvals,randSeedThisThread,this,loadedModel,gpuIdxForThisThread,i
+      &serveEvals,randSeedThisThread,this,gpuIdxForThisThread,i
     );
     serverThreads.push_back(thread);
   }
@@ -638,8 +636,6 @@ NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(
   for(int threadIdx = 0; threadIdx < numThreadsToUse; threadIdx++) {
     threads.emplace_back([&,threadIdx]() {
       try {
-        // Mirror serve(): one compute handle and one set of input buffers per server thread.
-        NNServerBuf serverBuf(*this, loadedModel);
         ComputeHandle* gpuHandle = NeuralNet::createComputeHandle(
           computeContext,
           loadedModel,
@@ -650,7 +646,14 @@ NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(
           gpuIdxByServerThread[threadIdx],
           threadIdx
         );
+        // Declared before the try so that on an exception it is destroyed after the catch frees
+        // the compute handle, matching the normal teardown order below.
+        std::unique_ptr<NNServerBuf> serverBuf;
         try {
+          // Mirror serve(): one compute handle and one set of input buffers per server thread,
+          // with the buffers allocated only after createComputeHandle has bound this thread to
+          // its GPU (see serve() for why the order matters).
+          serverBuf = std::make_unique<NNServerBuf>(*this, loadedModel);
           maybeWarmupComputeHandle(gpuHandle, threadIdx);
           {
             std::lock_guard<std::mutex> lock(bufferMutex);
@@ -701,7 +704,7 @@ NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(
           }
 
           for(int i = 0; i < numWarmups; i++)
-            NeuralNet::getOutput(gpuHandle, serverBuf.inputBuffers, batchSize, resultBufs.data(), outputs);
+            NeuralNet::getOutput(gpuHandle, serverBuf->inputBuffers, batchSize, resultBufs.data(), outputs);
 
           readyCount.fetch_add(1);
           while(!startFlag.load(std::memory_order_acquire))
@@ -711,7 +714,7 @@ NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(
           times.reserve(numIterations);
           for(int i = 0; i < numIterations; i++) {
             std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
-            NeuralNet::getOutput(gpuHandle, serverBuf.inputBuffers, batchSize, resultBufs.data(), outputs);
+            NeuralNet::getOutput(gpuHandle, serverBuf->inputBuffers, batchSize, resultBufs.data(), outputs);
             std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
             times.push_back(std::chrono::duration<double>(t1-t0).count());
           }
@@ -764,7 +767,7 @@ NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(
 }
 
 void NNEvaluator::serve(
-  NNServerBuf& buf, Rand& rand,
+  Rand& rand,
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
@@ -787,6 +790,12 @@ void NNEvaluator::serve(
     // Warm up lazily-compiled backend graphs before reporting this thread as started.
     maybeWarmupComputeHandle(gpuHandle, serverThreadIdx);
   }
+
+  // Allocate input buffers only after createComputeHandle, which binds this thread to its GPU.
+  // On the CUDA backend the pinned host allocation in the buffers initializes a context on the
+  // thread's current device, so doing it before the GPU binding would leave a stray context
+  // (and some wasted VRAM) on GPU 0 even when only other GPUs are configured.
+  NNServerBuf buf(*this, loadedModel);
 
   {
     lock_guard<std::mutex> lock(bufferMutex);
