@@ -277,6 +277,7 @@ Set `onnxProvider` in your config to choose the execution provider:
      cmake --build KataGo/cpp/build -j
      ```
    * `ONNXRUNTIME_ROOT` is the directory containing ONNX Runtime's `include/` and `lib/`.
+   * For an Intel NPU or iGPU build, `-DUSE_ONNX_EP=OPENVINO` defaults `ONNXRUNTIME_ROOT` to `KataGo/cpp/external/onnxruntime-win-x64-openvino` (or `-linux-x64-` on Linux), so unpacking your OpenVINO-enabled ONNX Runtime there lets you drop the flag. It changes nothing else: the execution provider is still chosen at runtime by `onnxProvider`.
    * If CMake does not find protobuf on its own, also pass `-DProtobuf_PROTOC_EXECUTABLE=<protoc>`, `-DProtobuf_INCLUDE_DIR=<include-dir>`, and `-DProtobuf_LIBRARY=<library>`.
    * As with other backends, `-DNO_GIT_REVISION=1` avoids embedding the git hash, and `-DBUILD_DISTRIBUTED=1` enables contributing to distributed training.
 
