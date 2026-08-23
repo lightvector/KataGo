@@ -118,8 +118,8 @@ void PatternBonusTable::addBonusForGameMoves(const BoardHistory& game, double bo
 void PatternBonusTable::addBonusForGameMoves(const BoardHistory& game, double bonus, Player onlyPla) {
   std::set<Hash128> hashesThisGame;
   Board board = game.initialBoard;
-  //Replay under the same pass-alive computation mode as the history we're replaying.
-  BoardHistory hist(board, game.initialPla, game.rules, game.initialEncorePhase, game.alwaysComputePassAliveUnderSuicideRules);
+  //Replay under the same BoardHistoryModes as the history we're replaying.
+  BoardHistory hist(board, game.initialPla, game.rules, game.initialEncorePhase, game.modes);
   for(size_t i = 0; i<game.moveHistory.size(); i++) {
     Player pla = game.moveHistory[i].pla;
     Loc loc = game.moveHistory[i].loc;

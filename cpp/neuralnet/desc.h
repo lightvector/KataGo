@@ -523,11 +523,28 @@ struct ModelDesc {
   //multi-stone suicide were always legal, regardless of the actual suicide rule.
   bool preferPassAliveUnderSuicideRules;
 
+  //True if the model expects territory scoring with TaxRule NONE (both for adjudication and for its
+  //territory input features) to exclude empty points adjacent to chains in atari, per rules version 3.
+  bool preferExcludeTerritoryAdjacentToAtari;
+
   ModelPostProcessParams postProcessParams;
 
   TrunkDesc trunk;
   PolicyHeadDesc policyHead;
   ValueHeadDesc valueHead;
+
+  //Architecture summary values that are normally derived by walking trunk/policyHead/valueHead.
+  //Set (present = true) only for a desc reconstructed from a .onnx file, which has no layer
+  //structure to walk; the summary getters below then report these values instead.
+  struct ArchSummary {
+    bool present;
+    double trunkSpatialConvDepth;
+    int64_t numParameters;
+    bool hasAnyTransformerBlocks;
+    bool hasAnyNestedBottleneckBlocks;
+    ArchSummary();
+  };
+  ArchSummary archSummary;
 
   ModelDesc();
   ~ModelDesc();
@@ -547,17 +564,26 @@ struct ModelDesc {
   //True if the model's trunk contains any transformer (attention or ffn) block. Useful for callers
   //that want to report model stats or special-case transformer-only behavior (e.g. graph warmup).
   bool hasAnyTransformerBlocks() const;
+  bool hasAnyNestedBottleneckBlocks() const;
 
   //Short human-readable summary of the model architecture kind and parameter count, e.g.
   //"nbt transformer, 12345678 params". Backends can append this in parentheses after the model name.
   std::string getShortInfoString() const;
 
   void transformToReduceActivations();
-  void applyScale8ToReduceActivations();
+  //Rescales the net's activations by 1/8 to keep them inside the FP16 range, compensating via
+  //postProcessParams.outputScaleMultiplier. Returns whether it was applied: for models where the
+  //rescaling would be unsound it changes nothing and returns false.
+  bool applyScale8ToReduceActivations();
 
   //Loads a model from a file that may or may not be gzipped, storing it in descBuf
   //If expectedSha256 is nonempty, will also verify sha256 of the loaded data.
   static void loadFromFileMaybeGZipped(const std::string& fileName, ModelDesc& descBuf, const std::string& expectedSha256);
+
+  //Throws StringError if name is not usable as a model name. Model names get embedded into on-disk
+  //cache filenames (e.g. the TensorRT plan cache), so they are restricted to a short
+  //filesystem-safe character set.
+  static void checkNameValid(const std::string& name);
 
   //Return the "nearest" supported ruleset to desiredRules by this model.
   //Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.

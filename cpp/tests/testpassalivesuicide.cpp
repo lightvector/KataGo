@@ -43,13 +43,13 @@ oox.
 
   //Basic flag behavior and effect on scoring
   {
-    BoardHistory hist(board,P_BLACK,rules,0,false);
-    testAssert(!hist.alwaysComputePassAliveUnderSuicideRules);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
+    testAssert(!hist.modes.alwaysComputePassAliveUnderSuicideRules);
     testAssert(!hist.suicideLegalForPassAlive());
 
-    BoardHistory histFlagged(board,P_BLACK,rules,0,false);
-    histFlagged.setAlwaysComputePassAliveUnderSuicideRules(true);
-    testAssert(histFlagged.alwaysComputePassAliveUnderSuicideRules);
+    BoardHistory histFlagged(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
+    histFlagged.setModes(BoardHistoryModes(true,false));
+    testAssert(histFlagged.modes.alwaysComputePassAliveUnderSuicideRules);
     testAssert(histFlagged.suicideLegalForPassAlive());
 
     //The flag changes the situation-and-rules hash exactly when the rules don't already have suicide legal
@@ -58,11 +58,11 @@ oox.
     testAssert(hashOff != hashOn);
 
     //And changes area scoring on this position
-    BoardHistory histScore(board,P_BLACK,rules,0,false);
+    BoardHistory histScore(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
     Board boardCopy = board;
     histScore.endAndScoreGameNow(boardCopy);
-    BoardHistory histScoreFlagged(board,P_BLACK,rules,0,false);
-    histScoreFlagged.setAlwaysComputePassAliveUnderSuicideRules(true);
+    BoardHistory histScoreFlagged(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
+    histScoreFlagged.setModes(BoardHistoryModes(true,false));
     Board boardCopy2 = board;
     histScoreFlagged.endAndScoreGameNow(boardCopy2);
     testAssert(histScore.isScored && histScoreFlagged.isScored);
@@ -71,11 +71,11 @@ oox.
     //And changes territory scoring too (the countTerritoryAreaScoreWhiteMinusBlack path)
     Rules japRules = Rules::parseRules("japanese");
     testAssert(!japRules.multiStoneSuicideLegal);
-    BoardHistory histTerrScore(board,P_BLACK,japRules,0,false);
+    BoardHistory histTerrScore(board,P_BLACK,japRules,0,BoardHistoryModes(false,false));
     Board boardCopy3 = board;
     histTerrScore.endAndScoreGameNow(boardCopy3);
-    BoardHistory histTerrScoreFlagged(board,P_BLACK,japRules,0,false);
-    histTerrScoreFlagged.setAlwaysComputePassAliveUnderSuicideRules(true);
+    BoardHistory histTerrScoreFlagged(board,P_BLACK,japRules,0,BoardHistoryModes(false,false));
+    histTerrScoreFlagged.setModes(BoardHistoryModes(true,false));
     Board boardCopy4 = board;
     histTerrScoreFlagged.endAndScoreGameNow(boardCopy4);
     testAssert(histTerrScore.isScored && histTerrScoreFlagged.isScored);
@@ -83,23 +83,23 @@ oox.
 
     //Copying and clear() preserve the flag
     BoardHistory copied(histFlagged);
-    testAssert(copied.alwaysComputePassAliveUnderSuicideRules);
+    testAssert(copied.modes.alwaysComputePassAliveUnderSuicideRules);
     BoardHistory assigned;
     assigned = histFlagged;
-    testAssert(assigned.alwaysComputePassAliveUnderSuicideRules);
+    testAssert(assigned.modes.alwaysComputePassAliveUnderSuicideRules);
     BoardHistory cleared(histFlagged);
     cleared.clear(board,P_BLACK,rules,0);
-    testAssert(cleared.alwaysComputePassAliveUnderSuicideRules);
-    testAssert(histFlagged.copyToInitial().alwaysComputePassAliveUnderSuicideRules);
+    testAssert(cleared.modes.alwaysComputePassAliveUnderSuicideRules);
+    testAssert(histFlagged.copyToInitial().modes.alwaysComputePassAliveUnderSuicideRules);
   }
 
   //When the rules already have suicide legal, the flag is a no-op for hashing and scoring
   {
     Rules tromp = Rules::parseRules("tromp-taylor");
     testAssert(tromp.multiStoneSuicideLegal);
-    BoardHistory hist(board,P_BLACK,tromp,0,false);
-    BoardHistory histFlagged(board,P_BLACK,tromp,0,false);
-    histFlagged.setAlwaysComputePassAliveUnderSuicideRules(true);
+    BoardHistory hist(board,P_BLACK,tromp,0,BoardHistoryModes(false,false));
+    BoardHistory histFlagged(board,P_BLACK,tromp,0,BoardHistoryModes(false,false));
+    histFlagged.setModes(BoardHistoryModes(true,false));
     testAssert(hist.suicideLegalForPassAlive() && histFlagged.suicideLegalForPassAlive());
     Hash128 hashOff = BoardHistory::getSituationRulesAndKoHash(board,hist,P_BLACK,0.5);
     Hash128 hashOn = BoardHistory::getSituationRulesAndKoHash(board,histFlagged,P_BLACK,0.5);
@@ -108,9 +108,9 @@ oox.
 
   //MiscNNInputParams override behavior for the nn cache hash
   {
-    BoardHistory hist(board,P_BLACK,rules,0,false);
-    BoardHistory histFlagged(board,P_BLACK,rules,0,false);
-    histFlagged.setAlwaysComputePassAliveUnderSuicideRules(true);
+    BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
+    BoardHistory histFlagged(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
+    histFlagged.setModes(BoardHistoryModes(true,false));
 
     MiscNNInputParams noOverride;
     MiscNNInputParams forceOn;
@@ -149,61 +149,61 @@ oox.
 
     {
       Search search(params,nnEval,&logger,"passAliveStampTestSeed");
-      testAssert(!search.getRootHist().alwaysComputePassAliveUnderSuicideRules);
+      testAssert(!search.getRootHist().modes.alwaysComputePassAliveUnderSuicideRules);
       testAssert(!Search::resolveAlwaysComputePassAliveUnderSuicideRules(params,nnEval));
 
       //Setting a history with the flag on gets re-stamped to the search's own resolution
-      BoardHistory histFlagged(board,P_BLACK,rules,0,false);
-      histFlagged.setAlwaysComputePassAliveUnderSuicideRules(true);
+      BoardHistory histFlagged(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
+      histFlagged.setModes(BoardHistoryModes(true,false));
       search.setPosition(P_BLACK,board,histFlagged);
-      testAssert(!search.getRootHist().alwaysComputePassAliveUnderSuicideRules);
+      testAssert(!search.getRootHist().modes.alwaysComputePassAliveUnderSuicideRules);
 
       //Forcing the param stamps the flag on, even though the last set position had it off
       SearchParams paramsOn = params;
       paramsOn.alwaysComputePassAliveUnderSuicideRules = enabled_t::True;
       testAssert(Search::resolveAlwaysComputePassAliveUnderSuicideRules(paramsOn,nnEval));
       search.setParams(paramsOn);
-      testAssert(search.getRootHist().alwaysComputePassAliveUnderSuicideRules);
+      testAssert(search.getRootHist().modes.alwaysComputePassAliveUnderSuicideRules);
 
       //And even the no-clearing param setter keeps the invariant
       search.setParamsNoClearing(params);
-      testAssert(!search.getRootHist().alwaysComputePassAliveUnderSuicideRules);
+      testAssert(!search.getRootHist().modes.alwaysComputePassAliveUnderSuicideRules);
       search.setParamsNoClearing(paramsOn);
-      testAssert(search.getRootHist().alwaysComputePassAliveUnderSuicideRules);
+      testAssert(search.getRootHist().modes.alwaysComputePassAliveUnderSuicideRules);
 
       //setPlayerAndClearHistory and setKomiIfNew preserve it too
       search.setPlayerAndClearHistory(P_WHITE);
-      testAssert(search.getRootHist().alwaysComputePassAliveUnderSuicideRules);
+      testAssert(search.getRootHist().modes.alwaysComputePassAliveUnderSuicideRules);
       search.setKomiIfNew(5.5f);
-      testAssert(search.getRootHist().alwaysComputePassAliveUnderSuicideRules);
+      testAssert(search.getRootHist().modes.alwaysComputePassAliveUnderSuicideRules);
     }
 
     nnEval->killServerThreads();
     delete nnEval;
   }
 
-  //Books record the pass-alive computation mode and stamp it on their histories.
+  //Books record the BoardHistoryModes and stamp them on their histories.
   //Mode-true books require book version >= 3 (so old binaries reject them cleanly)
   {
     Rules bookRules = Rules::parseRules("chinese");
     Board initialBoard(9,9);
     BookParams bparams;
     for(bool mode : {false,true}) {
-      Book book(Book::LATEST_BOOK_VERSION, initialBoard, bookRules, P_BLACK, 3, mode, bparams);
-      testAssert(book.alwaysComputePassAliveUnderSuicideRules == mode);
-      testAssert(book.getInitialHist().alwaysComputePassAliveUnderSuicideRules == mode);
+      Book book(Book::LATEST_BOOK_VERSION, initialBoard, bookRules, P_BLACK, 3, BoardHistoryModes(mode,false), bparams);
+      testAssert(book.historyModes.alwaysComputePassAliveUnderSuicideRules == mode);
+      testAssert(book.getInitialHist().modes.alwaysComputePassAliveUnderSuicideRules == mode);
 
       std::ostringstream saved;
       book.saveToStream(saved);
       {
         std::istringstream headerIn(saved.str());
-        testAssert(Book::readAlwaysComputePassAliveUnderSuicideRulesOfHeader(headerIn) == mode);
+        testAssert(Book::readHistoryModesOfHeader(headerIn) == BoardHistoryModes(mode,false));
       }
       std::istringstream loadIn(saved.str());
       Book* loaded = Book::loadFromStream(loadIn);
-      testAssert(loaded->alwaysComputePassAliveUnderSuicideRules == mode);
+      testAssert(loaded->historyModes.alwaysComputePassAliveUnderSuicideRules == mode);
       testAssert(loaded->bookVersion == Book::LATEST_BOOK_VERSION);
-      testAssert(loaded->getInitialHist().alwaysComputePassAliveUnderSuicideRules == mode);
+      testAssert(loaded->getInitialHist().modes.alwaysComputePassAliveUnderSuicideRules == mode);
       delete loaded;
     }
 
@@ -211,7 +211,7 @@ oox.
     {
       bool threw = false;
       try {
-        Book book(2, initialBoard, bookRules, P_BLACK, 3, true, bparams);
+        Book book(2, initialBoard, bookRules, P_BLACK, 3, BoardHistoryModes(true,false), bparams);
       }
       catch(const StringError&) {
         threw = true;
@@ -221,7 +221,7 @@ oox.
 
     //A pre-migration book file (header key absent entirely, version 2) loads as mode false.
     {
-      Book book(2, initialBoard, bookRules, P_BLACK, 3, false, bparams);
+      Book book(2, initialBoard, bookRules, P_BLACK, 3, BoardHistoryModes(), bparams);
       std::ostringstream saved;
       book.saveToStream(saved);
 
@@ -233,12 +233,12 @@ oox.
 
       {
         std::istringstream headerIn(contents);
-        testAssert(!Book::readAlwaysComputePassAliveUnderSuicideRulesOfHeader(headerIn));
+        testAssert(Book::readHistoryModesOfHeader(headerIn) == BoardHistoryModes());
       }
       std::istringstream loadIn(contents);
       Book* loaded = Book::loadFromStream(loadIn);
-      testAssert(!loaded->alwaysComputePassAliveUnderSuicideRules);
-      testAssert(loaded->getInitialHist().alwaysComputePassAliveUnderSuicideRules == false);
+      testAssert(!loaded->historyModes.alwaysComputePassAliveUnderSuicideRules);
+      testAssert(loaded->getInitialHist().modes.alwaysComputePassAliveUnderSuicideRules == false);
       delete loaded;
     }
   }
@@ -268,7 +268,7 @@ oox.
 
     //Suicide-illegal rules: the modes must hit distinct cache entries.
     {
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       NNResultBuf buf;
       nnEval->evaluate(board,hist,P_BLACK,noOverride,buf,false,false);
       std::shared_ptr<NNOutput> outPlain = std::move(buf.result);
@@ -286,7 +286,7 @@ oox.
     //Suicide-legal rules: the override is a no-op and must share the cache entry.
     {
       Rules tromp = Rules::parseRules("tromp-taylor");
-      BoardHistory hist(board,P_BLACK,tromp,0,false);
+      BoardHistory hist(board,P_BLACK,tromp,0,BoardHistoryModes(false,false));
       NNResultBuf buf;
       nnEval->evaluate(board,hist,P_BLACK,noOverride,buf,false,false);
       std::shared_ptr<NNOutput> outPlain = std::move(buf.result);

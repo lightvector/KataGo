@@ -2112,6 +2112,16 @@ class TransformerAttentionBlock(torch.nn.Module):
             assert self.q_head_dim % 4 == 0, f"Query head dim must be divisible by 4 for 2D RoPE"
         assert self.num_heads % self.num_kv_heads == 0, \
             f"Query heads ({self.num_heads}) must be divisible by KV heads ({self.num_kv_heads})"
+        # The C++ GPU backends require each projection's total channel count to be a multiple
+        # of 8 so that packed Q/K/V buffers stay 16-byte aligned. Reject at model construction
+        # rather than letting training succeed and inference fail.
+        for proj_name, total in (
+            ("Q", self.num_heads * self.q_head_dim),
+            ("K", self.num_kv_heads * self.q_head_dim),
+            ("V", self.num_kv_heads * self.v_head_dim),
+        ):
+            assert total % 8 == 0, \
+                f"{proj_name} projection total channels ({total}) must be a multiple of 8 for C++ GPU backend compatibility"
 
         self.q_proj = torch.nn.Linear(c_main, self.num_heads * self.q_head_dim, bias=False)
         self.k_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.q_head_dim, bias=False)
@@ -2438,8 +2448,15 @@ class TransformerAttentionBlock(torch.nn.Module):
             ks = k[:nb].float()
             ub_qnorm2 = (qs * qs).sum(dim=-1)  # (B', H, S)
             ub_knorm2 = (ks * ks).sum(dim=-1)  # (B', H, S)
+            # Clamp guards fully-dead heads (q/k projections decayed to exactly zero):
+            # sqrt(0) has an infinite derivative, and 0 * inf = NaN in backward even when
+            # the hinge is inactive, poisoning every gradient in the model. Below the clamp
+            # the gradient is exactly zero, which is fine: the penalty only pushes norms down.
+            # 1.0 is far below any hinge-active region (ub > cap requires this product to be
+            # >~1e4 even for small caps) and, unlike a tiny epsilon, stays a real floor even
+            # in fp16 (1e-12 underflows to 0) and keeps the backward 1/sqrt factor bounded.
             ub_state["ubs"].append(
-                scale * torch.sqrt(ub_qnorm2.amax(dim=-1) * ub_knorm2.amax(dim=-1))  # (B', H)
+                scale * torch.sqrt((ub_qnorm2.amax(dim=-1) * ub_knorm2.amax(dim=-1)).clamp(min=1.0))  # (B', H)
             )
 
         if flex_block_mask is not None:
@@ -3006,7 +3023,7 @@ def compute_attn_logit_dataless_bounds(model) -> Dict[str, float]:
     sinks), up to ~200x on layers that don't; see python/tmp/attn_logit_stats/.
 
     Inference backends mask off-board keys with large negative additive constants (-3e4 in fp16;
-    see cpp/neuralnet/cudahelpers.cu and onnxmodelbuilder.cpp), which is correct as long as
+    see cpp/neuralnet/cudaandrocmhelpers.inc and onnxmodelbuilder.cpp), which is correct as long as
     genuine logit magnitudes stay well below that scale - this bound certifies it from weights alone.
     """
     bounds = {}

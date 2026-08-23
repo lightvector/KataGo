@@ -185,7 +185,7 @@ void TestSearchCommon::runBotOnSgf(AsyncBot* bot, const string& sgfStr, const Ru
   BoardHistory hist;
   Rules initialRules = sgf->getRulesOrFailAllowUnspecified(defaultRules);
   sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx,
-    Search::resolveAlwaysComputePassAliveUnderSuicideRules(bot->getSearch()->searchParams, bot->getSearch()->nnEvaluator));
+    Search::resolveHistoryModes(bot->getSearch()->searchParams, bot->getSearch()->nnEvaluator));
   hist.setKomi(overrideKomi);
   runBotOnPosition(bot,board,nextPla,hist,opts);
 }
@@ -233,11 +233,9 @@ NNEvaluator* TestSearchCommon::startNNEval(
     useFP16 ? enabled_t::True : enabled_t::False,
     numNNServerThreadsPerModel,
     gpuIdxByServerThread,
-    vector<int>(gpuIdxByServerThread.size(), maxBatchSize),
     nnRandSeed,
     nnRandomize,
     defaultSymmetry,
-    false,
     cfg
   );
 

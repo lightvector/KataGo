@@ -2,6 +2,9 @@
 #include "../neuralnet/modelversion.h"
 #include "../core/test.h"
 
+#include <algorithm>
+#include <chrono>
+
 using namespace std;
 
 //-------------------------------------------------------------------------------------
@@ -29,10 +32,10 @@ NNResultBuf::~NNResultBuf() {
 
 //-------------------------------------------------------------------------------------
 
-NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model, int serverThreadIdx)
+NNServerBuf::NNServerBuf(const NNEvaluator& nnEval, const LoadedModel* model)
   :inputBuffers(NULL)
 {
-  int maxBatchSize = nnEval.getMaxBatchSizeForServerThread(serverThreadIdx);
+  int maxBatchSize = nnEval.getMaxBatchSize();
   if(model != NULL)
     inputBuffers = NeuralNet::createInputBuffers(model,maxBatchSize,nnEval.getNNXLen(),nnEval.getNNYLen());
 }
@@ -62,11 +65,9 @@ NNEvaluator::NNEvaluator(
   enabled_t useFP16Mode,
   int numThr,
   const vector<int>& gpuIdxByServerThr,
-  const vector<int>& maxBatchSizeByServerThr,
   const string& rSeed,
   bool doRandomize,
   int defaultSymmetry,
-  bool disableWarmup_,
   ConfigParser& cfg
 )
   :modelName(mName),
@@ -81,7 +82,6 @@ NNEvaluator::NNEvaluator(
    gpuIdxByServerThread(gpuIdxByServerThr),
    randSeed(rSeed),
    debugSkipNeuralNet(skipNeuralNet),
-   disableWarmup(disableWarmup_),
    computeContext(NULL),
    loadedModel(NULL),
    nnCacheTable(NULL),
@@ -94,7 +94,7 @@ NNEvaluator::NNEvaluator(
    numServerThreadsEverSpawned(0),
    serverThreads(),
    maxBatchSize(maxBatchSz),
-   maxBatchSizeByServerThread(maxBatchSizeByServerThr),
+   numEffectiveDevices(NeuralNet::getNumEffectiveDevices(cfg, gpuIdxByServerThr)),
    m_numRowsProcessed(0),
    m_numBatchesProcessed(0),
    m_numCacheHits(0),
@@ -108,7 +108,7 @@ NNEvaluator::NNEvaluator(
    waitingForFinish(),
    currentDoRandomize(doRandomize),
    currentDefaultSymmetry(defaultSymmetry),
-   currentBatchSize(maxBatchSz),
+   maxRowsToSendPerBatch(maxBatchSz),
    queryQueue()
 {
   if(nnXLen > NNPos::MAX_BOARD_LEN)
@@ -119,14 +119,6 @@ NNEvaluator::NNEvaluator(
     throw StringError("maxBatchSize is negative: " + Global::intToString(maxBatchSize));
   if(gpuIdxByServerThread.size() != numThreads)
     throw StringError("gpuIdxByServerThread.size() != numThreads");
-  if(maxBatchSizeByServerThread.size() != numThreads)
-    throw StringError("maxBatchSizeByServerThread.size() != numThreads");
-  for(int perThreadMaxBatchSize : maxBatchSizeByServerThread) {
-    if(perThreadMaxBatchSize <= 0 || perThreadMaxBatchSize > maxBatchSize)
-      throw StringError(
-        "maxBatchSizeByServerThread entry " + Global::intToString(perThreadMaxBatchSize) +
-        " must be > 0 and <= maxBatchSize (" + Global::intToString(maxBatchSize) + ")");
-  }
 
   if(logger != NULL) {
     logger->write(
@@ -251,32 +243,20 @@ bool NNEvaluator::isNeuralNetLess() const {
 int NNEvaluator::getMaxBatchSize() const {
   return maxBatchSize;
 }
-int NNEvaluator::getMaxBatchSizeForServerThread(int serverThreadIdx) const {
-  testAssert(serverThreadIdx >= 0 && serverThreadIdx < (int)maxBatchSizeByServerThread.size());
-  return maxBatchSizeByServerThread[serverThreadIdx];
+int NNEvaluator::getMaxRowsToSendPerBatch() const {
+  return maxRowsToSendPerBatch.load(std::memory_order_acquire);
 }
-int NNEvaluator::getCurrentBatchSize() const {
-  return currentBatchSize.load(std::memory_order_acquire);
-}
-void NNEvaluator::setCurrentBatchSize(int batchSize) {
-  if(batchSize <= 0 || batchSize > maxBatchSize)
-    throw StringError("Invalid setting for batch size");
-  currentBatchSize.store(batchSize,std::memory_order_release);
+void NNEvaluator::setMaxRowsToSendPerBatch(int maxRows) {
+  if(maxRows <= 0 || maxRows > maxBatchSize)
+    throw StringError("Invalid setting for max rows to send per batch");
+  maxRowsToSendPerBatch.store(maxRows,std::memory_order_release);
 }
 bool NNEvaluator::requiresSGFMetadata() const {
   return numInputMetaChannels > 0;
 }
 
 int NNEvaluator::getNumGpus() const {
-#ifdef USE_EIGEN_BACKEND
-  return 1;
-#else
-  std::set<int> gpuIdxs;
-  for(int i = 0; i<gpuIdxByServerThread.size(); i++) {
-    gpuIdxs.insert(gpuIdxByServerThread[i]);
-  }
-  return (int)gpuIdxs.size();
-#endif
+  return numEffectiveDevices;
 }
 int NNEvaluator::getNumServerThreads() const {
   return (int)gpuIdxByServerThread.size();
@@ -309,6 +289,18 @@ double NNEvaluator::getTrunkSpatialConvDepth() const {
   return NeuralNet::getModelDesc(loadedModel).getTrunkSpatialConvDepth();
 }
 
+int64_t NNEvaluator::getNumModelParameters() const {
+  return NeuralNet::getModelDesc(loadedModel).getNumParameters();
+}
+
+bool NNEvaluator::modelHasAnyTransformerBlocks() const {
+  return NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks();
+}
+
+bool NNEvaluator::modelHasAnyNestedBottleneckBlocks() const {
+  return NeuralNet::getModelDesc(loadedModel).hasAnyNestedBottleneckBlocks();
+}
+
 enabled_t NNEvaluator::getUsingFP16Mode() const {
   return usingFP16Mode;
 }
@@ -321,6 +313,12 @@ bool NNEvaluator::modelPreferPassAliveUnderSuicideRules() const {
   if(loadedModel == NULL)
     return false;
   return NeuralNet::getModelDesc(loadedModel).preferPassAliveUnderSuicideRules;
+}
+
+bool NNEvaluator::modelPreferExcludeTerritoryAdjacentToAtari() const {
+  if(loadedModel == NULL)
+    return false;
+  return NeuralNet::getModelDesc(loadedModel).preferExcludeTerritoryAdjacentToAtari;
 }
 
 bool NNEvaluator::getDoRandomize() const {
@@ -384,7 +382,7 @@ static void serveEvals(
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
-  NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel,serverThreadIdx);
+  NNServerBuf* buf = new NNServerBuf(*nnEval,loadedModel);
   Rand rand(randSeedThisThread);
 
   // Used to have a try catch around this but actually we're in big trouble if this raises an exception
@@ -399,9 +397,6 @@ void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
     throw StringError("NNEvaluator::setNumThreads called when threads were already running!");
   numThreads = (int)gpuIdxByServerThr.size();
   gpuIdxByServerThread = gpuIdxByServerThr;
-  // Reset any per-thread batch size overrides from construction time -- callers of setNumThreads
-  // reconfigure thread count/device assignment wholesale, so fall back to the uniform default.
-  maxBatchSizeByServerThread.assign(numThreads, maxBatchSize);
 }
 
 void NNEvaluator::spawnServerThreads() {
@@ -505,7 +500,7 @@ void NNEvaluator::fillRowBufs(
 }
 
 void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverThreadIdx) {
-  if(disableWarmup || gpuHandle == NULL || debugSkipNeuralNet || loadedModel == NULL)
+  if(gpuHandle == NULL || debugSkipNeuralNet || loadedModel == NULL)
     return;
   // Warmup currently only matters on CUDA, where cuDNN lazily compiles an SDPA execution plan per
   // batch size on first use. Other backends: nothing to warm up for now.
@@ -518,11 +513,10 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   if(!NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks())
     return;
 
-  const int threadMaxBatchSize = getMaxBatchSizeForServerThread(serverThreadIdx);
   if(logger != NULL) {
     logger->write(
       "Cuda backend thread " + Global::intToString(serverThreadIdx) +
-      ": warming up transformer graphs for batch sizes 1.." + Global::intToString(threadMaxBatchSize)
+      ": warming up transformer graphs for batch sizes 1.." + Global::intToString(maxBatchSize)
     );
   }
 
@@ -531,7 +525,10 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   Board board(nnXLen, nnYLen);
   //Featurize the way this model expects (a no-op under Tromp-Taylorish rules, but robust if the
   //warmup rules ever change).
-  BoardHistory history(board, P_BLACK, Rules::getTrompTaylorish(), 0, modelPreferPassAliveUnderSuicideRules());
+  BoardHistory history(
+    board, P_BLACK, Rules::getTrompTaylorish(), 0,
+    BoardHistoryModes(modelPreferPassAliveUnderSuicideRules(), modelPreferExcludeTerritoryAdjacentToAtari())
+  );
   MiscNNInputParams nnInputParams;
   SGFMetadata sgfMeta;
   const SGFMetadata* sgfMetaPtr = NULL;
@@ -544,14 +541,14 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   // SDPA) leniently, falling back to a custom kernel instead of failing hard. Restored when done.
   bool prevIsWarmup = NeuralNet::setIsWarmup(gpuHandle, true);
 
-  InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel, threadMaxBatchSize, nnXLen, nnYLen);
+  InputBuffers* inputBuffers = NeuralNet::createInputBuffers(loadedModel, maxBatchSize, nnXLen, nnYLen);
 
   // Reusable per-row input; identical for every row since it's an empty board.
   std::vector<std::unique_ptr<NNResultBuf>> ownedBufs;
   std::vector<NNResultBuf*> resultBufs;
-  ownedBufs.reserve(threadMaxBatchSize);
-  resultBufs.reserve(threadMaxBatchSize);
-  for(int i = 0; i < threadMaxBatchSize; i++) {
+  ownedBufs.reserve(maxBatchSize);
+  resultBufs.reserve(maxBatchSize);
+  for(int i = 0; i < maxBatchSize; i++) {
     ownedBufs.push_back(std::make_unique<NNResultBuf>());
     NNResultBuf* buf = ownedBufs.back().get();
     fillRowBufs(board, history, P_BLACK, sgfMetaPtr, nnInputParams, *buf);
@@ -560,7 +557,7 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
     resultBufs.push_back(buf);
   }
 
-  for(int batchSize = 1; batchSize <= threadMaxBatchSize; batchSize++) {
+  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
     std::vector<NNOutput*> outputs;
     outputs.reserve(batchSize);
     for(int row = 0; row < batchSize; row++) {
@@ -580,6 +577,192 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
 #endif
 }
 
+NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(
+  int numWarmups,
+  int numIterations,
+  const std::vector<int>& boardSizes
+) {
+  if(numIterations <= 0)
+    throw StringError("benchmarkPureForward: numIterations must be positive");
+  if(numWarmups < 0)
+    throw StringError("benchmarkPureForward: numWarmups must be nonnegative");
+  if(boardSizes.size() <= 0)
+    throw StringError("benchmarkPureForward: no board sizes specified");
+  if(debugSkipNeuralNet || loadedModel == NULL || computeContext == NULL)
+    throw StringError("benchmarkPureForward requires a real neural net model");
+  if(serverThreads.size() > 0)
+    throw StringError("benchmarkPureForward: server threads must not be spawned");
+  for(int bSize: boardSizes) {
+    if(bSize < 2 || bSize > nnXLen || bSize > nnYLen)
+      throw StringError("benchmarkPureForward: board size " + Global::intToString(bSize) + " out of range for NN buffer size");
+    if(requireExactNNLen && (bSize != nnXLen || bSize != nnYLen))
+      throw StringError("benchmarkPureForward: requireExactNNLen is set but board size " + Global::intToString(bSize) + " does not fill the NN buffer");
+  }
+
+  const int numThreadsToUse = (int)gpuIdxByServerThread.size();
+  const int batchSize = maxBatchSize;
+  testAssert(numThreadsToUse > 0);
+
+  // Left populated after the benchmark returns, deliberately: callers query
+  // isAnyThreadUsingFP16() afterward to report what precision was measured.
+  {
+    std::lock_guard<std::mutex> lock(bufferMutex);
+    if(serverThreadsIsUsingFP16.size() < (size_t)numThreadsToUse)
+      serverThreadsIsUsingFP16.resize(numThreadsToUse,0);
+  }
+
+  NNEvalBenchmarkResult result;
+  result.batchSize = batchSize;
+  result.numThreads = numThreadsToUse;
+  result.numIterations = numIterations;
+  result.perThreadIterationSeconds.resize(numThreadsToUse);
+  result.perThreadMedianSeconds.assign(numThreadsToUse, 0.0);
+  result.perThreadNNEvalsPerSec.assign(numThreadsToUse, 0.0);
+  result.sumMedianNNEvalsPerSec = 0.0;
+  result.actualWallSeconds = 0.0;
+  result.actualWallNNEvalsPerSec = 0.0;
+
+  std::atomic<int> readyCount(0);
+  std::atomic<bool> startFlag(false);
+  std::atomic<bool> anyError(false);
+  std::mutex errorMutex;
+  std::exception_ptr firstError;
+
+  // Per-thread end-of-timed-loop timestamps, so that wall time excludes compute handle
+  // teardown (freeing the model is slow and an early finisher's frees can also perturb
+  // other threads' tail iterations, but that perturbation is at least visible in samples).
+  std::vector<std::chrono::steady_clock::time_point> threadEndTimes(numThreadsToUse);
+
+  std::vector<std::thread> threads;
+  threads.reserve(numThreadsToUse);
+  for(int threadIdx = 0; threadIdx < numThreadsToUse; threadIdx++) {
+    threads.emplace_back([&,threadIdx]() {
+      try {
+        // Mirror serve(): one compute handle and one set of input buffers per server thread.
+        NNServerBuf serverBuf(*this, loadedModel);
+        ComputeHandle* gpuHandle = NeuralNet::createComputeHandle(
+          computeContext,
+          loadedModel,
+          logger,
+          maxBatchSize,
+          requireExactNNLen,
+          inputsUseNHWC,
+          gpuIdxByServerThread[threadIdx],
+          threadIdx
+        );
+        try {
+          maybeWarmupComputeHandle(gpuHandle, threadIdx);
+          {
+            std::lock_guard<std::mutex> lock(bufferMutex);
+            if((size_t)threadIdx < serverThreadsIsUsingFP16.size())
+              serverThreadsIsUsingFP16[threadIdx] = NeuralNet::isUsingFP16(gpuHandle) ? 1 : 0;
+          }
+
+          MiscNNInputParams nnInputParams;
+          SGFMetadata sgfMeta;
+          const SGFMetadata* sgfMetaPtr = NULL;
+          if(numInputMetaChannels > 0) {
+            sgfMeta = SGFMetadata::makeDummyWarmupProfile();
+            sgfMetaPtr = &sgfMeta;
+          }
+
+          // Empty boards, cycling through the requested sizes across the rows of the batch.
+          // Position content doesn't affect speed, but board size does when masking is active.
+          std::vector<std::unique_ptr<NNResultBuf>> ownedBufs;
+          std::vector<NNResultBuf*> resultBufs;
+          ownedBufs.reserve(batchSize);
+          resultBufs.reserve(batchSize);
+          for(int row = 0; row < batchSize; row++) {
+            int bSize = boardSizes[row % boardSizes.size()];
+            Board board(bSize, bSize);
+            BoardHistory history(
+              board, P_BLACK, Rules::getTrompTaylorish(), 0,
+              BoardHistoryModes(modelPreferPassAliveUnderSuicideRules(), modelPreferExcludeTerritoryAdjacentToAtari())
+            );
+            ownedBufs.push_back(std::make_unique<NNResultBuf>());
+            NNResultBuf* buf = ownedBufs.back().get();
+            fillRowBufs(board, history, P_BLACK, sgfMetaPtr, nnInputParams, *buf);
+            buf->symmetry = 0;
+            buf->policyOptimism = nnInputParams.policyOptimism;
+            resultBufs.push_back(buf);
+          }
+
+          std::vector<std::unique_ptr<NNOutput>> ownedOutputs;
+          std::vector<NNOutput*> outputs;
+          ownedOutputs.reserve(batchSize);
+          outputs.reserve(batchSize);
+          for(int row = 0; row < batchSize; row++) {
+            ownedOutputs.push_back(std::make_unique<NNOutput>());
+            NNOutput* out = ownedOutputs.back().get();
+            out->nnXLen = nnXLen;
+            out->nnYLen = nnYLen;
+            out->whiteOwnerMap = NULL;
+            outputs.push_back(out);
+          }
+
+          for(int i = 0; i < numWarmups; i++)
+            NeuralNet::getOutput(gpuHandle, serverBuf.inputBuffers, batchSize, resultBufs.data(), outputs);
+
+          readyCount.fetch_add(1);
+          while(!startFlag.load(std::memory_order_acquire))
+            std::this_thread::yield();
+
+          std::vector<double>& times = result.perThreadIterationSeconds[threadIdx];
+          times.reserve(numIterations);
+          for(int i = 0; i < numIterations; i++) {
+            std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+            NeuralNet::getOutput(gpuHandle, serverBuf.inputBuffers, batchSize, resultBufs.data(), outputs);
+            std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+            times.push_back(std::chrono::duration<double>(t1-t0).count());
+          }
+          threadEndTimes[threadIdx] = std::chrono::steady_clock::now();
+        }
+        catch(...) {
+          NeuralNet::freeComputeHandle(gpuHandle);
+          throw;
+        }
+        NeuralNet::freeComputeHandle(gpuHandle);
+      }
+      catch(...) {
+        anyError.store(true);
+        std::lock_guard<std::mutex> lock(errorMutex);
+        if(firstError == nullptr)
+          firstError = std::current_exception();
+      }
+    });
+  }
+
+  while(readyCount.load() < numThreadsToUse && !anyError.load())
+    std::this_thread::yield();
+  std::chrono::steady_clock::time_point wallStart = std::chrono::steady_clock::now();
+  startFlag.store(true, std::memory_order_release);
+  for(std::thread& t: threads)
+    t.join();
+
+  if(firstError != nullptr)
+    std::rethrow_exception(firstError);
+
+  std::chrono::steady_clock::time_point wallEnd = wallStart;
+  for(int threadIdx = 0; threadIdx < numThreadsToUse; threadIdx++)
+    wallEnd = std::max(wallEnd, threadEndTimes[threadIdx]);
+
+  for(int threadIdx = 0; threadIdx < numThreadsToUse; threadIdx++) {
+    std::vector<double> sorted = result.perThreadIterationSeconds[threadIdx];
+    std::sort(sorted.begin(), sorted.end());
+    double median =
+      sorted.size() % 2 == 1 ? sorted[sorted.size()/2] :
+      0.5 * (sorted[sorted.size()/2-1] + sorted[sorted.size()/2]);
+    result.perThreadMedianSeconds[threadIdx] = median;
+    result.perThreadNNEvalsPerSec[threadIdx] = median > 0.0 ? (double)batchSize / median : 0.0;
+    result.sumMedianNNEvalsPerSec += result.perThreadNNEvalsPerSec[threadIdx];
+  }
+  result.actualWallSeconds = std::chrono::duration<double>(wallEnd - wallStart).count();
+  if(result.actualWallSeconds > 0.0)
+    result.actualWallNNEvalsPerSec =
+      (double)numThreadsToUse * (double)batchSize * (double)numIterations / result.actualWallSeconds;
+  return result;
+}
+
 void NNEvaluator::serve(
   NNServerBuf& buf, Rand& rand,
   int gpuIdxForThisThread,
@@ -587,7 +770,6 @@ void NNEvaluator::serve(
 ) {
   int64_t numBatchesHandledThisThread = 0;
   int64_t numRowsHandledThisThread = 0;
-  const int threadMaxBatchSize = getMaxBatchSizeForServerThread(serverThreadIdx);
 
   ComputeHandle* gpuHandle = NULL;
   if(loadedModel != NULL) {
@@ -595,7 +777,7 @@ void NNEvaluator::serve(
       computeContext,
       loadedModel,
       logger,
-      threadMaxBatchSize,
+      maxBatchSize,
       requireExactNNLen,
       inputsUseNHWC,
       gpuIdxForThisThread,
@@ -616,14 +798,14 @@ void NNEvaluator::serve(
   }
 
   vector<NNResultBuf*> resultBufs;
-  resultBufs.reserve(threadMaxBatchSize);
+  resultBufs.reserve(maxBatchSize);
 
   vector<NNOutput*> outputBuf;
 
   unique_lock<std::mutex> lock(bufferMutex,std::defer_lock);
   while(true) {
     resultBufs.clear();
-    int desiredBatchSize = std::min(threadMaxBatchSize, currentBatchSize.load(std::memory_order_acquire));
+    int desiredBatchSize = std::min(maxBatchSize, maxRowsToSendPerBatch.load(std::memory_order_acquire));
     bool gotAnything = queryQueue.waitPopUpToN(resultBufs,desiredBatchSize);
     // Queue being closed is a signal that we're done.
     if(!gotAnything)

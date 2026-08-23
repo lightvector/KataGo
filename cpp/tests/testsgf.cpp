@@ -26,7 +26,7 @@ void Tests::runSgfTests() {
     Rules rules;
     Player pla;
     rules = sgf->getRulesOrFailAllowUnspecified(rules);
-    sgf->setupInitialBoardAndHist(rules,board,pla,hist,false);
+    sgf->setupInitialBoardAndHist(rules,board,pla,hist,BoardHistoryModes(false,false));
 
     out << "placements" << endl;
     for(int i = 0; i < sgf->placements.size(); i++) {
@@ -43,7 +43,7 @@ void Tests::runSgfTests() {
     out << "pla " << PlayerIO::playerToString(pla) << endl;
     hist.printDebugInfo(out,board);
 
-    sgf->setupBoardAndHistAssumeLegal(rules,board,pla,hist,sgf->moves.size(),false);
+    sgf->setupBoardAndHistAssumeLegal(rules,board,pla,hist,sgf->moves.size(),BoardHistoryModes(false,false));
     out << "Final board hist " << endl;
     out << "pla " << PlayerIO::playerToString(pla) << endl;
     hist.printDebugInfo(out,board);
@@ -59,7 +59,7 @@ void Tests::runSgfTests() {
       Rules rules2;
       Player pla2;
       rules2 = sgf2->getRulesOrFail();
-      sgf->setupBoardAndHistAssumeLegal(rules2,board2,pla2,hist2,sgf2->moves.size(),false);
+      sgf->setupBoardAndHistAssumeLegal(rules2,board2,pla2,hist2,sgf2->moves.size(),BoardHistoryModes(false,false));
       testAssert(rules2 == rules);
       testAssert(board2.pos_hash == board.pos_hash);
       testAssert(hist2.moveHistory.size() == hist.moveHistory.size());

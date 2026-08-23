@@ -15,11 +15,11 @@ HASH: 53602E4395E2B2B556BA45566880843F
 Win 98.52c
 Loss 1.48c
 NoResult 0.00c
-ScoreMean 26.05
-ScoreMeanSq 725.6
-Lead 28.38
+ScoreMean 26.04
+ScoreMeanSq 725.2
+Lead 28.37
 VarTimeLeft 0.0
-STWinlossError 0.03c
+STWinlossError 0.04c
 STScoreError 4.48
 OptimismUsed 0.00
 Policy
@@ -29,11 +29,11 @@ Pass   0
    0    6    -  994    0 
    0    -    -    -    0 
    0    0    0    0    0 
-  465   800   892   891   742 
-  472   327   877   800   883 
-  493   465   947   865   866 
-  620   490   427   942   914 
-  541   621   705   771   765 
+  464   800   892   891   742 
+  471   326   877   800   883 
+  492   464   947   865   866 
+  619   490   426   942   914 
+  541   620   704   771   765 
 
 
 

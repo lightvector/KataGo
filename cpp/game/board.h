@@ -294,7 +294,9 @@ struct Board
   //Calculates the area (including non pass alive stones, safe and unsafe big territories)
   //However, strips out any "seki" regions.
   //Seki regions are that are adjacent to any remaining empty regions.
-  //If keepTerritories, then keeps the surrounded territories in seki regions, only strips points for stones.
+  //If keepTerritories, then keeps the surrounded territories in seki regions, only strips points for stones,
+  //except that if excludeTerritoryAdjacentToAtari, empty points adjacent to a chain in atari
+  //(e.g. unfilled ko mouths in seki) are also stripped (rules version 3 scoring behavior).
   //If keepStones, then keeps the stones, only strips points for surrounded territories.
   //whiteMinusBlackIndependentLifeRegionCount - multiply this by two for a group tax.
   void calculateIndependentLifeArea(
@@ -302,6 +304,7 @@ struct Board
     int& whiteMinusBlackIndependentLifeRegionCount,
     bool keepTerritories,
     bool keepStones,
+    bool excludeTerritoryAdjacentToAtari,
     bool isMultiStoneSuicideLegal
   ) const;
 

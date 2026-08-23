@@ -1,20 +1,20 @@
 // ONNX Runtime backend for KataGo.
 //
-// Loads standard .bin.gz KataGo model files, converts the ModelDesc to a serialized ONNX
-// ModelProto via the same OnnxModelBuilder that the TensorRT backend uses, and hands the bytes
-// to an Ort::Session -- or loads a raw .onnx file directly. Inference runs through ONNX Runtime
-// with a configurable execution provider (CPU, OpenVINO, CUDA, TensorRT, MIGraphX, CoreML)
-// selected at runtime via the onnxProvider config key. OpenVINO is the primary target for Intel
-// GPUs/NPUs, with per-server-thread device assignment so a single process can mix e.g. NPU and
-// iGPU inference across threads.
+// Loads standard .bin.gz KataGo model files, converts the ModelDesc to a serialized
+// ONNX ModelProto via the same OnnxModelBuilder that the TensorRT backend uses, and
+// hands the bytes to an Ort::Session. Inference is run through ONNX Runtime with a
+// configurable execution provider, or EP (CPU, OpenVINO, CUDA, TensorRT, MIGraphX,
+// CoreML, DirectML), selected at runtime via the onnxProvider config key. Not every
+// provider is tested, and most need an ONNX Runtime package or build that includes
+// them - see Compiling.md "Execution providers".
 //
-// The IO tensor protocol for .bin.gz-sourced graphs is identical to the TensorRT ONNX-emitter
-// path (see onnxmodelbuilder.h): four NCHW/NC11 float32 inputs InputSpatial / InputGlobal /
-// [InputMeta] / InputMask and five outputs OutputPolicyPass / OutputPolicy / OutputValue /
-// OutputScoreValue / OutputOwnership, all raw logits. getOutput below reproduces the TensorRT
-// backend's post-processing exactly (per-row optimism blend, inverse-symmetry, version-branched
-// score-value decode) so both paths share one decode path. Raw .onnx files may use different
-// tensor names; the onnxInput*/onnxOutput* config keys override the defaults for that case.
+// The IO tensor protocol is identical to the TensorRT ONNX-emitter path (see
+// onnxmodelbuilder.h): four NCHW float32 inputs declared in the order InputSpatial,
+// InputGlobal, InputMeta, InputMask, and five NCHW float32 outputs OutputPolicyPass /
+// OutputPolicy / OutputValue / OutputScoreValue / OutputOwnership, all raw logits.
+// getOutput below reproduces the TensorRT backend's post-processing exactly (per-row
+// optimism blend, inverse-symmetry, version-branched score-value decode) so that the
+// same downstream decode path is shared.
 
 #ifdef USE_ONNX_BACKEND
 
@@ -23,224 +23,104 @@
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/modelversion.h"
 #include "../neuralnet/onnxmodelbuilder.h"
-#include "../dataio/homedata.h"
 
 #include <onnxruntime_cxx_api.h>
 #ifdef __APPLE__
 #include <coreml_provider_factory.h>
 #endif
+#ifdef _WIN32
+// dml_provider_factory.h is only shipped by DirectML-enabled ONNX Runtime packages such as
+// Microsoft.ML.OnnxRuntime.DirectML, not by the stock CPU prebuilt. Guard on availability so
+// that building against an ORT without it still compiles, with the DirectML provider then
+// failing at runtime with a clear error instead of at compile time.
+#if __has_include(<dml_provider_factory.h>)
+#include <dml_provider_factory.h>
+#define KATAGO_ONNX_HAS_DML_PROVIDER_FACTORY 1
+#endif
+#endif
 
-#include <fstream>
 #include <unordered_map>
+#include <fstream>
+#include <cstdlib>
 #include <mutex>
-#include <atomic>
+#include <set>
 
 using namespace std;
 
 //--------------------------------------------------------------
 
-// Auto-detect modelVersion from introspected channel counts, for raw .onnx files where the
-// model version is not encoded in the file. Standard .bin.gz KataGo models do NOT need this --
-// version is read from the file itself.
-//
-// Detection is based on channel-count heuristics assuming V7 inputs (22 spatial + 19 global
-// channels) and distinguishing versions by the number of score-value and policy channels:
-//   - 4 score-value channels                    -> version 8
-//   - 6 score-value channels, 1 policy channel  -> version 10
-//   - 6 score-value channels, 2 policy channels -> version 15
-// For any other channel-count combination (including non-V7 inputs), falls back to the newest
-// implemented model version rather than erroring, since raw .onnx files are typically hand
-// exported for a specific known model. Override via 'onnxModelVersion=<N>' in the config for any
-// case where the fallback guesses wrong.
-static int detectModelVersion(
-  int numInputChannels, int numInputGlobalChannels,
-  int numPolicyChannels, int numScoreValueChannels,
-  int configModelVersion
-) {
-  if(configModelVersion >= 0)
-    return configModelVersion;
+// ONNX execution providers this backend knows how to wire up. Being listed here means the
+// wiring exists, not that the provider is tested - see Compiling.md "Execution providers".
+// Exposing a new provider takes an entry here plus an AppendExecutionProvider_* branch in
+// ComputeHandle.
+static const char* const kKnownProviders[] = {
+  "cpu", "openvino", "cuda", "tensorrt", "migraphx", "coreml", "directml",
+};
 
-  if(numInputChannels == NNInputs::NUM_FEATURES_SPATIAL_V7 &&
-     numInputGlobalChannels == NNInputs::NUM_FEATURES_GLOBAL_V7) {
-    if(numScoreValueChannels == 6 && numPolicyChannels == 2)
-      return 15;
-    if(numScoreValueChannels == 6 && numPolicyChannels == 1)
-      return 10;
-    if(numScoreValueChannels == 4)
-      return 8;
-  }
-  return NNModelVersion::defaultModelVersion;
-}
+//--------------------------------------------------------------
 
 struct LoadedModel {
   ModelDesc modelDesc;
-  bool isRawOnnx;
-  string rawOnnxBytes;
+  string modelFileName;
 
-  // One-time scale8 transform (see maybeApplyScale8), only meaningful for the .bin.gz path. All
-  // server threads share this LoadedModel, so whichever ComputeHandle is created first decides
-  // for everyone.
-  mutable std::atomic<bool> scale8Resolved;
+  // True if the model came from a .onnx file rather than a .bin.gz. The graph is then taken verbatim
+  // from externalOnnx.serializedModel instead of being emitted from weights.
+  bool isExternalOnnx;
+  OnnxModelBuilder::LoadResult externalOnnx;
+
+  // One-time scale8 transform (see maybeApplyScale8), called from createComputeContext.
+  //
+  // It MUST run inside createComputeContext rather than lazily at compute-handle creation:
+  // applyScale8ToReduceActivations() multiplies postProcessParams.outputScaleMultiplier by 8
+  // to compensate for the 1/8-scaled graph outputs, and NNEvaluator snapshots
+  // postProcessParams immediately after createComputeContext returns (nneval.cpp). A later
+  // application would leave NNEvaluator decoding 1/8-scale outputs with the stale
+  // multiplier. Running here also happens-before the server threads spawn and read
+  // modelDesc in OnnxModelBuilder::build(). The mutex only keeps the transform idempotent
+  // if multiple contexts are ever created on one model.
+  mutable bool scale8Resolved;
+  // Whether the transform took effect; it is skipped for models where the rescaling would be
+  // unsound. Recorded in the emitted graph's metadata.
+  mutable bool scale8Applied;
   mutable std::mutex scale8Mutex;
 
-  LoadedModel(const string& fileName, const string& expectedSha256, bool rawOnnx)
-    : isRawOnnx(rawOnnx)
+  LoadedModel(const string& fileName, const string& expectedSha256)
+    : modelFileName(fileName), isExternalOnnx(false)
   {
-    scale8Resolved.store(false);
-
-    if(!rawOnnx) {
+    if(OnnxModelBuilder::isOnnxFileName(fileName)) {
+      isExternalOnnx = true;
+      // loadModelFile has no logger; createComputeHandle logs the graph's build settings instead.
+      externalOnnx = OnnxModelBuilder::load(fileName, expectedSha256, modelDesc, NULL);
+    }
+    else {
       ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-      return;
     }
-
-    // Read raw .onnx file bytes.
-    {
-      std::ifstream in(fileName, std::ios::binary | std::ios::ate);
-      if(!in.good())
-        throw StringError("ONNX backend: could not open raw ONNX file: " + fileName);
-      std::streamsize size = in.tellg();
-      if(size < 0)
-        throw StringError("ONNX backend: could not determine size of ONNX file: " + fileName);
-      in.seekg(0, std::ios::beg);
-      rawOnnxBytes.resize(size);
-      if(!in.read(rawOnnxBytes.data(), size))
-        throw StringError("ONNX backend: failed to read raw ONNX file: " + fileName);
-    }
-
-    // Create a temporary CPU session to introspect shapes.
-    Ort::Env tmpEnv(ORT_LOGGING_LEVEL_WARNING, "KataGoOnnxIntrospect");
-    Ort::SessionOptions tmpOpts;
-    tmpOpts.SetIntraOpNumThreads(1);
-    Ort::Session tmpSession(tmpEnv, rawOnnxBytes.data(), rawOnnxBytes.size(), tmpOpts);
-
-    Ort::AllocatorWithDefaultOptions allocator;
-
-    // Introspect inputs by name (case-insensitive substring match against the names
-    // OnnxModelBuilder::build() emits: InputSpatial/InputGlobal/InputMeta/InputMask), falling
-    // back to a shape-based heuristic for differently-named graphs.
-    int numInputChannels = 0;
-    int numInputGlobalChannels = 0;
-    int numInputMetaChannels = 0;
-    size_t numInputs = tmpSession.GetInputCount();
-    for(size_t i = 0; i < numInputs; i++) {
-      Ort::AllocatedStringPtr namePtr = tmpSession.GetInputNameAllocated(i, allocator);
-      string name = namePtr.get();
-      string lowerName = Global::toLower(name);
-      auto typeInfo = tmpSession.GetInputTypeInfo(i);
-      auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
-      auto shape = tensorInfo.GetShape();
-      if(lowerName.find("mask") != string::npos) {
-        // The on-board mask is its own single-channel input, not a feature-channel input --
-        // explicitly ignored here so it can't be mistaken for spatial/global/meta below.
-      } else if(lowerName.find("spatial") != string::npos) {
-        if(shape.size() >= 2)
-          numInputChannels = (int)shape[1];
-      } else if(lowerName.find("global") != string::npos) {
-        if(shape.size() >= 2)
-          numInputGlobalChannels = (int)shape[1];
-      } else if(lowerName.find("meta") != string::npos) {
-        if(shape.size() >= 2)
-          numInputMetaChannels = (int)shape[1];
-      } else if(shape.size() == 4) {
-        // Shape-based fallback: [N,C,H,W] -- spatial input.
-        numInputChannels = (int)shape[1];
-      } else if(shape.size() == 2 || shape.size() == 4) {
-        // Shape-based fallback: [N,C] or [N,C,1,1] -- first is global, second (if any) is meta.
-        if(numInputGlobalChannels == 0)
-          numInputGlobalChannels = (int)shape[1];
-        else
-          numInputMetaChannels = (int)shape[1];
-      } else {
-        throw StringError(
-          "ONNX backend: unrecognized input tensor '" + name +
-          "' with " + Global::intToString((int)shape.size()) + "D shape -- "
-          "expected tensors named/shaped for spatial, global, meta, or mask."
-        );
-      }
-    }
-
-    // Introspect outputs (case-insensitive; "scorevalue" is checked before "value" since
-    // "OutputScoreValue" also contains "value").
-    int numPolicyChannels = 0;
-    int numValueChannels = 0;
-    int numScoreValueChannels = 0;
-    int numOwnershipChannels = 0;
-    size_t numOutputs = tmpSession.GetOutputCount();
-    for(size_t i = 0; i < numOutputs; i++) {
-      Ort::AllocatedStringPtr namePtr = tmpSession.GetOutputNameAllocated(i, allocator);
-      string name = namePtr.get();
-      string lowerName = Global::toLower(name);
-      auto typeInfo = tmpSession.GetOutputTypeInfo(i);
-      auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
-      auto shape = tensorInfo.GetShape();
-
-      if(lowerName.find("policypass") != string::npos) {
-        // OutputPolicyPass: [N,C,1,1] -- already counted via OutputPolicy below; skip.
-      } else if(lowerName.find("policy") != string::npos) {
-        if(shape.size() >= 2)
-          numPolicyChannels = (int)shape[1];
-      } else if(lowerName.find("scorevalue") != string::npos || lowerName.find("miscvalue") != string::npos) {
-        if(shape.size() >= 2)
-          numScoreValueChannels = (int)shape[1];
-      } else if(lowerName.find("value") != string::npos) {
-        if(shape.size() >= 2)
-          numValueChannels = (int)shape[1];
-      } else if(lowerName.find("ownership") != string::npos) {
-        if(shape.size() >= 2)
-          numOwnershipChannels = (int)shape[1];
-      }
-    }
-
-    if(numPolicyChannels == 0 || numValueChannels == 0 ||
-       numScoreValueChannels == 0 || numOwnershipChannels == 0) {
-      throw StringError(
-        "ONNX backend: failed to introspect required outputs from raw .onnx file '" +
-        fileName + "'. Found policy=" + Global::intToString(numPolicyChannels) +
-        ", value=" + Global::intToString(numValueChannels) +
-        ", scoreValue=" + Global::intToString(numScoreValueChannels) +
-        ", ownership=" + Global::intToString(numOwnershipChannels) +
-        ". Expected output tensor names containing 'policy', 'value', 'scorevalue'/'miscvalue', "
-        "'ownership' (case-insensitive substring match), or override names via the onnxOutput* "
-        "config keys. Alternatively use a non-raw .bin.gz KataGo model."
-      );
-    }
-
-    modelDesc.numInputChannels = numInputChannels;
-    modelDesc.numInputGlobalChannels = numInputGlobalChannels;
-    modelDesc.numInputMetaChannels = numInputMetaChannels;
-    modelDesc.numPolicyChannels = numPolicyChannels;
-    modelDesc.numValueChannels = numValueChannels;
-    modelDesc.numScoreValueChannels = numScoreValueChannels;
-    modelDesc.numOwnershipChannels = numOwnershipChannels;
-
-    // Extract filename stem as model name.
-    {
-      size_t lastSlash = fileName.find_last_of("/\\");
-      string basename = (lastSlash != string::npos) ? fileName.substr(lastSlash + 1) : fileName;
-      size_t dotPos = basename.find('.');
-      modelDesc.name = (dotPos != string::npos) ? basename.substr(0, dotPos) : basename;
-    }
-
-    // Model version: auto-detect here; a config override (onnxModelVersion) is applied later in
-    // createComputeContext, once cfg is available.
-    modelDesc.modelVersion = detectModelVersion(
-      numInputChannels, numInputGlobalChannels, numPolicyChannels, numScoreValueChannels, -1
-    );
-
-    scale8Resolved.store(true);  // scale8 only applies to modelDesc weights, which raw .onnx has none of.
+    scale8Resolved = false;
+    scale8Applied = isExternalOnnx && externalOnnx.buildParams.scale8Applied;
   }
 
   // Apply the scale8 FP16-range workaround exactly once per model, unless skipped via
-  // onnxSkipScale8. Called from createComputeContext -- see the call site for why it must run
-  // there and not later. No-op for the raw .onnx path (scale8Resolved is already true from the
-  // constructor above).
-  void maybeApplyScale8(bool skip) const {
+  // onnxSkipScale8. See the comment on scale8Resolved for why this must run at
+  // createComputeContext time.
+  void maybeApplyScale8(bool skip, bool skipWasExplicit, Logger* logger) const {
     std::lock_guard<std::mutex> lock(scale8Mutex);
-    if(!scale8Resolved.load()) {
-      if(!skip)
-        const_cast<LoadedModel*>(this)->modelDesc.applyScale8ToReduceActivations();
-      scale8Resolved.store(true);
+    if(scale8Resolved)
+      return;
+    scale8Resolved = true;
+    // A loaded graph's weights are already whatever they are, and the postProcessParams read out of
+    // the same file already match them. Applying the transform now would rescale
+    // outputScaleMultiplier alone, decoding every output 8x too large.
+    if(isExternalOnnx) {
+      if(logger != NULL && skipWasExplicit && skip == externalOnnx.buildParams.scale8Applied)
+        logger->write(
+          string("ONNX backend: WARNING - config option onnxSkipScale8 = ") + Global::boolToString(skip) +
+          " has no effect on a model loaded from a .onnx file. This graph was emitted with "
+          "scale8Applied=" + Global::boolToString(externalOnnx.buildParams.scale8Applied)
+        );
+      return;
     }
+    if(!skip)
+      scale8Applied = const_cast<LoadedModel*>(this)->modelDesc.applyScale8ToReduceActivations();
   }
 
   LoadedModel() = delete;
@@ -249,8 +129,7 @@ struct LoadedModel {
 };
 
 LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
-  bool isRawOnnx = Global::isSuffix(file, ".onnx");
-  return new LoadedModel(file, expectedSha256, isRawOnnx);
+  return new LoadedModel(file, expectedSha256);
 }
 
 void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
@@ -268,87 +147,52 @@ struct ComputeContext {
   int nnXLen;
   int nnYLen;
   string providerName;
-
-  // OpenVINO EP options. Default device type is NPU (this fork targets Intel NPU first;
-  // upstream KataGo PR #1222 defaults to GPU -- override with onnxOpenVINODeviceType if desired).
   string openvinoDeviceType;
-  string openvinoDeviceId;  // legacy explicit device_id override; prefer device_type suffixes (e.g. "GPU.1") if unset
-  bool openvinoEnableNPUFastCompile;
   string openvinoCacheDir;
-  string openvinoPrecision;      // FP16 / FP32 / ACCURACY
-  string openvinoNumStreams;     // 1-8
-  string openvinoNumOfThreads;   // positive int (infer requests per session)
-  string openvinoModelPriority;  // LOW / MEDIUM / HIGH / DEFAULT
-  string openvinoLoadConfig;     // JSON for the ORT EP "load_config" provider option (arbitrary OV device config)
-  bool openvinoNPUExactBoard;    // NPU-only: build the mask-free exact-board graph (requires fixed-size workloads)
+  // Optional OpenVINO provider options (empty = not passed to ORT)
+  string openvinoPrecision;   // FP16 / FP32 / ACCURACY (GPU only; the NPU is FP16-only)
+  string openvinoNumStreams;  // 1-8
+  bool transformerNHWC;         // run the trunk block stack channel-last (NHWC)
+  bool skipScale8;              // skip the scale8 FP16-range workaround (see createComputeContext)
+  // Pad every inference up to the max batch size so the graph only ever sees one input shape.
+  // Auto resolves per handle in shouldPadBatch(), since it depends on the provider and, for
+  // OpenVINO, on that thread's device.
+  enabled_t padBatchMode;
 
-  bool transformerNHWC;  // run the trunk block stack channel-last (NHWC) for transformer models
-  bool skipScale8;       // skip the scale8 FP16-range workaround (see createComputeContext)
-
-  // Per-thread device type (index = serverThreadIdx). Filled with openvinoDeviceType by default;
-  // individual entries are replaced by onnxOpenVINODeviceTypeThread<N>. Allows mixing e.g. NPU
-  // and iGPU inference across server threads within the same process.
+  // Per-thread device type (index = serverThreadIdx). Filled with openvinoDeviceType
+  // by default, and individual entries are replaced by onnxOpenVINODeviceTypeThread<N>.
   std::vector<std::string> perThreadDeviceType;
-
-  // Per-device-type EP option overrides.
-  // Outer key = short device name ("NPU", "GPU", "CPU"). Inner key = ORT EP option key.
-  std::unordered_map<std::string, std::unordered_map<std::string, std::string>> deviceConfigOverrides;
-
-  // Configurable input/output node names. Defaults match the node names emitted by the shared
-  // OnnxModelBuilder::build() (see onnxmodelbuilder.cpp), also consumed by the TensorRT backend.
-  // Raw .onnx models with different tensor names can override these via the onnxInput*/onnxOutput*
-  // config keys.
-  string inputMaskName;
-  string inputSpatialName;
-  string inputGlobalName;
-  string inputMetaName;
-  string outputPolicyPassName;
-  string outputPolicyName;
-  string outputValueName;
-  string outputMiscvalueName;  // aka OutputScoreValue
-  string outputOwnershipName;
-
-  // Config override for model version, for raw .onnx files where detectModelVersion guesses
-  // wrong (-1 means auto-detect).
-  int configModelVersion;
 
   ComputeContext(int xLen, int yLen)
     : env(ORT_LOGGING_LEVEL_WARNING, "KataGoOnnx"),
       nnXLen(xLen),
       nnYLen(yLen),
       providerName("cpu"),
-      openvinoDeviceType("NPU"),
-      openvinoDeviceId(""),
-      openvinoEnableNPUFastCompile(false),
+      openvinoDeviceType("GPU"),
       openvinoCacheDir(""),
       openvinoPrecision(""),
       openvinoNumStreams(""),
-      openvinoNumOfThreads(""),
-      openvinoModelPriority(""),
-      openvinoLoadConfig(""),
-      openvinoNPUExactBoard(false),
       transformerNHWC(true),
       skipScale8(false),
-      inputMaskName("InputMask"),
-      inputSpatialName("InputSpatial"),
-      inputGlobalName("InputGlobal"),
-      inputMetaName("InputMeta"),
-      outputPolicyPassName("OutputPolicyPass"),
-      outputPolicyName("OutputPolicy"),
-      outputValueName("OutputValue"),
-      outputMiscvalueName("OutputScoreValue"),
-      outputOwnershipName("OutputOwnership"),
-      configModelVersion(-1)
+      padBatchMode(enabled_t::Auto)
   {}
 };
 
-// Probe whether the OpenVINO EP can actually use a given device_type.
+static std::vector<std::string> parseDeviceNames(const std::string& deviceType);
+
+//--------------------------------------------------------------
+// Helper: is an OpenVINO device_type string usable on this machine?
 //
-// AppendExecutionProvider_OpenVINO_V2 resolves and validates device_type immediately, throwing
-// "[OpenVINO] Device X is not available" for a device this machine/package cannot provide, so this
-// is a real availability signal and needs no model or session. (ONNX Runtime's own device
-// enumeration is NOT usable for this: on a provider-bridge OpenVINO build it reports CPU only,
-// even on machines that do have an NPU and an iGPU.)
+// AppendExecutionProvider_OpenVINO_V2 validates device_type as soon as it is called and throws
+// "[OpenVINO] Device X is not available" for anything the installed plugins cannot provide, so a
+// throwaway SessionOptions is enough to probe. No model, session or inference is involved and the
+// call costs a plugin lookup, which is why this can run unconditionally at context creation.
+//
+// ONNX Runtime's own device enumeration (Ort::Env::GetEpDevices, OrtHardwareDeviceType) is
+// deliberately not used here: on a provider-bridge OpenVINO build it reports the CPU only, even on
+// a machine that does have an NPU and an integrated GPU, so it would steer exactly the setups this
+// is meant to help onto the slowest device available.
+//--------------------------------------------------------------
 static bool openvinoDeviceAvailable(const string& deviceType) {
   try {
     Ort::SessionOptions probeOpts;
@@ -373,47 +217,39 @@ ComputeContext* NeuralNet::createComputeContext(
   ConfigParser& cfg
 ) {
   (void)gpuIdxs;
-  // The emitted ONNX graph is fp32; inference precision is chosen internally by the execution
-  // provider (e.g. OpenVINO downcasts to FP16 per onnxOpenVINOPrecision). KataGo's global useFP16
-  // flag therefore cannot be honored here -- fail loudly instead of silently ignoring a request.
+  (void)homeDataDirOverride;
+  // The emitted ONNX graph is fp32, and inference precision is chosen internally by the
+  // execution provider (e.g. OpenVINO downcasts to FP16 per onnxOpenVINOPrecision). KataGo's
+  // global useFP16 flag therefore cannot force FP16 here, so fail loudly instead of silently
+  // ignoring a request. useFP16 = false is honored, though: for the OpenVINO provider it
+  // forces precision = FP32 below.
   if(useFP16Mode == enabled_t::True)
     throw StringError(
-      "ONNX backend: the global useFP16 flag is not supported and cannot be honored. "
+      "ONNX backend: useFP16 = true is not supported and cannot be honored. "
       "Precision is controlled by the execution provider; for the OpenVINO provider set "
-      "onnxOpenVINOPrecision (e.g. FP16/FP32/ACCURACY). Leave useFP16 unset or set it to false/auto.");
-
-  string providerName = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
-  providerName = Global::toLower(providerName);
-  if(providerName != "cpu" && providerName != "openvino" && providerName != "cuda" &&
-     providerName != "tensorrt" && providerName != "migraphx" && providerName != "coreml")
-    throw StringError(
-      "ONNX backend: unknown onnxProvider '" + providerName +
-      "', expected one of 'cpu','openvino','cuda','tensorrt','migraphx','coreml'");
-
-  if(logger != NULL)
-    logger->write("ONNX backend: creating compute context for " +
-                   Global::intToString(nnXLen) + "x" + Global::intToString(nnYLen) +
-                   " with provider '" + providerName + "'");
+      "onnxOpenVINOPrecision (e.g. FP16/FP32/ACCURACY). Leave useFP16 unset/auto, or set it "
+      "to false to force full FP32.");
 
   ComputeContext* ctx = new ComputeContext(nnXLen, nnYLen);
-  ctx->providerName = providerName;
+
+  // Provider selection. Defaults to CPU. OpenVINO is the EP used for Intel Arc GPUs.
+  string providerName = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
+  ctx->providerName = Global::toLower(providerName);
 
   // OpenVINO EP options.
-  // When onnxOpenVINODeviceType is left unset we try NPU first and fall back to GPU then CPU at
-  // session-creation time (see ComputeHandle). We deliberately do NOT try to enumerate hardware up
-  // front: ONNX Runtime's device enumeration only reports devices for EPs it has registered, and
-  // on a provider-bridge OpenVINO build it reports CPU only even on machines that do have an NPU
-  // and an iGPU, so trusting it would silently downgrade exactly the setups this fork targets.
-  // Letting a real session creation succeed or fail is the only reliable signal.
+  // Device selection. An explicit onnxOpenVINODeviceType is always honored as-is, including when
+  // the device turns out not to exist: silently running somewhere other than where the user asked
+  // would be worse than the EP's "Device X is not available" error.
+  //
+  // When the key is absent, probe for a device instead of assuming one. NPU first, then GPU: on the
+  // Intel parts this backend targets the NPU is both the faster and the more power-efficient of the
+  // two for KataGo's trunk, and a machine that has one almost always wants it. CPU is not a
+  // candidate, since the OpenVINO provider rejects CPU-only device strings below.
   if(cfg.contains("onnxOpenVINODeviceType")) {
     ctx->openvinoDeviceType = cfg.getString("onnxOpenVINODeviceType");
   }
-  else if(providerName == "openvino") {
-    // No device configured: pick the first one this machine actually provides, preferring the NPU
-    // (this fork's target), then a GPU, then CPU. This makes a GPU-only machine work out of the box
-    // instead of failing with "Device NPU is not available". If none of them probe as available we
-    // keep the NPU default so the real error surfaces at session creation rather than being masked.
-    static const char* candidates[] = {"NPU", "GPU", "CPU"};
+  else if(ctx->providerName == "openvino") {
+    static const char* const candidates[] = {"NPU", "GPU"};
     for(const char* cand : candidates) {
       if(openvinoDeviceAvailable(cand)) {
         ctx->openvinoDeviceType = cand;
@@ -422,34 +258,26 @@ ComputeContext* NeuralNet::createComputeContext(
     }
     if(logger != NULL)
       logger->write(
-        string("ONNX backend: onnxOpenVINODeviceType not set, auto-selected '") +
-        ctx->openvinoDeviceType + "'");
+        string("ONNX backend: onnxOpenVINODeviceType not set, auto-selected '") + ctx->openvinoDeviceType + "'");
   }
-  if(cfg.contains("onnxOpenVINODeviceId")) ctx->openvinoDeviceId = cfg.getString("onnxOpenVINODeviceId");
-  if(cfg.contains("onnxOpenVINOEnableNPUFastCompile"))
-    ctx->openvinoEnableNPUFastCompile = cfg.getBool("onnxOpenVINOEnableNPUFastCompile");
-  // OpenVINO blob cache. Defaults to <homeDataDir>/openvino_cache so caching works out of the box;
-  // onnxOpenVINOCacheDir overrides the location explicitly.
-  if(cfg.contains("onnxOpenVINOCacheDir"))
-    ctx->openvinoCacheDir = cfg.getString("onnxOpenVINOCacheDir");
-  else if(providerName == "openvino")
-    ctx->openvinoCacheDir = HomeData::getHomeDataDir(true, homeDataDirOverride) + "/openvino_cache";
-  if(cfg.contains("onnxOpenVINOPrecision")) ctx->openvinoPrecision = cfg.getString("onnxOpenVINOPrecision");
-  if(cfg.contains("onnxOpenVINONumStreams")) ctx->openvinoNumStreams = cfg.getString("onnxOpenVINONumStreams");
-  if(cfg.contains("onnxOpenVINONumOfThreads")) ctx->openvinoNumOfThreads = cfg.getString("onnxOpenVINONumOfThreads");
-  if(cfg.contains("onnxOpenVINOModelPriority")) ctx->openvinoModelPriority = cfg.getString("onnxOpenVINOModelPriority");
-  // Arbitrary OpenVINO device config as JSON, passed through to the ORT EP "load_config" provider
-  // option (e.g. {"NPU":{"NPU_COMPILATION_MODE_PARAMS":"optimization-level=2 performance-hint-override=latency"}}).
-  if(cfg.contains("onnxOpenVINOLoadConfig")) ctx->openvinoLoadConfig = cfg.getString("onnxOpenVINOLoadConfig");
-  // NPU-friendly exact-board build: when the session targets an NPU device, emit the mask-free
-  // exact-board graph (drops InputMask and all attention mask-bias adds, ~6% faster measured on
-  // b11-class transformer models). Only valid when every query uses the exact nnXLen x nnYLen
-  // board size (e.g. GTP play on a fixed board size); do NOT enable for mixed-size analysis.
-  ctx->openvinoNPUExactBoard = cfg.contains("onnxOpenVINONPUExactBoard") ? cfg.getBool("onnxOpenVINONPUExactBoard") : false;
+  ctx->openvinoCacheDir = cfg.contains("onnxOpenVINOCacheDir") ? cfg.getString("onnxOpenVINOCacheDir") : "";
+  ctx->openvinoPrecision = cfg.contains("onnxOpenVINOPrecision") ? cfg.getString("onnxOpenVINOPrecision") : "";
+  ctx->openvinoNumStreams = cfg.contains("onnxOpenVINONumStreams") ? cfg.getString("onnxOpenVINONumStreams") : "";
+  ctx->padBatchMode = cfg.contains("onnxPadBatch") ? cfg.getEnabled("onnxPadBatch") : enabled_t::Auto;
+
+  // useFP16 = false is an explicit request for full FP32 on every other backend. The only
+  // provider here that downcasts an fp32 graph by default is OpenVINO (GPU/NPU run FP16
+  // unless told otherwise), so honor the request by forcing its precision option to FP32
+  // when the user has not explicitly set onnxOpenVINOPrecision themselves.
+  if(useFP16Mode == enabled_t::False && ctx->providerName == "openvino" && ctx->openvinoPrecision.empty()) {
+    ctx->openvinoPrecision = "FP32";
+    if(logger != NULL)
+      logger->write("ONNX backend: useFP16 = false, forcing OpenVINO precision = FP32");
+  }
 
   // --- Per-thread device type assignment ---
-  // Pre-parse onnxOpenVINODeviceTypeThread<N> keys so ComputeHandle can look up the device type
-  // for each server thread without reaching back into ConfigParser.
+  // Pre-parse onnxOpenVINODeviceTypeThread<N> keys so ComputeHandle can look up
+  // the device type for each server thread without reaching back into ConfigParser.
   {
     int numThreads = 1;
     if(cfg.contains("numNNServerThreadsPerModel"))
@@ -462,98 +290,108 @@ ComputeContext* NeuralNet::createComputeContext(
     }
   }
 
-  // --- Per-device-type EP option overrides ---
-  // onnxOpenVINODeviceConfig_<Device>_<OptionSuffix> = value
-  // e.g. onnxOpenVINODeviceConfig_NPU_NumStreams = 4
-  //         maps to deviceConfigOverrides["NPU"]["num_streams"] = "4"
-  {
-    static const char* knownDevices[] = {"NPU", "GPU", "CPU"};
-    struct OptMapping { const char* cfgSuffix; const char* ortKey; };
-    static const OptMapping epOptMappings[] = {
-      {"NumStreams",    "num_streams"},
-      {"Precision",     "precision"},
-      {"NumOfThreads",  "num_of_threads"},
-      {"ModelPriority", "model_priority"},
-      {"CacheDir",      "cache_dir"},
-    };
-    for(const char* dev : knownDevices) {
-      string devPrefix = string("onnxOpenVINODeviceConfig_") + dev + "_";
-      for(const auto& m : epOptMappings) {
-        string key = devPrefix + m.cfgSuffix;
-        if(cfg.contains(key))
-          ctx->deviceConfigOverrides[dev][m.ortKey] = cfg.getString(key);
-      }
-    }
-  }
-
-  // Trunk layout for transformer models, defaulted per device.
+  // Trunk layout for transformer models, ignored entirely for models without transformer blocks.
   //
-  // NHWC matches the TensorRT backend's trtTransformerNHWC default and is faster on the OpenVINO
-  // GPU plugin, but it is markedly SLOWER on the OpenVINO NPU plugin, which prefers the NCHW
-  // trunk. Measured on b11c768h12nbt3 at 19x19, single server thread:
-  //   NPU: NHWC 3.8 visits/s vs NCHW 10.2 visits/s   (NCHW ~2.7x faster)
-  //   GPU: NHWC 14.3 nnEvals/s vs NCHW 11.2 nnEvals/s (NHWC ~1.3x faster)
-  // So default to NCHW whenever any OpenVINO server thread targets an NPU (the NPU's penalty for
-  // the wrong layout is far larger than the GPU's, which also makes NCHW the better compromise for
-  // hybrid NPU+GPU setups, since this setting is context-wide), and NHWC otherwise.
-  // Ignored entirely for models without transformer blocks.
-  {
-    // A device string counts as "may run on an NPU" if it names one, or if it is a bare AUTO,
-    // where OpenVINO picks the device at runtime and could land on the NPU. Guessing NCHW for a
-    // bare AUTO costs a GPU ~1.3x if wrong but saves an NPU ~2.7x if right, so it is the lower
-    // expected loss.
-    auto mayBeNPU = [](const string& dev) {
-      string upper = Global::toUpper(Global::trim(dev));
-      if(upper.find("NPU") != string::npos)
-        return true;
-      return upper == "AUTO";
-    };
-    bool anyNPU = false;
-    if(ctx->providerName == "openvino") {
-      if(mayBeNPU(ctx->openvinoDeviceType))
-        anyNPU = true;
-      for(const string& dev : ctx->perThreadDeviceType) {
-        if(mayBeNPU(dev))
-          anyNPU = true;
-      }
+  // There is no layout that is right for both OpenVINO plugins. Measured on one transformer model,
+  // b11c768h12nbt3tflrs at 8 search threads: the GPU plugin runs NHWC about 1.5x faster than NCHW,
+  // while the NPU plugin runs NCHW about 1.75x faster than NHWC. So pick per device rather than by
+  // a fixed default, and default to NCHW as soon as any server thread might land on an NPU.
+  //
+  // "Might" is the operative word for composite device strings. As with padsBatchForDevice, a
+  // string like AUTO:GPU,NPU leaves the choice to OpenVINO at runtime and it is not reported back
+  // through ORT's API, so anything mentioning NPU counts. A bare AUTO counts too: it can resolve to
+  // an NPU, and the asymmetry above makes guessing NCHW the better bet either way, costing a GPU
+  // 1.5x when wrong but saving an NPU 1.75x when right.
+  //
+  // Non-OpenVINO providers keep NHWC, matching the TensorRT backend's trtTransformerNHWC default.
+  auto mayBeNPU = [](const string& dev) {
+    string upper = Global::toUpper(Global::trim(dev));
+    if(upper.find("NPU") != string::npos)
+      return true;
+    return upper == "AUTO";
+  };
+  bool anyMayBeNPU = false;
+  if(ctx->providerName == "openvino") {
+    for(const string& dev : ctx->perThreadDeviceType) {
+      if(mayBeNPU(dev))
+        anyMayBeNPU = true;
     }
-    ctx->transformerNHWC =
-      cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : !anyNPU;
   }
+  ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : !anyMayBeNPU;
+  if(loadedModel->isExternalOnnx && logger != NULL && cfg.contains("onnxTransformerNHWC") &&
+     ctx->transformerNHWC != loadedModel->externalOnnx.buildParams.transformerNHWC &&
+     loadedModel->modelDesc.hasAnyTransformerBlocks())
+    logger->write(
+      "ONNX backend: WARNING - onnxTransformerNHWC = " + Global::boolToString(ctx->transformerNHWC) +
+      " has no effect on a model loaded from a .onnx file. The trunk layout is baked into the graph "
+      "(transformerNHWC=" + Global::boolToString(loadedModel->externalOnnx.buildParams.transformerNHWC) + ").");
 
-  // Skip the scale8 FP16-range workaround (default false = apply it). scale8 rescales convnet
-  // activations to 1/8 and compensates with MISH_SCALE8 subgraphs so activations stay well inside
-  // the FP16 range that execution providers may infer in. The cost is that the emitted
-  // Mul(x,8)->Softplus->Tanh->Mul(x,.) chain no longer matches the canonical Mish pattern that
-  // OpenVINO fuses into a single op, so it runs unfused; on the NPU that is ~3.7x slower on convnet
-  // models (11 vs 41 visits/s measured on b28c512nbt). Set true to trade the FP16 headroom for that
-  // speed, or set onnxOpenVINOPrecision=FP32 and skip it safely.
+  // Skip the scale8 FP16-range workaround. Default false, meaning the workaround is applied.
+  // See the onnxSkipScale8 documentation in configs/gtp_example.cfg for the tradeoff.
   ctx->skipScale8 = cfg.contains("onnxSkipScale8") ? cfg.getBool("onnxSkipScale8") : false;
 
-  // Apply the scale8 transform HERE, not lazily at compute-handle creation.
-  // applyScale8ToReduceActivations() multiplies postProcessParams.outputScaleMultiplier by 8 to
-  // compensate for the 1/8-scaled graph outputs, and NNEvaluator snapshots postProcessParams
-  // immediately after createComputeContext returns (see nneval.cpp). Applying it any later would
-  // leave NNEvaluator decoding 1/8-scale outputs with a stale multiplier of 1, silently producing
-  // wrong winrates/leads. This also happens-before the server threads spawn and read modelDesc in
-  // OnnxModelBuilder::build().
-  loadedModel->maybeApplyScale8(ctx->skipScale8);
+  // Must happen here rather than at compute-handle creation. See LoadedModel::scale8Resolved.
+  loadedModel->maybeApplyScale8(ctx->skipScale8, cfg.contains("onnxSkipScale8"), logger);
 
-  // --- Raw .onnx compatibility: configurable node names, model version override ---
-  if(cfg.contains("onnxInputMask")) ctx->inputMaskName = cfg.getString("onnxInputMask");
-  if(cfg.contains("onnxInputSpatial")) ctx->inputSpatialName = cfg.getString("onnxInputSpatial");
-  if(cfg.contains("onnxInputGlobal")) ctx->inputGlobalName = cfg.getString("onnxInputGlobal");
-  if(cfg.contains("onnxInputMeta")) ctx->inputMetaName = cfg.getString("onnxInputMeta");
-  if(cfg.contains("onnxOutputPolicyPass")) ctx->outputPolicyPassName = cfg.getString("onnxOutputPolicyPass");
-  if(cfg.contains("onnxOutputPolicy")) ctx->outputPolicyName = cfg.getString("onnxOutputPolicy");
-  if(cfg.contains("onnxOutputValue")) ctx->outputValueName = cfg.getString("onnxOutputValue");
-  if(cfg.contains("onnxOutputMiscvalue")) ctx->outputMiscvalueName = cfg.getString("onnxOutputMiscvalue");
-  if(cfg.contains("onnxOutputOwnership")) ctx->outputOwnershipName = cfg.getString("onnxOutputOwnership");
-  if(cfg.contains("onnxModelVersion")) {
-    int v = Global::stringToInt(cfg.getString("onnxModelVersion"));
-    if(v >= 0)
-      ctx->configModelVersion = v;
+  // The OpenVINO provider is only used for GPU/NPU acceleration here. For CPU inference the
+  // plain cpu provider (or the Eigen backend) is the right tool, so reject any device string
+  // that resolves to CPU alone (CPU, cpu, CPU.0, AUTO:CPU, ...). Composite strings that also
+  // list a non-CPU device (e.g. AUTO:GPU,CPU) keep CPU only as an OpenVINO-internal fallback
+  // and are allowed.
+  if(ctx->providerName == "openvino") {
+    for(int t = 0; t < (int)ctx->perThreadDeviceType.size(); t++) {
+      std::vector<std::string> deviceNames = parseDeviceNames(ctx->perThreadDeviceType[t]);
+      bool allCpu = !deviceNames.empty();
+      for(const std::string& name : deviceNames) {
+        if(name != "CPU")
+          allCpu = false;
+      }
+      if(allCpu)
+        throw StringError(
+          "ONNX backend: OpenVINO provider with device_type = " + ctx->perThreadDeviceType[t] +
+          " is not supported. For CPU inference use onnxProvider = cpu (or the Eigen backend); "
+          "the OpenVINO provider is for GPU/NPU acceleration only.");
+    }
   }
+
+  // The NPU runs FP16 only, so an FP32 request (useFP16 = false, or an explicit
+  // onnxOpenVINOPrecision = FP32) cannot be honored on an NPU-only device. Fail loudly like
+  // other backends do for impossible precision requests, rather than letting the EP quietly
+  // run FP16 anyway. Mixed composite strings (e.g. AUTO:GPU,NPU) are left to the EP.
+  if(ctx->providerName == "openvino" && Global::toUpper(Global::trim(ctx->openvinoPrecision)) == "FP32") {
+    for(int t = 0; t < (int)ctx->perThreadDeviceType.size(); t++) {
+      std::vector<std::string> deviceNames = parseDeviceNames(ctx->perThreadDeviceType[t]);
+      bool allNpu = !deviceNames.empty();
+      for(const std::string& name : deviceNames) {
+        if(name != "NPU")
+          allNpu = false;
+      }
+      if(allNpu)
+        throw StringError(
+          "ONNX backend: FP32 precision was requested (useFP16 = false or onnxOpenVINOPrecision = FP32) "
+          "but device_type " + ctx->perThreadDeviceType[t] + " is an NPU, which only supports FP16 "
+          "inference. Unset useFP16 and onnxOpenVINOPrecision, or use a GPU device for this thread.");
+    }
+  }
+
+  {
+    bool knownProvider = false;
+    for(const char* p : kKnownProviders) {
+      if(ctx->providerName == p) {
+        knownProvider = true;
+        break;
+      }
+    }
+    if(!knownProvider)
+      throw StringError(
+        "ONNX backend: unknown onnxProvider '" + ctx->providerName +
+        "'. Known providers: cpu, openvino, cuda, tensorrt, migraphx, coreml, directml.");
+  }
+
+  if(logger != NULL)
+    logger->write("ONNX backend: creating compute context for " +
+                  Global::intToString(nnXLen) + "x" + Global::intToString(nnYLen) +
+                  " with provider '" + ctx->providerName + "'");
 
   return ctx;
 }
@@ -563,37 +401,79 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 }
 
 //--------------------------------------------------------------
-// Helper: extract a short device name from an OpenVINO device_type string for matching
-// onnxOpenVINODeviceConfig_<Device>_<Option> keys.
-//   "NPU"          -> "NPU"
-//   "GPU" / "GPU.0" / "GPU.1"  -> "GPU"
-//   "CPU"          -> "CPU"
-//   "AUTO:GPU,CPU" -> "GPU"
-//   "MULTI:GPU,NPU" -> "GPU"
-//   "HETERO:GPU,CPU" -> "GPU"
+// Helper: list the short device names an OpenVINO device_type string can run on, dropping
+// device index suffixes and the qualifier of a composite (AUTO/MULTI/HETERO) string.
+//
+//   "NPU"               -> {"NPU"}
+//   "GPU" / "GPU.1"     -> {"GPU"}
+//   "AUTO:GPU,CPU"      -> {"GPU","CPU"}
+//   "MULTI:GPU.0,GPU.1" -> {"GPU","GPU"}
 //--------------------------------------------------------------
-static std::string extractShortDeviceName(const std::string& deviceType) {
-  std::string upper = Global::toUpper(deviceType);
+static std::vector<std::string> parseDeviceNames(const std::string& deviceType) {
+  std::string upper = Global::trim(Global::toUpper(deviceType));
 
+  std::string devices = upper;
   size_t colonPos = upper.find(':');
   if(colonPos != std::string::npos) {
     std::string prefix = upper.substr(0, colonPos);
-    if(prefix == "AUTO" || prefix == "MULTI" || prefix == "HETERO") {
-      std::string afterColon = upper.substr(colonPos + 1);
-      size_t commaPos = afterColon.find(',');
-      if(commaPos != std::string::npos)
-        afterColon = afterColon.substr(0, commaPos);
-      size_t dotPos = afterColon.find('.');
-      if(dotPos != std::string::npos)
-        afterColon = afterColon.substr(0, dotPos);
-      return afterColon;
-    }
+    if(prefix == "AUTO" || prefix == "MULTI" || prefix == "HETERO")
+      devices = upper.substr(colonPos + 1);
   }
 
-  size_t dotPos = upper.find('.');
-  if(dotPos != std::string::npos)
-    upper = upper.substr(0, dotPos);
-  return upper;
+  std::vector<std::string> names;
+  for(const std::string& piece : Global::split(devices, ',')) {
+    std::string name = Global::trim(piece);
+    size_t dotPos = name.find('.');
+    if(dotPos != std::string::npos)
+      name = name.substr(0, dotPos);
+    if(!name.empty())
+      names.push_back(name);
+  }
+  return names;
+}
+
+//--------------------------------------------------------------
+// Helper: should this handle pad every inference up to the max batch size?
+//
+// Some execution providers compile the graph for one exact input shape and recompile whenever
+// the shape changes, and KataGo's search varies the batch size from call to call, so on those
+// providers nearly every inference pays a recompile, costing most of the potential throughput.
+// The compiled graphs are not cached per shape, so the cost never amortizes and warming up over
+// a ladder of batch sizes would not help. Padding trades some wasted arithmetic in short batches
+// for holding the shape still, and Setup::MaxBatchSizeRequest keeps the batch small enough that
+// the trade stays worth it.
+//
+// Auto turns this on only where that trade pays:
+//   - directml: always.
+//   - openvino: when this thread's device string can select an NPU, which has the same recompile
+//     behavior, unlike OpenVINO's GPU path which handles varying shapes fine.
+//     "Can select" is the strongest statement available: for an explicit "NPU"/"NPU.0" we know,
+//     but for a composite like AUTO:GPU,NPU the choice is OpenVINO's at runtime and is not
+//     reported back through ORT's API, so any string mentioning NPU is treated as maybe-NPU.
+//   - everything else: off, since those providers handle varying shapes without recompiling.
+//--------------------------------------------------------------
+static bool padsBatchForDevice(const string& providerName, enabled_t padBatchMode, const string& deviceType) {
+  if(padBatchMode == enabled_t::True)
+    return true;
+  if(padBatchMode == enabled_t::False)
+    return false;
+
+  if(providerName == "directml")
+    return true;
+  if(providerName == "openvino") {
+    // Match NPU anywhere in the raw string rather than only in parsed device names, so that
+    // composite strings with prefixes other than AUTO/MULTI/HETERO (e.g. BATCH:NPU) still count.
+    if(Global::toUpper(deviceType).find("NPU") != string::npos)
+      return true;
+  }
+  return false;
+}
+
+static bool shouldPadBatch(const ComputeContext* ctx, int serverThreadIdx) {
+  string threadDeviceType = ctx->openvinoDeviceType;
+  if(serverThreadIdx >= 0 && serverThreadIdx < (int)ctx->perThreadDeviceType.size())
+    threadDeviceType = ctx->perThreadDeviceType[serverThreadIdx];
+  return padsBatchForDevice(ctx->providerName, ctx->padBatchMode, threadDeviceType);
 }
 
 //--------------------------------------------------------------
@@ -616,10 +496,10 @@ struct ComputeHandle {
   vector<const char*> inputNamePtrs;
   vector<const char*> outputNamePtrs;
 
-  ComputeHandle(
-    ComputeContext* context, const LoadedModel& loadedModel, Logger* logger,
-    int deviceIdxForThread, int serverThreadIdx
-  )
+  // Pad short batches out to a constant number of rows, see shouldPadBatch().
+  bool padBatch;
+
+  ComputeHandle(ComputeContext* context, const LoadedModel& loadedModel, Logger* logger, int deviceIdxForThread, int serverThreadIdx, bool requireExactNNLen)
     : ctx(context),
       modelVersion(loadedModel.modelDesc.modelVersion),
       numInputChannels(loadedModel.modelDesc.numInputChannels),
@@ -628,71 +508,86 @@ struct ComputeHandle {
       numPolicyChannels(loadedModel.modelDesc.numPolicyChannels),
       numValueChannels(loadedModel.modelDesc.numValueChannels),
       numScoreValueChannels(loadedModel.modelDesc.numScoreValueChannels),
-      numOwnershipChannels(loadedModel.modelDesc.numOwnershipChannels)
+      numOwnershipChannels(loadedModel.modelDesc.numOwnershipChannels),
+      padBatch(shouldPadBatch(context, serverThreadIdx))
   {
-    // Apply config model version override if set (raw .onnx only; .bin.gz models carry their own).
-    if(ctx->configModelVersion >= 0)
-      modelVersion = ctx->configModelVersion;
-
-    const char* onnxData;
-    size_t onnxSize;
-    string builtOnnxBytes;
-    if(loadedModel.isRawOnnx) {
-      if(logger != NULL)
-        logger->write("ONNX backend: using raw ONNX model (" +
-                       Global::uint64ToString(loadedModel.rawOnnxBytes.size()) + " bytes)");
-      onnxData = loadedModel.rawOnnxBytes.data();
-      onnxSize = loadedModel.rawOnnxBytes.size();
-    } else {
+    // The graph either comes verbatim from a .onnx file, or is emitted here from the .bin.gz weights
+    // by the same emitter the TensorRT backend uses. Either way Ort::Session parses it directly. The
+    // FP32 node-name lists are ignored, since ORT has no per-node precision API.
+    OnnxModelBuilder::Result onnxResult;   // only filled on the emit path
+    const string* onnxBytesPtr = NULL;
+    if(loadedModel.isExternalOnnx) {
+      OnnxModelBuilder::checkRuntimeParams(
+        loadedModel.externalOnnx, loadedModel.modelFileName, ctx->nnXLen, ctx->nnYLen, requireExactNNLen);
+      if(logger != NULL && serverThreadIdx <= 0) {
+        const OnnxModelBuilder::BuildParams& params = loadedModel.externalOnnx.buildParams;
+        logger->write(Global::strprintf(
+          "ONNX backend: using the graph from %s as-is (emitted for %dx%d, requireExactNNLen=%s, "
+          "transformerNHWC=%s, scale8Applied=%s)",
+          loadedModel.modelFileName.c_str(), params.nnXLen, params.nnYLen,
+          Global::boolToString(params.requireExactNNLen).c_str(),
+          Global::boolToString(params.transformerNHWC).c_str(),
+          Global::boolToString(params.scale8Applied).c_str()));
+        // The OpenVINO EP mis-binds inputs declared after one that no node consumes (ORT >= 1.23).
+        // It surfaces as a shape-mismatch crash on the first evaluation, which is hard to trace
+        // back to the graph.
+        if(loadedModel.externalOnnx.danglingInputNotDeclaredLast)
+          logger->write(
+            string("ONNX backend: ") + (ctx->providerName == "openvino" ? "WARNING" : "note") + " - " +
+            loadedModel.modelFileName +
+            " declares a graph input that no node consumes, ahead of inputs that are consumed. The "
+            "OpenVINO execution provider binds the inputs after it to the wrong buffers and fails "
+            "with a shape mismatch. Unconsumed inputs must be declared last.");
+      }
+      // Read straight out of the LoadedModel, which outlives every compute handle - no need for a
+      // per-thread copy of what can be hundreds of MB.
+      onnxBytesPtr = &loadedModel.externalOnnx.serializedModel;
+    }
+    else {
       if(logger != NULL)
         logger->write("ONNX backend: building ONNX graph from model weights...");
-      // NPU-friendly exact-board build: when this session targets an NPU device and the user
-      // opted in via onnxOpenVINONPUExactBoard, emit the mask-free exact-board graph (the
-      // builder drops InputMask and every attention mask-bias add). Non-NPU targets are built
-      // exactly as before.
-      bool exactBoardBuild = false;
-      if(ctx->openvinoNPUExactBoard && ctx->providerName == "openvino") {
-        string devForThread = ctx->openvinoDeviceType;
-        if(serverThreadIdx >= 0 && serverThreadIdx < (int)ctx->perThreadDeviceType.size())
-          devForThread = ctx->perThreadDeviceType[serverThreadIdx];
-        exactBoardBuild = (devForThread.find("NPU") != string::npos);
-      }
-      // Reuse the same ONNX emitter as the TensorRT backend. The serialized ModelProto is a
-      // standard ONNX graph that Ort::Session can parse directly; the TRT-only FP32 node-name
-      // lists in the Result are ignored (ORT has no per-node precision API).
-      OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(
-        loadedModel.modelDesc, ctx->nnXLen, ctx->nnYLen, /*requireExactNNLen=*/exactBoardBuild, ctx->transformerNHWC, logger);
-      builtOnnxBytes = onnxResult.serializedModel;
-      if(logger != NULL)
-        logger->write("ONNX backend: ONNX graph built (" + Global::uint64ToString(builtOnnxBytes.size()) + " bytes)");
-      onnxData = builtOnnxBytes.data();
-      onnxSize = builtOnnxBytes.size();
+      // TODO: every server thread re-runs this build, transiently duplicating the fully
+      // weight-baked serialized proto (hundreds of MB for large nets) across N spawning
+      // threads. The bytes are identical per (nnXLen, nnYLen, requireExactNNLen,
+      // transformerNHWC), so they could be built once in the ComputeContext and shared.
+      OnnxModelBuilder::BuildParams buildParams;
+      buildParams.nnXLen = ctx->nnXLen;
+      buildParams.nnYLen = ctx->nnYLen;
+      buildParams.requireExactNNLen = requireExactNNLen;
+      buildParams.transformerNHWC = ctx->transformerNHWC;
+      buildParams.scale8Applied = loadedModel.scale8Applied;
+      onnxResult = OnnxModelBuilder::build(loadedModel.modelDesc, buildParams, logger);
+      onnxBytesPtr = &onnxResult.serializedModel;
+    }
+    const string& onnxBytes = *onnxBytesPtr;
 
-      // Dump the ONNX model to a file when KATAGO_DUMP_ONNX is set (debug aid).
+    if(logger != NULL)
+      logger->write("ONNX backend: ONNX graph ready (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
+
+    // Dump the ONNX model to a file when KATAGO_DUMP_ONNX is set (debug aid).
+    {
       const char* dumpPath = getenv("KATAGO_DUMP_ONNX");
       if(dumpPath != nullptr && dumpPath[0] != '\0') {
         ofstream dumpFile(dumpPath, ios::binary);
         if(dumpFile.is_open()) {
-          dumpFile.write(builtOnnxBytes.data(), (streamsize)builtOnnxBytes.size());
+          dumpFile.write(onnxBytes.data(), (streamsize)onnxBytes.size());
           dumpFile.close();
           if(logger != NULL)
             logger->write(string("ONNX backend: dumped ONNX model to ") + dumpPath +
-                          " (" + Global::uint64ToString(builtOnnxBytes.size()) + " bytes)");
+                          " (" + Global::uint64ToString(onnxBytes.size()) + " bytes)");
         } else if(logger != NULL) {
           logger->write(string("ONNX backend: WARNING - could not open dump path ") + dumpPath);
         }
       }
     }
 
-    if(logger != NULL)
-      logger->write("ONNX backend: creating session...");
-
     Ort::SessionOptions sessionOpts;
 
+    // Select execution provider based on providerName.
     const string& provider = ctx->providerName;
     if(provider == "coreml") {
 #ifdef __APPLE__
-      uint32_t coremlFlags = COREML_FLAG_CREATE_ML_PROGRAM;
+      uint32_t coremlFlags = COREML_FLAG_CREATE_MLPROGRAM;
       Ort::ThrowOnError(OrtSessionOptionsAppendExecutionProvider_CoreML(sessionOpts, coremlFlags));
       if(logger != NULL)
         logger->write("ONNX backend: CoreML execution provider enabled (MLProgram mode)");
@@ -722,10 +617,10 @@ struct ComputeHandle {
         logger->write("ONNX backend: MIGraphX execution provider enabled, device_id=" + Global::intToString((int)migraphxOpts.device_id));
     }
     else if(provider == "openvino") {
-      // The OpenVINO EP runs the graph nodes itself and manages its own inference threads via the
-      // num_of_threads provider option; ORT's intra-op pool is left with only the few EP-external
-      // nodes. With one ORT session per nn-server thread, leaving the default intra-op thread count
-      // would oversubscribe the CPU with N x M worker pools. Pin it to 1 for this provider only.
+      // The OpenVINO EP runs the graph nodes itself with its own internal threading, leaving
+      // ORT's intra-op pool with only the few EP-external nodes. With one ORT session per
+      // nn-server thread, leaving the default intra-op thread count would oversubscribe the
+      // CPU with N x M worker pools. Pin it to 1 for this provider only.
       sessionOpts.SetIntraOpNumThreads(1);
 
       // --- Determine this thread's device_type ---
@@ -733,98 +628,161 @@ struct ComputeHandle {
       if(serverThreadIdx >= 0 && serverThreadIdx < (int)ctx->perThreadDeviceType.size())
         threadDeviceType = ctx->perThreadDeviceType[serverThreadIdx];
 
-      // --- Look up per-device-type EP option overrides ---
-      string shortDev = extractShortDeviceName(threadDeviceType);
-      const std::unordered_map<std::string, std::string>* devOverrides = nullptr;
-      {
-        auto it = ctx->deviceConfigOverrides.find(shortDev);
-        if(it != ctx->deviceConfigOverrides.end())
-          devOverrides = &it->second;
-      }
-      auto resolveOpt = [&](const char* ortKey, const std::string& globalVal) -> std::string {
-        if(devOverrides) {
-          auto it = devOverrides->find(ortKey);
-          if(it != devOverrides->end())
-            return it->second;
-        }
-        return globalVal;
-      };
-
       // --- Build EP option map ---
       std::unordered_map<std::string, std::string> openvinoOpts;
 
-      // Device selection: an explicit onnxOpenVINODeviceId takes the legacy device_id provider
-      // option (for older ORT/OpenVINO builds without device_type suffix support). Otherwise, a
-      // nonzero per-thread device index (from onnxDeviceToUse*) is appended to device_type as an
-      // OpenVINO device suffix, e.g. GPU -> GPU.1; device_type is how modern OpenVINO EP builds
-      // select among multiple devices of the same kind.
+      // Map the per-thread device index (from the gpuToUse*/deviceToUse* config keys) into OpenVINO's
+      // device_type suffix, e.g. GPU -> GPU.1. The OpenVINO EP selects devices via device_type
+      // ("GPU.0", "GPU.1", ...). The legacy device_id provider option is deprecated and only accepts
+      // a bare device name, so passing a numeric index there would throw at session creation.
       string deviceType = threadDeviceType;
-      if(!ctx->openvinoDeviceId.empty()) {
-        openvinoOpts["device_id"] = ctx->openvinoDeviceId;
-      } else if(deviceIdxForThread > 0 && deviceType.find('.') == string::npos && deviceType.find(':') == string::npos) {
+      if(deviceIdxForThread > 0 && deviceType.find('.') == string::npos && deviceType.find(':') == string::npos)
         deviceType += "." + Global::intToString(deviceIdxForThread);
-      }
+      else if(deviceIdxForThread > 0 && logger != NULL)
+        logger->write(
+          "ONNX backend: device index " + Global::intToString(deviceIdxForThread) +
+          " ignored for device_type '" + deviceType +
+          "' because it already selects a specific device (\"GPU.1\"-style suffix) or is a "
+          "composite/qualified device string (AUTO:/MULTI:/HETERO:). "
+          "Select the device explicitly in onnxOpenVINODeviceType or the per-thread onnxOpenVINODeviceTypeThread<N> override.");
       openvinoOpts["device_type"] = deviceType;
 
-      auto setIfNotEmpty = [&](const char* ortKey, const std::string& globalVal) {
-        std::string val = resolveOpt(ortKey, globalVal);
+      auto setIfNotEmpty = [&](const char* ortKey, const std::string& val) {
         if(!val.empty())
           openvinoOpts[ortKey] = val;
       };
-      setIfNotEmpty("cache_dir",      ctx->openvinoCacheDir);
-      setIfNotEmpty("precision",      ctx->openvinoPrecision);
-      setIfNotEmpty("num_streams",    ctx->openvinoNumStreams);
-      setIfNotEmpty("num_of_threads", ctx->openvinoNumOfThreads);
-      setIfNotEmpty("model_priority", ctx->openvinoModelPriority);
-      setIfNotEmpty("load_config",    ctx->openvinoLoadConfig);
-      if(ctx->openvinoEnableNPUFastCompile)
-        openvinoOpts["enable_npu_fast_compile"] = "true";
+      setIfNotEmpty("cache_dir",   ctx->openvinoCacheDir);
+      setIfNotEmpty("precision",   ctx->openvinoPrecision);
+      setIfNotEmpty("num_streams", ctx->openvinoNumStreams);
 
-      // Some ORT OpenVINO builds reject optional keys (cache_dir, precision, num_streams,
-      // num_of_threads, model_priority, load_config, enable_npu_fast_compile, device_id). Retry
-      // with only the core device_type key if optional keys are rejected, so that e.g. setting
-      // onnxOpenVINOCacheDir on an EP that doesn't support it degrades gracefully instead of
-      // crashing.
-      static const char* optionalKeys[] = {
-        "cache_dir", "precision", "num_streams", "num_of_threads", "model_priority", "load_config",
-        "enable_npu_fast_compile", "device_id"
+      // Some ORT OpenVINO builds reject optional keys. cache_dir and num_streams are
+      // tuning-only, so if the EP rejects the option set, retry without them and degrade
+      // gracefully. precision is never dropped: silently discarding a precision request
+      // (useFP16 = false or onnxOpenVINOPrecision) could run the net at a different precision
+      // than the user demanded, so a rejection with precision set stays fatal.
+      static const char* droppableKeys[] = {
+        "cache_dir", "num_streams"
+      };
+      // Wraps a final, non-retryable rejection. If a precision request is in play, explain why
+      // it was deliberately not dropped, since the EP's own error may be opaque. Only valid to
+      // call while handling an exception (the bare throw rethrows the current one).
+      auto throwFinalError = [&openvinoOpts](const Ort::Exception& err) {
+        if(openvinoOpts.count("precision") > 0)
+          throw StringError(
+            string("ONNX backend: OpenVINO provider rejected its options. The precision option "
+            "was kept because it was requested via useFP16 or onnxOpenVINOPrecision, and this "
+            "EP or device may not support it. Error: ") + err.what());
+        throw;
       };
       try {
         sessionOpts.AppendExecutionProvider_OpenVINO_V2(openvinoOpts);
       }
       catch(const Ort::Exception& e) {
-        bool hadOptionalKeys = false;
-        for(const char* k : optionalKeys) {
+        bool hadDroppableKeys = false;
+        for(const char* k : droppableKeys) {
           if(openvinoOpts.count(k) > 0) {
-            hadOptionalKeys = true;
+            hadDroppableKeys = true;
             break;
           }
         }
-        if(!hadOptionalKeys)
-          throw;
+        if(!hadDroppableKeys)
+          throwFinalError(e);
 
         if(logger != NULL) {
           logger->write(
-            string("ONNX backend: OpenVINO optional provider options rejected, retrying without optional keys. Error: ") +
+            string("ONNX backend: OpenVINO provider options rejected, retrying without cache_dir/num_streams. Error: ") +
             e.what()
           );
         }
-        for(const char* k : optionalKeys)
+        for(const char* k : droppableKeys)
           openvinoOpts.erase(k);
-        sessionOpts.AppendExecutionProvider_OpenVINO_V2(openvinoOpts);
+        try {
+          sessionOpts.AppendExecutionProvider_OpenVINO_V2(openvinoOpts);
+        }
+        catch(const Ort::Exception& e2) {
+          throwFinalError(e2);
+        }
       }
 
       if(logger != NULL) {
         string extras;
-        for(const char* k : optionalKeys) {
+        for(const char* k : {"cache_dir", "precision", "num_streams"}) {
           if(openvinoOpts.count(k) > 0)
             extras += string(", ") + k + "=" + openvinoOpts[k];
         }
         logger->write(
-          "ONNX backend: OpenVINO EP enabled for thread " + Global::intToString(serverThreadIdx) +
+          "ONNX backend: OpenVINO execution provider enabled for thread " + Global::intToString(serverThreadIdx) +
           ", device_type=" + deviceType + extras
         );
       }
+    }
+    else if(provider == "directml") {
+#ifdef _WIN32
+#if defined(KATAGO_ONNX_HAS_DML_PROVIDER_FACTORY)
+      // DirectML does not support memory-pattern optimization and requires sequential
+      // execution mode (see the ORT DirectML EP docs). With one session per nn-server
+      // thread the single-Run restriction of a DML session is satisfied naturally.
+      sessionOpts.DisableMemPattern();
+      sessionOpts.SetExecutionMode(ORT_SEQUENTIAL);
+
+      // Prefer the OrtDmlApi route: the plain OrtSessionOptionsAppendExecutionProvider_DML
+      // export in dml_provider_factory.h is deprecated. Check the status by hand rather
+      // than via Ort::ThrowOnError so that a DML-less ORT build produces this friendly
+      // error instead of a generic Ort::Exception.
+      const OrtDmlApi* dmlApi = nullptr;
+      {
+        const OrtApi* ortApi = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+        OrtStatus* status = ortApi->GetExecutionProviderApi("DML", ORT_API_VERSION, (const void**)&dmlApi);
+        if(status != nullptr || dmlApi == nullptr) {
+          string detail = status != nullptr ? ortApi->GetErrorMessage(status) : "GetExecutionProviderApi returned null";
+          if(status != nullptr)
+            ortApi->ReleaseStatus(status);
+          throw StringError(
+            "ONNX backend: DirectML execution provider is not available in this ONNX Runtime build: " + detail);
+        }
+      }
+
+      int dmlDeviceId = deviceIdxForThread >= 0 ? deviceIdxForThread : 0;
+      try {
+        Ort::ThrowOnError(dmlApi->SessionOptionsAppendExecutionProvider_DML(sessionOpts, dmlDeviceId));
+      }
+      catch(const std::exception& e) {
+        // SessionOptionsAppendExecutionProvider_DML is where ORT creates the D3D12/DirectML
+        // device. A failure here (too-old DirectML, missing device, driver issue) would otherwise
+        // become a silent fastfail on Windows when it escapes the nn-server thread, so log the
+        // cause and the fix before rethrowing. DMLCreateDevice1 reports an unsupported minimum
+        // feature level as DXGI_ERROR_UNSUPPORTED (0x887A0004) - i.e. a DirectML runtime/driver
+        // too old for feature level 5.0 - and anything else is a different setup problem.
+        string what = string(e.what());
+        string low = Global::toLower(what);
+        bool versionTooOld = low.find("887a0004") != string::npos || low.find("dxgi_error_unsupported") != string::npos;
+        string msg = string("ONNX backend: DirectML init failed: ") + what + ". ";
+        if(versionTooOld) {
+          msg += "DirectML feature level 5.0 (DirectML.dll >= 1.8.0) is unavailable - Windows 10's "
+                 "inbox DirectML is only 1.1.0. Copy Microsoft.AI.DirectML's DirectML.dll "
+                 "next to onnxruntime.dll. Update the GPU driver if it still fails. "
+                 "See https://github.com/lightvector/KataGo/pull/1222#issuecomment-5278419866";
+        }
+        else {
+          msg += "Check that DirectML.dll >= 1.8.0 sits next to onnxruntime.dll and that "
+                 "onnxDeviceToUse selects a valid device, or update the GPU driver.";
+        }
+        if(logger != NULL)
+          logger->write(msg);
+        cerr << msg << endl;
+        throw;
+      }
+      if(logger != NULL)
+        logger->write("ONNX backend: DirectML execution provider enabled, device_id=" + Global::intToString(dmlDeviceId));
+#else
+      throw StringError(
+        "ONNX backend: DirectML is not available in this ONNX Runtime build: the ORT install "
+        "tree does not ship dml_provider_factory.h. Compile against the "
+        "Microsoft.ML.OnnxRuntime.DirectML package to use the DirectML execution provider.");
+#endif
+#else
+      throw StringError("ONNX backend: DirectML is only available on Windows");
+#endif
     }
     else if(provider == "cpu" || provider.empty()) {
       if(logger != NULL)
@@ -834,10 +792,8 @@ struct ComputeHandle {
       throw StringError("ONNX backend: unknown onnxProvider '" + provider + "'");
     }
 
-    // Create session from in-memory bytes.
-    session = std::make_unique<Ort::Session>(ctx->env, onnxData, onnxSize, sessionOpts);
+    session = std::make_unique<Ort::Session>(ctx->env, onnxBytes.data(), onnxBytes.size(), sessionOpts);
 
-    // Query and store graph input names.
     Ort::AllocatorWithDefaultOptions allocator;
     size_t numInputs = session->GetInputCount();
     for(size_t i = 0; i < numInputs; i++) {
@@ -847,7 +803,6 @@ struct ComputeHandle {
     for(auto& n : inputNames)
       inputNamePtrs.push_back(n.c_str());
 
-    // Query and store graph output names.
     size_t numOutputs = session->GetOutputCount();
     for(size_t i = 0; i < numOutputs; i++) {
       Ort::AllocatedStringPtr name = session->GetOutputNameAllocated(i, allocator);
@@ -857,16 +812,23 @@ struct ComputeHandle {
       outputNamePtrs.push_back(n.c_str());
 
     if(logger != NULL) {
-      string inList = "ONNX backend: graph input order:";
-      for(size_t i = 0; i < inputNames.size(); i++)
-        inList += " [" + Global::uint64ToString(i) + "]" + inputNames[i];
-      logger->write(inList);
-      string outList = "ONNX backend: graph output order:";
-      for(size_t i = 0; i < outputNames.size(); i++)
-        outList += " [" + Global::uint64ToString(i) + "]" + outputNames[i];
-      logger->write(outList);
+      // The graph input/output orders are identical for every server thread, so log them once.
+      if(serverThreadIdx <= 0) {
+        string inList = "ONNX backend: graph input order:";
+        for(size_t i = 0; i < inputNames.size(); i++)
+          inList += " [" + Global::uint64ToString(i) + "]" + inputNames[i];
+        logger->write(inList);
+        string outList = "ONNX backend: graph output order:";
+        for(size_t i = 0; i < outputNames.size(); i++)
+          outList += " [" + Global::uint64ToString(i) + "]" + outputNames[i];
+        logger->write(outList);
+      }
       logger->write("ONNX backend: session created, inputs=" + Global::uint64ToString(numInputs) +
                      " outputs=" + Global::uint64ToString(numOutputs));
+      if(padBatch)
+        logger->write(
+          "ONNX backend: padding every inference to the max batch size, so this provider never "
+          "sees a changing input shape (onnxPadBatch)");
     }
   }
 
@@ -885,12 +847,9 @@ ComputeHandle* NeuralNet::createComputeHandle(
   int gpuIdxForThisThread,
   int serverThreadIdx
 ) {
-  // maxBatchSize is intentionally ignored: ONNX Runtime sessions support dynamic batch sizes.
-  // The InputBuffers maxBatchSize field still enforces the upper bound at inference time.
+  // ONNX Runtime sessions support dynamic batch sizes, but the InputBuffers maxBatchSize
+  // field still enforces the upper bound at inference time.
   (void)maxBatchSize;
-  // requireExactNNLen is intentionally ignored: the emitted graph handles dynamic board shapes
-  // transparently up to the configured nnXLen x nnYLen (see OnnxModelBuilder::build).
-  (void)requireExactNNLen;
   if(inputsUseNHWC)
     throw StringError("ONNX backend: inputsUseNHWC = true not supported, must use NCHW");
 
@@ -898,7 +857,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
     logger->write("ONNX backend thread " + Global::intToString(serverThreadIdx) +
                   ": Model version " + Global::intToString(loadedModel->modelDesc.modelVersion));
     logger->write("ONNX backend thread " + Global::intToString(serverThreadIdx) +
-                  ": Model name: " + loadedModel->modelDesc.name);
+                  ": Model name: " + loadedModel->modelDesc.name +
+                  " (" + loadedModel->modelDesc.getShortInfoString() + ")");
     string deviceInfo =
       context->providerName == "openvino"
       ? (serverThreadIdx >= 0 && serverThreadIdx < (int)context->perThreadDeviceType.size()
@@ -909,7 +869,7 @@ ComputeHandle* NeuralNet::createComputeHandle(
                   ": provider=" + context->providerName + " deviceIdx=" + deviceInfo);
   }
 
-  return new ComputeHandle(context, *loadedModel, logger, gpuIdxForThisThread, serverThreadIdx);
+  return new ComputeHandle(context, *loadedModel, logger, gpuIdxForThisThread, serverThreadIdx, requireExactNNLen);
 }
 
 void NeuralNet::freeComputeHandle(ComputeHandle* computeHandle) {
@@ -918,8 +878,8 @@ void NeuralNet::freeComputeHandle(ComputeHandle* computeHandle) {
 
 bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   (void)handle;
-  // The emitted ONNX graph is fp32; precision is delegated to the execution provider (e.g.
-  // OpenVINO may downcast internally), so from KataGo's perspective this is fp32.
+  // The emitted ONNX graph is fp32, and precision is delegated to the execution provider,
+  // which may downcast internally, so from KataGo's perspective this is fp32.
   return false;
 }
 
@@ -939,6 +899,12 @@ struct InputBuffers {
   size_t singleInputGlobalElts;
   size_t singleInputMetaElts;
 
+  size_t singlePolicyPassResultElts;
+  size_t singlePolicyResultElts;
+  size_t singleValueResultElts;
+  size_t singleScoreValueResultElts;
+  size_t singleOwnershipResultElts;
+
   vector<float> maskInput;
   vector<float> spatialInput;
   vector<float> globalInput;
@@ -948,24 +914,34 @@ struct InputBuffers {
     const ModelDesc& m = loadedModel->modelDesc;
 
     if(nnXLen > NNPos::MAX_BOARD_LEN)
-      throw StringError(Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnXLen, NNPos::MAX_BOARD_LEN));
+      throw StringError(
+        Global::strprintf("nnXLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnXLen, NNPos::MAX_BOARD_LEN));
     if(nnYLen > NNPos::MAX_BOARD_LEN)
-      throw StringError(Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
+      throw StringError(
+        Global::strprintf("nnYLen (%d) is greater than NNPos::MAX_BOARD_LEN (%d)", nnYLen, NNPos::MAX_BOARD_LEN));
 
     maxBatchSize = maxBatchSz;
     singleMaskElts = (size_t)nnXLen * nnYLen;
     singleInputElts = (size_t)m.numInputChannels * nnXLen * nnYLen;
     singleInputGlobalElts = (size_t)m.numInputGlobalChannels;
     singleInputMetaElts = (size_t)m.numInputMetaChannels;
+    singlePolicyPassResultElts = (size_t)m.numPolicyChannels;
+    singlePolicyResultElts = (size_t)m.numPolicyChannels * nnXLen * nnYLen;
+    singleValueResultElts = (size_t)m.numValueChannels;
+    singleScoreValueResultElts = (size_t)m.numScoreValueChannels;
+    singleOwnershipResultElts = (size_t)m.numOwnershipChannels * nnXLen * nnYLen;
+
+    testAssert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+    testAssert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    if(m.numInputMetaChannels > 0)
+      testAssert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
 
     maskInput.assign(singleMaskElts * maxBatchSize, 0.0f);
     spatialInput.assign(singleInputElts * maxBatchSize, 0.0f);
     globalInput.assign(singleInputGlobalElts * maxBatchSize, 0.0f);
-    if(m.numInputMetaChannels > 0)
+    if(singleInputMetaElts > 0)
       metaInput.assign(singleInputMetaElts * maxBatchSize, 0.0f);
   }
-
-  ~InputBuffers() {}
 
   InputBuffers() = delete;
   InputBuffers(const InputBuffers&) = delete;
@@ -975,6 +951,7 @@ struct InputBuffers {
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
   return new InputBuffers(loadedModel, maxBatchSize, nnXLen, nnYLen);
 }
+
 void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
   delete inputBuffers;
 }
@@ -989,10 +966,10 @@ void NeuralNet::globalCleanup() {
 
 //--------------------------------------------------------------
 
-// Find the index of a name in a vector, checking multiple alternatives.
-static int findNameIndex(const vector<string>& names, const vector<string>& targets) {
+// Find the index of a name in the graph's name list, matching any of the target alternatives.
+static int findNameIndex(const vector<string>& names, std::initializer_list<const char*> targets) {
   for(size_t i = 0; i < names.size(); i++) {
-    for(const auto& t : targets) {
+    for(const char* t : targets) {
       if(names[i] == t)
         return (int)i;
     }
@@ -1001,7 +978,7 @@ static int findNameIndex(const vector<string>& names, const vector<string>& targ
 }
 
 void NeuralNet::getOutput(
-  ComputeHandle* computeHandle,
+  ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
   int numBatchEltsFilled,
   NNResultBuf** inputBufs,
@@ -1009,85 +986,115 @@ void NeuralNet::getOutput(
 ) {
   assert(numBatchEltsFilled <= inputBuffers->maxBatchSize);
   assert(numBatchEltsFilled > 0);
-  const int batchSize = numBatchEltsFilled;
-  const int nnXLen = computeHandle->ctx->nnXLen;
-  const int nnYLen = computeHandle->ctx->nnYLen;
-  const int numSpatialFeatures = computeHandle->numInputChannels;
-  const int numGlobalFeatures = computeHandle->numInputGlobalChannels;
-  const int numPolicyChannels = computeHandle->numPolicyChannels;
-  const int spatialPolicyLen = nnXLen * nnYLen;
 
-  // Fill host input buffers, mirroring the TensorRT backend:
-  //  - global/meta are straight copies (no symmetry)
+  const int batchSize = numBatchEltsFilled;
+  // Run at a constant number of rows and throw the extra ones away, see shouldPadBatch().
+  // On DirectML at least, a session is only ever fast at the first shape it runs and any other
+  // shape stays slow on every call, so running a different batch size well requires recreating
+  // the backend with a different maxBatchSize, as the benchmark does.
+  const int runBatchSize = gpuHandle->padBatch ? inputBuffers->maxBatchSize : batchSize;
+  const int nnXLen = gpuHandle->ctx->nnXLen;
+  const int nnYLen = gpuHandle->ctx->nnYLen;
+  const int modelVersion = gpuHandle->modelVersion;
+
+  const int numSpatialFeatures = NNModelVersion::getNumSpatialFeatures(modelVersion);
+  const int numGlobalFeatures = NNModelVersion::getNumGlobalFeatures(modelVersion);
+  const int numMetaFeatures = (int)inputBuffers->singleInputMetaElts;
+  assert(numSpatialFeatures * nnXLen * nnYLen == inputBuffers->singleInputElts);
+  assert(numGlobalFeatures == inputBuffers->singleInputGlobalElts);
+
+  // Fill host input buffers, mirroring the TensorRT backend exactly:
+  //  - global / meta are straight copies (no symmetry)
   //  - spatial is symmetry-transformed (NCHW, useNHWC=false)
   //  - mask = channel 0 of the symmetry-transformed spatial input
   for(int nIdx = 0; nIdx < batchSize; nIdx++) {
-    float* rowMaskInput = inputBuffers->maskInput.data() + (inputBuffers->singleMaskElts * nIdx);
-    float* rowSpatialInput = inputBuffers->spatialInput.data() + (inputBuffers->singleInputElts * nIdx);
-    float* rowGlobalInput = inputBuffers->globalInput.data() + (inputBuffers->singleInputGlobalElts * nIdx);
+    float* rowMaskInput = inputBuffers->maskInput.data() + inputBuffers->singleMaskElts * nIdx;
+    float* rowSpatialInput = inputBuffers->spatialInput.data() + inputBuffers->singleInputElts * nIdx;
+    float* rowGlobalInput = inputBuffers->globalInput.data() + inputBuffers->singleInputGlobalElts * nIdx;
 
     const float* rowGlobal = inputBufs[nIdx]->rowGlobalBuf.data();
     const float* rowSpatial = inputBufs[nIdx]->rowSpatialBuf.data();
     std::copy(rowGlobal, rowGlobal + numGlobalFeatures, rowGlobalInput);
-    SymmetryHelpers::copyInputsWithSymmetry(rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
+    SymmetryHelpers::copyInputsWithSymmetry(
+      rowSpatial, rowSpatialInput, 1, nnYLen, nnXLen, numSpatialFeatures, false, inputBufs[nIdx]->symmetry);
     std::copy(rowSpatialInput, rowSpatialInput + inputBuffers->singleMaskElts, rowMaskInput);
 
-    if(computeHandle->numInputMetaChannels > 0) {
-      float* rowMetaInput = inputBuffers->metaInput.data() + (inputBuffers->singleInputMetaElts * nIdx);
+    if(numMetaFeatures > 0) {
+      float* rowMetaInput = inputBuffers->metaInput.data() + inputBuffers->singleInputMetaElts * nIdx;
       const float* rowMeta = inputBufs[nIdx]->rowMetaBuf.data();
-      std::copy(rowMeta, rowMeta + computeHandle->numInputMetaChannels, rowMetaInput);
+      testAssert(inputBufs[nIdx]->hasRowMeta);
+      std::copy(rowMeta, rowMeta + numMetaFeatures, rowMetaInput);
+    }
+    else {
+      testAssert(!inputBufs[nIdx]->hasRowMeta);
     }
   }
 
-  // Create ONNX tensors.
+  // Fill the padding rows with a copy of row 0 rather than leaving whatever the last call put
+  // there (or zeros on the first call). Their outputs are discarded, so any valid position would
+  // do, but an all-zero row is not one: its mask is empty, and the mask-weighted pooling and
+  // attention in the graph divide by the mask sum. Rows are independent, so a NaN in a padding
+  // row should stay there. This just avoids relying on that for every op in every model version.
+  for(int nIdx = batchSize; nIdx < runBatchSize; nIdx++) {
+    std::copy(
+      inputBuffers->maskInput.data(), inputBuffers->maskInput.data() + inputBuffers->singleMaskElts,
+      inputBuffers->maskInput.data() + inputBuffers->singleMaskElts * nIdx);
+    std::copy(
+      inputBuffers->spatialInput.data(), inputBuffers->spatialInput.data() + inputBuffers->singleInputElts,
+      inputBuffers->spatialInput.data() + inputBuffers->singleInputElts * nIdx);
+    std::copy(
+      inputBuffers->globalInput.data(), inputBuffers->globalInput.data() + inputBuffers->singleInputGlobalElts,
+      inputBuffers->globalInput.data() + inputBuffers->singleInputGlobalElts * nIdx);
+    if(numMetaFeatures > 0)
+      std::copy(
+        inputBuffers->metaInput.data(), inputBuffers->metaInput.data() + inputBuffers->singleInputMetaElts,
+        inputBuffers->metaInput.data() + inputBuffers->singleInputMetaElts * nIdx);
+  }
+
+  // Build Ort::Value views over the host buffers. These stay in CPU memory - the execution
+  // provider copies to device internally and returns outputs in CPU memory.
   Ort::MemoryInfo memInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
 
-  std::array<int64_t, 4> maskShape = {batchSize, 1, nnYLen, nnXLen};
+  std::array<int64_t, 4> maskShape = {runBatchSize, 1, nnYLen, nnXLen};
   Ort::Value maskTensor = Ort::Value::CreateTensor<float>(
-    memInfo, inputBuffers->maskInput.data(), inputBuffers->singleMaskElts * batchSize,
-    maskShape.data(), maskShape.size()
-  );
+    memInfo, inputBuffers->maskInput.data(), inputBuffers->singleMaskElts * runBatchSize,
+    maskShape.data(), maskShape.size());
 
-  std::array<int64_t, 4> spatialShape = {batchSize, numSpatialFeatures, nnYLen, nnXLen};
+  std::array<int64_t, 4> spatialShape = {runBatchSize, numSpatialFeatures, nnYLen, nnXLen};
   Ort::Value spatialTensor = Ort::Value::CreateTensor<float>(
-    memInfo, inputBuffers->spatialInput.data(), inputBuffers->singleInputElts * batchSize,
-    spatialShape.data(), spatialShape.size()
-  );
+    memInfo, inputBuffers->spatialInput.data(), inputBuffers->singleInputElts * runBatchSize,
+    spatialShape.data(), spatialShape.size());
 
-  std::array<int64_t, 4> globalShape = {batchSize, numGlobalFeatures, 1, 1};
+  std::array<int64_t, 4> globalShape = {runBatchSize, numGlobalFeatures, 1, 1};
   Ort::Value globalTensor = Ort::Value::CreateTensor<float>(
-    memInfo, inputBuffers->globalInput.data(), inputBuffers->singleInputGlobalElts * batchSize,
-    globalShape.data(), globalShape.size()
-  );
+    memInfo, inputBuffers->globalInput.data(), inputBuffers->singleInputGlobalElts * runBatchSize,
+    globalShape.data(), globalShape.size());
 
-  // Match inputs to graph nodes using configured node names.
-  const ComputeContext* ctx = computeHandle->ctx;
-  int spatialIdx = findNameIndex(computeHandle->inputNames, {ctx->inputSpatialName});
-  int globalIdx = findNameIndex(computeHandle->inputNames, {ctx->inputGlobalName});
-  if(spatialIdx < 0 || globalIdx < 0)
-    throw StringError("ONNX backend: could not find expected input names");
-
-  // The mask input may be absent from a hand-exported raw .onnx graph -- only bind it if the
-  // session actually declares it. Graphs built by OnnxModelBuilder::build() (.bin.gz path) always
-  // declare it.
-  int maskIdx = findNameIndex(computeHandle->inputNames, {ctx->inputMaskName});
-
-  int metaIdx = -1;
   Ort::Value metaTensor(nullptr);
-  if(computeHandle->numInputMetaChannels > 0) {
-    metaIdx = findNameIndex(computeHandle->inputNames, {ctx->inputMetaName});
-    if(metaIdx < 0)
-      throw StringError("ONNX backend: model has metadata channels but could not find the InputMeta node");
-    std::array<int64_t, 4> metaShape = {batchSize, computeHandle->numInputMetaChannels, 1, 1};
+  std::array<int64_t, 4> metaShape;
+  if(numMetaFeatures > 0) {
+    metaShape = {runBatchSize, numMetaFeatures, 1, 1};
     metaTensor = Ort::Value::CreateTensor<float>(
-      memInfo, inputBuffers->metaInput.data(), inputBuffers->singleInputMetaElts * batchSize,
-      metaShape.data(), metaShape.size()
-    );
+      memInfo, inputBuffers->metaInput.data(), inputBuffers->singleInputMetaElts * runBatchSize,
+      metaShape.data(), metaShape.size());
+  }
+
+  // Bind tensors in the graph's declared input order (ORT matches by pointer array + name array).
+  int maskIdx = findNameIndex(gpuHandle->inputNames, {"InputMask"});
+  int spatialIdx = findNameIndex(gpuHandle->inputNames, {"InputSpatial"});
+  int globalIdx = findNameIndex(gpuHandle->inputNames, {"InputGlobal"});
+  if(maskIdx < 0 || spatialIdx < 0 || globalIdx < 0)
+    throw StringError("ONNX backend: graph is missing expected inputs InputMask/InputSpatial/InputGlobal");
+  int metaIdx = -1;
+  if(numMetaFeatures > 0) {
+    metaIdx = findNameIndex(gpuHandle->inputNames, {"InputMeta"});
+    if(metaIdx < 0)
+      throw StringError("ONNX backend: model has metadata channels but the graph has no InputMeta input");
   }
 
   vector<Ort::Value> inputTensors;
-  inputTensors.reserve(computeHandle->inputNames.size());
-  for(size_t i = 0; i < computeHandle->inputNames.size(); i++) {
+  inputTensors.reserve(gpuHandle->inputNames.size());
+  for(size_t i = 0; i < gpuHandle->inputNames.size(); i++) {
     if((int)i == maskIdx)
       inputTensors.push_back(std::move(maskTensor));
     else if((int)i == spatialIdx)
@@ -1096,45 +1103,34 @@ void NeuralNet::getOutput(
       inputTensors.push_back(std::move(globalTensor));
     else if((int)i == metaIdx)
       inputTensors.push_back(std::move(metaTensor));
-    else {
-      throw StringError("ONNX backend: unexpected input node '" + computeHandle->inputNames[i] +
-                         "' -- only mask, spatial, global, and meta inputs are supported");
-    }
+    else
+      throw StringError("ONNX backend: unexpected graph input '" + gpuHandle->inputNames[i] +
+                        "' -- only InputMask/InputSpatial/InputGlobal/InputMeta are supported");
   }
 
-  // Run inference.
-  auto outputTensors = computeHandle->session->Run(
+  auto outputTensors = gpuHandle->session->Run(
     Ort::RunOptions{nullptr},
-    computeHandle->inputNamePtrs.data(),
+    gpuHandle->inputNamePtrs.data(),
     inputTensors.data(),
     inputTensors.size(),
-    computeHandle->outputNamePtrs.data(),
-    computeHandle->outputNamePtrs.size()
-  );
+    gpuHandle->outputNamePtrs.data(),
+    gpuHandle->outputNamePtrs.size());
 
-  // Find output indices using configured node names.
-  int policyPassOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputPolicyPassName});
-  int policyOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputPolicyName});
-  int valueOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputValueName});
-  int scoreValueOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputMiscvalueName});
-  int ownershipOutputIdx = findNameIndex(computeHandle->outputNames, {ctx->outputOwnershipName});
+  int policyPassIdx = findNameIndex(gpuHandle->outputNames, {"OutputPolicyPass"});
+  int policyIdx = findNameIndex(gpuHandle->outputNames, {"OutputPolicy"});
+  int valueIdx = findNameIndex(gpuHandle->outputNames, {"OutputValue"});
+  int scoreValueIdx = findNameIndex(gpuHandle->outputNames, {"OutputScoreValue"});
+  int ownershipIdx = findNameIndex(gpuHandle->outputNames, {"OutputOwnership"});
+  if(policyPassIdx < 0 || policyIdx < 0 || valueIdx < 0 || scoreValueIdx < 0 || ownershipIdx < 0)
+    throw StringError(
+      "ONNX backend: graph is missing expected outputs "
+      "(OutputPolicyPass/OutputPolicy/OutputValue/OutputScoreValue/OutputOwnership)");
 
-  if(policyPassOutputIdx < 0)
-    throw StringError("ONNX backend: could not find policy-pass output node '" + ctx->outputPolicyPassName + "'");
-  if(policyOutputIdx < 0)
-    throw StringError("ONNX backend: could not find policy output node '" + ctx->outputPolicyName + "'");
-  if(valueOutputIdx < 0)
-    throw StringError("ONNX backend: could not find value output node '" + ctx->outputValueName + "'");
-  if(scoreValueOutputIdx < 0)
-    throw StringError("ONNX backend: could not find score-value output node '" + ctx->outputMiscvalueName + "'");
-  if(ownershipOutputIdx < 0)
-    throw StringError("ONNX backend: could not find ownership output node '" + ctx->outputOwnershipName + "'");
-
-  const float* policyPassData = outputTensors[policyPassOutputIdx].GetTensorData<float>();
-  const float* policyData = outputTensors[policyOutputIdx].GetTensorData<float>();
-  const float* valueData = outputTensors[valueOutputIdx].GetTensorData<float>();
-  const float* scoreValueData = outputTensors[scoreValueOutputIdx].GetTensorData<float>();
-  const float* ownershipData = outputTensors[ownershipOutputIdx].GetTensorData<float>();
+  const float* policyPassData = outputTensors[policyPassIdx].GetTensorData<float>();
+  const float* policyData = outputTensors[policyIdx].GetTensorData<float>();
+  const float* valueData = outputTensors[valueIdx].GetTensorData<float>();
+  const float* scoreValueData = outputTensors[scoreValueIdx].GetTensorData<float>();
+  const float* ownershipData = outputTensors[ownershipIdx].GetTensorData<float>();
 
   assert(policyPassData != nullptr);
   assert(policyData != nullptr);
@@ -1143,6 +1139,13 @@ void NeuralNet::getOutput(
   assert(ownershipData != nullptr);
   assert((int)outputs.size() == batchSize);
 
+  const int numPolicyChannels = (int)inputBuffers->singlePolicyPassResultElts;
+  assert(inputBuffers->singlePolicyResultElts == (size_t)numPolicyChannels * nnXLen * nnYLen);
+  const int numValueChannels = (int)inputBuffers->singleValueResultElts;
+  const int numScoreValueChannels = (int)inputBuffers->singleScoreValueResultElts;
+
+  // Per-row decode, reproducing the TensorRT backend's post-processing exactly.
+  // Outputs are raw logits, so the client applies softmax / tanh / etc.
   float policyProbsTmp[NNPos::MAX_NN_POLICY_SIZE];
 
   for(int row = 0; row < batchSize; row++) {
@@ -1151,44 +1154,52 @@ void NeuralNet::getOutput(
     assert(output->nnYLen == nnYLen);
     float policyOptimism = (float)inputBufs[row]->policyOptimism;
 
-    // Policy: OutputPolicyPass is [N,numPolicyChannels,1,1]; OutputPolicy is [N,numPolicyChannels,H,W].
+    // Policy: OutputPolicyPass is [N, numPolicyChannels, 1, 1] and OutputPolicy is [N, numPolicyChannels, H, W].
     {
-      const float* policyPassRowBase = policyPassData + row * numPolicyChannels;
-      const float* policyRowBase = policyData + row * numPolicyChannels * spatialPolicyLen;
+      const float* policyPassSrcBuf = policyPassData + row * numPolicyChannels;
+      const float* policySrcBuf = policyData + row * numPolicyChannels * nnXLen * nnYLen;
       float* policyProbs = output->policyProbs;
 
-      if(numPolicyChannels == 2 || (numPolicyChannels == 4 && computeHandle->modelVersion >= 16)) {
-        // Channel 0 = base logits, channel 1 = optimism logits.
-        const float* ch0 = policyRowBase;
-        const float* ch1 = policyRowBase + spatialPolicyLen;
-        for(int i = 0; i < spatialPolicyLen; i++) {
-          float p = ch0[i];
-          float pOpt = ch1[i];
+      if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
+        // NCHW: channel 0 = base logits, channel 1 = optimism logits.
+        for(int i = 0; i < nnXLen * nnYLen; i++) {
+          float p = policySrcBuf[i];
+          float pOpt = policySrcBuf[i + nnXLen * nnYLen];
           policyProbsTmp[i] = p + (pOpt - p) * policyOptimism;
         }
-        SymmetryHelpers::copyOutputsWithSymmetry(policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-        policyProbs[spatialPolicyLen] = policyPassRowBase[0] + (policyPassRowBase[1] - policyPassRowBase[0]) * policyOptimism;
-      } else {
+        SymmetryHelpers::copyOutputsWithSymmetry(
+          policyProbsTmp, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        policyProbs[nnXLen * nnYLen] =
+          policyPassSrcBuf[0] + (policyPassSrcBuf[1] - policyPassSrcBuf[0]) * policyOptimism;
+      }
+      else {
         assert(numPolicyChannels == 1);
-        SymmetryHelpers::copyOutputsWithSymmetry(policyRowBase, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-        policyProbs[spatialPolicyLen] = policyPassRowBase[0];
+        SymmetryHelpers::copyOutputsWithSymmetry(
+          policySrcBuf, policyProbs, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+        policyProbs[nnXLen * nnYLen] = policyPassSrcBuf[0];
       }
     }
 
-    // Value: [N,3] raw categorical logits (win/loss/noresult).
+    // Value: [N, 3, 1, 1] raw categorical logits (win/loss/noresult).
     {
-      int numVC = computeHandle->numValueChannels;
-      assert(numVC == 3);
-      output->whiteWinProb = valueData[row * numVC];
-      output->whiteLossProb = valueData[row * numVC + 1];
-      output->whiteNoResultProb = valueData[row * numVC + 2];
+      assert(numValueChannels == 3);
+      output->whiteWinProb = valueData[row * numValueChannels];
+      output->whiteLossProb = valueData[row * numValueChannels + 1];
+      output->whiteNoResultProb = valueData[row * numValueChannels + 2];
     }
 
-    // ScoreValue: [N,numScoreValueChannels] raw, version-dependent channel interpretation.
+    // Ownership: [N, 1, H, W] raw, inverse-symmetried back to canonical orientation.
+    if(output->whiteOwnerMap != NULL) {
+      assert(inputBuffers->singleOwnershipResultElts == (size_t)nnXLen * nnYLen);
+      const float* ownershipSrcBuf = ownershipData + row * nnXLen * nnYLen;
+      SymmetryHelpers::copyOutputsWithSymmetry(
+        ownershipSrcBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
+    }
+
+    // ScoreValue: [N, numScoreValueChannels, 1, 1] raw, version-dependent channel interpretation.
     {
-      int numScoreValueChannels = computeHandle->numScoreValueChannels;
-      if(computeHandle->modelVersion >= 9) {
-        assert(numScoreValueChannels >= 6);
+      if(modelVersion >= 9) {
+        assert(numScoreValueChannels == 6);
         output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
         output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
         output->whiteLead = scoreValueData[row * numScoreValueChannels + 2];
@@ -1196,8 +1207,8 @@ void NeuralNet::getOutput(
         output->shorttermWinlossError = scoreValueData[row * numScoreValueChannels + 4];
         output->shorttermScoreError = scoreValueData[row * numScoreValueChannels + 5];
       }
-      else if(computeHandle->modelVersion >= 8) {
-        assert(numScoreValueChannels >= 4);
+      else if(modelVersion >= 8) {
+        assert(numScoreValueChannels == 4);
         output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
         output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
         output->whiteLead = scoreValueData[row * numScoreValueChannels + 2];
@@ -1205,8 +1216,8 @@ void NeuralNet::getOutput(
         output->shorttermWinlossError = 0;
         output->shorttermScoreError = 0;
       }
-      else if(computeHandle->modelVersion >= 4) {
-        assert(numScoreValueChannels >= 2);
+      else if(modelVersion >= 4) {
+        assert(numScoreValueChannels == 2);
         output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
         output->whiteScoreMeanSq = scoreValueData[row * numScoreValueChannels + 1];
         output->whiteLead = output->whiteScoreMean;
@@ -1214,8 +1225,8 @@ void NeuralNet::getOutput(
         output->shorttermWinlossError = 0;
         output->shorttermScoreError = 0;
       }
-      else if(computeHandle->modelVersion >= 3) {
-        assert(numScoreValueChannels >= 1);
+      else if(modelVersion >= 3) {
+        assert(numScoreValueChannels == 1);
         output->whiteScoreMean = scoreValueData[row * numScoreValueChannels];
         output->whiteScoreMeanSq = output->whiteScoreMean * output->whiteScoreMean;
         output->whiteLead = output->whiteScoreMean;
@@ -1227,42 +1238,147 @@ void NeuralNet::getOutput(
         ASSERT_UNREACHABLE;
       }
     }
-
-    // Ownership: [N,1,H,W] raw; inverse-symmetry back to canonical orientation.
-    if(output->whiteOwnerMap != NULL) {
-      assert(computeHandle->numOwnershipChannels == 1);
-      const float* ownershipRowBuf = ownershipData + row * nnXLen * nnYLen;
-      SymmetryHelpers::copyOutputsWithSymmetry(ownershipRowBuf, output->whiteOwnerMap, 1, nnYLen, nnXLen, inputBufs[row]->symmetry);
-    }
   }
 }
 
+// Device class to report for an OpenVINO device name. Any name other than the three device
+// classes that differ in numerics reports as "other": an OpenVINO device_type string can also
+// name a virtual device ("AUTO", "BATCH:GPU"), carry a per-device suffix ("GPU(2)"), or simply be
+// a typo, none of which are worth distinguishing.
+static string reportedDeviceName(const string& name) {
+  if(name == "CPU")
+    return "cpu";
+  if(name == "GPU")
+    return "gpu";
+  if(name == "NPU")
+    return "npu";
+  return "other";
+}
+
+std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
+  // Report which execution provider will run under this backend, and for OpenVINO also which
+  // device classes it will run on, matching the parsing in createComputeContext and ComputeHandle.
+  // Providers are effectively different backends with different numerics and maturity, as are CPU
+  // versus GPU versus NPU under OpenVINO, so e.g. the distributed training server wants to be able
+  // to tell them apart. Produces e.g. "openvino-gpu-npu", at most 26 characters.
+  //
+  // Every piece of the result is a fixed string rather than any of the config text it was derived
+  // from, so that whoever aggregates these sees a small closed set of values and never something a
+  // user typed.
+  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+
+  string detail;
+  for(const char* knownProvider : kKnownProviders) {
+    if(provider == knownProvider) {
+      detail = knownProvider;
+      break;
+    }
+  }
+  // An unknown provider is a config error, but one that createComputeContext raises later than
+  // this runs. Report nothing rather than anything derived from the offending value.
+  if(detail.empty())
+    return detail;
+
+  // OpenVINO is the only provider that can target device classes differing in numerics without a
+  // change of provider name. The rest are single-class by construction: the CPU, or a GPU-like
+  // accelerator picked by device index.
+  if(detail == "openvino") {
+    string defaultDeviceType =
+      cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
+    int numThreads =
+      cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel", 1, 1024) : 1;
+
+    // Sorted and deduplicated, so that the result depends only on which device classes are in use
+    // and not on how threads were assigned to them.
+    std::set<string> deviceNames;
+    for(int t = 0; t < numThreads; t++) {
+      string key = "onnxOpenVINODeviceTypeThread" + Global::intToString(t);
+      string threadDeviceType = cfg.contains(key) ? cfg.getString(key) : defaultDeviceType;
+      // A composite device string contributes every device it lists, since any of them may end up
+      // running the graph.
+      for(const string& name : parseDeviceNames(threadDeviceType))
+        deviceNames.insert(reportedDeviceName(name));
+    }
+
+    for(const string& name : deviceNames)
+      detail += "-" + name;
+  }
+  return detail;
+}
+
+int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+  if(provider != "openvino") {
+    std::set<int> distinctDevices(gpuIdxByServerThread.begin(), gpuIdxByServerThread.end());
+    return std::max(1, (int)distinctDevices.size());
+  }
+  // OpenVINO selects devices by device-type string, with the thread's gpu index only refining it
+  // to a "GPU.1"-style suffix, mirroring createComputeHandle.
+  string defaultDeviceType =
+    cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
+  std::set<string> distinctDevices;
+  for(int t = 0; t < (int)gpuIdxByServerThread.size(); t++) {
+    string key = "onnxOpenVINODeviceTypeThread" + Global::intToString(t);
+    string deviceType = Global::toUpper(cfg.contains(key) ? cfg.getString(key) : defaultDeviceType);
+    const int deviceIdx = gpuIdxByServerThread[t];
+    if(deviceIdx > 0 && deviceType.find('.') == string::npos && deviceType.find(':') == string::npos)
+      deviceType += "." + Global::intToString(deviceIdx);
+    distinctDevices.insert(deviceType);
+  }
+  return std::max(1, (int)distinctDevices.size());
+}
+
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  // Unlike every other backend this is not a property of the compiled backend: whether the graph
+  // gets recompiled per input shape depends on the execution provider, and for OpenVINO on the
+  // device, so it has to be decided from the same config keys createComputeContext reads. A single
+  // nnMaxBatchSize covers every server thread, so a thread that pads makes the whole evaluator
+  // FixedShape: padding a batch that did not need it costs some wasted rows, while failing to pad
+  // one that did costs a recompile per evaluation.
+  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+  enabled_t padBatchMode = cfg.contains("onnxPadBatch") ? cfg.getEnabled("onnxPadBatch") : enabled_t::Auto;
+
+  string defaultDeviceType =
+    cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
+  int numThreads =
+    cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel", 1, 1024) : 1;
+
+  for(int t = 0; t < numThreads; t++) {
+    string key = "onnxOpenVINODeviceTypeThread" + Global::intToString(t);
+    string threadDeviceType = cfg.contains(key) ? cfg.getString(key) : defaultDeviceType;
+    if(padsBatchForDevice(provider, padBatchMode, threadDeviceType))
+      return NeuralNet::BatchPolicy::FixedShape;
+  }
+  return NeuralNet::BatchPolicy::Dynamic;
+}
+
 void NeuralNet::printDevices() {
-  // Deliberately not enumerating devices here: ONNX Runtime only reports devices for EPs it has
-  // registered, and a provider-bridge OpenVINO build reports CPU only even when an NPU and iGPU are
-  // present, so any listing we printed would be actively misleading. Use OpenVINO's own
-  // hello_query_device sample, or just let the auto fallback below pick a device.
-  cout << "ONNX backend: device selection is execution-provider-specific." << endl;
+  cout << "ONNX backend: device enumeration is execution-provider-specific." << endl;
+  cout << "Providers other than cpu need an ONNX Runtime package or build that includes them," << endl;
+  cout << "and not all of them are tested. For the status of each provider and what it needs, see:" << endl;
+  cout << "https://github.com/lightvector/KataGo/blob/master/Compiling.md#execution-providers" << endl;
   cout << "Set onnxProvider (e.g. 'openvino') plus provider-specific options in the config." << endl;
   cout << endl;
-  cout << "OpenVINO EP options:" << endl;
-  cout << "  onnxOpenVINODeviceType = NPU | GPU | CPU | NPU.0 | GPU.1 | AUTO:GPU,CPU | MULTI:NPU,GPU | HETERO:NPU,CPU" << endl;
-  cout << "  If left unset, KataGo tries NPU, then GPU, then CPU, and uses the first that works." << endl;
+  cout << "OpenVINO provider options:" << endl;
+  cout << "  onnxOpenVINODeviceType = NPU            (GPU, NPU, GPU.0, GPU.1, etc.)" << endl;
+  cout << "    Leave it unset to auto-select: NPU if this machine has one, else GPU." << endl;
+  cout << "  Also supports OpenVINO multi-device strings:" << endl;
+  cout << "    AUTO:GPU,CPU  MULTI:GPU,NPU  HETERO:GPU,CPU" << endl;
   cout << endl;
   cout << "  Multi-device per-thread assignment:" << endl;
   cout << "    onnxOpenVINODeviceTypeThread0 = NPU" << endl;
   cout << "    onnxOpenVINODeviceTypeThread1 = GPU" << endl;
   cout << endl;
-  cout << "  Per-device-type EP tuning (optional):" << endl;
-  cout << "    onnxOpenVINODeviceConfig_NPU_NumStreams = 4" << endl;
-  cout << "    onnxOpenVINODeviceConfig_GPU_NumStreams = 2" << endl;
+  cout << "  Optional tuning:" << endl;
+  cout << "    onnxOpenVINOCacheDir = katago_ov_cache" << endl;
+  cout << "    onnxOpenVINOPrecision = FP16" << endl;
+  cout << "    onnxOpenVINONumStreams = 2" << endl;
 }
 
 //--------------------------------------------------------------
-// The layer-level test entry points are not implemented for this backend. Returning false tells
-// the test harness this configuration is unsupported (not a failure). The TensorRT backend
-// likewise returns false for all of these, since neither backend's ONNX emitter exposes
-// single-layer test models anymore.
+// The layer-level test entry points are not implemented for this backend. Returning
+// false tells the test harness this configuration is unsupported rather than failing.
+// The TensorRT backend does the same.
 
 bool NeuralNet::testEvaluateConv(
   const ConvLayerDesc*, int, int, int, bool, bool,

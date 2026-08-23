@@ -29,7 +29,7 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool useN
 
   Player nextPla = P_WHITE;
   Rules rules = Rules::getTrompTaylorish();
-  BoardHistory hist(board,nextPla,rules,0,false);
+  BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
   const bool logToStdout = true;
   const bool logToStderr = false;
@@ -73,7 +73,7 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool useNH
 
   Player nextPla = P_BLACK;
   Rules rules = Rules::getTrompTaylorish();
-  BoardHistory hist(board,nextPla,rules,0,false);
+  BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
   const bool logToStdout = true;
   const bool logToStderr = false;
@@ -132,7 +132,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool useN
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, false);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx,BoardHistoryModes(false,false));
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     winProbs.push_back(buf.result->whiteWinProb);
@@ -215,7 +215,7 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
       initialRules.hasButton = initialRules.scoringRule == Rules::SCORING_AREA && rand.nextBool(0.5);
       initialRules.whiteHandicapBonusRule = rand.nextBool(0.5) ? Rules::WHB_ZERO : rand.nextBool(0.5) ? Rules::WHB_N : Rules::WHB_N_MINUS_ONE;
       initialRules.komi = 7.5f + rand.nextInt(-10,10) * 0.5f;
-      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, false);
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx,BoardHistoryModes(false,false));
       items.emplace_back(board,hist,nextPla);
     }
   };
