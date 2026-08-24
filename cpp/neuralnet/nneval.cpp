@@ -387,10 +387,29 @@ static void serveEvals(
 ) {
   Rand rand(randSeedThisThread);
 
-  // Used to have a try catch around this but actually we're in big trouble if this raises an exception
-  // and causes possibly the only nnEval thread to die, so actually go ahead and let the exception escape to
-  // toplevel for easier debugging
-  nnEval->serve(rand,gpuIdxForThisThread,serverThreadIdx);
+  // We're in big trouble if this raises an exception (e.g. out of GPU memory) and causes possibly
+  // the only nnEval thread to die, so let the exception escape and terminate the process. But log
+  // and print the error first, since on some platforms an exception escaping a thread aborts
+  // without printing anything. cerr is used unconditionally rather than only when there is no
+  // logger, since the logger may be temporarily disabled (e.g. the benchmark suppresses logging
+  // while respawning server threads).
+  try {
+    nnEval->serve(rand,gpuIdxForThisThread,serverThreadIdx);
+  }
+  catch(const std::exception& e) {
+    Logger* logger = nnEval->getLogger();
+    if(logger != NULL)
+      logger->write(string("ERROR: NN server thread failed: ") + e.what());
+    cerr << (string("ERROR: NN server thread failed: ") + e.what()) << endl;
+    throw;
+  }
+  catch(...) {
+    Logger* logger = nnEval->getLogger();
+    if(logger != NULL)
+      logger->write("ERROR: NN server thread failed with an exception that is not a std::exception");
+    cerr << "ERROR: NN server thread failed with an exception that is not a std::exception" << endl;
+    throw;
+  }
 }
 
 void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {

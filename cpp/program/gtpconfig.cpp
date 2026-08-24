@@ -265,6 +265,9 @@ searchFactorWhenWinningThreshold = 0.95
 # Maximum number of positions to send to a single GPU at once. The default
 # value is roughly equal to numSearchThreads, but can be specified manually
 # if running out of memory, or using multiple GPUs that expect to share work.
+# Tuning may have specified a value here if it measured it to be faster.
+# If you later change numSearchThreads yourself, and this has been set to a
+# specific value, adjust this proportionally and/or consider benchmarking.
 $$NN_MAX_BATCH_SIZE
 
 # Controls the neural network cache size, which is the primary RAM/memory use.

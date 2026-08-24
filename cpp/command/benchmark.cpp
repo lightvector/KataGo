@@ -77,7 +77,7 @@ static ExtraGpuTuneResult doExtraGpuTuning(
   NeuralNet::BatchPolicy backendPolicy,
   const std::function<void(int)>& prepareNNEvalForNumThreads
 );
-static void printExtraGpuTuningAdvice(const ExtraGpuTuneResult& extra);
+static void printExtraGpuTuningAdvice(ConfigParser& cfg, const ExtraGpuTuneResult& extra);
 
 // -half-batch-size means half the search threads, rounding up. On fixed-shape backends this
 // shares computeFixedShapeMaxBatchSize's floor of 2, so the flag cannot request the batch size 1
@@ -478,7 +478,7 @@ int MainCmds::benchmark(const vector<string>& args) {
       batchSizeScheme == BatchSizeScheme::BACKEND_DEFAULT_AND_HALF,
       backendPolicy,prepareNNEvalForNumThreads
     );
-    printExtraGpuTuningAdvice(extra);
+    printExtraGpuTuningAdvice(cfg,extra);
   }
 
   delete nnEval;
@@ -581,8 +581,8 @@ static double visitsPerSecond(const PlayUtils::BenchmarkResults& result) {
 // Extra tests at the final recommended thread count: 2 NN server threads per GPU (CUDA and
 // ROCm backends only), and half batch size on whichever server thread setup was faster (any
 // backend with dynamic batching). Each variant is recommended only if it beats what it is
-// compared against by extraTuneMinSpeedupFactor. Leaves nnEval running the winning
-// configuration.
+// compared against by extraTuneMinSpeedupFactor. When any test runs, leaves nnEval running
+// the winning configuration.
 static ExtraGpuTuneResult doExtraGpuTuning(
   const SearchParams& params,
   const CompactSgf& sgf,
@@ -693,7 +693,7 @@ static ExtraGpuTuneResult doExtraGpuTuning(
 
 // Printed by the benchmark command after the extra tests, telling the user the config edits
 // that reproduce any variant that measured faster.
-static void printExtraGpuTuningAdvice(const ExtraGpuTuneResult& extra) {
+static void printExtraGpuTuningAdvice(ConfigParser& cfg, const ExtraGpuTuneResult& extra) {
   // Only used for the server thread advice, which only triggers on the CUDA and ROCm backends.
 #if defined(USE_CUDA_BACKEND)
   const string deviceKeyPrefix = "cuda";
@@ -703,26 +703,49 @@ static void printExtraGpuTuningAdvice(const ExtraGpuTuneResult& extra) {
   const string deviceKeyPrefix = "";
 #endif
   if(extra.recommendTwoServerThreadsPerGpu) {
-    const size_t numOrigThreads = extra.origGpuIdxByServerThread.size();
-    if(numOrigThreads <= 1) {
-      cout << "ADDITIONAL RECOMMENDATION: 2 NN server threads per GPU measured faster. To use this, set numNNServerThreadsPerModel = 2 in your config. Note that it also increases GPU memory usage." << endl;
+    const std::vector<int>& origGpuIdxs = extra.origGpuIdxByServerThread;
+    bool anyExplicitDevice = false;
+    for(int gpuIdx: origGpuIdxs)
+      if(gpuIdx >= 0)
+        anyExplicitDevice = true;
+    if(!anyExplicitDevice) {
+      // All threads use the backend's default device selection, so doubling the count alone
+      // reproduces the tested configuration.
+      cout << "ADDITIONAL RECOMMENDATION: 2 NN server threads per GPU measured faster. To use this, set numNNServerThreadsPerModel = "
+           << (2 * origGpuIdxs.size()) << " in your config. Note that it also increases GPU memory usage." << endl;
     }
     else {
+      // Emit explicit per-thread device keys for every device that was explicitly selected.
+      // Doubling the thread count alone would be wrong here, since threads beyond the ones the
+      // config's per-thread keys cover would fall through to the backend's default device.
       cout << "ADDITIONAL RECOMMENDATION: 2 NN server threads per GPU measured faster. To use this, set the following in your config (note that it also increases GPU memory usage):" << endl;
-      cout << "  numNNServerThreadsPerModel = " << (2 * numOrigThreads) << endl;
+      cout << "  numNNServerThreadsPerModel = " << (2 * origGpuIdxs.size()) << endl;
       int threadIdx = 0;
-      for(int gpuIdx: extra.origGpuIdxByServerThread) {
+      for(int gpuIdx: origGpuIdxs) {
         for(int j = 0; j<2; j++) {
           if(gpuIdx >= 0)
             cout << "  " << deviceKeyPrefix << "DeviceToUseThread" << threadIdx << " = " << gpuIdx << endl;
           threadIdx += 1;
         }
       }
+      // The thread numbering changes when the count doubles, so any per-thread key the user
+      // leaves in place under a name or index not overwritten by the block above would bind to
+      // the wrong thread.
+      cout << "Also remove any per-thread device settings your config currently has, if any, other than the ones above." << endl;
+      // Model-scoped device keys like cudaDeviceToUseModel0Thread1 take priority over the plain
+      // per-thread keys advised above, so a config using them would only half-apply the advice.
+      // Rare, so only mention it when such keys are present. The benchmark only ever runs one
+      // model, so Model0 is the only index that can matter here.
+      if(cfg.containsAnyKeyContaining("ToUseModel0"))
+        cout << "Note: your config selects devices using keys with \"Model0\" in the name. Those take priority over the keys above, so update or remove those too." << endl;
     }
   }
   if(extra.recommendHalfBatchSize) {
     cout << "ADDITIONAL RECOMMENDATION: a smaller batch size measured faster. To use this, set nnMaxBatchSize = " << extra.halfBatchSize
          << " in your config. This is half of numSearchThreads rounded up, so update it if you change numSearchThreads." << endl;
+    if(cfg.contains("nnMaxBatchSize"))
+      cout << "Your config currently sets nnMaxBatchSize = " << cfg.getString("nnMaxBatchSize")
+           << ". Replace it with " << extra.halfBatchSize << ". This supersedes any earlier note in this output about deleting it." << endl;
   }
 }
 
@@ -1209,6 +1232,12 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     );
   };
   updateConfigContents();
+  auto writeConfigFile = [&]() {
+    ofstream out;
+    FileUtils::open(out, outputFile, ofstream::out | ofstream::trunc);
+    out << configFileContents;
+    out.close();
+  };
 
   if(!skipThreadTuning) {
     int64_t maxVisitsFromUser = -1;
@@ -1241,6 +1270,21 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
           }
         });
     }
+
+    bool testServerThreads = true;
+#if defined(USE_CUDA_BACKEND) || defined(USE_ROCM_BACKEND)
+    {
+      cout << endl;
+      string prompt =
+        "After tuning the number of threads, the tuning can also test whether running 2 NN server threads\n"
+        "per GPU performs better. This uses more GPU memory, since each server thread keeps its own copy\n"
+        "of the neural net, and if GPU memory is tight the test itself may fail. Run this test? (y/n, default y):\n";
+      promptAndParseInput(prompt, [&](const string& line) {
+          if(line == "") testServerThreads = true;
+          else parseYN(line,testServerThreads);
+        });
+    }
+#endif
 
     istringstream inConfig(configFileContents);
     ConfigParser cfg(inConfig);
@@ -1340,9 +1384,14 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
 
     configNumSearchThreads = results[bestIdx].numThreads;
 
+    // Write the config as tuned so far, so that the interactive answers are not lost if the
+    // additional tests below die, e.g. running out of GPU memory spawning a second server
+    // thread per GPU. The final write below overwrites this with the completed config.
+    updateConfigContents();
+    writeConfigFile();
+
     {
       cout << endl;
-      const bool testServerThreads = true;
       const bool testHalfBatch = true;
       ExtraGpuTuneResult extra = doExtraGpuTuning(
         params,*sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,configNumSearchThreads,
@@ -1368,10 +1417,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   cout << "DONE" << endl;
   cout << endl;
   cout << "Writing new config file to " << outputFile << endl;
-  ofstream out;
-  FileUtils::open(out, outputFile, ofstream::out | ofstream::trunc);
-  out << configFileContents;
-  out.close();
+  writeConfigFile();
 
   cout << "You should be now able to run KataGo with this config via something like:" << endl;
   if(modelFileIsDefault)
