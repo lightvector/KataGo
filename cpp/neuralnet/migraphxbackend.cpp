@@ -379,11 +379,16 @@ struct ComputeHandle {
     // Emit the same ONNX graph the TensorRT backend builds. Weights are baked in as initializers,
     // so the returned bytes are fully self-contained.
     //
-    // This branch's builder takes positional arguments and does not carry scale8Applied; the
-    // compensation for scale8 lives in postProcessParams.outputScaleMultiplier, which the emitter
-    // already reads off the ModelDesc, so nothing is lost by not passing the flag through.
-    OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(
-      desc, ctx->nnXLen, ctx->nnYLen, requireExactNNLen, ctx->transformerNHWC, logger);
+    OnnxModelBuilder::BuildParams buildParams;
+    buildParams.nnXLen = ctx->nnXLen;
+    buildParams.nnYLen = ctx->nnYLen;
+    buildParams.requireExactNNLen = requireExactNNLen;
+    buildParams.transformerNHWC = ctx->transformerNHWC;
+    // LoadedModel's constructor calls applyScale8ToReduceActivations() unconditionally, so this
+    // is always true here. It is only reported to the emitter, never re-applied: the compensation
+    // lives in postProcessParams.outputScaleMultiplier, which is recorded already transformed.
+    buildParams.scale8Applied = true;
+    OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, buildParams, logger);
     const string& onnxBytes = onnxResult.serializedModel;
 
     if(!ctx->dumpDebugModelToDir.empty()) {

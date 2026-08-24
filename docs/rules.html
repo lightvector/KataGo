@@ -226,8 +226,8 @@ window.onload = function() {
 </head>
 <body>
 
-<h1>KataGo's Supported Go Rules (Version 2) </h1>
-This page describes the full rigorous rules implemented by KataGo. Updated from <a href="./rulesv1.html">rules version 1</a> right around the start of 2021 to fix an issue where basic double ko death was a mismatch with Japanese rules. These rules are supported in KataGo version 1.8 and later. Additionally, neural nets trained with the old rules, before 2021 or in early 2021 may fail to evaluate such situations correctly even when used with KataGo version 1.8 or later - the version *and* the net both need to be up-to-date. Also updated from version 1 are some minor wording typos.
+<h1>KataGo's Supported Go Rules (Version 3) </h1>
+This page describes the full rigorous rules implemented by KataGo. Updated from <a href="./rulesv2.html">rules version 2</a> in 2026 to fix an issue with territory scoring when TaxRule is None, where unfilled ko mouths in sekis would count as a point of territory, and could result in pass fights over such kos. These rules are supported in KataGo version 1.17.3 and later. Additionally, neural nets trained with the old rules may fail to evaluate such situations correctly even when used with KataGo version 1.17.3 or later - the version *and* the net both need to be up-to-date.
 
 <p>
 A hope also is that this document can serve as a reference for anyone to implement any subset of such rules themselves - including a rigorous nearly-Japanese rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays.
@@ -554,7 +554,7 @@ After the second cleanup phase ends, the game ends and is scored as follows:
 
 <li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span>: A player's score is the sum of:
 <ul>
-<li>+1 for every point in empty regions bordered by their color and not by the opposing color.</li>
+<li>+1 for every empty point that is <span class="selfPlayOpts selfPlayOptsEnabled">within pass-alive-territory of their color, OR that is </span>not adjacent to any region in atari and is in an empty region bordered by their color and not by the opposing color.<a href="#note12" id="ref12">[12]</a></li>
 <li>+ The total number of captures of the opposing color.</li>
 <li>+1 for every move made by that player during the second cleanup phase.</li>
 <li>-1 for every point of their color not within independent-life-regions and that was not their color at the start of the second cleanup phase.</li>
@@ -604,7 +604,7 @@ This formulation is much more similar to area scoring, in that it factors over t
 <li class="taxRule taxNone"><span class="condition">(if TaxRule is None)</span>: A player's score is the sum of:
 <ul>
 <li>-1 for every move made by that player in the main phase OR first cleanup phase.</li>
-<li>+1 for every point in empty regions bordered by their color and not by the opposing color.</li>
+<li>+1 for every empty point that is <span class="selfPlayOpts selfPlayOptsEnabled">within pass-alive-territory of their color, OR that is </span>not adjacent to any region in atari and is in an empty region bordered by their color and not by the opposing color.<a href="#note12" id="ref12">[12]</a></li>
 <li>+1 for every point of their color that is within independent-life-regions OR that was their color at the start of the second cleanup phase.</li>
 <li>If the player is white, Komi.</li>
 <li class="hasButton buttonUsed"><span class="condition">(if Button is Used)</span>: +0.5 if this player was the first to pass during the main phase.</li>
@@ -717,6 +717,16 @@ We go ahead and have an allowance for Button Go here too. This may seem odd, sin
 <span id="note11">[11]
 A number of human rulesets allow for Black to begin with N >= 2 stones on the board when playing a game between two differently-skilled players, with these stones being placed in a ruleset-specified way, and with White making the first actual game move instead of Black. For various reasons, during handicap games many of these rulesets give White bonus points based on N, additionally on top of any komi or other settings. Some rulesets give 0 points, some give N-1 points, and some give N points.
 (<a href="#ref11">Back</a>)</span></span>
+
+<!-- Nested rather than flat classes, since the display logic ORs an element's classes together,
+     but this note is referenced only where scoringTerritory AND taxNone both hold. -->
+<span class="scoringTerritory"><span class="note taxNone">
+<span><hr></span>
+<span id="note12">[12]
+The condition excluding empty points adjacent to regions in atari handles sekis that contain an unfilled ko mouth. Without it (as in version 2 of these rules), the ko mouth would count as a point for whichever player kept the ko mouth open. Since filling the ko would then lose that point, players would be incentivized during the cleanup phase to try to have the game end with such kos unresolved. For "normal" fillable kos, this is not normally game-breaking since whichever player who would lose the ko is incentivized to fill it, which leaves the other player unable to fight it perpetually. However, for one-sided ko (as in certain thousand-year-ko situations), where only one side can fill, the side that can fill can continue a pass-fight over the ko almost perpetually, since the other side has no way to fill the ko and thus no recourse.
+<br/><br/>
+Note that within an empty region bordered by only one color, any region in atari adjacent to a point of it is necessarily a region of that same color, so this condition never disqualifies territory due to dead opposing stones in atari (such as throw-ins). <span class="selfPlayOpts selfPlayOptsEnabled">Under SelfPlayOpts, territory containing or bordering dead opposing stones can additionally count via the pass-alive-territory condition, without requiring those stones to be captured, since pass-alive territory is unconditionally safe - this matches how KataGo's implementation scores such positions as-is.</span>
+(<a href="#ref12">Back</a>)</span></span></span>
 
 </div>
 

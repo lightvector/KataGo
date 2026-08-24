@@ -161,3 +161,90 @@ int MainCmds::testgpuerror(const vector<string>& args) {
 
   return success ? 0 : 1;
 }
+
+int MainCmds::testbackendreference(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+  Rand seedRand;
+
+  ConfigParser cfg;
+  string modelFile;
+  string referenceDataFileOverride;
+  string dumpCandidateFileName;
+  double lenienceFactor;
+  try {
+    KataGoCommandLine cmd(
+      "Test a backend's absolute neural net outputs against compiled-in reference data blended across nets from "
+      "KataGo's main distributed run. Only nets from that run are expected to pass - human-imitation nets and other "
+      "specially-trained nets can deviate far enough to fail regardless of the backend."
+    );
+    cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
+    cmd.addModelFileArg();
+    TCLAP::ValueArg<string> referenceDataFileArg("", "reference-data-file", "Load reference data from this file (same JSON-lines schema as backendreferencedata.cpp) instead of the compiled-in data", false, "", "FILE");
+    TCLAP::ValueArg<string> dumpCandidateArg("", "dump-candidate", "Dump this net's raw outputs on the reference positions to this file, for reference calibration", false, "", "FILE");
+    TCLAP::ValueArg<double> lenienceFactorArg("", "lenience-factor", "Scale all check limits by this factor, 0.01 to 10000 (default 1.0)", false, 1.0, "FACTOR");
+    cmd.add(referenceDataFileArg);
+    cmd.add(dumpCandidateArg);
+    cmd.add(lenienceFactorArg);
+
+    cmd.setShortUsageArgLimit();
+    cmd.addOverrideConfigArg();
+
+    cmd.parseArgs(args);
+
+    modelFile = cmd.getModelFile();
+    referenceDataFileOverride = referenceDataFileArg.getValue();
+    dumpCandidateFileName = dumpCandidateArg.getValue();
+    lenienceFactor = lenienceFactorArg.getValue();
+    if(!(lenienceFactor >= 0.01 && lenienceFactor <= 10000.0))
+      throw StringError("Lenience factor must be in the range 0.01 to 10000");
+    cmd.getConfig(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  const bool logToStdoutDefault = true;
+  const bool logToStderrDefault = false;
+  const bool logTimeDefault = false;
+  Logger logger(NULL, logToStdoutDefault, logToStderrDefault, logTimeDefault);
+  logger.write("Version " + Version::getGitRevisionWithBackend());
+  logger.write("Testing " + modelFile);
+
+  const string expectedSha256 = "";
+  const int maxBatchSize = 16;
+  const int expectedConcurrentEvals = maxBatchSize;
+  const bool defaultRequireExactNNLen = false;
+
+  NNEvaluator* nnEval;
+  {
+    logger.write("Initializing nneval using current config...");
+    const bool disableFP16 = false;
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,maxBatchSize,defaultRequireExactNNLen,disableFP16,
+      Setup::SETUP_FOR_BENCHMARK
+    );
+  }
+
+  //Match contribute.cpp's values so that reference data calibrated from this command's dumps
+  //matches what contribute measures at runtime.
+  const double policyOptimismForTest = 0.25;
+  const double pdaForTest = 0.0;
+  const double nnPolicyTemperatureForTest = 1.0;
+
+  const bool verbose = true;
+  bool success = Tests::runBackendReferenceTest(
+    nnEval,logger,verbose,
+    policyOptimismForTest,pdaForTest,nnPolicyTemperatureForTest,
+    lenienceFactor,
+    referenceDataFileOverride,dumpCandidateFileName
+  );
+
+  delete nnEval;
+  NeuralNet::globalCleanup();
+  ScoreValue::freeTables();
+
+  return success ? 0 : 1;
+}

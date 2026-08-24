@@ -3831,6 +3831,11 @@ void NeuralNet::printDevices() {
   }
 }
 
+std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
+  (void)cfg;
+  return std::string();
+}
+
 //--------------------------------------------------------------
 
 struct InputBuffers {

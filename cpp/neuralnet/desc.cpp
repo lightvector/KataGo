@@ -2424,6 +2424,26 @@ ModelPostProcessParams::~ModelPostProcessParams()
 
 //-----------------------------------------------------------------------------
 
+void ModelDesc::checkNameValid(const string& name) {
+  if(name.size() <= 0)
+    throw StringError("Model name is empty, a nonempty model name is required");
+  if(name.size() > 96)
+    throw StringError("Model name is too long (" + Global::intToString((int)name.size()) + " chars, max 96): " + name);
+  for(char c : name) {
+    bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+    if(!ok)
+      throw StringError("Model name must contain only alphanumeric characters, underscores, and hyphens: " + name);
+  }
+}
+
+ModelDesc::ArchSummary::ArchSummary()
+  : present(false),
+    trunkSpatialConvDepth(0.0),
+    numParameters(0),
+    hasAnyTransformerBlocks(false),
+    hasAnyNestedBottleneckBlocks(false)
+{}
+
 ModelDesc::ModelDesc()
   : modelVersion(-1),
     numInputChannels(0),
@@ -2435,7 +2455,9 @@ ModelDesc::ModelDesc()
     numOwnershipChannels(0),
     metaEncoderVersion(0),
     preferPassAliveUnderSuicideRules(false),
-    postProcessParams()
+    preferExcludeTerritoryAdjacentToAtari(false),
+    postProcessParams(),
+    archSummary()
 {}
 
 ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
@@ -2445,15 +2467,7 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
   if(in.fail())
     throw StringError("Model failed to parse name or version. Is this a valid model file? You probably specified the wrong file.");
 
-  // The model name is embedded into on-disk cache filenames (e.g. the TensorRT plan cache), so keep
-  // it short and restricted to filesystem-safe characters: at most 96 chars of [A-Za-z0-9_-].
-  if(name.size() > 96)
-    throw StringError("Model name is too long (" + Global::intToString((int)name.size()) + " chars, max 96): " + name);
-  for(char c : name) {
-    bool ok = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
-    if(!ok)
-      throw StringError("Model name must contain only alphanumeric characters, underscores, and hyphens: " + name);
-  }
+  checkNameValid(name);
 
   if(modelVersion < 0)
     throw StringError("This neural net has an invalid version, you probably specified the wrong file. Supposed model version: " + Global::intToString(modelVersion));
@@ -2547,9 +2561,24 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
     if(in.fail())
       throw StringError(name + ": model failed to parse preferPassAliveUnderSuicideRules");
 
+    //Whether the model expects territory scoring with no seki tax to exclude points adjacent to atari (rules v3).
+    int preferExcludeTerritoryAdjAtariInt = 0;
+    in >> preferExcludeTerritoryAdjAtariInt;
+    if(preferExcludeTerritoryAdjAtariInt == 0)
+      preferExcludeTerritoryAdjacentToAtari = false;
+    else if(preferExcludeTerritoryAdjAtariInt == 1)
+      preferExcludeTerritoryAdjacentToAtari = true;
+    else
+      throw StringError(name + ": model preferExcludeTerritoryAdjacentToAtari unexpected value: " + Global::intToString(preferExcludeTerritoryAdjAtariInt));
+    if(in.fail())
+      throw StringError(name + ": model failed to parse preferExcludeTerritoryAdjacentToAtari");
+
+    //Spare slots for future model options. Claiming one means updating everything else that has to
+    //carry the option alongside the model: export_model_pytorch.py writes this same slot layout,
+    //and the ONNX metadata block needs a matching required "katago." key in onnxmodelbuilder.cpp
+    //plus a row in docs/ONNX_Model_Files.md. A .onnx model has no header to parse, so an option
+    //left out of that block reads as its default instead of failing the way a spare slot does here.
     int unused = 0;
-    in >> unused;
-    if(unused != 0) throw StringError(name + ": unknown/unsupported model option C: " + Global::intToString(unused));
     in >> unused;
     if(unused != 0) throw StringError(name + ": unknown/unsupported model option D: " + Global::intToString(unused));
     in >> unused;
@@ -2567,6 +2596,7 @@ ModelDesc::ModelDesc(istream& in, const string& sha256_, bool binaryFloats) {
     metaEncoderVersion = 0;
     numInputMetaChannels = 0;
     preferPassAliveUnderSuicideRules = false;
+    preferExcludeTerritoryAdjacentToAtari = false;
   }
 
   trunk = TrunkDesc(in, modelVersion, binaryFloats, metaEncoderVersion);
@@ -2633,7 +2663,9 @@ ModelDesc& ModelDesc::operator=(ModelDesc&& other) {
   numOwnershipChannels = other.numOwnershipChannels;
   metaEncoderVersion = other.metaEncoderVersion;
   preferPassAliveUnderSuicideRules = other.preferPassAliveUnderSuicideRules;
+  preferExcludeTerritoryAdjacentToAtari = other.preferExcludeTerritoryAdjacentToAtari;
   postProcessParams = other.postProcessParams;
+  archSummary = other.archSummary;
   trunk = std::move(other.trunk);
   policyHead = std::move(other.policyHead);
   valueHead = std::move(other.valueHead);
@@ -2661,22 +2693,30 @@ int ModelDesc::maxConvChannels(int convXSize, int convYSize) const {
 }
 
 double ModelDesc::getTrunkSpatialConvDepth() const {
+  if(archSummary.present)
+    return archSummary.trunkSpatialConvDepth;
   return trunk.getSpatialConvDepth();
 }
 
 int64_t ModelDesc::getNumParameters() const {
+  if(archSummary.present)
+    return archSummary.numParameters;
   return trunk.getNumParameters() + policyHead.getNumParameters() + valueHead.getNumParameters();
+}
+
+bool ModelDesc::hasAnyNestedBottleneckBlocks() const {
+  if(archSummary.present)
+    return archSummary.hasAnyNestedBottleneckBlocks;
+  for(size_t i = 0; i < trunk.blocks.size(); i++) {
+    if(trunk.blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND)
+      return true;
+  }
+  return false;
 }
 
 string ModelDesc::getShortInfoString() const {
   bool isTransformer = hasAnyTransformerBlocks();
-  bool isNbt = false;
-  for(size_t i = 0; i < trunk.blocks.size(); i++) {
-    if(trunk.blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
-      isNbt = true;
-      break;
-    }
-  }
+  bool isNbt = hasAnyNestedBottleneckBlocks();
   string kind;
   if(isNbt)
     kind = isTransformer ? "nbt transformer" : "nbt convnet";
@@ -2712,27 +2752,30 @@ bool TrunkDesc::hasAnyTransformerBlocks() const {
   return blocksContainTransformerRecursive(blocks);
 }
 bool ModelDesc::hasAnyTransformerBlocks() const {
+  if(archSummary.present)
+    return archSummary.hasAnyTransformerBlocks;
   return trunk.hasAnyTransformerBlocks();
 }
 
-void ModelDesc::applyScale8ToReduceActivations() {
+bool ModelDesc::applyScale8ToReduceActivations() {
   // Scale8 scales the entire net's activations by 1/8 and compensates with MISH_SCALE8.
   // This is unsafe when:
   // - Non-standard trunk norm (RMSNorm is scale-invariant, so it would undo the 1/8 scaling)
   // - SiLU activation anywhere (no SiLU_SCALE8 variant exists)
   // - Any transformer blocks (their internal RMSNorm would undo the scaling)
   if(trunk.trunkNormKind != TRUNK_NORM_KIND_STANDARD)
-    return;
+    return false;
   if(trunk.trunkTipActivation.activation == ACTIVATION_SILU)
-    return;
+    return false;
   if(blocksContainTransformerRecursive(trunk.blocks))
-    return;
+    return false;
 
   trunk.applyScale8ToReduceActivations();
   policyHead.applyScale8ToReduceActivations();
   valueHead.applyScale8ToReduceActivations();
 
   postProcessParams.outputScaleMultiplier *= 8.0f;
+  return true;
 }
 
 void ModelDesc::releaseWeights() {
@@ -2753,6 +2796,10 @@ struct NonCopyingStreamBuf : public std::streambuf
 void ModelDesc::loadFromFileMaybeGZipped(const string& fileName, ModelDesc& descBuf, const string& expectedSha256) {
   try {
     string lower = Global::toLower(fileName);
+    if(Global::isSuffix(lower,".onnx") || Global::isSuffix(lower,".onnx.gz"))
+      throw StringError(
+        "Only the TensorRT and ONNX backends can load .onnx model files, KataGo normally requires a .bin.gz model."
+      );
     //Read model file with no compression if it's directly named .txt or .bin
     if(Global::isSuffix(lower,".txt")) {
       bool binaryFloats = false;

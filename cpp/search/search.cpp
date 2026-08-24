@@ -141,7 +141,7 @@ Search::Search(const SearchParams& params, NNEvaluator* nnEval, NNEvaluator* hum
   mutexPool = new MutexPool(nodeTable->mutexPool->getNumMutexes());
 
   rootHistory.clear(rootBoard,rootPla,Rules(),0);
-  applyPassAliveModeToRootHistory();
+  applyHistoryModesToRootHistory();
   rootKoHashTable->recompute(rootHistory);
 }
 
@@ -181,12 +181,27 @@ bool Search::resolveAlwaysComputePassAliveUnderSuicideRules(const SearchParams& 
   return nnEval != NULL && nnEval->modelPreferPassAliveUnderSuicideRules();
 }
 
-void Search::applyPassAliveModeToRootHistory() {
-  bool b = resolveAlwaysComputePassAliveUnderSuicideRules(searchParams, nnEvaluator);
-  if(rootHistory.alwaysComputePassAliveUnderSuicideRules != b) {
-    //Changing the mode changes graph hashes and in-tree adjudication, so no search state can be kept.
+bool Search::resolveExcludeTerritoryAdjacentToAtari(const SearchParams& params, const NNEvaluator* nnEval) {
+  if(params.excludeTerritoryAdjacentToAtari == enabled_t::True)
+    return true;
+  if(params.excludeTerritoryAdjacentToAtari == enabled_t::False)
+    return false;
+  return nnEval != NULL && nnEval->modelPreferExcludeTerritoryAdjacentToAtari();
+}
+
+BoardHistoryModes Search::resolveHistoryModes(const SearchParams& params, const NNEvaluator* nnEval) {
+  return BoardHistoryModes(
+    resolveAlwaysComputePassAliveUnderSuicideRules(params, nnEval),
+    resolveExcludeTerritoryAdjacentToAtari(params, nnEval)
+  );
+}
+
+void Search::applyHistoryModesToRootHistory() {
+  BoardHistoryModes m = resolveHistoryModes(searchParams, nnEvaluator);
+  if(rootHistory.modes != m) {
+    //Changing the modes changes graph hashes and in-tree adjudication, so no search state can be kept.
     clearSearch();
-    rootHistory.setAlwaysComputePassAliveUnderSuicideRules(b);
+    rootHistory.setModes(m);
   }
 }
 
@@ -196,7 +211,7 @@ void Search::setPosition(Player pla, const Board& board, const BoardHistory& his
   plaThatSearchIsFor = C_EMPTY;
   rootBoard = board;
   rootHistory = history;
-  applyPassAliveModeToRootHistory();
+  applyHistoryModesToRootHistory();
   rootKoHashTable->recompute(rootHistory);
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
@@ -212,7 +227,7 @@ void Search::setPlayerAndClearHistory(Player pla) {
   bool assumeMultipleStartingBlackMovesAreHandicap = rootHistory.assumeMultipleStartingBlackMovesAreHandicap;
   rootHistory.clear(rootBoard,rootPla,rules,rootHistory.encorePhase);
   rootHistory.setAssumeMultipleStartingBlackMovesAreHandicap(assumeMultipleStartingBlackMovesAreHandicap);
-  applyPassAliveModeToRootHistory();
+  applyHistoryModesToRootHistory();
 
   rootKoHashTable->recompute(rootHistory);
 
@@ -233,7 +248,7 @@ void Search::setKomiIfNew(float newKomi) {
     clearSearch();
     rootHistory.setKomi(newKomi);
   }
-  applyPassAliveModeToRootHistory();
+  applyHistoryModesToRootHistory();
 }
 
 void Search::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec) {
@@ -273,14 +288,14 @@ void Search::setRootSymmetryPruningOnly(const std::vector<int>& v) {
 void Search::setParams(const SearchParams& params) {
   clearSearch();
   searchParams = params;
-  applyPassAliveModeToRootHistory();
+  applyHistoryModesToRootHistory();
 }
 
 void Search::setParamsNoClearing(const SearchParams& params) {
   searchParams = params;
   //Deliberately overrides the "no clearing" if the resolved pass-alive mode actually changes,
   //since in that case no search state is valid to keep.
-  applyPassAliveModeToRootHistory();
+  applyHistoryModesToRootHistory();
 }
 
 void Search::setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table) {
@@ -316,7 +331,7 @@ void Search::setNNEval(NNEvaluator* nnEval) {
     if(humanEvaluator->getNNXLen() != nnXLen || humanEvaluator->getNNYLen() != nnYLen)
       throw StringError("Search::setNNEval - humanEval has different nnXLen or nnYLen");
   }
-  applyPassAliveModeToRootHistory();
+  applyHistoryModesToRootHistory();
 }
 
 void Search::clearSearch() {
@@ -654,10 +669,7 @@ void Search::beginSearch(bool pondering) {
 
   //Invariant: every setter that installs or rebuilds rootHistory or changes params/nnEvaluator
   //re-stamps this flag, so it should always be consistent by the time a search begins.
-  testAssert(
-    rootHistory.alwaysComputePassAliveUnderSuicideRules ==
-    resolveAlwaysComputePassAliveUnderSuicideRules(searchParams, nnEvaluator)
-  );
+  testAssert(rootHistory.modes == resolveHistoryModes(searchParams, nnEvaluator));
 
   rootBoard.checkConsistency();
 

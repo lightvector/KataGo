@@ -36,10 +36,12 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
 
 MiscNNInputParams Search::paramsForHumanEvaluator(const MiscNNInputParams& nnInputParams) const {
   MiscNNInputParams humanNNInputParams = nnInputParams;
-  //Featurize for the human net per its own resolution (its own declaration when the param is auto),
-  //which may differ from the mode the search itself is using.
+  //Featurize for the human net per its own resolution (its own declaration when the params are auto),
+  //which may differ from the modes the search itself is using.
   humanNNInputParams.passAliveSuicideRulesOverride =
     resolveAlwaysComputePassAliveUnderSuicideRules(searchParams, humanEvaluator) ? 1 : 0;
+  humanNNInputParams.excludeTerritoryAdjAtariOverride =
+    resolveExcludeTerritoryAdjacentToAtari(searchParams, humanEvaluator) ? 1 : 0;
   return humanNNInputParams;
 }
 

@@ -1,0 +1,50 @@
+= 
+
+= 
+
+= 
+
+= 
+
+= MoveNum: 0 HASH: 96B915DAA172730D4E0FA7F87274D70E
+   A B C D E F G
+ 7 . . . O X X X
+ 6 O O O O X . X
+ 5 X X X X O X X
+ 4 O . X O O O O
+ 3 O O X O X . O
+ 2 O X X O . X O
+ 1 O . X O O X X
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"SIMPLE","komi":0.0,"scoring":"TERRITORY","suicide":false,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+
+= "auto"
+
+= 
+
+= "true"
+
+= 
+
+= "false"
+
+= 
+
+= "auto"
+
+= MoveNum: 0 HASH: 96B915DAA172730D4E0FA7F87274D70E
+   A B C D E F G
+ 7 . . . O X X X
+ 6 O O O O X . X
+ 5 X X X X O X X
+ 4 O . X O O O O
+ 3 O O X O X . O
+ 2 O X X O . X O
+ 1 O . X O O X X
+Next player: Black
+Rules: {"friendlyPassOk":false,"hasButton":false,"ko":"SIMPLE","komi":0.0,"scoring":"TERRITORY","suicide":false,"tax":"NONE","whiteHandicapBonus":"0"}
+B stones captured: 0
+W stones captured: 0
+

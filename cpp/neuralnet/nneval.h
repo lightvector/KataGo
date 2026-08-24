@@ -126,6 +126,9 @@ class NNEvaluator {
   bool getRequireExactNNLen() const;
   int getModelVersion() const;
   double getTrunkSpatialConvDepth() const;
+  int64_t getNumModelParameters() const;
+  bool modelHasAnyTransformerBlocks() const;
+  bool modelHasAnyNestedBottleneckBlocks() const;
   enabled_t getUsingFP16Mode() const;
 
   // Check if the loaded neural net supports shorttermError fields
@@ -135,6 +138,11 @@ class NNEvaluator {
   // computed as if multi-stone suicide were always legal, regardless of the actual suicide rule.
   // False if there is no loaded model (e.g. debugSkipNeuralNet).
   bool modelPreferPassAliveUnderSuicideRules() const;
+
+  // Whether the loaded model declares that it expects territory scoring with TaxRule NONE to
+  // exclude empty points adjacent to chains in atari (rules version 3), both for adjudication and
+  // for its territory input features. False if there is no loaded model (e.g. debugSkipNeuralNet).
+  bool modelPreferExcludeTerritoryAdjacentToAtari() const;
 
   // Return the "nearest" supported ruleset to desiredRules by this model.
   // Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.

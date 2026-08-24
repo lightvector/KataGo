@@ -1,27 +1,30 @@
 # KataGo
 
-* [Overview](#overview)
-* [Training History and Research](#training-history-and-research)
-* [Where To Download Stuff](#where-to-download-stuff)
-* [Setting Up and Running KataGo](#setting-up-and-running-katago)
-  * [GUIs](#guis)
-  * [Windows and Linux](#windows-and-linux)
-  * [MacOS](#macos)
-  * [OpenCL vs CUDA vs TensorRT vs Eigen](#opencl-vs-cuda-vs-tensorrt-vs-eigen)
-  * [How To Use](#how-to-use)
-  * [Tuning for Performance](#tuning-for-performance)
-  * [Common Questions and Issues](#common-questions-and-issues)
-    * [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers)
-    * [Common Problems](#common-problems)
-    * [Other Questions](#other-questions)
-* [Features for Developers](#features-for-developers)
-  * [GTP Extensions](#gtp-extensions)
-  * [Analysis Engine](#analysis-engine)
-* [Compiling KataGo](#compiling-katago)
-* [Source Code Overview](#source-code-overview)
-* [Selfplay Training](#selfplay-training)
-* [Contributors](#contributors)
-* [License](#license)
+- [KataGo](#katago)
+  - [Overview](#overview)
+  - [Training History and Research and Docs](#training-history-and-research-and-docs)
+  - [Where To Download Stuff](#where-to-download-stuff)
+  - [Setting Up and Running KataGo](#setting-up-and-running-katago)
+    - [GUIs](#guis)
+    - [Windows and Linux](#windows-and-linux)
+    - [MacOS](#macos)
+    - [OpenCL vs CUDA vs TensorRT vs ROCm vs Eigen](#opencl-vs-cuda-vs-tensorrt-vs-rocm-vs-eigen)
+    - [How To Use](#how-to-use)
+      - [Human-style Play and Analysis](#human-style-play-and-analysis)
+      - [Other Commands:](#other-commands)
+    - [Tuning for Performance](#tuning-for-performance)
+    - [Common Questions and Issues](#common-questions-and-issues)
+      - [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers)
+      - [Common Problems](#common-problems)
+      - [Other Questions](#other-questions)
+  - [Features for Developers](#features-for-developers)
+      - [GTP Extensions:](#gtp-extensions)
+      - [Analysis Engine:](#analysis-engine)
+  - [Compiling KataGo](#compiling-katago)
+  - [Source Code Overview:](#source-code-overview)
+  - [Selfplay Training:](#selfplay-training)
+  - [Contributors](#contributors)
+  - [License](#license)
 
 ## Overview
 
@@ -85,8 +88,8 @@ The community also provides KataGo packages for [Homebrew](https://brew.sh) on M
 
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep 'gtp.*\.cfg') -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
-### OpenCL vs CUDA vs TensorRT vs Eigen
-KataGo has four backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), and Eigen (CPU). (On macOS there is also a Metal backend, most easily obtained via homebrew - see above.)
+### OpenCL vs CUDA vs TensorRT vs ROCm vs Eigen
+KataGo has five backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), ROCm (GPU), and Eigen (CPU). (On macOS there is also a Metal backend, most easily obtained via homebrew - see above.)
 
 As of v1.17, KataGo supports transformer neural nets, which are generally much stronger for the same compute cost and which the main training run is switching to. Transformer models are more demanding on the GPU backend than the older convolutional nets, so the backend recommendations below matter more for them - in particular OpenCL is noticeably slower on transformers, and on NVIDIA the CUDNN and TensorRT versions make a large difference.
 
@@ -96,11 +99,13 @@ The quick summary is:
   * Use Eigen with AVX2 if you don't have a GPU or if your GPU is too old/weak to work with OpenCL, and you just want a plain CPU KataGo.
   * Use Eigen without AVX2 if your CPU is old or on a low-end device that doesn't support AVX2.
   * The CUDA+CUDNN backend can also work well for NVIDIA GPUs. It has faster startup than TensorRT and is competitive on transformers if using CUDNN >= 9.8.0, though TensorRT 10.16 is often still slightly faster.
+  * The ROCm backend can work for AMD GPUs with ROCm+MIOpen installed, and is much faster than OpenCL on AMD datacenter (CDNA) GPUs.
 
 More in detail:
   * OpenCL is a general GPU backend should be able to run with any GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), including NVIDIA GPUs, AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. This is the most general GPU version of KataGo and doesn't require a complicated install like CUDA does, so is most likely to work out of the box as long as you have a fairly modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer. Also, the quality of OpenCL implementations is sometimes inconsistent, particularly for Intel Integrated Graphics and for AMD GPUs that are older than several years, so it might not work for very old machines, as well as specific buggy newer AMD GPUs, see also [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers). OpenCL is not as optimized as the NVIDIA-specific backends and will generally be slower, particularly for transformer models.
   * CUDA is a GPU backend specific to NVIDIA GPUs (it will not work with AMD or Intel or any other GPUs) and requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU. For older convolutional nets, on many GPUs the OpenCL implementation can match or beat NVIDIA's own CUDA/CUDNN, with the exception of top-end NVIDIA GPUs that support FP16 and tensor cores. For transformer nets, CUDA+CUDNN clearly outperforms OpenCL, but you should use CUDNN >= 9.8.0 if at all possible - the older CUDNN 8.9.7 is a LOT slower on transformer models. Compared to TensorRT, CUDA+CUDNN has faster startup times and is often only slightly slower (and occasionally faster) on transformers.
   * TensorRT is similar to CUDA, but uses NVIDIA's TensorRT framework to run the neural network with more optimized kernels. For modern NVIDIA GPUs it should work whenever CUDA does, and will usually be the fastest backend, though it has much longer startup times on every launch. As of v1.17.0, TensorRT versions older than 10 are no longer supported. For transformer models, recent versions like CUDA 13 + TensorRT 10.16 are best, while older TensorRT versions can be outperformed by CUDA+CUDNN.
+  * ROCm is a GPU backend specific to AMD GPUs (it will not work with NVIDIA or Intel or any other GPUs) and requires installing [ROCm](https://rocm.docs.amd.com) and [MIOpen](https://rocm.docs.amd.com/projects/MIOpen) and a modern AMD GPU. It supports both **Linux** (via official ROCm packages, ROCm 6.4+) and **Windows** (via [AMD TheRock](https://github.com/ROCm/TheRock) builds). Performance relative to OpenCL depends on the GPU. On AMD's datacenter accelerators (CDNA), ROCm is much faster than OpenCL: measured on an MI300X at roughly 2.5x for convolutional nets and 6-12x for transformers. On consumer (RDNA) GPUs the two are closer and either may win depending on the GPU and driver, so if you want the best choice, run KataGo's benchmark with both. Transformer/attention-based neural nets (model version 17+) are supported on all AMD GPUs, and get an additional fused-attention speedup on CDNA and RDNA3/RDNA3.5/RDNA4 GPUs when AMD's Composable Kernel library is also installed (see [Compiling.md](Compiling.md)).
   * Eigen is a *CPU* backend that should work widely *without* needing a GPU or fancy drivers. Use this if you don't have a good GPU or really any GPU at all. It will be quite significantly slower than OpenCL or CUDA, but on a good CPU can still often get 10 to 20 playouts per second if using the smaller (15 or 20) block neural nets. Eigen can also be compiled with AVX2 and FMA support, which can provide a big performance boost for Intel and AMD CPUs from the last few years. However, it will not run at all on older CPUs (and possibly even some recent but low-power modern CPUs) that don't support these fancy vector instructions.
 
 For **any** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
@@ -160,6 +165,10 @@ Force OpenCL tuner to re-tune:
 
    * `./katago tuner -config <GTP_CONFIG>.cfg`
 
+On the TensorRT and ONNX backends, write out the [ONNX graph](docs/ONNX_Model_Files.md) that KataGo builds for a model, which can then be run as a model file in its own right:
+
+   * `./katago dumponnx -model <NEURALNET>.bin.gz -out <NEURALNET>.onnx`
+
 Print version:
 
    * `./katago version`
@@ -178,6 +187,7 @@ This section summarizes a number of common questions and issues when running Kat
 #### Issues with specific GPUs or GPU drivers
 If you are observing any crashes in KataGo while attempting to run the benchmark or the program itself, and you have one of the below GPUs, then this is likely the reason.
 
+* **AMD GPUs** - The ROCm backend's builds include GPU code for gfx906 (Vega 20), CDNA (gfx908/90a/942/950), and RDNA1 through RDNA4 (as supported by the installed ROCm toolchain). If your GPU is not among these or is outside AMD's official [ROCm support list](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html), KataGo may fail at startup with a GPU initialization error - use the OpenCL backend instead. See [Compiling.md](Compiling.md) for ROCm build instructions.
 * **AMD Radeon RX 5700** - AMD's drivers for OpenCL for this GPU have been buggy ever since this GPU was released, and as of May 2020 AMD has still never released a fix. If you are using this GPU, you will just not be able to run KataGo (Leela Zero and other Go engines will probably fail too) and will probably also obtain incorrect calculations or crash if doing anything else scientific or mathematical that uses OpenCL. See for example these reddit threads: [[1]](https://www.reddit.com/r/Amd/comments/ebso1x/its_not_just_setihome_any_mathematic_or/) or [[2]](https://www.reddit.com/r/BOINC/comments/ebiz18/psa_please_remove_your_amd_rx5700xt_from_setihome/) or this [L19 thread](https://lifein19x19.com/viewtopic.php?f=18&t=17093).
 * **OpenCL Mesa** - These drivers for OpenCL are buggy. Particularly if on startup before crashing you see KataGo printing something like
 `Found OpenCL Platform 0: ... (Mesa) (OpenCL 1.1 Mesa ...) ...`

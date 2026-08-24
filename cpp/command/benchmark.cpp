@@ -264,6 +264,12 @@ int MainCmds::benchmark(const vector<string>& args) {
   cout << "If you have a strong GPU capable of FP16 tensor cores (e.g. RTX2080), "
        << "using the Cuda version of KataGo instead may give a mild performance boost." << endl;
 #endif
+#ifdef USE_ROCM_BACKEND
+  cout << "You are currently using the ROCm version of KataGo." << endl;
+  cout << "Your GTP config is currently set to rocmUseFP16 = " << nnEval->getUsingFP16Mode().toString() << endl;
+  if(nnEval->getUsingFP16Mode() == enabled_t::False)
+    cout << "If you have a strong GPU capable of FP16 setting this to true may give a large performance boost." << endl;
+#endif
 #ifdef USE_EIGEN_BACKEND
   cout << "You are currently using the Eigen (CPU) version of KataGo. Due to having no GPU, it may be slow." << endl;
 #endif
@@ -307,7 +313,7 @@ int MainCmds::benchmark(const vector<string>& args) {
 static void warmStartNNEval(const CompactSgf& sgf, Logger& logger, const SearchParams& params, NNEvaluator* nnEval, Rand& seedRand) {
   Board board(sgf.xSize,sgf.ySize);
   Player nextPla = P_BLACK;
-  BoardHistory hist(board,nextPla,Rules(),0,false);
+  BoardHistory hist(board,nextPla,Rules(),0,BoardHistoryModes());
   SearchParams thisParams = params;
   thisParams.numThreads = 1;
   thisParams.maxVisits = 5;
