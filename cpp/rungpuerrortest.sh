@@ -42,6 +42,20 @@ runtest() {
     fi
 }
 
+# runtestref <name> <reference-name> <testgpuerror args...>
+# Like runtest, but checks against the reference file of a different entry, for variations
+# whose reference outputs are the same as that entry's (e.g. numNNServerThreadsPerModel, which
+# does not change what any single evaluation should compute). The entry must use the same
+# model, -boardsize, -quick flag, and any overrides that affect evaluation outputs.
+runtestref() {
+    local name="$1"
+    local refname="$2"
+    shift 2
+    if ! "$KATAGO_BIN" testgpuerror "$@" -reference-file "$REFERENCEDIR/$refname" | tee "$RESULTSDIR/$name"; then
+        FAILURES+=("$name")
+    fi
+}
+
 MODEL1=tests/models/run4-s67105280-d24430742-b6c96.txt.gz  # version 3
 MODEL2=tests/models/grun50-b6c96-s156348160-d118286860.txt.gz  # version 4
 MODEL3=tests/models/g103-b6c96-s103408384-d26419149.txt.gz  # version 5
@@ -168,8 +182,10 @@ runtest "$MODELBASE11"_size9_rectbuffer.txt -model "$MODEL11" -config configs/gt
 # checking.
 
 MODEL13=models/b10c384h6nbttflrs.bin.gz  # v17 transformer, 6 heads, learnable rope, rmsnorm trunk tip
+MODEL14=models/b15c512h8nbttflrs-fson-silu.bin.gz  # v17 transformer, 8 heads, learnable rope, silu
 MODEL15=models/b11c768h12nbt3tflrs-fson-silu.bin.gz  # v17 transformer, 12 heads, learnable rope, silu, largest
 MODELBASE13=$(basename "$MODEL13")
+MODELBASE14=$(basename "$MODEL14")
 MODELBASE15=$(basename "$MODEL15")
 
 runtest "$MODELBASE13"_size19_quick.txt -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 19 -quick \
@@ -181,14 +197,27 @@ runtest "$MODELBASE13"_size9_rectbuffer_quick.txt -model "$MODEL13" -config conf
 runtest "$MODELBASE13"_size10x14_quick.txt -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 10x14 -quick \
          -override-config "requireMaxBoardSize=True${EXTRA_OVERRIDE}"
 
+runtest "$MODELBASE14"_size19_quick.txt -model "$MODEL14" -config configs/gtp_example.cfg -boardsize 19 -quick \
+         -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}"
+
 runtest "$MODELBASE15"_size19_quick.txt -model "$MODEL15" -config configs/gtp_example.cfg -boardsize 19 -quick \
          -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}"
 
-MODEL14=models/b15c512h8nbttflrs-fson-silu.bin.gz  # v17 transformer, 8 heads, learnable rope, silu
-MODELBASE14=$(basename "$MODEL14")
-
-runtest "$MODELBASE14"_size19_quick.txt -model "$MODEL14" -config configs/gtp_example.cfg -boardsize 19 -quick \
-         -override-config "requireMaxBoardSize=False${EXTRA_OVERRIDE}"
+# Two NN server threads on the same GPU, checked against the reference files of the matching
+# single-threaded entries above. These cover two compute handles executing concurrently on one
+# device, which real configs enable via numNNServerThreadsPerModel and which the benchmark now
+# recommends when it measures faster. Each entry's overrides match its reference entry exactly,
+# apart from the added thread count.
+runtestref "$MODELBASE6"_sizerect_2thr.txt "$MODELBASE6"_sizerect.txt -model "$MODEL6" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False,numNNServerThreadsPerModel=2${EXTRA_OVERRIDE}"
+runtestref "$MODELBASE11"_size19_2thr.txt "$MODELBASE11"_size19.txt -model "$MODEL11" -config configs/gtp_example.cfg -boardsize 19 \
+         -override-config "requireMaxBoardSize=True,numNNServerThreadsPerModel=2${EXTRA_OVERRIDE}"
+runtestref "$MODELBASE12"_sizerect_2thr.txt "$MODELBASE12"_sizerect.txt -model "$MODEL12" -config configs/gtp_example.cfg -boardsize rectangle \
+         -override-config "requireMaxBoardSize=False, maxBatchSize=12,numNNServerThreadsPerModel=2${EXTRA_OVERRIDE}"
+runtestref "$MODELBASE11"_size9_rectbuffer_2thr.txt "$MODELBASE11"_size9_rectbuffer.txt -model "$MODEL11" -config configs/gtp_example.cfg -boardsize 9 \
+         -override-config "requireMaxBoardSize=False,maxBoardXSizeForNNBuffer=16,maxBoardYSizeForNNBuffer=11,maxBatchSize=15,policyOptimism=0.70,numNNServerThreadsPerModel=2${EXTRA_OVERRIDE}"
+runtestref "$MODELBASE13"_size19_quick_2thr.txt "$MODELBASE13"_size19_quick.txt -model "$MODEL13" -config configs/gtp_example.cfg -boardsize 19 -quick \
+         -override-config "requireMaxBoardSize=False,numNNServerThreadsPerModel=2${EXTRA_OVERRIDE}"
 
 set +x
 if [ "${#FAILURES[@]}" -ne 0 ]; then

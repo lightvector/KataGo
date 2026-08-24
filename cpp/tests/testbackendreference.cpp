@@ -288,22 +288,20 @@ bool Tests::runBackendReferenceTest(
   std::vector<double> ownershipMAERatio;   // candidate MAE / stored allowed MAE, over ownership positions
   int numConsensusViolations = 0;
 
-  for(size_t posIdx = 0; posIdx < refData.size(); posIdx++) {
-    const BackendRefPosData& data = refData[posIdx];
+  //Featurize per the model's own declared BoardHistoryModes preferences. Nets with different modes
+  //thus see slightly different inputs on the same position - part of the model-family spread the
+  //calibrated thresholds must absorb.
+  const BoardHistoryModes modelModes(
+    nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari());
+  const SGFMetadata sgfMeta = SGFMetadata::getProfile("preaz_5k");
 
-    //Featurize per the model's own declared BoardHistoryModes preferences. Nets with different modes
-    //thus see slightly different inputs on the same position - part of the model-family spread the
-    //calibrated thresholds must absorb.
-    const BoardHistoryModes modelModes(
-      nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari());
-    BoardHistory hist;
+  auto makeHistAndParams = [&](size_t posIdx, BoardHistory& hist, MiscNNInputParams& nnInputParams) {
+    const BackendRefPosData& data = refData[posIdx];
     Player nextPla = C_EMPTY;
     bool histOkay = data.sample.tryGetCurrentBoardHistory(data.rules, nextPla, hist, modelModes);
     if(!histOkay)
       throw StringError("Backend reference test: reference position " + Global::uint64ToString((uint64_t)posIdx) + " has illegal moves");
     const Board& board = hist.getRecentBoard(0);
-
-    MiscNNInputParams nnInputParams;
     nnInputParams.symmetry = (int)(BoardHistory::getSituationRulesAndKoHash(board,hist,hist.presumedNextMovePla,0.5).hash0 & 7);
     nnInputParams.policyOptimism = data.policyOptimism;
     nnInputParams.playoutDoublingAdvantage = data.pda;
@@ -311,13 +309,62 @@ bool Tests::runBackendReferenceTest(
     nnInputParams.nnPolicyTemperature = (float)nnPolicyTemperatureForTest;
     nnInputParams.passAliveSuicideRulesOverride = modelModes.alwaysComputePassAliveUnderSuicideRules ? 1 : 0;
     nnInputParams.excludeTerritoryAdjAtariOverride = modelModes.excludeTerritoryAdjacentToAtari ? 1 : 0;
+  };
 
+  auto evalPosition = [&](size_t posIdx) {
+    BoardHistory hist;
+    MiscNNInputParams nnInputParams;
+    makeHistAndParams(posIdx, hist, nnInputParams);
+    const Board& board = hist.getRecentBoard(0);
     NNResultBuf buf;
     const bool skipCache = true;
     const bool includeOwnerMap = true;
-    SGFMetadata sgfMeta = SGFMetadata::getProfile("preaz_5k");
     nnEval->evaluate(board,hist,hist.presumedNextMovePla,&sgfMeta,nnInputParams,buf,skipCache,includeOwnerMap);
-    const std::shared_ptr<NNOutput>& out = buf.result;
+    return std::move(buf.result);
+  };
+
+  //Evaluate the first half of the positions sequentially, one query in flight at a time, and
+  //the second half from concurrent threads, so that the outputs checked cover both unbatched
+  //evaluation and batched evaluation, with multiple NN server threads busy at once if the
+  //evaluator is configured with more than one.
+  std::vector<std::shared_ptr<NNOutput>> outputs(refData.size());
+  const size_t numSequential = (refData.size()+1) / 2;
+  for(size_t posIdx = 0; posIdx < numSequential; posIdx++)
+    outputs[posIdx] = evalPosition(posIdx);
+  if(numSequential < refData.size()) {
+    int numEvalThreads = std::max(2, std::min(7, 1 + nnEval->getMaxBatchSize()/2));
+    if((size_t)numEvalThreads > refData.size() - numSequential)
+      numEvalThreads = (int)(refData.size() - numSequential);
+    //Exceptions must not escape the worker threads, so they are collected and rethrown here.
+    std::vector<std::exception_ptr> threadErrors(numEvalThreads);
+    std::vector<std::thread> threads;
+    for(int threadIdx = 0; threadIdx < numEvalThreads; threadIdx++) {
+      threads.emplace_back([&,threadIdx]() {
+        try {
+          for(size_t posIdx = numSequential + threadIdx; posIdx < refData.size(); posIdx += numEvalThreads)
+            outputs[posIdx] = evalPosition(posIdx);
+        }
+        catch(...) {
+          threadErrors[threadIdx] = std::current_exception();
+        }
+      });
+    }
+    for(std::thread& thread: threads)
+      thread.join();
+    for(const std::exception_ptr& err: threadErrors) {
+      if(err != nullptr)
+        std::rethrow_exception(err);
+    }
+  }
+
+  for(size_t posIdx = 0; posIdx < refData.size(); posIdx++) {
+    const BackendRefPosData& data = refData[posIdx];
+
+    BoardHistory hist;
+    MiscNNInputParams nnInputParams;
+    makeHistAndParams(posIdx, hist, nnInputParams);
+    const Board& board = hist.getRecentBoard(0);
+    const std::shared_ptr<NNOutput>& out = outputs[posIdx];
 
     int numLegal = 0;
     for(int i = 0; i<NNPos::MAX_NN_POLICY_SIZE; i++) {
