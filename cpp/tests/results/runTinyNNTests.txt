@@ -17,6 +17,7 @@ multiStoneSuicideLegal = true
 nnCacheSizePowerOfTwo = 12
 nnMutexPoolSizePowerOfTwo = 10
 numSearchThreads = 3
+onnxProvider = cpu
 ponderingEnabled = true
 resignConsecTurns = 3
 resignThreshold = -0.90

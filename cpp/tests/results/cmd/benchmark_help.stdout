@@ -50,6 +50,14 @@ Where:
    -half-batch-size
      Set max batch size to half of the number of threads
 
+   -no-server-thread-test
+     Skip the extra test of 2 NN server threads per GPU at the recommended
+     number of threads
+
+   -no-half-batch-size-test
+     Skip the extra test of half batch size at the recommended number of
+     threads
+
    -i <SECONDS>,  -time <SECONDS>
      Typical amount of time per move spent while playing, in seconds
      (default 5)
