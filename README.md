@@ -50,6 +50,8 @@ Here are some links to some docs/papers/posts about KataGo's research and traini
 
 * Many major further improvements have been found since then, which have been incorporated into KataGo's more recent runs and are documented here: [KataGoMethods.md](docs/KataGoMethods.md).
 
+* A description of the neural network sizes and architectures used in KataGo's main public run is: [NetworkArchitectures.md](docs/NetworkArchitectures.md).
+
 * KataGo has a fully working implementation of Monte-Carlo Graph Search, extending MCTS to operate on graphs instead of just trees! An explanation can be found here [Monte-Carlo Graph Search from First Principles](docs/GraphSearch.md). This explanation is written to be general (not specific to KataGo) and to fill a big gap in explanatory material in the academic literature and hopefully it can be useful to others!
 
 * Many thanks to [Jane Street](https://www.janestreet.com/) for supporting the training of KataGo's major earlier published runs, as well as numerous many smaller testing runs and experiments. Blog posts about the initial release and some interesting subsequent experiments:
