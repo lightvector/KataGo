@@ -1,33 +1,5 @@
 cmake_minimum_required(VERSION 3.18.2)
 
-# Pre-project MLX setup. KataGo's MLX path enforces CMake 3.27 via the guard
-# below (MLX itself requires only 3.25 - 3.27 is chosen to match
-# cmake_policy(VERSION 3.27)); the global cmake_minimum_required stays at
-# 3.18.2 so non-MLX backends keep building on older CMake.
-#
-# The OSX deployment target is deliberately NOT pinned here. KataGo links
-# Homebrew's prebuilt libmlx.dylib, whose minos reflects the macOS it was
-# bottled on - that dylib, not this build, sets the real minimum macOS.
-# Pinning a lower value only stamps a misleading minos on the executable and
-# triggers a "linking with dylib built for newer version" linker warning;
-# letting CMake default the target to the build host keeps minos honest.
-# This applies to the MLX branch only - the METAL branch below keeps its
-# existing set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0) pin unchanged.
-#
-# Normalize the backend name to uppercase BEFORE project(), so the
-# case-insensitive behavior of the post-project() string(TOUPPER ...) below
-# also applies to the pre-project() MLX version guard and the Swift language
-# selection. Without this, a lowercase -DUSE_BACKEND=mlx would silently skip
-# the 3.27 guard and the Swift enablement, then still build Swift sources later.
-string(TOUPPER "${USE_BACKEND}" USE_BACKEND_NORMALIZED)
-
-if(USE_BACKEND_NORMALIZED STREQUAL "MLX")
-  if(CMAKE_VERSION VERSION_LESS 3.27)
-    message(FATAL_ERROR "KataGo's USE_BACKEND=MLX path requires CMake 3.27 or newer. You have ${CMAKE_VERSION}. Install via: brew install cmake")
-  endif()
-  cmake_policy(VERSION 3.27)
-endif()
-
 # Helper: produce the default broad list of AMD GPU architectures the ROCm
 # backend should target when the user has not passed -DCMAKE_HIP_ARCHITECTURES=...
 # Required archs are always included, being well-established across many ROCm releases. Optional
@@ -357,7 +329,30 @@ endfunction()
 # e.g. -DUSE_BACKEND=rocm would otherwise silently skip all the ROCm pre-project setup.
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
 
-if(USE_BACKEND_NORMALIZED STREQUAL "METAL" OR USE_BACKEND_NORMALIZED STREQUAL "MLX")
+# Pre-project MLX setup, placed here so it runs after the case normalization directly above:
+# dispatching on the already-uppercased USE_BACKEND is what lets a lowercase -DUSE_BACKEND=mlx
+# still trip both the version guard here and the Swift language enablement below, instead of
+# silently skipping them and then building Swift sources anyway.
+#
+# KataGo's MLX path enforces CMake 3.27 (MLX itself requires only 3.25 - 3.27 is chosen to match
+# cmake_policy(VERSION 3.27)); the global cmake_minimum_required stays at 3.18.2 so non-MLX
+# backends keep building on older CMake.
+#
+# The OSX deployment target is deliberately NOT pinned here. KataGo links Homebrew's prebuilt
+# libmlx.dylib, whose minos reflects the macOS it was bottled on - that dylib, not this build,
+# sets the real minimum macOS. Pinning a lower value only stamps a misleading minos on the
+# executable and triggers a "linking with dylib built for newer version" linker warning; letting
+# CMake default the target to the build host keeps minos honest. This applies to the MLX branch
+# only - the METAL branch below keeps its existing set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0) pin
+# unchanged.
+if(USE_BACKEND STREQUAL "MLX")
+  if(CMAKE_VERSION VERSION_LESS 3.27)
+    message(FATAL_ERROR "KataGo's USE_BACKEND=MLX path requires CMake 3.27 or newer. You have ${CMAKE_VERSION}. Install via: brew install cmake")
+  endif()
+  cmake_policy(VERSION 3.27)
+endif()
+
+if(USE_BACKEND STREQUAL "METAL" OR USE_BACKEND STREQUAL "MLX")
   project(katago LANGUAGES CXX Swift)
 elseif(USE_BACKEND STREQUAL "ROCM")
   if(CMAKE_VERSION VERSION_LESS 3.21)
