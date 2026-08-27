@@ -13,6 +13,10 @@
 #include <program/gitinfo.h>
 #endif
 
+#ifdef USE_ROCM_BACKEND
+#include <hip/hip_version.h>
+#endif
+
 #include <sstream>
 
 //------------------------
@@ -52,10 +56,14 @@ evalsgf : Utility/debug tool, analyze a single position of a game from an SGF fi
 searchentropyanalysis : Analyze search entropy across test datasets.
 selfplaysurprisedump : Run selfplay games with a fixed model and dump per-position policy/value surprise stats to csv.
 
+benchmarknn : Benchmark raw neural net forward throughput, without search.
 testgpuerror : Print the average error of the neural net between current config and fp32 config.
+testbackendreference : Test backend absolute outputs against compiled-in blended reference data.
+dumponnx : (TensorRT/ONNX only) Write out the ONNX graph KataGo builds for a model.
 
 runtests : Test important board algorithms and datastructures
 runnnlayertests : Test a few subcomponents of the current neural net backend
+runonnxmodelfiletests : (TensorRT/ONNX only) Test the .onnx model file reader
 
 runnnontinyboardtest : Run neural net on a tiny board and dump result to stdout
 runnnsymmetriestest : Run neural net on a hardcoded rectangle board and dump symmetries result
@@ -78,6 +86,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::analysis(subArgs);
   else if(subcommand == "benchmark")
     return MainCmds::benchmark(subArgs);
+  else if(subcommand == "benchmarknn")
+    return MainCmds::benchmarknn(subArgs);
   else if(subcommand == "contribute")
     return MainCmds::contribute(subArgs);
   else if(subcommand == "evalsgf")
@@ -96,6 +106,10 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::selfplay(subArgs);
   else if(subcommand == "testgpuerror")
     return MainCmds::testgpuerror(subArgs);
+  else if(subcommand == "testbackendreference")
+    return MainCmds::testbackendreference(subArgs);
+  else if(subcommand == "dumponnx")
+    return MainCmds::dumponnx(subArgs);
   else if(subcommand == "runtests")
     return MainCmds::runtests(subArgs);
   else if(subcommand == "runnnlayertests")
@@ -130,6 +144,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::runtinynntests(subArgs);
   else if(subcommand == "runnnevalcanarytests")
     return MainCmds::runnnevalcanarytests(subArgs);
+  else if(subcommand == "runonnxmodelfiletests")
+    return MainCmds::runonnxmodelfiletests(subArgs);
   else if(subcommand == "runconfigtests")
     return MainCmds::runconfigtests(subArgs);
   else if(subcommand == "samplesgfs")
@@ -226,11 +242,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.17.2");
+  return string("1.18.1");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.17.2");
+  return string("KataGo v1.18.1");
 }
 
 string Version::getKataGoVersionFullInfo() {
@@ -251,8 +267,15 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using Metal backend" << endl;
 #elif defined(USE_OPENCL_BACKEND)
   out << "Using OpenCL backend" << endl;
+#elif defined(USE_ROCM_BACKEND)
+  out << "Using ROCm backend" << endl;
+#if defined(HIP_VERSION_MAJOR) && defined(HIP_VERSION_MINOR) && defined(HIP_VERSION_PATCH)
+  out << "Compiled with HIP version " << HIP_VERSION_MAJOR << "." << HIP_VERSION_MINOR << "." << HIP_VERSION_PATCH << endl;
+#endif
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
+#elif defined(USE_ONNX_BACKEND)
+  out << "Using ONNX Runtime backend" << endl;
 #elif defined(USE_MLX_BACKEND)
   out << "Using MLX backend" << endl;
 #else
@@ -285,12 +308,16 @@ string Version::getGitRevisionWithBackend() {
   s += "-cuda";
 #elif defined(USE_TENSORRT_BACKEND)
   s += "-trt";
+#elif defined(USE_ROCM_BACKEND)
+  s += "-rocm";
 #elif defined(USE_METAL_BACKEND)
   s += "-metal";
 #elif defined(USE_OPENCL_BACKEND)
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
   s += "-eigen";
+#elif defined(USE_ONNX_BACKEND)
+  s += "-onnx";
 #elif defined(USE_MLX_BACKEND)
   s += "-mlx";
 #else

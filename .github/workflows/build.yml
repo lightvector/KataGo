@@ -54,6 +54,139 @@ jobs:
         name: katago-linux-opencl
         path: cpp/katago
 
+  # Compile-only ROCm check: GitHub runners have no AMD GPU, but the ROCm backend builds
+  # fine without one and runtests exercises no GPU code. Pinned to ROCm 6.4 (the documented
+  # minimum supported version) so this also catches changes that compile on newer ROCm but
+  # break the oldest supported one's headers/APIs.
+  # Three things this does not cover. The Composable Kernel fused attention glue is skipped,
+  # because ck_tile's headers come from the composablekernel-dev package and nothing installed
+  # below depends on it, so the configure takes its "ck_tile headers not found" branch and builds
+  # only the built-in attention kernels. The newer ROCm versions that the Windows and TheRock
+  # paths are developed against are not built here either. Nor is anything run on a GPU.
+  build-linux-rocm:
+    # Pinned rather than ubuntu-latest: the apt source line below is release-specific ("noble").
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Free disk space
+      # The ROCm dev packages unpack to ~11 GB (mostly rocBLAS/MIOpen kernel libraries), so
+      # clear unrelated preinstalled toolchains to make room on the runner's root disk.
+      run: |
+        sudo rm -rf /usr/local/lib/android /usr/share/dotnet
+
+    - name: Install ROCm 6.4 and build dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential zlib1g-dev libzip-dev wget gnupg
+        sudo mkdir -p /etc/apt/keyrings
+        wget -q https://repo.radeon.com/rocm/rocm.gpg.key -O - | gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
+        echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/6.4.3 noble main" | sudo tee /etc/apt/sources.list.d/rocm.list
+        # AMD's documented apt pin. Without it, Ubuntu's own ancient standalone "hipcc"
+        # package (which installs to /usr/bin) outversions repo.radeon.com's, and the HIP
+        # cmake config then fails on the missing /opt/rocm/bin/hipcc.
+        printf 'Package: *\nPin: release o=repo.radeon.com\nPin-Priority: 600\n' | sudo tee /etc/apt/preferences.d/rocm-pin-600
+        sudo apt-get update
+        sudo apt-get install -y hip-dev hipcc hipblas-dev miopen-hip-dev
+
+    - name: Configure CMake
+      working-directory: cpp
+      run: |
+        # One CDNA/wave64 arch (gfx942) and one RDNA3/wave32 arch (gfx1100): with no GPU
+        # present, the arch list only determines which device code gets compiled, so this
+        # covers both wavefront-size compile paths.
+        cmake . -DUSE_BACKEND=ROCM -DCMAKE_HIP_ARCHITECTURES="gfx942;gfx1100" -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      working-directory: cpp
+      run: |
+        make -j$(nproc)
+
+    - name: Run tests
+      working-directory: cpp
+      run: |
+        ./katago version
+        ./katago runtests
+
+  # Compile-only Windows ROCm check via AMD TheRock (the toolchain Compiling.md documents for
+  # Windows). No AMD GPU on the runner, so this covers configure+compile+link and the GPU-less
+  # runtests only - not GPU execution. Uses a pinned TheRock nightly dist tarball. Bump the
+  # version below deliberately, since toolchain drift is exactly what this job is meant to catch.
+  # The Composable Kernel fused attention path is not covered at the version pinned below, whose
+  # ck_tile the configure-time probe rejects on Windows (see
+  # external/composable_kernel_fmha/README.md). This is specific to that ck_tile rather than to
+  # Windows or MSVC in general, and earlier TheRock versions do build the CK kernels here, so on a
+  # version where the probe accepts them this job covers them too.
+  build-windows-rocm:
+    # windows-2022: KataGo's CMake requires a v143 MSVC toolset (14.3x/14.4x) for HIP clang
+    # compatibility, which this image ships.
+    runs-on: windows-2022
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    env:
+      THEROCK_VERSION: 7.14.0a20260612
+      THEROCK_FAMILY: gfx110X-all
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Cache TheRock tarball
+      id: cache-therock
+      uses: actions/cache@v4
+      with:
+        path: C:\TheRock\therock-dist.tar.gz
+        key: therock-windows-${{ env.THEROCK_FAMILY }}-${{ env.THEROCK_VERSION }}
+
+    - name: Download TheRock dist tarball
+      if: steps.cache-therock.outputs.cache-hit != 'true'
+      run: |
+        New-Item -ItemType Directory -Force -Path C:\TheRock | Out-Null
+        curl.exe -fsSL --retry 3 -o C:\TheRock\therock-dist.tar.gz `
+          "https://therock-nightly-tarball.s3.amazonaws.com/therock-dist-windows-$env:THEROCK_FAMILY-$env:THEROCK_VERSION.tar.gz"
+
+    - name: Extract TheRock
+      run: |
+        New-Item -ItemType Directory -Force -Path C:\TheRock\build | Out-Null
+        tar -xzf C:\TheRock\therock-dist.tar.gz -C C:\TheRock\build
+
+    - name: Set ROCm environment (per Compiling.md)
+      run: |
+        Add-Content $env:GITHUB_ENV "HIP_PATH=C:/TheRock/build"
+        Add-Content $env:GITHUB_ENV "HIP_PLATFORM=amd"
+        Add-Content $env:GITHUB_ENV "HIP_DEVICE_LIB_PATH=C:/TheRock/build/lib/llvm/amdgcn/bitcode"
+        Add-Content $env:GITHUB_ENV "LLVM_PATH=C:/TheRock/build/lib/llvm"
+        Add-Content $env:GITHUB_PATH "C:\TheRock\build\bin"
+        Add-Content $env:GITHUB_PATH "C:\TheRock\build\lib\llvm\bin"
+
+    - name: Install Ninja
+      run: choco install ninja -y --no-progress
+
+    - name: Configure CMake
+      working-directory: cpp
+      # Single arch matching the tarball's gfx family - with no GPU present the arch list only
+      # determines which device code gets compiled. zlib is auto-fetched at configure time via
+      # the KATAGO_AUTO_FETCH_DEPS vcpkg mechanism (needs network + git, both present here).
+      # libzip is optional and auto-disables.
+      run: |
+        cmake . -G Ninja -DUSE_BACKEND=ROCM -DCMAKE_HIP_ARCHITECTURES=gfx1100 -DCMAKE_BUILD_TYPE=Release
+
+    - name: Build
+      working-directory: cpp
+      run: |
+        ninja
+
+    - name: Run tests
+      working-directory: cpp
+      run: |
+        .\katago.exe version
+        .\katago.exe runtests
+
   build-macos:
     runs-on: macos-latest
     permissions:

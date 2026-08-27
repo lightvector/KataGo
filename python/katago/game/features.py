@@ -232,6 +232,7 @@ class Features:
                     area,
                     keepTerritories,
                     keepStones,
+                    rules.get("excludeTerritoryAdjacentToAtari",False),
                     rules["multiStoneSuicideLegal"]
                 )
 

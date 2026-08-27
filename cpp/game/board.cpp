@@ -1878,6 +1878,7 @@ void Board::calculateIndependentLifeArea(
   int& whiteMinusBlackIndependentLifeRegionCount,
   bool keepTerritories,
   bool keepStones,
+  bool excludeTerritoryAdjacentToAtari,
   bool isMultiStoneSuicideLegal
 ) const {
   //First, just compute basic area.
@@ -1902,8 +1903,24 @@ void Board::calculateIndependentLifeArea(
     for(int y = 0; y < y_size; y++) {
       for(int x = 0; x < x_size; x++) {
         Loc loc = Location::getLoc(x,y,x_size);
-        if(basicArea[loc] != C_EMPTY && basicArea[loc] != colors[loc])
-          result[loc] = basicArea[loc];
+        if(basicArea[loc] != C_EMPTY && basicArea[loc] != colors[loc]) {
+          //If excludeTerritoryAdjacentToAtari (rules version 3), empty points adjacent to a chain of
+          //the territory owner's own color in atari (e.g. unfilled ko mouths in seki, or the eye of
+          //a group whose eye is its last liberty) don't count. Otherwise, under territory scoring
+          //with TaxRule NONE, possession of an unfillable ko mouth in a seki would be worth a point,
+          //resulting in pass fights over such kos. Chains of the opposing color in atari (e.g. dead
+          //throw-in stones within pass-alive territory) deliberately do NOT block the territory.
+          bool adjChainInAtari = false;
+          if(excludeTerritoryAdjacentToAtari && colors[loc] == C_EMPTY) {
+            FOREACHADJ(
+              Loc adj = loc + ADJOFFSET;
+              if(colors[adj] == basicArea[loc] && getNumLiberties(adj) == 1)
+                adjChainInAtari = true;
+            );
+          }
+          if(!adjChainInAtari)
+            result[loc] = basicArea[loc];
+        }
       }
     }
   }

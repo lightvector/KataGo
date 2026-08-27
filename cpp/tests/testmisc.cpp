@@ -155,10 +155,10 @@ void Tests::runLoadModelTests() {
   }
   cout << "testloadmodel okay" << endl;
 
-  //A real v17 model file whose header slot after metaEncoderVersion is patched to 1 parses as
-  //declaring preferPassAliveUnderSuicideRules - the engine side of the model-declaration handshake
-  //that lets the alwaysComputePassAliveUnderSuicideRules auto mode turn on. The same slot layout is
-  //what export_model_pytorch.py writes.
+  //A real v17 model file whose header slots after metaEncoderVersion are patched to 1 parse as
+  //declaring preferPassAliveUnderSuicideRules and preferExcludeTerritoryAdjacentToAtari - the engine
+  //side of the model-declaration handshake that lets the corresponding auto modes turn on. The same
+  //slot layout is what export_model_pytorch.py writes.
   {
     const string modelFile = "tests/models/b7c96h6kv3qk32v16tflrs-fson-bnh.bin.gz";
     string uncompressed;
@@ -170,41 +170,55 @@ void Tests::runLoadModelTests() {
     const string rest = uncompressed.substr(binStart);
     vector<string> tokens = Global::split(headerPrefix);
     //Header layout: name, version, numInputChannels, numInputGlobalChannels, 7 postprocess params,
-    //metaEncoderVersion, preferPassAliveUnderSuicideRules, 6 unused option slots, then the trunk.
+    //metaEncoderVersion, preferPassAliveUnderSuicideRules, preferExcludeTerritoryAdjacentToAtari,
+    //5 unused option slots, then the trunk.
+    const size_t passAliveSlot = 12;
+    const size_t excludeTerritorySlot = 13;
     testAssert(tokens.size() > 19);
     testAssert(tokens[1] == "17");
     testAssert(tokens[11] == "0");
-    testAssert(tokens[12] == "0");
+    testAssert(tokens[passAliveSlot] == "0");
+    testAssert(tokens[excludeTerritorySlot] == "0");
     testAssert(tokens[19] == "trunk");
 
-    auto parseWithSlot = [&](const string& slotValue) {
+    auto parseWithSlot = [&](size_t slot, const string& slotValue) {
       vector<string> patched = tokens;
-      patched[12] = slotValue;
+      patched[slot] = slotValue;
       string contents = Global::concat(patched," ") + " " + rest;
       std::istringstream in(contents);
       return ModelDesc(in,"",true);
     };
-
-    {
-      ModelDesc desc = parseWithSlot("0");
-      testAssert(desc.modelVersion == 17);
-      testAssert(!desc.preferPassAliveUnderSuicideRules);
-    }
-    {
-      ModelDesc desc = parseWithSlot("1");
-      testAssert(desc.modelVersion == 17);
-      testAssert(desc.preferPassAliveUnderSuicideRules);
-    }
-    {
+    auto parseThrows = [&](size_t slot, const string& slotValue) {
       bool threw = false;
       try {
-        ModelDesc desc = parseWithSlot("2");
+        ModelDesc desc = parseWithSlot(slot,slotValue);
       }
       catch(const StringError&) {
         threw = true;
       }
-      testAssert(threw);
+      return threw;
+    };
+
+    {
+      ModelDesc desc = parseWithSlot(passAliveSlot,"0");
+      testAssert(desc.modelVersion == 17);
+      testAssert(!desc.preferPassAliveUnderSuicideRules);
+      testAssert(!desc.preferExcludeTerritoryAdjacentToAtari);
     }
+    {
+      ModelDesc desc = parseWithSlot(passAliveSlot,"1");
+      testAssert(desc.modelVersion == 17);
+      testAssert(desc.preferPassAliveUnderSuicideRules);
+      testAssert(!desc.preferExcludeTerritoryAdjacentToAtari);
+    }
+    {
+      ModelDesc desc = parseWithSlot(excludeTerritorySlot,"1");
+      testAssert(desc.modelVersion == 17);
+      testAssert(!desc.preferPassAliveUnderSuicideRules);
+      testAssert(desc.preferExcludeTerritoryAdjacentToAtari);
+    }
+    testAssert(parseThrows(passAliveSlot,"2"));
+    testAssert(parseThrows(excludeTerritorySlot,"2"));
     cout << "model declaration parsing okay" << endl;
   }
 }

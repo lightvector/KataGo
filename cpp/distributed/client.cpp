@@ -258,6 +258,7 @@ Connection::Connection(
   const Url& pUrl,
   const string& mdmbu,
   const bool mup,
+  const string& runtimeBackendDetail,
   Logger* lg
 )
   :httpClient(),
@@ -271,6 +272,10 @@ Connection::Connection(
    proxyUrl(pUrl),
    modelDownloadMirrorBaseUrl(mdmbu),
    mirrorUseProxy(mup),
+   gitRevisionWithBackendForServer(
+     Version::getGitRevisionWithBackend() +
+     (runtimeBackendDetail.empty() ? "" : ("-" + runtimeBackendDetail))
+   ),
    clientInstanceId(),
    logger(lg),
    rand(),
@@ -698,6 +703,15 @@ static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   model.bytes = parse<size_t>(networkProperties,"model_file_bytes");
   model.sha256 = parseString(networkProperties,"model_file_sha256",64);
   model.isRandom = parse<bool>(networkProperties,"is_random");
+  //Optional. Ignore bad values rather than failing, so that server-side experimentation with
+  //this field can never break clients.
+  model.backendRefTestLenienceFactor = 1.0;
+  if(networkProperties.find("backend_ref_test_lenience_factor") != networkProperties.end() &&
+     networkProperties["backend_ref_test_lenience_factor"].is_number()) {
+    double x = networkProperties["backend_ref_test_lenience_factor"].get<double>();
+    if(isfinite(x) && x >= 0.01 && x <= 10000.0)
+      model.backendRefTestLenienceFactor = x;
+  }
   return model;
 }
 
@@ -810,7 +824,7 @@ bool Connection::getNextTask(
 
     while(true) {
       httplib::MultipartFormDataItems items = {
-        { "git_revision", Version::getGitRevisionWithBackend(), "", "" },
+        { "git_revision", gitRevisionWithBackendForServer, "", "" },
         { "client_instance_id", clientInstanceId, "", "" },
         { "task_rep_factor", Global::intToString(taskRepFactor), "", ""},
         { "allow_selfplay_task", (allowSelfplayTask ? "true" : "false"), "", ""},

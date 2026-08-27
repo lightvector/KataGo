@@ -66,6 +66,25 @@ struct NNResultBuf {
   NNResultBuf& operator=(const NNResultBuf& other) = delete;
 };
 
+// Result of NNEvaluator::benchmarkPureForward
+struct NNEvalBenchmarkResult {
+  int batchSize;
+  int numThreads;
+  int numIterations;
+  // Per thread, the wall time of each timed getOutput call, in order.
+  std::vector<std::vector<double>> perThreadIterationSeconds;
+  std::vector<double> perThreadMedianSeconds;
+  std::vector<double> perThreadNNEvalsPerSec;
+  // Sum over threads of batchSize / medianSeconds.
+  double sumMedianNNEvalsPerSec;
+  // Wall time of the timed region: all threads started together, ending at the last thread's
+  // final iteration (warmups and compute handle teardown excluded), and
+  // numThreads * batchSize * numIterations / that wall time. This is the primary
+  // throughput metric since it accounts for real concurrency between threads.
+  double actualWallSeconds;
+  double actualWallNNEvalsPerSec;
+};
+
 // Each server thread should allocate and re-use one of these
 struct NNServerBuf {
   InputBuffers* inputBuffers;
@@ -98,7 +117,6 @@ class NNEvaluator {
     const std::string& randSeed,
     bool doRandomize,
     int defaultSymmetry,
-    bool disableWarmup,
     // Consulted by the compute backend for its own custom options; not stored.
     ConfigParser& cfg
   );
@@ -113,19 +131,32 @@ class NNEvaluator {
   std::string getAbbrevInternalModelName() const;
   Logger* getLogger();
   bool isNeuralNetLess() const;
+  // The build-time max batch size: backend buffers are allocated for this many rows, and
+  // fixed-shape backends (NeuralNet::BatchPolicy::FixedShape) pad every inference up to exactly
+  // this many rows, so it is also the one input shape their sessions get compiled for.
   int getMaxBatchSize() const;
-  int getCurrentBatchSize() const;
-  void setCurrentBatchSize(int batchSize);
+  // An additional cap, at most maxBatchSize, on how many queued queries the server threads will
+  // actually send in each batch. On fixed-shape backends lowering this below maxBatchSize only
+  // wastes padding rows, since the batch still runs maxBatchSize rows of compute. To genuinely
+  // run smaller batches there, recreate the NNEvaluator with a smaller maxBatchSize, as the
+  // benchmark does.
+  int getMaxRowsToSendPerBatch() const;
+  void setMaxRowsToSendPerBatch(int maxRows);
   bool requiresSGFMetadata() const;
 
   int getNumGpus() const;
   int getNumServerThreads() const;
   std::set<int> getGpuIdxs() const;
+  // One entry per server thread, in thread order, -1 meaning the backend's default device.
+  const std::vector<int>& getGpuIdxByServerThread() const;
   int getNNXLen() const;
   int getNNYLen() const;
   bool getRequireExactNNLen() const;
   int getModelVersion() const;
   double getTrunkSpatialConvDepth() const;
+  int64_t getNumModelParameters() const;
+  bool modelHasAnyTransformerBlocks() const;
+  bool modelHasAnyNestedBottleneckBlocks() const;
   enabled_t getUsingFP16Mode() const;
 
   // Check if the loaded neural net supports shorttermError fields
@@ -135,6 +166,11 @@ class NNEvaluator {
   // computed as if multi-stone suicide were always legal, regardless of the actual suicide rule.
   // False if there is no loaded model (e.g. debugSkipNeuralNet).
   bool modelPreferPassAliveUnderSuicideRules() const;
+
+  // Whether the loaded model declares that it expects territory scoring with TaxRule NONE to
+  // exclude empty points adjacent to chains in atari (rules version 3), both for adjudication and
+  // for its territory input features. False if there is no loaded model (e.g. debugSkipNeuralNet).
+  bool modelPreferExcludeTerritoryAdjacentToAtari() const;
 
   // Return the "nearest" supported ruleset to desiredRules by this model.
   // Fills supported with true if desiredRules itself was exactly supported, false if some modifications had to be made.
@@ -205,6 +241,20 @@ class NNEvaluator {
   void setDoRandomize(bool b);
   void setDefaultSymmetry(int s);
 
+  // Benchmark raw NN forward throughput, bypassing the query queue and search.
+  // Spins up one thread per configured NN server thread, each with its own compute handle,
+  // fills a full batch once (cycling through boardSizes across the rows of the batch), then
+  // times numIterations calls of NeuralNet::getOutput per thread after numWarmups untimed
+  // calls, with all threads released simultaneously. Includes H2D/D2H transfer and host-side
+  // output postprocessing, excludes feature generation and search.
+  // Requires that server threads are NOT spawned (or have been killed).
+  // This function is not threadsafe.
+  NNEvalBenchmarkResult benchmarkPureForward(
+    int numWarmups,
+    int numIterations,
+    const std::vector<int>& boardSizes
+  );
+
   // Some stats
   uint64_t numRowsProcessed() const;
   uint64_t numBatchesProcessed() const;
@@ -226,7 +276,6 @@ class NNEvaluator {
   std::vector<int> gpuIdxByServerThread;
   const std::string randSeed;
   const bool debugSkipNeuralNet;
-  const bool disableWarmup;
 
   ComputeContext* computeContext;
   LoadedModel* loadedModel;
@@ -244,6 +293,8 @@ class NNEvaluator {
   std::vector<std::thread*> serverThreads;
 
   const int maxBatchSize;
+  // NeuralNet::getNumEffectiveDevices at construction, see getNumGpus()
+  const int numEffectiveDevices;
 
   // Counters for statistics
   std::atomic<uint64_t> m_numRowsProcessed;
@@ -270,8 +321,8 @@ class NNEvaluator {
   // Randomization settings for symmetries
   std::atomic<bool> currentDoRandomize;
   std::atomic<int> currentDefaultSymmetry;
-  // Modifiable batch size smaller than maxBatchSize
-  std::atomic<int> currentBatchSize;
+  // See setMaxRowsToSendPerBatch
+  std::atomic<int> maxRowsToSendPerBatch;
 
   // Queued up requests
   ThreadSafeQueue<NNResultBuf*> queryQueue;
@@ -295,7 +346,7 @@ class NNEvaluator {
 
  public:
   // Helper, for internal use only
-  void serve(NNServerBuf& buf, Rand& rand, int gpuIdxForThisThread, int serverThreadIdx);
+  void serve(Rand& rand, int gpuIdxForThisThread, int serverThreadIdx);
 };
 
 #endif  // NEURALNET_NNEVAL_H_

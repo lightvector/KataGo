@@ -95,8 +95,8 @@ log("username" + ": " + username)
 log("base_server_url" + ": " + base_server_url)
 
 network_size = args["network_size"] if args["network_size"] is not None else model_name.split("-")[1]
-if not re.fullmatch(r"b[0-9]+c[0-9]+[a-z0-9]*", network_size):
-    raise Exception(f"Invalid network_size '{network_size}': must match b<digits>c<digits><lowercase alphanumeric>")
+if not re.fullmatch(r"(tf[0-9]+-)?b[0-9]+c[0-9]+[a-z0-9]*", network_size):
+    raise Exception(f"Invalid network_size '{network_size}': must match b<digits>c<digits><lowercase alphanumeric>, optionally prefixed by tf<digits>-")
 
 model_file_extension = None
 if model_file.endswith(".bin.gz"):
@@ -173,6 +173,18 @@ with open(model_file,"rb") as model_file_handle:
             rating_only = rating_only if rating_only is not None else 0
         elif network_size == "b18c384nbt":
             log_gamma_offset = 0
+            rating_only = rating_only if rating_only is not None else 1
+        # Offsets for the transformer sizes are rough estimates from fitting
+        # log_gamma_offset linearly against log(nn evals/s) of the sizes above,
+        # benchmarked on the CUDA backend on an RTX A5000 and an RTX 5090.
+        elif network_size == "tf2-b10c384":
+            log_gamma_offset = 0.8
+            rating_only = rating_only if rating_only is not None else 1
+        elif network_size == "tf3-b10c512":
+            log_gamma_offset = -0.2
+            rating_only = rating_only if rating_only is not None else 1
+        elif network_size == "tf3-b11c768":
+            log_gamma_offset = -1.3
             rating_only = rating_only if rating_only is not None else 1
         else:
             rating_only = rating_only if rating_only is not None else 1

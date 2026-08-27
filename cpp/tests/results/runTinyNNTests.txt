@@ -17,6 +17,7 @@ multiStoneSuicideLegal = true
 nnCacheSizePowerOfTwo = 12
 nnMutexPoolSizePowerOfTwo = 10
 numSearchThreads = 3
+onnxProvider = cpu
 ponderingEnabled = true
 resignConsecTurns = 3
 resignThreshold = -0.90
@@ -34,14 +35,17 @@ whiteHandicapBonus = 0
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 9 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: rect15-b2c16-s13679744-d94886722 (convnet, 18521 params)
+: CUDA backend: running 1x1 NHWC convolutions as a GEMM
 : After dedups: nnModelFile0 = tests/scratch/tmpTinyMishModel.bin.gz useFP16 auto
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 11 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b1c6nbt (nbt convnet, 2283 params)
+: CUDA backend: running 1x1 NHWC convolutions as a GEMM
 : After dedups: nnModelFile0 = tests/scratch/tmpTinyMishModel.bin.gz useFP16 auto
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 11 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b1c6nbt (nbt convnet, 2283 params)
+: CUDA backend: running 1x1 NHWC convolutions as a GEMM
 : Tiny net sanity check complete

@@ -2443,6 +2443,15 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   return handle->useFP16;
 }
 
+// Nothing to relax during warmup: MLX builds and caches its compiled graph per
+// (batchSize,nnXLen,nnYLen,...) key on first use with no fallible fallback path,
+// and the ANE mux converts the whole model up front in createComputeHandle.
+bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
+  (void)handle;
+  (void)isWarmup;
+  return false;
+}
+
 void NeuralNet::getOutput(
   ComputeHandle* computeHandle,
   InputBuffers* inputBuffers,
@@ -2681,6 +2690,40 @@ void NeuralNet::getOutput(
 void NeuralNet::printDevices() {
   cout << "MLX Backend (Apple Silicon)" << endl;
   cout << "Default device: " << mx::default_device() << endl;
+}
+
+std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
+  // "mlx" already says everything: the GPU/ANE mux is a per-thread device index, not a
+  // different runtime, and mlxUseFP16 is a precision knob like every other backend's.
+  (void)cfg;
+  return std::string();
+}
+
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  // Any batch size works, larger ones amortize per-call overhead, and neither path pads a short
+  // batch up to a fixed shape. The MLX/GPU path compiles and caches one graph per batch size
+  // actually seen (CompileCacheKey includes batchSize). The ANE mux instead converts exactly one
+  // CoreML model per ComputeHandle, declaring a flexible 1..maxBatchSize range, and the Swift
+  // apply() then drives it as batchSize independent single-row predictions. So this is Dynamic,
+  // not FixedShape.
+  (void)cfg;
+  return NeuralNet::BatchPolicy::Dynamic;
+}
+
+int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  // The gpu index alone identifies the device, as for Metal - no config keys to consult.
+  // MLX_MUX_ANE is not a special case to collapse away: a thread with that index runs on the
+  // Apple Neural Engine while a thread on MLX_MUX_GPU runs on the GPU, so a GPU thread plus an
+  // ANE thread really are two devices sharing no throughput, which is what counting distinct
+  // indices already reports.
+  // Unlike the other backends we can fold the -1 "no preference" sentinel in, since createComputeHandle
+  // resolves it to exactly MLX_MUX_GPU; otherwise a config that names a device for only some of the
+  // threads would count the same GPU twice.
+  (void)cfg;
+  std::set<int> distinctDevices;
+  for(int gpuIdx: gpuIdxByServerThread)
+    distinctDevices.insert(gpuIdx == -1 ? MLX_MUX_GPU : gpuIdx);
+  return std::max(1, (int)distinctDevices.size());
 }
 
 // FOR TESTING ---------------------------------------------------------------------------------------------------------

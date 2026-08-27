@@ -1,0 +1,297 @@
+name: Prepare ONNX Runtime
+description: >
+  Fetch or build an ONNX Runtime install tree carrying the requested execution provider (EP),
+  plus KataGo's own zlib/protobuf deps. Everything lands under deps/install/ and is
+  cached, so only the first run pays for ORT acquisition (from-source ORT builds are the
+  expensive case, 1-3h; prebuilt/nuget are minutes).
+inputs:
+  ep:
+    description: Execution provider to wire up (cpu, directml, openvino, ...)
+    required: true
+  mode:
+    description: >
+      How to obtain ORT. 'prebuilt' = official release zip (CPU EP ships inside it),
+      'nuget' = Microsoft.ML.OnnxRuntime.DirectML package, 'from-source' = build ORT
+      ourselves with the EP.
+    required: true
+  ort_version:
+    description: ORT release version for prebuilt/nuget modes
+    required: false
+    default: "1.28.0"
+  ort_ref:
+    description: ORT git ref (tag/SHA) for from-source mode
+    required: false
+    default: ""
+  ov_version:
+    description: OpenVINO toolkit version (from-source/openvino only)
+    required: false
+    default: ""
+  ov_url:
+    description: OpenVINO toolkit download URL (from-source/openvino only)
+    required: false
+    default: ""
+  dml_version:
+    description: >-
+      Microsoft.AI.DirectML redistributable version providing DirectML.dll (directml only).
+      Must satisfy the DirectML dependency declared by the Microsoft.ML.OnnxRuntime.DirectML
+      package for ort_version, so check it when bumping ort_version.
+    required: false
+    default: "1.15.4"
+  pb_version:
+    description: protobuf version built for KataGo (3.x, no abseil dependency)
+    required: false
+    default: "3.21.12"
+  pb_tag:
+    description: >
+      protobuf release tag for pb_version. protobuf 3.x tags drop the major (3.21.12
+      -> v21.12), so this cannot be derived from pb_version.
+    required: false
+    default: "21.12"
+  zlib_version:
+    description: zlib version built for KataGo
+    required: false
+    default: "1.3.1"
+
+outputs:
+  ort_root:
+    description: Path to the prepared ORT install tree
+    value: ${{ github.workspace }}/deps/install/ort
+
+runs:
+  using: composite
+  steps:
+    # ---------------------------------------------------------------------------
+    # Common deps: zlib + protobuf, always built from source and cached separately
+    # from the ORT tree so a from-source ORT cache miss does not rebuild them.
+    # ---------------------------------------------------------------------------
+    - name: Restore common-dep cache
+      id: cache-common
+      uses: actions/cache@v4
+      with:
+        path: |
+          deps/install/zlib
+          deps/install/protobuf
+        key: onnx-common-${{ runner.os }}-pb-${{ inputs.pb_version }}-zl-${{ inputs.zlib_version }}
+
+    - name: Build zlib (static, Windows)
+      if: steps.cache-common.outputs.cache-hit != 'true' && runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        curl.exe -L -o "$env:RUNNER_TEMP\zlib.tar.gz" "https://github.com/madler/zlib/releases/download/v${{ inputs.zlib_version }}/zlib-${{ inputs.zlib_version }}.tar.gz"
+        tar -xzf "$env:RUNNER_TEMP\zlib.tar.gz" -C "$env:RUNNER_TEMP"
+        cmake -S "$env:RUNNER_TEMP\zlib-${{ inputs.zlib_version }}" -B "$env:RUNNER_TEMP\zlib-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}\deps\install\zlib
+        cmake --build "$env:RUNNER_TEMP\zlib-build"
+        cmake --install "$env:RUNNER_TEMP\zlib-build"
+
+    - name: Build zlib (static, Linux)
+      if: steps.cache-common.outputs.cache-hit != 'true' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        curl -L -o "$RUNNER_TEMP/zlib.tar.gz" "https://github.com/madler/zlib/releases/download/v${{ inputs.zlib_version }}/zlib-${{ inputs.zlib_version }}.tar.gz"
+        tar -xzf "$RUNNER_TEMP/zlib.tar.gz" -C "$RUNNER_TEMP"
+        cmake -S "$RUNNER_TEMP/zlib-${{ inputs.zlib_version }}" -B "$RUNNER_TEMP/zlib-build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps/install/zlib"
+        cmake --build "$RUNNER_TEMP/zlib-build"
+        cmake --install "$RUNNER_TEMP/zlib-build"
+
+    - name: Build protobuf (static, /MD, Windows)
+      if: steps.cache-common.outputs.cache-hit != 'true' && runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        curl.exe -L -o "$env:RUNNER_TEMP\pb.tar.gz" "https://github.com/protocolbuffers/protobuf/releases/download/v${{ inputs.pb_tag }}/protobuf-cpp-${{ inputs.pb_version }}.tar.gz"
+        tar -xzf "$env:RUNNER_TEMP\pb.tar.gz" -C "$env:RUNNER_TEMP"
+        # protobuf_MSVC_STATIC_RUNTIME=OFF is REQUIRED: the protobuf default (/MT) would
+        # clash with KataGo's /MD Release build (LNK2038) when linking libprotobuf statically.
+        cmake -S "$env:RUNNER_TEMP\protobuf-${{ inputs.pb_version }}" -B "$env:RUNNER_TEMP\pb-build" -G Ninja `
+          -DCMAKE_BUILD_TYPE=Release `
+          -Dprotobuf_BUILD_TESTS=OFF `
+          -Dprotobuf_BUILD_SHARED_LIBS=OFF `
+          -Dprotobuf_MSVC_STATIC_RUNTIME=OFF `
+          -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}\deps\install\protobuf
+        cmake --build "$env:RUNNER_TEMP\pb-build"
+        cmake --install "$env:RUNNER_TEMP\pb-build"
+
+    - name: Build protobuf (static, Linux)
+      if: steps.cache-common.outputs.cache-hit != 'true' && runner.os == 'Linux'
+      shell: bash
+      run: |
+        curl -L -o "$RUNNER_TEMP/pb.tar.gz" "https://github.com/protocolbuffers/protobuf/releases/download/v${{ inputs.pb_tag }}/protobuf-cpp-${{ inputs.pb_version }}.tar.gz"
+        tar -xzf "$RUNNER_TEMP/pb.tar.gz" -C "$RUNNER_TEMP"
+        cmake -S "$RUNNER_TEMP/protobuf-${{ inputs.pb_version }}" -B "$RUNNER_TEMP/pb-build" -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -Dprotobuf_BUILD_TESTS=OFF \
+          -Dprotobuf_BUILD_SHARED_LIBS=OFF \
+          -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/deps/install/protobuf"
+        cmake --build "$RUNNER_TEMP/pb-build"
+        cmake --install "$RUNNER_TEMP/pb-build"
+
+    # ---------------------------------------------------------------------------
+    # ONNX Runtime install tree, cached per (os, ep, version/ref).
+    # ---------------------------------------------------------------------------
+    - name: Restore ORT cache
+      id: cache-ort
+      uses: actions/cache@v4
+      with:
+        path: deps/install/ort
+        # ov_version is part of the key: an ORT built against one OpenVINO toolkit must
+        # not be restored when the toolkit version is bumped (empty for non-OpenVINO rows).
+        key: onnx-ort-${{ runner.os }}-${{ inputs.ep }}-${{ inputs.ort_version }}-${{ inputs.ort_ref }}-ov-${{ inputs.ov_version }}
+
+    # --- prebuilt: official ORT release package (CPU EP ships inside it): zip on Windows, tgz on Linux ---
+    - name: Fetch prebuilt ORT (Windows)
+      if: inputs.mode == 'prebuilt' && runner.os == 'Windows' && steps.cache-ort.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path "deps\install\ort" | Out-Null
+        curl.exe -sfL -o "$env:RUNNER_TEMP\ort.zip" "https://github.com/microsoft/onnxruntime/releases/download/v${{ inputs.ort_version }}/onnxruntime-win-x64-${{ inputs.ort_version }}.zip"
+        Expand-Archive -Path "$env:RUNNER_TEMP\ort.zip" -DestinationPath "$env:RUNNER_TEMP\ort" -Force
+        $inner = Get-ChildItem "$env:RUNNER_TEMP\ort" -Directory | Select-Object -First 1
+        if ($inner) {
+          Get-ChildItem $inner.FullName | Move-Item -Destination "deps\install\ort" -Force
+          Remove-Item $inner.FullName -Recurse -Force
+        }
+        Remove-Item "$env:RUNNER_TEMP\ort.zip" -Force
+        # Hoist lib/*.dll into bin/ too: the release-staging step globs bin/.
+        New-Item -ItemType Directory -Force -Path "deps\install\ort\bin" | Out-Null
+        Get-ChildItem "deps\install\ort\lib\*.dll" -ErrorAction SilentlyContinue | Copy-Item -Destination "deps\install\ort\bin" -Force
+
+    - name: Fetch prebuilt ORT (Linux)
+      if: inputs.mode == 'prebuilt' && runner.os == 'Linux' && steps.cache-ort.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir -p deps/install/ort
+        curl -sfL -o "$RUNNER_TEMP/ort.tgz" "https://github.com/microsoft/onnxruntime/releases/download/v${{ inputs.ort_version }}/onnxruntime-linux-x64-${{ inputs.ort_version }}.tgz"
+        tar -xzf "$RUNNER_TEMP/ort.tgz" -C deps/install/ort --strip-components=1
+        # No lib/*.dll hoist is needed here: Linux resolves libonnxruntime.so through the
+        # binary's DT_RUNPATH, which onnx-build-katago rewrites to $ORIGIN at staging time.
+        ls deps/install/ort
+
+    # --- nuget: Microsoft.ML.OnnxRuntime.DirectML package (DirectML EP) ---
+    - name: Fetch DirectML NuGet package (Windows)
+      if: inputs.mode == 'nuget' && runner.os == 'Windows' && steps.cache-ort.outputs.cache-hit != 'true'
+      shell: pwsh
+      run: |
+        $src = "$env:RUNNER_TEMP\dml"
+        New-Item -ItemType Directory -Force -Path "$src" | Out-Null
+        curl.exe -sfL -o "$src\dml.nupkg" "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime.directml/${{ inputs.ort_version }}/microsoft.ml.onnxruntime.directml.${{ inputs.ort_version }}.nupkg"
+        tar -xzf "$src\dml.nupkg" -C "$src"
+        $root = "deps\install\ort"
+        New-Item -ItemType Directory -Force -Path "$root\include","$root\lib","$root\bin" | Out-Null
+        Copy-Item "$src\build\native\include\*" "$root\include" -Force
+        Copy-Item "$src\runtimes\win-x64\native\onnxruntime.lib" "$root\lib" -Force
+        Get-ChildItem "$src\runtimes\win-x64\native\*.dll" | Copy-Item -Destination "$root\lib" -Force
+        Get-ChildItem "$root\lib\*.dll" | Copy-Item -Destination "$root\bin" -Force
+
+    # NOTE: like the OpenVINO fetch below, this runs even on an ORT cache hit. DirectML.dll
+    # comes from the Microsoft.AI.DirectML redistributable (a dependency of the ORT DirectML
+    # package), not from deps/install/ort, so a cache-hit run would otherwise stage an artifact
+    # with no DirectML.dll in it - exactly the Windows 10 failure that orphaned DirectML.dll
+    # causes. DirectML.dll is delay-loaded by ORT, so it must sit next to onnxruntime.dll.
+    - name: Fetch DirectML runtime (Windows)
+      if: inputs.ep == 'directml' && runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $src = "$env:RUNNER_TEMP\dmlrt"
+        New-Item -ItemType Directory -Force -Path "$src" | Out-Null
+        curl.exe -sfSL -o "$src\dml.nupkg" "https://api.nuget.org/v3-flatcontainer/microsoft.ai.directml/${{ inputs.dml_version }}/microsoft.ai.directml.${{ inputs.dml_version }}.nupkg"
+        if ($LASTEXITCODE -ne 0) { throw "Download of Microsoft.AI.DirectML ${{ inputs.dml_version }} failed (curl exit $LASTEXITCODE)" }
+        tar -xzf "$src\dml.nupkg" -C "$src"
+        if ($LASTEXITCODE -ne 0) { throw "Extraction of Microsoft.AI.DirectML ${{ inputs.dml_version }} failed (tar exit $LASTEXITCODE)" }
+        $dll = "$src\bin\x64-win\DirectML.dll"
+        if (-not (Test-Path $dll)) { throw "bin/x64-win/DirectML.dll not found in Microsoft.AI.DirectML ${{ inputs.dml_version }}" }
+        New-Item -ItemType Directory -Force -Path "deps\directml" | Out-Null
+        Copy-Item $dll "deps\directml\DirectML.dll" -Force
+
+    # --- from-source: build ORT ourselves with the requested EP ---
+    - name: Checkout ONNX Runtime source
+      if: inputs.mode == 'from-source' && steps.cache-ort.outputs.cache-hit != 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: microsoft/onnxruntime
+        ref: ${{ inputs.ort_ref }}
+        path: deps/onnxruntime
+        submodules: recursive
+
+    # NOTE: unlike the ORT build steps, this fetch runs even on an ORT cache hit. The
+    # OpenVINO runtime DLLs under deps/openvino are staged into the release artifact by
+    # onnx-build-katago, so skipping the fetch on cache-hit runs would silently ship an
+    # artifact with no OpenVINO runtime in it.
+    - name: Fetch OpenVINO toolkit (Windows)
+      if: inputs.mode == 'from-source' && inputs.ep == 'openvino' && runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $zip = "$env:RUNNER_TEMP\openvino.zip"
+        $dest = "deps\openvino"
+        Invoke-WebRequest -Uri "${{ inputs.ov_url }}" -OutFile $zip
+        Expand-Archive -Path $zip -DestinationPath $dest
+        # The zip contains a single top-level directory of the same name; hoist its contents up.
+        $inner = Get-ChildItem -Path $dest -Directory | Select-Object -First 1
+        if ($inner) {
+          Get-ChildItem -Path $inner.FullName | Move-Item -Destination $dest -Force
+          Remove-Item -Path $inner.FullName -Recurse -Force
+        }
+        Remove-Item -Path $zip -Force
+        $sv = Get-ChildItem "deps\openvino" -Recurse -Filter "setupvars.bat" | Select-Object -First 1
+        if (-not $sv) { throw "setupvars.bat not found under deps\openvino" }
+        echo "OV_SETUPVARS=$($sv.FullName)" >> $env:GITHUB_ENV
+
+    - name: Build ONNX Runtime with OpenVINO EP
+      if: inputs.mode == 'from-source' && inputs.ep == 'openvino' && steps.cache-ort.outputs.cache-hit != 'true'
+      shell: cmd
+      working-directory: deps/onnxruntime
+      run: |
+        call "%OV_SETUPVARS%"
+        python tools\ci_build\build.py --build_dir build --config Release --use_openvino GPU --build_shared_lib --skip_tests --parallel --compile_no_warning_as_error --cmake_generator Ninja --cmake_extra_defines CMAKE_INSTALL_PREFIX=%CD%\..\install\ort
+        if errorlevel 1 exit /b 1
+        cmake --install build\Release --config Release
+        if errorlevel 1 exit /b 1
+
+    - name: Build ONNX Runtime with TensorRT EP (Linux container)
+      if: inputs.mode == 'from-source' && inputs.ep == 'tensorrt' && runner.os == 'Linux' && steps.cache-ort.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: deps/onnxruntime
+      run: |
+        # Runs inside the official NGC TensorRT container
+        # (nvcr.io/nvidia/tensorrt:25.03-py3 = CUDA 12.8 + TensorRT 10.9, the combo ORT is
+        # tested against), which preinstalls CUDA/cuDNN/TensorRT under /usr/local/cuda and
+        # /usr/lib/x86_64-linux-gnu. The container ships cmake + python3; the workflow's
+        # bootstrap step adds ninja. github-hosted runners have no GPU, so this verifies
+        # build + EP wiring only - real GPU inference is validated on a GPU machine.
+        # Build only for sm_89 (RTX 4090): ORT's default 10-arch matrix is huge and slow
+        # on a no-GPU CI runner. Tune per the GPU you validate on.
+        python3 tools/ci_build/build.py --build_dir build --config Release \
+          --use_tensorrt --use_cuda \
+          --cuda_home /usr/local/cuda \
+          --cudnn_home /usr/lib/x86_64-linux-gnu \
+          --tensorrt_home /usr/lib/x86_64-linux-gnu \
+          --build_shared_lib --skip_tests --parallel \
+          --cmake_generator Ninja --allow_running_as_root --skip_submodule_sync \
+          --cmake_extra_defines "CMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/deps/install/ort" "CMAKE_CUDA_ARCHITECTURES=89"
+        cmake --install build/Release --config Release
+
+    # NOTE: MIGraphX from-source build slots in here once validated (needs ROCm; deferred).
+
+    # Save caches explicitly: actions/cache@v4's post-save does not reliably run inside
+    # composite actions, so without these every run would rebuild zlib/protobuf and ORT.
+    # Only save when this run actually built the dep (restore cache-missed); the key must
+    # match the restore key above.
+    - name: Save common-dep cache
+      if: steps.cache-common.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          deps/install/zlib
+          deps/install/protobuf
+        key: onnx-common-${{ runner.os }}-pb-${{ inputs.pb_version }}-zl-${{ inputs.zlib_version }}
+
+    - name: Save ORT cache
+      if: steps.cache-ort.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: deps/install/ort
+        key: onnx-ort-${{ runner.os }}-${{ inputs.ep }}-${{ inputs.ort_version }}-${{ inputs.ort_ref }}-ov-${{ inputs.ov_version }}
+
+    - name: Report ORT install tree
+      shell: bash
+      run: |
+        ls -la deps/install/ort
+        ls deps/install/ort/bin 2>/dev/null || ls deps/install/ort/lib 2>/dev/null || true

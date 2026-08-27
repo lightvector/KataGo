@@ -89,7 +89,7 @@ xx...x.o..x..
 )%%");
     Player nextPla = P_WHITE;
     Rules rules = Rules::parseRules("Chinese");
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     {
       SearchParams params = SearchParams::forTestsV2();
@@ -138,7 +138,7 @@ o.ox..oox
 
     {
       Rules rules = Rules::parseRules("Chinese");
-      BoardHistory hist(board,nextPla,rules,0,false);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 75;
@@ -155,7 +155,7 @@ o.ox..oox
 
     {
       Rules rules = Rules::parseRules("Chinese");
-      BoardHistory hist(board,nextPla,rules,0,false);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 75;
@@ -172,7 +172,7 @@ o.ox..oox
 
     {
       Rules rules = Rules::parseRules("Japanese");
-      BoardHistory hist(board,nextPla,rules,0,false);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 75;
@@ -189,7 +189,7 @@ o.ox..oox
 
     {
       Rules rules = Rules::parseRules("Japanese");
-      BoardHistory hist(board,nextPla,rules,0,false);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 75;
@@ -261,7 +261,7 @@ o.ox..oox
     {
       Rules rules = Rules::parseRules("Japanese");
       rules.koRule = Rules::KO_SPIGHT;
-      BoardHistory hist(board,nextPla,rules,0,false);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
@@ -285,7 +285,7 @@ o.ox..oox
     {
       Rules rules = Rules::parseRules("Japanese");
       rules.koRule = Rules::KO_SPIGHT;
-      BoardHistory hist(board,nextPla,rules,0,false);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G3",board),P_BLACK,NULL);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G1",board),P_WHITE,NULL);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("G2",board),P_BLACK,NULL);
@@ -322,7 +322,7 @@ o.ox..oox
 .........
 .........
 )%%");
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE);
     avoidMoveUntilByLoc[Location::ofString("D5",board)] = 1;
@@ -381,7 +381,7 @@ xoo.....
       cout << "Area scoring no friendly pass ok" << endl;
       Rules rules = Rules::parseRules("Chinese");
       rules.friendlyPassOk = false;
-      BoardHistory hist(board,nextPla,rules,0,false);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 50;
@@ -398,7 +398,7 @@ xoo.....
       cout << "Area scoring yes friendly pass ok" << endl;
       Rules rules = Rules::parseRules("Chinese");
       rules.friendlyPassOk = true;
-      BoardHistory hist(board,nextPla,rules,0,false);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 50;
@@ -415,7 +415,7 @@ xoo.....
       cout << "Area scoring no friendly pass ok but pass hacks" << endl;
       Rules rules = Rules::parseRules("Chinese");
       rules.friendlyPassOk = false;
-      BoardHistory hist(board,nextPla,rules,0,false);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       SearchParams params = SearchParams::forTestsV2();
       params.maxVisits = 50;
@@ -445,7 +445,7 @@ o.....oo
 )%%");
     Player nextPla = P_WHITE;
     Rules rules = Rules::parseRules("Chinese");
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("E5",board),P_WHITE,NULL);
     nextPla = getOpp(nextPla);
 
@@ -504,7 +504,7 @@ oo...ooo
 )%%");
     Player nextPla = P_WHITE;
     Rules rules = Rules::parseRules("Japanese");
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("E4",board),P_WHITE,NULL);
     nextPla = getOpp(nextPla);
 
@@ -558,7 +558,7 @@ oo...ooo
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("Japanese");
     rules.komi = -4;
-    BoardHistory hist(board,nextPla,rules,0,false);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("A1",board),P_BLACK,NULL);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("B2",board),P_WHITE,NULL);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("C3",board),P_BLACK,NULL);
@@ -592,7 +592,7 @@ oo...ooo
       Rules rules = Rules::parseRules("Chinese");
       rules.friendlyPassOk = false;
       rules.komi = 5.5;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("E5",board),P_BLACK,NULL);
       Player nextPla = P_WHITE;
 
@@ -626,7 +626,7 @@ xxxxxxxxx
       Rules rules = Rules::parseRules("Chinese");
       rules.friendlyPassOk = false;
       rules.komi = 7.5;
-      BoardHistory hist(board,P_WHITE,rules,0,false);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_WHITE,NULL);
       Player nextPla = P_BLACK;
@@ -696,7 +696,7 @@ x.ooxxxxx
       Rules rules = Rules::parseRules("Chinese");
       rules.friendlyPassOk = false;
       rules.komi = 7.5;
-      BoardHistory hist(board,P_BLACK,rules,0,false);
+      BoardHistory hist(board,P_BLACK,rules,0,BoardHistoryModes(false,false));
 
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),P_BLACK,NULL);
       Player nextPla = P_WHITE;
