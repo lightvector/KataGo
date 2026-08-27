@@ -2,14 +2,15 @@
 
 #include "../neuralnet/mlxwinotuner.h"
 #include "../neuralnet/desc.h"
-#include "../neuralnet/greedysearch.h"
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cmath>
 #include <cstdio>
 #include <deque>
 #include <fstream>
+#include <functional>
 #include <limits>
 #include <optional>
 #include <sstream>
@@ -844,6 +845,59 @@ static void logFlatSweep(
                 + perShapeStr);
 }
 
+// Greedy coordinate descent over discrete axes: one pass per axis in `order`,
+// keeping the best value found for each before moving to the next, repeated
+// until a pass changes nothing or maxPasses is hit. The coarse (full=false)
+// sweeps below use this in place of full enumeration. Pure — no MLX
+// dependency — and unit-tested through
+// MLXWinogradTuner::greedyCoordinateDescentForTesting, which also documents the
+// argument contract. seedIndices is the always-valid floor (it must score
+// finite), so a sweep whose every probe is invalid still returns the default.
+static MLXWinogradTuner::GreedyResult greedyCoordinateDescent(
+    const std::vector<int>& axisSizes,
+    const std::vector<int>& order,
+    const std::vector<int>& seedIndices,
+    const std::function<double(const std::vector<int>&)>& scoreFn,
+    int maxPasses) {
+  const size_t nAxes = axisSizes.size();
+  assert(seedIndices.size() == nAxes);
+  assert(order.size() == nAxes);
+
+#ifndef NDEBUG
+  {
+    std::vector<char> seen(nAxes, 0);
+    for(int a : order) {
+      assert(a >= 0 && (size_t)a < nAxes);
+      assert(!seen[a]);
+      seen[a] = 1;
+    }
+  }
+#endif
+
+  std::vector<int> best = seedIndices;
+  double bestScore = scoreFn(best);
+  int evaluated = 1;
+
+  for(int pass = 0; pass < maxPasses; pass++) {
+    bool changed = false;
+    for(int axis : order) {
+      const int curVal = best[axis];
+      int bestVal = curVal;
+      for(int v = 0; v < axisSizes[axis]; v++) {
+        if(v == curVal) continue;  // current value's score is already bestScore
+        std::vector<int> trial = best;
+        trial[axis] = v;
+        const double s = scoreFn(trial);
+        evaluated++;
+        if(s < bestScore) { bestScore = s; bestVal = v; }
+      }
+      if(bestVal != curVal) { best[axis] = bestVal; changed = true; }
+    }
+    if(!changed) break;
+  }
+  return MLXWinogradTuner::GreedyResult{best, bestScore, evaluated};
+}
+
 // Flat sweep over (tg0, tg1, wpt, vw, gridOrder) for the input transform.
 // Returns the best (lowest-time)
 // candidate that passes isInputCandidateValid; nullopt if no candidate is
@@ -933,7 +987,7 @@ flatSweepInput(int N, int H, int W,
       return t;
     };
 
-    GreedySearch::Result gr = GreedySearch::coordinateDescent(axisSizes, order, seed, scoreFn, /*maxPasses=*/3);
+    MLXWinogradTuner::GreedyResult gr = greedyCoordinateDescent(axisSizes, order, seed, scoreFn, /*maxPasses=*/3);
     best = decode(gr.indices);   // assign the EXISTING `best`
     bestTime = gr.score;         // keep the existing logger's delta meaningful
     considered = gr.evaluated;   // assign the EXISTING `considered`
@@ -1045,7 +1099,7 @@ flatSweepOutput(int N, int H, int W,
       return t;
     };
 
-    GreedySearch::Result gr = GreedySearch::coordinateDescent(axisSizes, order, seed, scoreFn, /*maxPasses=*/3);
+    MLXWinogradTuner::GreedyResult gr = greedyCoordinateDescent(axisSizes, order, seed, scoreFn, /*maxPasses=*/3);
     best = MLXWinograd::OutputUntransform{ tg0v[gr.indices[0]], tg1v[gr.indices[1]], wptv[gr.indices[2]] };
     bestTime = gr.score;
     considered = gr.evaluated;
@@ -1182,6 +1236,16 @@ std::vector<MLXWinogradTuner::ShapePlan>
 MLXWinogradTuner::planShapeRotationForTesting(
     const std::vector<std::pair<int,int>>& histogram, bool full) {
   return planShapeRotation(histogram, full);
+}
+
+MLXWinogradTuner::GreedyResult
+MLXWinogradTuner::greedyCoordinateDescentForTesting(
+    const std::vector<int>& axisSizes,
+    const std::vector<int>& order,
+    const std::vector<int>& seedIndices,
+    const std::function<double(const std::vector<int>&)>& scoreFn,
+    int maxPasses) {
+  return greedyCoordinateDescent(axisSizes, order, seedIndices, scoreFn, maxPasses);
 }
 
 double MLXWinogradTuner::scoreInputTransformForTesting(

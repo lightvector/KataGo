@@ -609,6 +609,74 @@ void runMLXWinogradTests() {
 void runMLXWinotunerTests() {
   cout << "Running MLX Winograd tuner tests" << endl;
 
+  // ---- Greedy coordinate descent ----
+  // The four properties the coarse (full=false) sweeps rely on when they use
+  // descent instead of full enumeration. Pure and CPU-only, so unlike the
+  // sweep tests further down these need no GPU and are not env-gated.
+  {
+    // Separable convex score with a planted optimum at (3,0,2). Coordinate
+    // descent on a separable convex score must reach the exact optimum.
+    {
+      vector<int> sizes = {4,4,3};
+      vector<int> order = {0,1,2};
+      vector<int> seed  = {0,0,0};
+      auto score = [&](const vector<int>& idx)->double {
+        return std::abs(idx[0]-3) + std::abs(idx[1]-0) + std::abs(idx[2]-2);
+      };
+      MLXWinogradTuner::GreedyResult r =
+        MLXWinogradTuner::greedyCoordinateDescentForTesting(sizes, order, seed, score, 3);
+      testAssert(r.indices == (vector<int>{3,0,2}));
+      testAssert(r.score == 0.0);
+      testAssert(r.evaluated >= 1);
+    }
+
+    // Invalid combos (score +inf) are never selected and never crash.
+    {
+      vector<int> sizes = {3,3};
+      vector<int> order = {0,1};
+      vector<int> seed  = {0,0};
+      auto score = [&](const vector<int>& idx)->double {
+        if(idx[0]==2 && idx[1]==2) return std::numeric_limits<double>::infinity(); // forbidden
+        return (idx[0]==2 ? 0.0 : 1.0) + (idx[1]==2 ? 0.0 : 1.0); // wants (2,2) but it's invalid
+      };
+      MLXWinogradTuner::GreedyResult r =
+        MLXWinogradTuner::greedyCoordinateDescentForTesting(sizes, order, seed, score, 3);
+      testAssert(!(r.indices[0]==2 && r.indices[1]==2));
+      testAssert(std::isfinite(r.score));
+    }
+
+    // Deterministic: identical inputs -> identical result.
+    {
+      vector<int> sizes = {4,3,2};
+      vector<int> order = {2,0,1};
+      vector<int> seed  = {1,1,0};
+      auto score = [&](const vector<int>& idx)->double {
+        return (idx[0]-2)*(idx[0]-2) + idx[1] + (1-idx[2]);
+      };
+      MLXWinogradTuner::GreedyResult a =
+        MLXWinogradTuner::greedyCoordinateDescentForTesting(sizes, order, seed, score, 3);
+      MLXWinogradTuner::GreedyResult b =
+        MLXWinogradTuner::greedyCoordinateDescentForTesting(sizes, order, seed, score, 3);
+      testAssert(a.indices == b.indices);
+      testAssert(a.score == b.score);
+    }
+
+    // Constant score -> no axis improves -> returns the seed; evals bounded.
+    {
+      vector<int> sizes = {4,4,3};
+      vector<int> order = {0,1,2};
+      vector<int> seed  = {2,3,1};
+      auto score = [&](const vector<int>&)->double { return 7.0; };
+      MLXWinogradTuner::GreedyResult r =
+        MLXWinogradTuner::greedyCoordinateDescentForTesting(sizes, order, seed, score, 3);
+      testAssert(r.indices == seed);
+      // 1 seed eval + one pass of (sizes-1) probes, then a no-change pass stops it.
+      testAssert(r.evaluated <= 1 + 3*((4-1)+(4-1)+(3-1)));
+    }
+
+    cout << "  greedy coordinate descent OK" << endl;
+  }
+
   {
     // Conv-3x3 distribution formatter — pure-function test. Verifies the
     // log-line format directly without any descriptor walk or GPU work.

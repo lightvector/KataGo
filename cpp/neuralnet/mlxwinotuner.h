@@ -4,6 +4,7 @@
 #ifdef USE_MLX_BACKEND
 
 #include <array>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -106,6 +107,37 @@ namespace MLXWinogradTuner {
   buildInputCandidatesForTesting(bool full, int C, int Ntiles, MLXWinograd::GridOrder go);
   std::vector<MLXWinograd::OutputUntransform>
   buildOutputCandidatesForTesting(bool full, int outC, int Ntiles);
+
+  // Result of the greedy coordinate descent that drives the coarse
+  // (full=false) flat sweeps. Declared here rather than beside its
+  // anonymous-namespace implementation in mlxwinotuner.cpp so the test wrapper
+  // below can name it — the same split ShapePlan/planShapeRotation uses above.
+  struct GreedyResult {
+    std::vector<int> indices;  // best value-index per axis
+    double score;              // its score
+    // Number of scoreFn calls. Not merely instrumentation: the sweeps surface
+    // it as `considered`, which feeds logFlatSweep and the consideredOut that
+    // the MLX_TUNE_STUDY greedy-vs-coarse-exhaustive accept check reads.
+    int evaluated;
+  };
+
+  // Test-only — exposes the greedy coordinate descent the coarse sweeps use in
+  // place of full enumeration. Axes are index-based: each axis has candidate
+  // value-indices [0, size), and the caller maps an index assignment to a
+  // concrete config inside its score callback.
+  //   axisSizes[a] = number of candidate values for axis a.
+  //   order        = axis indices, highest-sensitivity first (a permutation of
+  //                  [0,nAxes)).
+  //   seedIndices  = starting index per axis; MUST score finite (it is the
+  //                  always-valid floor).
+  //   scoreFn(idx) = lower is better; return +inf for invalid assignments.
+  //   maxPasses    = pass cap; descent also stops early on a no-change pass.
+  GreedyResult greedyCoordinateDescentForTesting(
+      const std::vector<int>& axisSizes,
+      const std::vector<int>& order,
+      const std::vector<int>& seedIndices,
+      const std::function<double(const std::vector<int>&)>& scoreFn,
+      int maxPasses);
 
   // Test-only — exposes the per-stage scoring primitives so tests can compare
   // configs apples-to-apples without depending on the full tuner measurement path.
