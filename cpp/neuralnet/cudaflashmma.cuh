@@ -19,7 +19,8 @@
 // whole-net effect was neutral to slightly negative everywhere except H100 at +1-4%, not
 // worth the extra code paths and config surface.
 //
-// Requires sm_80+ at runtime (mma.sync.aligned.m16n8k16 f32.f16.f16.f32). For older archs the
+// Requires sm_80+ at runtime (mma.sync.aligned.m16n8k16 f32.f16.f16.f32). sm_75 falls back
+// to a pair of mma.sync.aligned.m16n8k8 and synchronous copies. For older archs the
 // kernels compile to empty stubs, so the caller must check
 // flashAttentionMmaSupportedOnCurrentDevice() before dispatching here.
 
@@ -45,6 +46,17 @@ __device__ __forceinline__ void fmmaMma16816(float c[4], const uint32_t a[4], co
     "{%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};\n"
     : "+f"(c[0]), "+f"(c[1]), "+f"(c[2]), "+f"(c[3])
     : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]), "r"(b[0]), "r"(b[1]));
+#elif __CUDA_ARCH__ >= 750
+  asm volatile(
+    "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32 "
+    "{%0,%1,%2,%3}, {%4,%5}, {%6}, {%0,%1,%2,%3};\n"
+    : "+f"(c[0]), "+f"(c[1]), "+f"(c[2]), "+f"(c[3])
+    : "r"(a[0]), "r"(a[1]), "r"(b[0]));
+  asm volatile(
+    "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32 "
+    "{%0,%1,%2,%3}, {%4,%5}, {%6}, {%0,%1,%2,%3};\n"
+    : "+f"(c[0]), "+f"(c[1]), "+f"(c[2]), "+f"(c[3])
+    : "r"(a[2]), "r"(a[3]), "r"(b[1]));
 #endif
 }
 
@@ -65,7 +77,7 @@ __device__ __forceinline__ float fmmaExp2(float x) {
 __device__ __forceinline__ void fmmaLdmatrixX4(
   uint32_t& r0, uint32_t& r1, uint32_t& r2, uint32_t& r3, const half* rowPtr
 ) {
-#if __CUDA_ARCH__ >= 800
+#if __CUDA_ARCH__ >= 750
   uint32_t addr = (uint32_t)__cvta_generic_to_shared(rowPtr);
   asm volatile("ldmatrix.sync.aligned.m8n8.x4.shared.b16 {%0,%1,%2,%3}, [%4];\n"
     : "=r"(r0), "=r"(r1), "=r"(r2), "=r"(r3) : "r"(addr));
@@ -74,7 +86,7 @@ __device__ __forceinline__ void fmmaLdmatrixX4(
 __device__ __forceinline__ void fmmaLdmatrixX4Trans(
   uint32_t& r0, uint32_t& r1, uint32_t& r2, uint32_t& r3, const half* rowPtr
 ) {
-#if __CUDA_ARCH__ >= 800
+#if __CUDA_ARCH__ >= 750
   uint32_t addr = (uint32_t)__cvta_generic_to_shared(rowPtr);
   asm volatile("ldmatrix.sync.aligned.m8n8.x4.trans.shared.b16 {%0,%1,%2,%3}, [%4];\n"
     : "=r"(r0), "=r"(r1), "=r"(r2), "=r"(r3) : "r"(addr));
@@ -83,21 +95,31 @@ __device__ __forceinline__ void fmmaLdmatrixX4Trans(
 
 // 16-byte async global->shared copy (sm_80+). With valid == false the destination is
 // zero-filled without touching global memory (src-size 0).
+// sm_75 have no cp.async, fallback to plain sync copy, the commit/wait become no-op
 __device__ __forceinline__ void fmmaCpAsync16(void* smemDst, const void* gmemSrc, bool valid) {
 #if __CUDA_ARCH__ >= 800
   uint32_t dst = (uint32_t)__cvta_generic_to_shared(smemDst);
   int srcSize = valid ? 16 : 0;
   asm volatile("cp.async.cg.shared.global [%0], [%1], 16, %2;\n" :: "r"(dst), "l"(gmemSrc), "r"(srcSize));
+#elif __CUDA_ARCH__ >= 750
+  uint4 val = make_uint4(0, 0, 0, 0);
+  if(valid)
+    val = *reinterpret_cast<const uint4*>(gmemSrc);
+  *reinterpret_cast<uint4*>(smemDst) = val;
 #endif
 }
 __device__ __forceinline__ void fmmaCpAsyncCommit() {
 #if __CUDA_ARCH__ >= 800
   asm volatile("cp.async.commit_group;\n");
+#elif __CUDA_ARCH__ >= 750
+  // no-op
 #endif
 }
 __device__ __forceinline__ void fmmaCpAsyncWaitAll() {
 #if __CUDA_ARCH__ >= 800
   asm volatile("cp.async.wait_group 0;\n");
+#elif __CUDA_ARCH__ >= 750
+  // no-op
 #endif
 }
 
@@ -115,7 +137,7 @@ flashAttentionMmaKernel(
   const half* __restrict__ mask, half* __restrict__ out,
   int seqLen, int numHeads, int numKVHeads, float scale, int qStride, int kvStride
 ) {
-#if __CUDA_ARCH__ >= 800
+#if __CUDA_ARCH__ >= 750
   constexpr int BQ = FMMA_BLOCK_Q;
   constexpr int BKV = FMMA_BLOCK_KV;
   constexpr int NTHREADS = FMMA_NWARPS * 32;
@@ -416,7 +438,7 @@ flashAttentionMmaKernel(
       }
     }
   }
-#endif  // __CUDA_ARCH__ >= 800
+#endif  // __CUDA_ARCH__ >= 750
 }
 
 #undef FMMA_NEG_BIG
@@ -425,7 +447,7 @@ flashAttentionMmaKernel(
 
 namespace flashmma {
 __global__ void flashAttentionMmaSupportProbeKernel(int* out) {
-#if __CUDA_ARCH__ >= 800
+#if __CUDA_ARCH__ >= 750
   *out = 1;
 #else
   (void)out;
