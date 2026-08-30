@@ -242,11 +242,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.18.1");
+  return string("1.18.2");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.18.1");
+  return string("KataGo v1.18.2");
 }
 
 string Version::getKataGoVersionFullInfo() {
