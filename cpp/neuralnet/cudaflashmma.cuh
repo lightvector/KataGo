@@ -19,9 +19,9 @@
 // whole-net effect was neutral to slightly negative everywhere except H100 at +1-4%, not
 // worth the extra code paths and config surface.
 //
-// Requires sm_80+ at runtime (mma.sync.aligned.m16n8k16 f32.f16.f16.f32). sm_75 falls back
-// to a pair of mma.sync.aligned.m16n8k8 and synchronous copies. For older archs the
-// kernels compile to empty stubs, so the caller must check
+// Requires sm_75+ at runtime. sm_80+ uses mma.sync.aligned.m16n8k16 f32.f16.f16.f32 with
+// cp.async prefetch. sm_75 uses pairs of mma.sync.aligned.m16n8k8 and synchronous copies
+// instead. For older archs the kernels compile to empty stubs, so the caller must check
 // flashAttentionMmaSupportedOnCurrentDevice() before dispatching here.
 
 #pragma once
@@ -93,9 +93,9 @@ __device__ __forceinline__ void fmmaLdmatrixX4Trans(
 #endif
 }
 
-// 16-byte async global->shared copy (sm_80+). With valid == false the destination is
-// zero-filled without touching global memory (src-size 0).
-// sm_75 have no cp.async, fallback to plain sync copy, the commit/wait become no-op
+// 16-byte global->shared copy, asynchronous (cp.async) on sm_80+. sm_75 has no cp.async,
+// so it uses a plain synchronous copy instead and the commit/wait calls below do nothing.
+// With valid == false the destination is zero-filled without touching global memory.
 __device__ __forceinline__ void fmmaCpAsync16(void* smemDst, const void* gmemSrc, bool valid) {
 #if __CUDA_ARCH__ >= 800
   uint32_t dst = (uint32_t)__cvta_generic_to_shared(smemDst);
@@ -456,8 +456,8 @@ __global__ void flashAttentionMmaSupportProbeKernel(int* out) {
 }  // namespace flashmma
 
 // Whether the mma kernels as compiled (or JIT-compiled from PTX) for the current device contain
-// their sm_80+ bodies. A device property check is not enough: a build whose arch list predates
-// sm_80, JIT-run on a newer GPU, would launch the kernels as empty stubs and silently produce
+// their sm_75+ bodies. A device property check is not enough: a build whose arch list predates
+// sm_75, JIT-run on a newer GPU, would launch the kernels as empty stubs and silently produce
 // garbage attention output. Runs a tiny probe kernel on the calling thread's current device, so
 // callers should probe once per compute handle (per-handle probing is deliberate: it evaluates
 // the right device on machines mixing GPU architectures) rather than on any hot path.

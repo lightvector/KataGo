@@ -26,6 +26,10 @@
 #
 # Full per-case output goes to tests/results/cuda_opt_tests/<case>.txt.
 
+# Expectation markers are matched by word-splitting on '@' and '|', so disable pathname
+# expansion in case a marker ever contains a glob character. No globs are used below.
+set -f
+
 KATAGO_BIN="${KATAGO_BIN:-./katago}"
 ONLY_PATTERN="${1:-}"
 EXPECT_FUSED_FFN="${EXPECT_FUSED_FFN:-1}"
