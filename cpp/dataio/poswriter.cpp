@@ -53,7 +53,7 @@ static void writeLoop(
     if(!suc)
       break;
 
-    if(out == NULL || numWrittenThisFile > maxPosesPerOutFile) {
+    if(out == NULL || numWrittenThisFile >= maxPosesPerOutFile) {
       if(out != NULL) {
         out->close();
         delete out;
