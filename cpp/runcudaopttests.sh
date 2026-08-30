@@ -16,7 +16,8 @@
 # Environment/arguments:
 #   KATAGO_BIN       binary to test (default ./katago), must be a CUDA-backend build
 #   EXPECT_FUSED_FFN set to 0 for a build without the CUTLASS fused FFN kernel
-#                    (-DNO_CUTLASS_FUSED_FFN=1, or a toolchain that cannot build it):
+#                    (-DNO_CUTLASS_FUSED_FFN=1, or a toolchain that cannot build it),
+#                    or a pre-sm_80 GPU where the kernel never engages in Auto mode:
 #                    the fused FFN markers become forbidden instead of expected
 #   EXPECT_SDPA      set to 0 for a build without the cudnn graph SDPA path
 #                    (-DNO_CUDNN_SDPA=1, or cuDNN older than 8.9.3):
@@ -175,6 +176,8 @@ run_case() {
 
 # run_fail_case <name> <model> <boardsize> <overrides> <expected-error-substring>
 # The command must FAIL at startup and the output must contain the expected error message.
+# Within errpat, '|' separates alternatives of which any one suffices (same convention as
+# run_case's expectation markers).
 run_fail_case() {
   local name="$1" model="$2" boardsize="$3" overrides="$4" errpat="$5"
   matches_filter "$name" || return 0
@@ -185,10 +188,22 @@ run_fail_case() {
       -override-config "$overrides" > "$outfile" 2>&1; then
     echo "  expected an error, but the command succeeded"
     ok=0
-  elif ! grep -qF "$errpat" "$outfile"; then
-    echo "  failed, but without the expected message: '$errpat'"
-    tail -5 "$outfile" | sed 's/^/    /'
-    ok=0
+  else
+    local alt found=0
+    local oldifs="$IFS"
+    IFS='|'
+    for alt in $errpat; do
+      [ -z "$alt" ] && continue
+      if grep -qF "$alt" "$outfile"; then
+        found=1
+      fi
+    done
+    IFS="$oldifs"
+    if [ "$found" -eq 0 ]; then
+      echo "  failed, but without the expected message: '$errpat'"
+      tail -5 "$outfile" | sed 's/^/    /'
+      ok=0
+    fi
   fi
   record_result "$name" "$ok" "(expected-failure case)"
 }
@@ -383,9 +398,11 @@ run_fail_case n_transformer_nchw "$TMODEL" rectangle \
   "transformer models require NHWC, but cudaUseNHWC=false was set"
 
 if [ "$EXPECT_FUSED_FFN" = "0" ]; then
+  # Two flavors of unusable: no CUTLASS at build time, or CUTLASS built but this GPU/mode
+  # cannot run the kernel (pre-sm_80, or FP32 as forced here).
   run_fail_case n_fusedffn_fp32 "$TMODEL" rectangle \
     "requireMaxBoardSize=False,useFP16=false,cudaUseFusedFFN=true" \
-    "cudaUseFusedFFN=true but this build was compiled without CUTLASS"
+    "cudaUseFusedFFN=true but this build was compiled without CUTLASS|cudaUseFusedFFN=true but the fused FFN kernel is not usable here"
 else
   run_fail_case n_fusedffn_fp32 "$TMODEL" rectangle \
     "requireMaxBoardSize=False,useFP16=false,cudaUseFusedFFN=true" \

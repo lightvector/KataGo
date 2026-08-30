@@ -4806,7 +4806,7 @@ struct ComputeContext {
   bool cudaDisableGraphSDPA;
   // Whether 1x1 NHWC convs use the cuBLAS GEMM path. Auto = matmul iff FP16.
   enabled_t use1x1MatmulMode;
-  // Tensor-core mma flash attention kernel. Auto = on for compute capability >= 8.0.
+  // Tensor-core mma flash attention kernel. Auto = on for compute capability >= 7.5.
   enabled_t useMmaAttentionMode;
   // Share large read-only weight buffers between the handles of NN server threads on the
   // same GPU, roughly halving weight memory for two-thread configs. Off by default because
@@ -4971,12 +4971,15 @@ struct ComputeHandle {
     // Decided before Model construction: TransformerAttentionBlock commits to the combined
     // QKV weight layout at construction when the mma attention path will handle its shapes.
     {
+      bool hasMma =
+        majorComputeCapability >= 8 ||
+        (majorComputeCapability == 7 && minorComputeCapability >= 5);
       bool wantMmaAttention =
         context->useMmaAttentionMode == enabled_t::True ||
-        (context->useMmaAttentionMode == enabled_t::Auto && majorComputeCapability >= 8);
+        (context->useMmaAttentionMode == enabled_t::Auto && hasMma);
       cudaHandles->mmaAttentionEnabled = wantMmaAttention && customCudaFlashAttentionMmaSupported();
       if(wantMmaAttention && !cudaHandles->mmaAttentionEnabled) {
-        // The probe failing on a compute-capability-8.0+ GPU means the kernel did not survive
+        // The probe failing on a compute-capability-7.5+ GPU means the kernel did not survive
         // compilation or JIT for this device (e.g. this binary lacks both SASS and JIT-able PTX
         // for it). Losing the mma path is a large silent slowdown on some GPUs, so be loud.
         if(context->useMmaAttentionMode == enabled_t::True)
