@@ -23,23 +23,23 @@ This document lists each neural network size on the KataGo distributed training 
 | b6c96 | Convnet | 1,027,911 | 0.04x | ~9960 | 2020-11-28 (g170) |
 | b10c128 | Convnet | 2,994,503 | 0.07x | ~11520 | 2020-11-28 (g170) |
 | b15c192 | Convnet | 9,930,951 | 0.2x | ~12220 | 2020-11-28 (g170) |
-| b20c256 | Convnet | 23,483,463 | 0.3x | ~12910 | 2020-11-28 (g170) |
+| b20c256 | Convnet | 23,483,463 | 0.3x | ~12900 | 2020-11-28 (g170) |
 | b40c256 | Convnet | 46,651,849 | 0.6x | ~13410 | 2020-11-28 to 2023-03-20 |
 | b60c320 | Convnet | 108,489,993 | 1.3x | ~13550 | 2021-08-10 to 2023-11-30 |
 | b18c384nbt | Convnet + nbt | 26,326,985 | 0.5x | ~13620 | 2023-03-04 to 2024-05-26 |
 | b28c512nbt | Convnet + nbt | 72,830,569 | 1.0x | ~14160 | 2024-05-02 to 2026-06-07 |
 | b40c768nbt | Convnet + nbt | 232,532,105 | 3x | ~14550 | 2026-04-06 to 2026-07-27 |
-| tf2-b10c384 | Transformer + nbt | 10,545,753 | 0.3x | ~13730 | 2026-08-25 |
-| tf3-b10c512 | Transformer + nbt3 | 28,537,801 | 0.6x | ~14140 | 2026-08-25 |
-| tf3-b11c768 | Transformer + nbt3 | 70,442,025 | 1.1x | ~14510 | 2026-08-25 to present |
+| tf2-b10c384 | Transformer + nbt | 10,545,753 | 0.3x | ~13710 | 2026-08-25 |
+| tf3-b10c512 | Transformer + nbt3 | 28,537,801 | 0.6x | ~14170 | 2026-08-25 |
+| tf3-b11c768 | Transformer + nbt3 | 70,442,025 | 1.1x | ~14540 | 2026-08-25 to present |
 
-(Elos last estimated as of around 2026-08-25)
+(Elos last estimated as of around 2026-08-30)
 
 Notes on the table:
 * "Size" is the short name that the site uses in network names. See [Details for each size](#details-for-each-size) below for the corresponding architecture name in [python/katago/train/modelconfigs.py](../python/katago/train/modelconfigs.py).
 * "Kind" is the block type used in the trunk. "Convnet" uses the classic AlphaZero-style residual block with two 3x3 convolutions. "nbt" indicates a nested bottleneck architecture, see [Nested Bottleneck Residual Nets](KataGoMethods.md#nested-bottleneck-residual-nets) in KataGoMethods.md or [Nested bottleneck residual block](#nested-bottleneck-residual-block) below, and "nbt3" indicates three sub-blocks per trunk block instead of two.
 * "Peak Elo" is the approximate highest Elo rating measured on katagotraining.org among networks of that size, based on the rating games between networks there, anchoring random play at Elo 0. The rating games are played with an equal number of visits per move for both sides, so Elo here measures strength per search evaluation and does not account for how fast each network runs. Given the quantity of games, most ratings have a standard error of 10 to 25 Elo relative to networks nearby.
-* However, the three transformer networks were just uploaded as of the time of this document and have only a few hundred rated games each, so their ratings have a standard error of about 60 to 80 Elo and are far less certain and may shift a lot as more games are played.
+* The three transformer networks were uploaded much more recently than the others, so they have fewer rating games so far and their ratings are somewhat more likely to shift as more games are played.
 * "Rough cost per eval" is an estimate of the inference cost of one network evaluation relative to b28c512nbt. This is *extremely* approximate. The real cost ratio depends massively on the hardware, backend, number of threads, and batch size of the use case, may change with future optimization work, etc.
 * The early networks with an upload date of 2020-11-28 were imported from KataGo's earlier private "g170" run, from which the public kata1 run continued training much further.
 * The katagotraining.org site has both "b20c256" and "b20c256x2" networks, and "b40c256x2" and "b40c256" networks. The x2 is a historical artifact of labeling training lineages of the same architecture on different-GPU machines (one-GPU training vs switching to two-GPU training, etc) around g170, which turned out not to matter much, and we don't distinguish them here.
