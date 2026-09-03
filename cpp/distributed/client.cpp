@@ -207,11 +207,15 @@ static httplib::Result oneShotDownload(
   const Url& proxyUrl,
   size_t startByte, //inclusive
   size_t endByte, //inclusive
-  std::function<bool(const char *data, size_t data_length)> f
+  httplib::ResponseHandler responseHandler,
+  httplib::ContentReceiver contentReceiver
 ) {
   httplib::Headers headers;
   if(startByte > 0) {
-    headers.insert(std::make_pair("Range", Global::uint64ToString(startByte) + "-" + Global::uint64ToString(endByte)));
+    //Per RFC 7233 the Range header requires an explicit byte-range unit. Servers that
+    //receive a Range header without one treat it as malformed and ignore it, replying
+    //with 200 and the full content, which corrupts resumed downloads.
+    headers.insert(std::make_pair("Range", "bytes=" + Global::uint64ToString(startByte) + "-" + Global::uint64ToString(endByte)));
   }
 
   if(!url.isSSL) {
@@ -224,7 +228,7 @@ static httplib::Result oneShotDownload(
     }
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
     httpClient->set_decompress(false);
-    return httpClient->Get(url.path.c_str(),headers,f);
+    return httpClient->Get(url.path.c_str(),headers,responseHandler,contentReceiver);
   }
   else {
     std::unique_ptr<httplib::SSLClient> httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
@@ -238,7 +242,7 @@ static httplib::Result oneShotDownload(
     httpsClient->enable_server_certificate_verification(true);
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
     httpsClient->set_decompress(false);
-    httplib::Result response = httpsClient->Get(url.path.c_str(),headers,f);
+    httplib::Result response = httpsClient->Get(url.path.c_str(),headers,responseHandler,contentReceiver);
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
       if(result) {
@@ -1012,16 +1016,83 @@ bool Connection::actuallyDownloadModel(
     double lastTime = timer.getSeconds();
 
     size_t totalDataSize = 0;
+    bool serverIgnoresRange = false;
+
+    //Throw away all partial data so far and begin again from byte 0. Used whenever we cannot
+    //trust that the bytes we have so far are a prefix of the true file, e.g. when a retry got
+    //a response that was not a valid continuation of the ranged request we made.
+    auto restartFromBeginning = [&]() {
+      out.close();
+      FileUtils::open(out,tmpPath,ios::binary);
+      totalDataSize = 0;
+    };
 
     auto fInner = [&](int& innerLoopFailMode) {
-      if(totalDataSize >= modelInfo.bytes)
+      if(totalDataSize > modelInfo.bytes) {
+        restartFromBeginning();
+        throw StringError(
+          "Model download received more bytes than the model contains, discarding partial download and restarting from the beginning"
+        );
+      }
+      //If we already learned that the server will not honor Range headers, resuming is not
+      //possible at all, so any partial data must be thrown away and downloaded in one piece.
+      if(serverIgnoresRange && totalDataSize > 0)
+        restartFromBeginning();
+      if(totalDataSize == modelInfo.bytes)
         return;
       const size_t oldTotalDataSize = totalDataSize;
       const size_t startByte = oldTotalDataSize;
       const size_t endByte = modelInfo.bytes-1;
+      const bool requestResume = startByte > 0;
+      if(requestResume)
+        logger->write("Resuming download of model at byte " + Global::uint64ToString(startByte) + " of " + Global::uint64ToString(modelInfo.bytes) + ": " + urlToActuallyUse.originalString);
       const Url proxyToUse = mirrorUseProxy ? proxyUrl : Url();
+
+      //Validate response headers before the content receiver appends any bytes. In particular,
+      //cpp-httplib returns a null Result if the content receiver cancels after an overshoot, so
+      //waiting until after the body has been streamed would lose the 200 status that tells us
+      //the server ignored Range.
+      string responseHeaderError;
+      bool disableRangeResume = false;
+      httplib::ResponseHandler responseHandler = [&](const httplib::Response& headerResponse) {
+        if(headerResponse.status != 200 && headerResponse.status != 206) {
+          ostringstream outs;
+          outs << "Server gave response status code " << headerResponse.status << " instead of 200 OK or 206 Partial Content";
+          for(const auto& header : headerResponse.headers)
+            outs << "\nHeader: " << header.first << ": " << header.second;
+          responseHeaderError = outs.str();
+          return false;
+        }
+
+        if(requestResume && headerResponse.status == 200) {
+          disableRangeResume = true;
+          responseHeaderError =
+            "Server ignored the Range header on a resumed download and sent the full file, "
+            "discarding partial download and restarting from the beginning";
+          return false;
+        }
+
+        if(requestResume && headerResponse.status == 206) {
+          string contentRange;
+          for(const auto& header : headerResponse.headers) {
+            if(Global::toLower(header.first) == "content-range")
+              contentRange = header.second;
+          }
+          const string expectedPrefix = string("bytes ") + Global::uint64ToString(startByte) + "-";
+          if(contentRange == "" || Global::toLower(contentRange).rfind(expectedPrefix,0) != 0) {
+            disableRangeResume = true;
+            responseHeaderError =
+              "Server returned 206 Partial Content with " +
+              (contentRange == "" ? string("no Content-Range header") : string("unexpected Content-Range \"") + contentRange + "\"") +
+              ", discarding partial download and restarting from the beginning";
+            return false;
+          }
+        }
+        return true;
+      };
+
       httplib::Result response = oneShotDownload(
-        logger, urlToActuallyUse, caCertsFile, proxyToUse, startByte, endByte,
+        logger, urlToActuallyUse, caCertsFile, proxyToUse, startByte, endByte, responseHandler,
         [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&urlToActuallyUse,&modelInfo](const char* data, size_t data_length) {
           out.write(data, data_length);
           totalDataSize += data_length;
@@ -1043,8 +1114,26 @@ bool Connection::actuallyDownloadModel(
       if(shouldStop())
         throw StringError("Stopping because shouldStop is true");
 
-      if(totalDataSize > oldTotalDataSize)
-        innerLoopFailMode = LOOP_PARTIAL_SUCCESS;
+      if(responseHeaderError != "") {
+        if(disableRangeResume) {
+          serverIgnoresRange = true;
+          restartFromBeginning();
+        }
+        throw StringError(responseHeaderError);
+      }
+
+      if(totalDataSize > modelInfo.bytes) {
+        restartFromBeginning();
+        throw StringError(
+          "Model download received more bytes than the model contains, discarding partial download and restarting from the beginning"
+        );
+      }
+
+      if(totalDataSize > oldTotalDataSize) {
+        //Only retained bytes count as partial success. If Range is unavailable, the next retry
+        //must discard this incomplete full response, so it must consume the normal retry budget.
+        innerLoopFailMode = serverIgnoresRange ? LOOP_RETRYABLE_FAIL : LOOP_PARTIAL_SUCCESS;
+      }
 
       if(response == nullptr)
         throw StringError("No response from server");
