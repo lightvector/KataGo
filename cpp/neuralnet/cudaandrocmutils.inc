@@ -32,6 +32,15 @@ void CudaUtils::mallocOnDevice(const string& name, int numWeights, void*& device
   }
 }
 
+//A host-to-device cudaMemcpy out of pageable memory is only guaranteed to have staged the source
+//by the time it returns, and the DMA to the device may still be outstanding on the default stream.
+//All inference work runs on a per-handle non-blocking stream, which is not ordered against the
+//default stream, so wait for the transfer here rather than letting a kernel read a weight buffer
+//that is still being filled. Only ever called while building layers, so the cost is one-time.
+static void waitForWeightUpload(const string& name) {
+  CUDA_ERR(name.c_str(),cudaStreamSynchronize(0));
+}
+
 void CudaUtils::mallocAndCopyToDevice(const string& name, const vector<float>& weights, void*& deviceBuf, bool useFP16) {
   size_t numWeights = weights.size();
   if(useFP16) {
@@ -47,6 +56,7 @@ void CudaUtils::mallocAndCopyToDevice(const string& name, const vector<float>& w
     CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
     CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights.data(), floatBytes, cudaMemcpyHostToDevice));
   }
+  waitForWeightUpload(name);
 }
 
 void CudaUtils::mallocAndCopyToDevice(const string& name, const float* weights, int numWeights, void*& deviceBuf, bool useFP16) {
@@ -63,10 +73,14 @@ void CudaUtils::mallocAndCopyToDevice(const string& name, const float* weights, 
     CUDA_ERR(name.c_str(),cudaMalloc(&deviceBuf, floatBytes));
     CUDA_ERR(name.c_str(),cudaMemcpy(deviceBuf, weights, floatBytes, cudaMemcpyHostToDevice));
   }
+  waitForWeightUpload(name);
 }
 
 //Only use in testing, allocates an intermediate buffer in the case of FP16 which will be very slow.
+//Synchronizes the whole device first, since the producing kernels run on a per-handle stream that
+//an ordinary blocking memcpy would not wait for.
 void CudaUtils::expensiveCopyFromDevice(const string& name, float* weights, int numWeights, const void* deviceBuf, bool useFP16) {
+  CUDA_ERR(name.c_str(),cudaDeviceSynchronize());
   if(useFP16) {
     vector<half_t> weightsHalf(numWeights);
     size_t halfBytes = numWeights * sizeof(half_t);

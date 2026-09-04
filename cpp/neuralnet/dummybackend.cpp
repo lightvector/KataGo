@@ -99,6 +99,17 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
   return std::string();
 }
 
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  (void)cfg;
+  return NeuralNet::BatchPolicy::Dynamic;
+}
+
+int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  (void)cfg;
+  std::set<int> distinctDevices(gpuIdxByServerThread.begin(), gpuIdxByServerThread.end());
+  return std::max(1, (int)distinctDevices.size());
+}
+
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {
   (void)loadedModel;
   (void)maxBatchSize;

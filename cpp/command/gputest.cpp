@@ -114,7 +114,7 @@ int MainCmds::testgpuerror(const vector<string>& args) {
     const bool disableFP16 = false;
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      defaultNNXSize,defaultNNYSize,maxBatchSize,defaultRequireExactNNLen,disableFP16,
+      defaultNNXSize,defaultNNYSize,Setup::MaxBatchSizeRequest::explicitSize(maxBatchSize),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_BENCHMARK
     );
   }
@@ -124,7 +124,7 @@ int MainCmds::testgpuerror(const vector<string>& args) {
       const bool disableFP16 = true;
       nnEval32 = Setup::initializeNNEvaluator(
         modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-        defaultNNXSize,defaultNNYSize,maxBatchSize,defaultRequireExactNNLen,disableFP16,
+        defaultNNXSize,defaultNNYSize,Setup::MaxBatchSizeRequest::explicitSize(maxBatchSize),defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_BENCHMARK
       );
     }
@@ -223,7 +223,7 @@ int MainCmds::testbackendreference(const vector<string>& args) {
     const bool disableFP16 = false;
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,maxBatchSize,defaultRequireExactNNLen,disableFP16,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,Setup::MaxBatchSizeRequest::explicitSize(maxBatchSize),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_BENCHMARK
     );
   }

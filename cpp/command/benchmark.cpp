@@ -13,34 +13,154 @@
 
 #include <chrono>
 #include <map>
+#include <set>
 #include <sstream>
 #include <fstream>
 
 using namespace std;
 
-static NNEvaluator* createNNEval(int maxNumThreads, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params);
+static NNEvaluator* createNNEval(int maxNumThreads, Setup::MaxBatchSizeRequest maxBatchSizeRequest, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params);
+
+static void respawnEigenServerThreadsForNumThreads(NNEvaluator* nnEval, Logger& logger, const SearchParams& params, const CompactSgf& sgf, NeuralNet::BatchPolicy backendPolicy, int numThreads);
 
 static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   const SearchParams& params,
   const CompactSgf& sgf,
   int numPositionsPerGame,
   NNEvaluator*& nnEval,
-  Logger& logger,
   double secondsPerGameMove,
   const vector<int>& numThreadsToTest,
   bool printElo,
-  const std::function<int(int)>& getDesiredBatchSize
+  const std::function<void(int)>& prepareNNEvalForNumThreads
 );
 static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
   const SearchParams& params,
   const CompactSgf& sgf,
   int numPositionsPerGame,
   NNEvaluator*& nnEval,
-  Logger& logger,
   double secondsPerGameMove,
   const std::function<void(int)>& reallocateNNEvalWithEnoughBatchSize,
-  const std::function<int(int)>& getDesiredBatchSize
+  const std::function<void(int)>& prepareNNEvalForNumThreads
 );
+
+// How the benchmark chooses the batch size to test at each thread count. Without a batch size
+// flag it mirrors what the backend's own policy would derive, so that measurements match what a
+// user gets by only setting numSearchThreads in their config, and additionally tests half batch
+// size at the final recommended thread count on backends with dynamic batching (the AND_HALF
+// variant). BACKEND_DEFAULT is the same sweep without that extra test.
+enum class BatchSizeScheme { BACKEND_DEFAULT_AND_HALF, BACKEND_DEFAULT, EXACT, HALF_THREADS };
+
+static bool usesBackendDefaultSizing(BatchSizeScheme scheme) {
+  return scheme == BatchSizeScheme::BACKEND_DEFAULT || scheme == BatchSizeScheme::BACKEND_DEFAULT_AND_HALF;
+}
+
+// Outcome of the extra tests run at the final recommended thread count: whether 2 NN server
+// threads per GPU (CUDA and ROCm backends only) and/or half batch size (any backend with
+// dynamic batching) measured enough faster to recommend.
+struct ExtraGpuTuneResult {
+  bool recommendTwoServerThreadsPerGpu = false;
+  bool recommendHalfBatchSize = false;
+  int halfBatchSize = -1;
+  std::vector<int> origGpuIdxByServerThread;
+};
+
+static ExtraGpuTuneResult doExtraGpuTuning(
+  const SearchParams& params,
+  const CompactSgf& sgf,
+  int numPositionsPerGame,
+  NNEvaluator*& nnEval,
+  Logger& logger,
+  double secondsPerGameMove,
+  int bestThreads,
+  bool testServerThreads,
+  bool testHalfBatch,
+  NeuralNet::BatchPolicy backendPolicy,
+  const std::function<void(int)>& prepareNNEvalForNumThreads
+);
+static void printExtraGpuTuningAdvice(ConfigParser& cfg, const ExtraGpuTuneResult& extra);
+
+// -half-batch-size means half the search threads, rounding up. On fixed-shape backends this
+// shares computeFixedShapeMaxBatchSize's floor of 2, so the flag cannot request the batch size 1
+// that the floor exists to avoid.
+static int computeHalfBatchSize(NeuralNet::BatchPolicy backendPolicy, int numThreads) {
+  if(backendPolicy == NeuralNet::BatchPolicy::FixedShape)
+    return Setup::computeFixedShapeMaxBatchSize(numThreads, 1);
+  return (numThreads+1)/2;
+}
+
+static int computeDesiredBatchSize(
+  BatchSizeScheme scheme,
+  int fixedBatchSize,
+  NeuralNet::BatchPolicy backendPolicy,
+  const NNEvaluator* nnEval,
+  int numThreads
+) {
+  if(scheme == BatchSizeScheme::EXACT)
+    return fixedBatchSize;
+  if(scheme == BatchSizeScheme::HALF_THREADS)
+    return computeHalfBatchSize(backendPolicy, numThreads);
+  // BACKEND_DEFAULT: mirror what the backend's policy would derive for this thread count.
+  // For a fixed-shape backend this is the batch size to rebuild the evaluator with (see
+  // prepareNNEvalForNumThreads), so that low thread counts are not measured paying for
+  // full-size padded batches that a normal run would never allocate.
+  if(backendPolicy == NeuralNet::BatchPolicy::FixedShape)
+    return Setup::computeFixedShapeMaxBatchSize(numThreads, nnEval->getNumGpus());
+  // Dynamic and CpuLocal backends just run with the allocated max as a cap and actual batch
+  // sizes float below it, so there is nothing to vary per thread count.
+  return nnEval->getMaxBatchSize();
+}
+
+// Printed at the end of the benchmark: how to make normal runs use the batch sizing that was
+// actually measured.
+static void printBatchSizeAdvice(
+  ConfigParser& cfg,
+  const NNEvaluator* nnEval,
+  NeuralNet::BatchPolicy backendPolicy,
+  BatchSizeScheme scheme,
+  int fixedBatchSize,
+  int exampleNumThreads
+) {
+  const bool configHasBatchSize = cfg.contains("nnMaxBatchSize");
+  const string configBatchSizeStr = configHasBatchSize ? cfg.getString("nnMaxBatchSize") : string();
+
+  if(backendPolicy == NeuralNet::BatchPolicy::CpuLocal) {
+    // This backend ignores nnMaxBatchSize in configs entirely, so no config edit can match a flag.
+    if(!usesBackendDefaultSizing(scheme))
+      cout << "NOTE: You overrode the batch size for this benchmark, but this CPU backend ignores nnMaxBatchSize in configs, so normal runs cannot be configured to match what was measured." << endl;
+    if(configHasBatchSize)
+      cout << "NOTE: Your config sets nnMaxBatchSize = " << configBatchSizeStr << ", but this CPU backend ignores it. You can delete it." << endl;
+    return;
+  }
+
+  // -half-batch-size coincides with the fixed-shape default when there is one device (the floor
+  // of 2 is shared), so treat it as the default rather than as an override.
+  const bool matchesBackendDefault =
+    usesBackendDefaultSizing(scheme) ||
+    (scheme == BatchSizeScheme::HALF_THREADS && backendPolicy == NeuralNet::BatchPolicy::FixedShape &&
+     computeHalfBatchSize(backendPolicy, exampleNumThreads) == Setup::computeFixedShapeMaxBatchSize(exampleNumThreads, nnEval->getNumGpus()));
+
+  if(!matchesBackendDefault) {
+    if(scheme == BatchSizeScheme::EXACT)
+      cout << "NOTE: You overrode this benchmark's batch sizing with -fixed-batch-size. To make normal runs match what was measured, set nnMaxBatchSize = "
+           << fixedBatchSize << " in your config." << endl;
+    else
+      cout << "NOTE: You overrode this benchmark's batch sizing with -half-batch-size. To make normal runs match what was measured, set nnMaxBatchSize in your config to half the numSearchThreads you choose, rounding up (e.g. "
+           << computeHalfBatchSize(backendPolicy, exampleNumThreads) << " if you use " << exampleNumThreads << " threads)." << endl;
+    if(configHasBatchSize)
+      cout << "(Your config currently sets nnMaxBatchSize = " << configBatchSizeStr << ".)" << endl;
+    else
+      cout << "(Your config does not currently set nnMaxBatchSize.)" << endl;
+  }
+  else if(configHasBatchSize) {
+    cout << "WARNING: Your config hardcodes nnMaxBatchSize = " << configBatchSizeStr
+         << ", but this benchmark used the batch size this backend derives from the number of threads." << endl;
+    if(backendPolicy == NeuralNet::BatchPolicy::FixedShape)
+      cout << "To make normal runs match what was measured, delete nnMaxBatchSize from your config (recommended), or set it to half the numSearchThreads each device serves, rounding up (e.g. "
+           << Setup::computeFixedShapeMaxBatchSize(exampleNumThreads, nnEval->getNumGpus()) << " if you use " << exampleNumThreads << " threads)." << endl;
+    else
+      cout << "To make normal runs match what was measured, delete nnMaxBatchSize from your config (recommended), or set it to at least the numSearchThreads you choose." << endl;
+  }
+}
 
 #ifdef USE_EIGEN_BACKEND
 static const int64_t defaultMaxVisits = 80;
@@ -65,6 +185,8 @@ int MainCmds::benchmark(const vector<string>& args) {
   bool autoTuneThreads;
   int fixedBatchSize;
   bool useHalfBatchSize;
+  bool noServerThreadTest;
+  bool noHalfBatchSizeTest;
   double secondsPerGameMove;
   try {
     KataGoCommandLine cmd("Benchmark with gtp config to test speed with different numbers of threads.");
@@ -85,6 +207,8 @@ int MainCmds::benchmark(const vector<string>& args) {
     TCLAP::SwitchArg autoTuneThreadsArg("s","tune","Automatically search for the optimal number of threads (default if not specifying specific numbers of threads)");
     TCLAP::ValueArg<int> fixedBatchSizeArg("","fixed-batch-size","Set max batch size to this fixed value",false,-1,"NUM");
     TCLAP::SwitchArg halfBatchSizeArg("","half-batch-size","Set max batch size to half of the number of threads");
+    TCLAP::SwitchArg noServerThreadTestArg("","no-server-thread-test","Skip the extra test of 2 NN server threads per GPU at the recommended number of threads");
+    TCLAP::SwitchArg noHalfBatchSizeTestArg("","no-half-batch-size-test","Skip the extra test of half batch size at the recommended number of threads");
     TCLAP::ValueArg<double> secondsPerGameMoveArg(
       "i","time",
       "Typical amount of time per move spent while playing, in seconds (default " +
@@ -104,6 +228,8 @@ int MainCmds::benchmark(const vector<string>& args) {
     cmd.add(autoTuneThreadsArg);
     cmd.add(fixedBatchSizeArg);
     cmd.add(halfBatchSizeArg);
+    cmd.add(noServerThreadTestArg);
+    cmd.add(noHalfBatchSizeTestArg);
     cmd.add(secondsPerGameMoveArg);
     cmd.parseArgs(args);
 
@@ -116,6 +242,8 @@ int MainCmds::benchmark(const vector<string>& args) {
     autoTuneThreads = autoTuneThreadsArg.getValue();
     fixedBatchSize = fixedBatchSizeArg.getValue();
     useHalfBatchSize = halfBatchSizeArg.getValue();
+    noServerThreadTest = noServerThreadTestArg.getValue();
+    noHalfBatchSizeTest = noHalfBatchSizeTestArg.getValue();
     secondsPerGameMove = secondsPerGameMoveArg.getValue();
 
     if(boardSize != -1 && sgfFile != "")
@@ -193,35 +321,61 @@ int MainCmds::benchmark(const vector<string>& args) {
 
   Setup::initializeSession(cfg);
 
-  if(cfg.contains("nnMaxBatchSize")) {
-    if(fixedBatchSize != -1)
-      cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", ignoring it and assuming it is " + Global::intToString(fixedBatchSize) + ", for this benchmark." << endl;
-    else if(useHalfBatchSize)
-      cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", ignoring it and assuming it is = threads/2, for this benchmark." << endl;
-    else
-      cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", ignoring it and assuming it is >= threads, for this benchmark." << endl;
-  }
+  const NeuralNet::BatchPolicy backendPolicy = NeuralNet::getBatchPolicy(cfg);
+  const BatchSizeScheme batchSizeScheme =
+    fixedBatchSize != -1 ? BatchSizeScheme::EXACT :
+    useHalfBatchSize ? BatchSizeScheme::HALF_THREADS :
+    noHalfBatchSizeTest ? BatchSizeScheme::BACKEND_DEFAULT :
+    BatchSizeScheme::BACKEND_DEFAULT_AND_HALF;
+
+  // Like numSearchThreads, any nnMaxBatchSize in the config is ignored while sweeping.
+  if(cfg.contains("nnMaxBatchSize"))
+    cout << "NOTE: Your config hardcodes nnMaxBatchSize = " + cfg.getString("nnMaxBatchSize") + ". This benchmark ignores it, and the notes at the end say how to keep it consistent with what was measured." << endl;
+  if(batchSizeScheme == BatchSizeScheme::EXACT)
+    cout << "Batch sizing: testing with exact batch size " << fixedBatchSize << "." << endl;
+  else if(batchSizeScheme == BatchSizeScheme::HALF_THREADS)
+    cout << "Batch sizing: testing with max batch size = half the number of search threads, rounded up." << endl;
 
   NNEvaluator* nnEval = NULL;
   auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
+    // On a fixed-shape backend prepareNNEvalForNumThreads rebuilds per tested thread count anyway,
+    // so growing the allocation up front would only build an evaluator that is thrown away.
+    if(backendPolicy == NeuralNet::BatchPolicy::FixedShape && nnEval != NULL)
+      return;
     if(nnEval != NULL)
       delete nnEval;
-    int batchSizeLimit;
-    if(fixedBatchSize != -1)
-      batchSizeLimit = fixedBatchSize;
-    else if (useHalfBatchSize)
-      batchSizeLimit = (maxNumThreads+1)/2;
-    else
-      batchSizeLimit = maxNumThreads;
-    nnEval = createNNEval(batchSizeLimit, *sgf, modelFile, logger, cfg, params);
+    Setup::MaxBatchSizeRequest request =
+      batchSizeScheme == BatchSizeScheme::EXACT ? Setup::MaxBatchSizeRequest::explicitSize(fixedBatchSize) :
+      batchSizeScheme == BatchSizeScheme::HALF_THREADS ? Setup::MaxBatchSizeRequest::explicitSize(computeHalfBatchSize(backendPolicy, maxNumThreads)) :
+      Setup::MaxBatchSizeRequest::fromConcurrency();
+    nnEval = createNNEval(maxNumThreads, request, *sgf, modelFile, logger, cfg, params);
   };
   auto getDesiredBatchSize = [&](int currentNumThreads) {
     testAssert(nnEval != NULL);
-    if(fixedBatchSize != -1)
-      return fixedBatchSize;
-    if(useHalfBatchSize)
-      return (currentNumThreads+1)/2;
-    return nnEval->getMaxBatchSize();
+    return computeDesiredBatchSize(batchSizeScheme, fixedBatchSize, backendPolicy, nnEval, currentNumThreads);
+  };
+  // Put the evaluator in the state a fresh run at this thread count would have. How much must be
+  // recreated depends on the backend:
+  //  - FixedShape: rebuild the whole evaluator. Its session is only ever fast at the first batch
+  //    shape it runs, so per-thread-count batch sizes cannot be applied to a live evaluator.
+  //  - Eigen: kill and respawn the server threads, since they are the CPU workers and their count
+  //    normally derives from the concurrency at creation. This is a no-op on other backends.
+  //  - Dynamic: nothing to recreate, and rebuilding can be very expensive, e.g. TensorRT. The row
+  //    cap below is the only per-thread-count state, and is a no-op right after a rebuild.
+  auto prepareNNEvalForNumThreads = [&](int numThreads) {
+    testAssert(nnEval != NULL);
+    const int desiredBatchSize = getDesiredBatchSize(numThreads);
+    if(backendPolicy == NeuralNet::BatchPolicy::FixedShape && nnEval->getMaxBatchSize() != desiredBatchSize) {
+      cout << "(Rebuilding neural net evaluator for " << numThreads << " threads, batch size " << desiredBatchSize << ")" << endl;
+      Setup::MaxBatchSizeRequest request =
+        usesBackendDefaultSizing(batchSizeScheme) ? Setup::MaxBatchSizeRequest::fromConcurrency() :
+        Setup::MaxBatchSizeRequest::explicitSize(desiredBatchSize);
+      delete nnEval;
+      nnEval = NULL;
+      nnEval = createNNEval(numThreads, request, *sgf, modelFile, logger, cfg, params);
+    }
+    respawnEigenServerThreadsForNumThreads(nnEval,logger,params,*sgf,backendPolicy,numThreads);
+    nnEval->setMaxRowsToSendPerBatch(desiredBatchSize);
   };
 
   if(!autoTuneThreads) {
@@ -278,18 +432,29 @@ int MainCmds::benchmark(const vector<string>& args) {
 
   vector<PlayUtils::BenchmarkResults> results;
   if(!autoTuneThreads) {
-    results = doFixedTuneThreads(params,*sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,numThreadsToTest,true,getDesiredBatchSize);
+    results = doFixedTuneThreads(params,*sgf,numPositionsPerGame,nnEval,secondsPerGameMove,numThreadsToTest,true,prepareNNEvalForNumThreads);
   }
   else {
-    results = doAutoTuneThreads(params,*sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,reallocateNNEvalWithEnoughBatchSize,getDesiredBatchSize);
+    results = doAutoTuneThreads(params,*sgf,numPositionsPerGame,nnEval,secondsPerGameMove,reallocateNNEvalWithEnoughBatchSize,prepareNNEvalForNumThreads);
+  }
+
+  int bestThreads = results.size() > 0 ? results[0].numThreads : 1;
+  {
+    double bestElo = -1e100;
+    for(int i = 0; i<results.size(); i++) {
+      double elo = results[i].computeEloEffect(secondsPerGameMove);
+      if(elo > bestElo) {
+        bestElo = elo;
+        bestThreads = results[i].numThreads;
+      }
+    }
   }
 
   if(numThreadsToTest.size() > 1 || autoTuneThreads) {
     PlayUtils::BenchmarkResults::printEloComparison(results,secondsPerGameMove);
 
     cout << "If you care about performance, you may want to edit numSearchThreads in " << cfg.getFileName() << " based on the above results!" << endl;
-    if(cfg.contains("nnMaxBatchSize"))
-      cout << "WARNING: Your nnMaxBatchSize is hardcoded to " + cfg.getString("nnMaxBatchSize") + ", recommend deleting it and using the default (which this benchmark assumes)" << endl;
+    printBatchSizeAdvice(cfg,nnEval,backendPolicy,batchSizeScheme,fixedBatchSize,bestThreads);
 #ifdef USE_EIGEN_BACKEND
     if(cfg.contains("numEigenThreadsPerModel")) {
       cout << "Note: Your numEigenThreadsPerModel is hardcoded to " + cfg.getString("numEigenThreadsPerModel") + ", this benchmark ignores it assumes that it is always set equal to the smaller of the number of search threads and the number of CPU cores on your computer when computing its performance stats." << endl;
@@ -301,6 +466,19 @@ int MainCmds::benchmark(const vector<string>& args) {
 
     cout << "If interested see also other notes about performance and mem usage in the top of " << cfg.getFileName() << endl;
     cout << endl;
+  }
+  else {
+    printBatchSizeAdvice(cfg,nnEval,backendPolicy,batchSizeScheme,fixedBatchSize,bestThreads);
+  }
+
+  {
+    ExtraGpuTuneResult extra = doExtraGpuTuning(
+      params,*sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,bestThreads,
+      !noServerThreadTest,
+      batchSizeScheme == BatchSizeScheme::BACKEND_DEFAULT_AND_HALF,
+      backendPolicy,prepareNNEvalForNumThreads
+    );
+    printExtraGpuTuningAdvice(cfg,extra);
   }
 
   delete nnEval;
@@ -325,25 +503,23 @@ static void warmStartNNEval(const CompactSgf& sgf, Logger& logger, const SearchP
   delete bot;
 }
 
-static NNEvaluator* createNNEval(int maxNumThreads, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
+static NNEvaluator* createNNEval(int maxNumThreads, Setup::MaxBatchSizeRequest maxBatchSizeRequest, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
   int expectedConcurrentEvals = maxNumThreads;
-  const int defaultMaxBatchSize = std::max(8,((maxNumThreads+3)/4)*4);
 
   Rand seedRand;
 
-#ifdef USE_EIGEN_BACKEND
-  //For warm-starting eigen, we really don't need all that many backend threads, which are determined
-  //via expectedConcurrentEvals.
-  if(expectedConcurrentEvals > 2)
+  //For warm-starting the eigen backend (BatchPolicy::CpuLocal), we really don't need all that many
+  //backend threads, which are determined via expectedConcurrentEvals. The real count for each tested
+  //thread count is set afterward by respawnEigenServerThreadsForNumThreads.
+  if(NeuralNet::getBatchPolicy(cfg) == NeuralNet::BatchPolicy::CpuLocal && expectedConcurrentEvals > 2)
     expectedConcurrentEvals = 2;
-#endif
 
   const bool defaultRequireExactNNLen = true;
   const bool disableFP16 = false;
   const string expectedSha256 = "";
   NNEvaluator* nnEval = Setup::initializeNNEvaluator(
     modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-    sgf.xSize,sgf.ySize,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+    sgf.xSize,sgf.ySize,maxBatchSizeRequest,defaultRequireExactNNLen,disableFP16,
     Setup::SETUP_FOR_BENCHMARK
   );
 
@@ -361,28 +537,216 @@ static NNEvaluator* createNNEval(int maxNumThreads, const CompactSgf& sgf, const
   return nnEval;
 }
 
-static void setNumThreads(SearchParams& params, NNEvaluator* nnEval, Logger& logger, int numThreads, int desiredBatchSize, const CompactSgf& sgf) {
-  params.numThreads = numThreads;
-#ifdef USE_EIGEN_BACKEND
-  //Eigen is a little interesting in that by default, it sets numNNServerThreadsPerModel based on numSearchThreads
-  //So, reset the number of threads in the nnEval each time we change the search numthreads
-  //Also, disable the logger to suppress the kill and respawn messages.
+static void respawnEigenServerThreadsForNumThreads(NNEvaluator* nnEval, Logger& logger, const SearchParams& params, const CompactSgf& sgf, NeuralNet::BatchPolicy backendPolicy, int numThreads) {
+  //CpuLocal currently exactly identifies the eigen backend, where by default numNNServerThreadsPerModel
+  //is based on numSearchThreads, because the server threads are themselves the CPU workers doing the
+  //compute. So reset the number of threads in the nnEval each time we change the search numthreads.
+  if(backendPolicy != NeuralNet::BatchPolicy::CpuLocal)
+    return;
+  //Disable the logger to suppress the kill and respawn messages.
   logger.setDisabled(true);
   nnEval->killServerThreads();
   nnEval->setNumThreads(vector<int>(Setup::computeDefaultEigenBackendThreads(numThreads,logger),-1));
-  nnEval->setCurrentBatchSize(desiredBatchSize);
   nnEval->spawnServerThreads();
   //Also since we killed and respawned all the threads, re-warm them
   Rand seedRand;
   warmStartNNEval(sgf,logger,params,nnEval,seedRand);
   logger.setDisabled(false);
-#else
-  //The very first batch that the server thread grabs might be at the old size, but that's okay.
-  nnEval->setCurrentBatchSize(desiredBatchSize);
-  (void)logger;
-  (void)numThreads;
-  (void)sgf;
+}
+
+#if defined(USE_CUDA_BACKEND) || defined(USE_ROCM_BACKEND)
+static void respawnServerThreadsWithGpuIdxs(
+  NNEvaluator* nnEval, Logger& logger, const SearchParams& params, const CompactSgf& sgf, const vector<int>& gpuIdxByServerThread
+) {
+  //Disable the logger to suppress the kill and respawn and GPU startup messages.
+  logger.setDisabled(true);
+  nnEval->killServerThreads();
+  nnEval->setNumThreads(gpuIdxByServerThread);
+  nnEval->spawnServerThreads();
+  //Re-warm the freshly spawned threads
+  Rand seedRand;
+  warmStartNNEval(sgf,logger,params,nnEval,seedRand);
+  logger.setDisabled(false);
+}
 #endif
+
+// Require at least this much speedup before recommending a more complex configuration over a
+// simpler one, so that run-to-run noise doesn't flip the recommendation between runs.
+static constexpr double extraTuneMinSpeedupFactor = 1.03;
+
+static double visitsPerSecond(const PlayUtils::BenchmarkResults& result) {
+  return result.totalVisits / (result.totalSeconds + 0.00001);
+}
+
+// Extra tests at the final recommended thread count: 2 NN server threads per GPU (CUDA and
+// ROCm backends only), and half batch size on whichever server thread setup was faster (any
+// backend with dynamic batching). Each variant is recommended only if it beats what it is
+// compared against by extraTuneMinSpeedupFactor. When any test runs, leaves nnEval running
+// the winning configuration.
+static ExtraGpuTuneResult doExtraGpuTuning(
+  const SearchParams& params,
+  const CompactSgf& sgf,
+  int numPositionsPerGame,
+  NNEvaluator*& nnEval,
+  Logger& logger,
+  double secondsPerGameMove,
+  int bestThreads,
+  bool testServerThreads,
+  bool testHalfBatch,
+  NeuralNet::BatchPolicy backendPolicy,
+  const std::function<void(int)>& prepareNNEvalForNumThreads
+) {
+  ExtraGpuTuneResult out;
+  out.origGpuIdxByServerThread = nnEval->getGpuIdxByServerThread();
+
+#if !(defined(USE_CUDA_BACKEND) || defined(USE_ROCM_BACKEND))
+  // The server thread test is only supported and measured for the CUDA and ROCm backends.
+  testServerThreads = false;
+  (void)logger;
+#endif
+  // Capping the batch size below the search thread count only makes sense with dynamic
+  // batching. Fixed-shape backends pad every batch to the allocated size, and CpuLocal
+  // ignores batch size entirely.
+  if(backendPolicy != NeuralNet::BatchPolicy::Dynamic)
+    testHalfBatch = false;
+
+  // Only test doubling when the current configuration runs one server thread per GPU. If some
+  // GPU already has multiple threads, the user chose that deliberately and doubling further is
+  // not a tradeoff this test covers.
+  {
+    std::set<int> distinctGpus(out.origGpuIdxByServerThread.begin(), out.origGpuIdxByServerThread.end());
+    if(distinctGpus.size() != out.origGpuIdxByServerThread.size())
+      testServerThreads = false;
+  }
+  // With 1 search thread there is at most one query in flight, so neither variant can help.
+  const int halfBatchSize = computeHalfBatchSize(backendPolicy, bestThreads);
+  if(halfBatchSize >= bestThreads)
+    testHalfBatch = false;
+  if(bestThreads < 2)
+    testServerThreads = false;
+  if(!testServerThreads && !testHalfBatch)
+    return out;
+
+  cout << "Running additional tests of a few other settings at numSearchThreads = " << bestThreads << "." << endl;
+
+  SearchParams thisParams = params;
+  thisParams.numThreads = bestThreads;
+  prepareNNEvalForNumThreads(bestThreads);
+
+  cout << "Re-measuring the current recommendation as a baseline:" << endl;
+  PlayUtils::BenchmarkResults baseline = PlayUtils::benchmarkSearchOnPositionsAndPrint(
+    thisParams,sgf,numPositionsPerGame,nnEval,NULL,secondsPerGameMove,false
+  );
+
+  PlayUtils::BenchmarkResults doubledResult;
+  bool usingDoubled = false;
+#if defined(USE_CUDA_BACKEND) || defined(USE_ROCM_BACKEND)
+  if(testServerThreads) {
+    cout << "Testing 2 NN server threads per GPU. This also uses more GPU memory, since each server thread keeps its own copy of the neural net:" << endl;
+    vector<int> doubledGpuIdxs;
+    for(int gpuIdx: out.origGpuIdxByServerThread) {
+      doubledGpuIdxs.push_back(gpuIdx);
+      doubledGpuIdxs.push_back(gpuIdx);
+    }
+    respawnServerThreadsWithGpuIdxs(nnEval,logger,params,sgf,doubledGpuIdxs);
+    doubledResult = PlayUtils::benchmarkSearchOnPositionsAndPrint(
+      thisParams,sgf,numPositionsPerGame,nnEval,&baseline,secondsPerGameMove,true
+    );
+    double speedup = visitsPerSecond(doubledResult) / (visitsPerSecond(baseline) + 0.00001);
+    if(speedup >= extraTuneMinSpeedupFactor) {
+      cout << Global::strprintf("2 NN server threads per GPU was %.1f%% faster, will recommend it.", 100.0*(speedup-1.0)) << endl;
+      out.recommendTwoServerThreadsPerGpu = true;
+      usingDoubled = true;
+    }
+    else {
+      cout << Global::strprintf(
+        "2 NN server threads per GPU was not at least %.0f%% faster (measured %+.1f%%), keeping 1.",
+        100.0*(extraTuneMinSpeedupFactor-1.0), 100.0*(speedup-1.0)) << endl;
+      respawnServerThreadsWithGpuIdxs(nnEval,logger,params,sgf,out.origGpuIdxByServerThread);
+    }
+  }
+#endif
+
+  if(testHalfBatch) {
+    const PlayUtils::BenchmarkResults& compareTo = usingDoubled ? doubledResult : baseline;
+    cout << "Testing a max batch size of " << halfBatchSize << ", half the search threads, which can pipeline better on some GPUs:" << endl;
+    nnEval->setMaxRowsToSendPerBatch(halfBatchSize);
+    PlayUtils::BenchmarkResults halfResult = PlayUtils::benchmarkSearchOnPositionsAndPrint(
+      thisParams,sgf,numPositionsPerGame,nnEval,&compareTo,secondsPerGameMove,true
+    );
+    double speedup = visitsPerSecond(halfResult) / (visitsPerSecond(compareTo) + 0.00001);
+    if(speedup >= extraTuneMinSpeedupFactor) {
+      cout << Global::strprintf("Half batch size was %.1f%% faster, will recommend it.", 100.0*(speedup-1.0)) << endl;
+      out.recommendHalfBatchSize = true;
+      out.halfBatchSize = halfBatchSize;
+    }
+    else {
+      cout << Global::strprintf(
+        "Half batch size was not at least %.0f%% faster (measured %+.1f%%), keeping the default.",
+        100.0*(extraTuneMinSpeedupFactor-1.0), 100.0*(speedup-1.0)) << endl;
+      nnEval->setMaxRowsToSendPerBatch(nnEval->getMaxBatchSize());
+    }
+  }
+  cout << endl;
+  return out;
+}
+
+// Printed by the benchmark command after the extra tests, telling the user the config edits
+// that reproduce any variant that measured faster.
+static void printExtraGpuTuningAdvice(ConfigParser& cfg, const ExtraGpuTuneResult& extra) {
+  // Only used for the server thread advice, which only triggers on the CUDA and ROCm backends.
+#if defined(USE_CUDA_BACKEND)
+  const string deviceKeyPrefix = "cuda";
+#elif defined(USE_ROCM_BACKEND)
+  const string deviceKeyPrefix = "rocm";
+#else
+  const string deviceKeyPrefix = "";
+#endif
+  if(extra.recommendTwoServerThreadsPerGpu) {
+    const std::vector<int>& origGpuIdxs = extra.origGpuIdxByServerThread;
+    bool anyExplicitDevice = false;
+    for(int gpuIdx: origGpuIdxs)
+      if(gpuIdx >= 0)
+        anyExplicitDevice = true;
+    if(!anyExplicitDevice) {
+      // All threads use the backend's default device selection, so doubling the count alone
+      // reproduces the tested configuration.
+      cout << "ADDITIONAL RECOMMENDATION: 2 NN server threads per GPU measured faster. To use this, set numNNServerThreadsPerModel = "
+           << (2 * origGpuIdxs.size()) << " in your config. Note that it also increases GPU memory usage." << endl;
+    }
+    else {
+      // Emit explicit per-thread device keys for every device that was explicitly selected.
+      // Doubling the thread count alone would be wrong here, since threads beyond the ones the
+      // config's per-thread keys cover would fall through to the backend's default device.
+      cout << "ADDITIONAL RECOMMENDATION: 2 NN server threads per GPU measured faster. To use this, set the following in your config (note that it also increases GPU memory usage):" << endl;
+      cout << "  numNNServerThreadsPerModel = " << (2 * origGpuIdxs.size()) << endl;
+      int threadIdx = 0;
+      for(int gpuIdx: origGpuIdxs) {
+        for(int j = 0; j<2; j++) {
+          if(gpuIdx >= 0)
+            cout << "  " << deviceKeyPrefix << "DeviceToUseThread" << threadIdx << " = " << gpuIdx << endl;
+          threadIdx += 1;
+        }
+      }
+      // The thread numbering changes when the count doubles, so any per-thread key the user
+      // leaves in place under a name or index not overwritten by the block above would bind to
+      // the wrong thread.
+      cout << "Also remove any per-thread device settings your config currently has, if any, other than the ones above." << endl;
+      // Model-scoped device keys like cudaDeviceToUseModel0Thread1 take priority over the plain
+      // per-thread keys advised above, so a config using them would only half-apply the advice.
+      // Rare, so only mention it when such keys are present. The benchmark only ever runs one
+      // model, so Model0 is the only index that can matter here.
+      if(cfg.containsAnyKeyContaining("ToUseModel0"))
+        cout << "Note: your config selects devices using keys with \"Model0\" in the name. Those take priority over the keys above, so update or remove those too." << endl;
+    }
+  }
+  if(extra.recommendHalfBatchSize) {
+    cout << "ADDITIONAL RECOMMENDATION: a smaller batch size measured faster. To use this, set nnMaxBatchSize = " << extra.halfBatchSize
+         << " in your config. This is half of numSearchThreads rounded up, so update it if you change numSearchThreads." << endl;
+    if(cfg.contains("nnMaxBatchSize"))
+      cout << "Your config currently sets nnMaxBatchSize = " << cfg.getString("nnMaxBatchSize")
+           << ". Replace it with " << extra.halfBatchSize << ". This supersedes any earlier note in this output about deleting it." << endl;
+  }
 }
 
 static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
@@ -390,11 +754,10 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   const CompactSgf& sgf,
   int numPositionsPerGame,
   NNEvaluator*& nnEval,
-  Logger& logger,
   double secondsPerGameMove,
   const vector<int>& numThreadsToTest,
   bool printElo,
-  const std::function<int(int)>& getDesiredBatchSize
+  const std::function<void(int)>& prepareNNEvalForNumThreads
 ) {
   vector<PlayUtils::BenchmarkResults> results;
 
@@ -406,8 +769,8 @@ static vector<PlayUtils::BenchmarkResults> doFixedTuneThreads(
   for(int i = 0; i<numThreadsToTest.size(); i++) {
     const PlayUtils::BenchmarkResults* baseline = (i == 0) ? NULL : &results[0];
     SearchParams thisParams = params;
-    int desiredBatchSize = getDesiredBatchSize(numThreadsToTest[i]);
-    setNumThreads(thisParams,nnEval,logger,numThreadsToTest[i],desiredBatchSize,sgf);
+    prepareNNEvalForNumThreads(numThreadsToTest[i]);
+    thisParams.numThreads = numThreadsToTest[i];
     PlayUtils::BenchmarkResults result = PlayUtils::benchmarkSearchOnPositionsAndPrint(
       thisParams,
       sgf,
@@ -428,10 +791,9 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
   const CompactSgf& sgf,
   int numPositionsPerGame,
   NNEvaluator*& nnEval,
-  Logger& logger,
   double secondsPerGameMove,
   const std::function<void(int)>& reallocateNNEvalWithEnoughBatchSize,
-  const std::function<int(int)>& getDesiredBatchSize
+  const std::function<void(int)>& prepareNNEvalForNumThreads
 ) {
   vector<PlayUtils::BenchmarkResults> results;
 
@@ -445,8 +807,8 @@ static vector<PlayUtils::BenchmarkResults> doAutoTuneThreads(
       const PlayUtils::BenchmarkResults* baseline = NULL;
       bool printElo = false;
       SearchParams thisParams = params;
-      int desiredBatchSize = getDesiredBatchSize(numThreads);
-      setNumThreads(thisParams,nnEval,logger,numThreads,desiredBatchSize,sgf);
+      prepareNNEvalForNumThreads(numThreads);
+      thisParams.numThreads = numThreads;
       PlayUtils::BenchmarkResults result = PlayUtils::benchmarkSearchOnPositionsAndPrint(
         thisParams,
         sgf,
@@ -638,6 +1000,8 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   int configNNCacheSizePowerOfTwo = 20;
   int configNNMutexPoolSizePowerOfTwo = 16;
   int configNumSearchThreads = 6;
+  int configServerThreadsPerDevice = 1;
+  int configNNMaxBatchSize = -1;
 
   cout << endl;
   cout << "=========================================================================" << endl;
@@ -860,12 +1224,20 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
       configMaxTime,
       configMaxPonderTime,
       configDeviceIdxs,
+      configServerThreadsPerDevice,
+      configNNMaxBatchSize,
       configNNCacheSizePowerOfTwo,
       configNNMutexPoolSizePowerOfTwo,
       configNumSearchThreads
     );
   };
   updateConfigContents();
+  auto writeConfigFile = [&]() {
+    ofstream out;
+    FileUtils::open(out, outputFile, ofstream::out | ofstream::trunc);
+    out << configFileContents;
+    out.close();
+  };
 
   if(!skipThreadTuning) {
     int64_t maxVisitsFromUser = -1;
@@ -899,6 +1271,21 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
         });
     }
 
+    bool testServerThreads = true;
+#if defined(USE_CUDA_BACKEND) || defined(USE_ROCM_BACKEND)
+    {
+      cout << endl;
+      string prompt =
+        "After tuning the number of threads, the tuning can also test whether running 2 NN server threads\n"
+        "per GPU performs better. This uses more GPU memory, since each server thread keeps its own copy\n"
+        "of the neural net, and if GPU memory is tight the test itself may fail. Run this test? (y/n, default y):\n";
+      promptAndParseInput(prompt, [&](const string& line) {
+          if(line == "") testServerThreads = true;
+          else parseYN(line,testServerThreads);
+        });
+    }
+#endif
+
     istringstream inConfig(configFileContents);
     ConfigParser cfg(inConfig);
 
@@ -915,19 +1302,44 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
 
     Setup::initializeSession(cfg);
 
+    // Tune with the batch sizing the backend derives on its own per thread count. The generated
+    // config deliberately omits nnMaxBatchSize: at runtime the engine rederives the same batch
+    // size from the numSearchThreads this tuning writes into the config, so what was measured for
+    // the chosen thread count is exactly what a run of the config gets.
+    const NeuralNet::BatchPolicy backendPolicy = NeuralNet::getBatchPolicy(cfg);
+
     int maxNumThreadsForCurrentNNEval = -1;
     NNEvaluator* nnEval = NULL;
     auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
+      // See the note in MainCmds::benchmark: fixed-shape evaluators get rebuilt per tested thread
+      // count anyway, so only the initial build is needed here.
+      if(backendPolicy == NeuralNet::BatchPolicy::FixedShape && nnEval != NULL)
+        return;
       if(nnEval != NULL && maxNumThreads <= maxNumThreadsForCurrentNNEval)
         return;
       if(nnEval != NULL)
         delete nnEval;
-      nnEval = createNNEval(maxNumThreads, *sgf, modelFile, logger, cfg, params);
+      nnEval = createNNEval(maxNumThreads, Setup::MaxBatchSizeRequest::fromConcurrency(), *sgf, modelFile, logger, cfg, params);
       maxNumThreadsForCurrentNNEval = maxNumThreads;
     };
     auto getDesiredBatchSize = [&](int currentNumThreads) {
-      (void)currentNumThreads;
-      return nnEval->getMaxBatchSize();
+      testAssert(nnEval != NULL);
+      return computeDesiredBatchSize(BatchSizeScheme::BACKEND_DEFAULT, -1, backendPolicy, nnEval, currentNumThreads);
+    };
+    // See the comment on the closure of the same name in MainCmds::benchmark: this puts the
+    // evaluator in the state a fresh run at this thread count would have.
+    auto prepareNNEvalForNumThreads = [&](int numThreads) {
+      testAssert(nnEval != NULL);
+      const int desiredBatchSize = getDesiredBatchSize(numThreads);
+      if(backendPolicy == NeuralNet::BatchPolicy::FixedShape && nnEval->getMaxBatchSize() != desiredBatchSize) {
+        cout << "(Rebuilding neural net evaluator for " << numThreads << " threads, batch size " << desiredBatchSize << ")" << endl;
+        delete nnEval;
+        nnEval = NULL;
+        nnEval = createNNEval(numThreads, Setup::MaxBatchSizeRequest::fromConcurrency(), *sgf, modelFile, logger, cfg, params);
+        maxNumThreadsForCurrentNNEval = numThreads;
+      }
+      respawnEigenServerThreadsForNumThreads(nnEval,logger,params,*sgf,backendPolicy,numThreads);
+      nnEval->setMaxRowsToSendPerBatch(desiredBatchSize);
     };
 
     cout << endl;
@@ -942,7 +1354,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
       cout << "Running quick initial benchmark at 16 threads!" << endl;
       vector<int> numThreads = {16};
       reallocateNNEvalWithEnoughBatchSize(std::max(16,ternarySearchInitialMax));
-      vector<PlayUtils::BenchmarkResults> results = doFixedTuneThreads(params,*sgf,3,nnEval,logger,secondsPerGameMove,numThreads,false,getDesiredBatchSize);
+      vector<PlayUtils::BenchmarkResults> results = doFixedTuneThreads(params,*sgf,3,nnEval,secondsPerGameMove,numThreads,false,prepareNNEvalForNumThreads);
       double visitsPerSecond = results[0].totalVisits / (results[0].totalSeconds + 0.00001);
       //Make tests use about 2 seconds each
       maxVisits = (int64_t)round(2.0 * visitsPerSecond/100.0) * 100;
@@ -960,7 +1372,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
     cout << "Tuning using " << maxVisits << " visits." << endl;
 
     vector<PlayUtils::BenchmarkResults> results;
-    results = doAutoTuneThreads(params,*sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,reallocateNNEvalWithEnoughBatchSize,getDesiredBatchSize);
+    results = doAutoTuneThreads(params,*sgf,numPositionsPerGame,nnEval,secondsPerGameMove,reallocateNNEvalWithEnoughBatchSize,prepareNNEvalForNumThreads);
 
     PlayUtils::BenchmarkResults::printEloComparison(results,secondsPerGameMove);
     int bestIdx = 0;
@@ -972,6 +1384,29 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
 
     configNumSearchThreads = results[bestIdx].numThreads;
 
+    // Write the config as tuned so far, so that the interactive answers are not lost if the
+    // additional tests below die, e.g. running out of GPU memory spawning a second server
+    // thread per GPU. The final write below overwrites this with the completed config.
+    updateConfigContents();
+    writeConfigFile();
+
+    {
+      cout << endl;
+      const bool testHalfBatch = true;
+      ExtraGpuTuneResult extra = doExtraGpuTuning(
+        params,*sgf,numPositionsPerGame,nnEval,logger,secondsPerGameMove,configNumSearchThreads,
+        testServerThreads,testHalfBatch,backendPolicy,prepareNNEvalForNumThreads
+      );
+      if(extra.recommendTwoServerThreadsPerGpu) {
+        configServerThreadsPerDevice = 2;
+        cout << "Using 2 NN server threads per GPU in the generated config since it measured faster." << endl;
+      }
+      if(extra.recommendHalfBatchSize) {
+        configNNMaxBatchSize = extra.halfBatchSize;
+        cout << "Using nnMaxBatchSize = " << extra.halfBatchSize << " in the generated config since it measured faster." << endl;
+      }
+    }
+
     delete nnEval;
   }
 
@@ -982,10 +1417,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
   cout << "DONE" << endl;
   cout << endl;
   cout << "Writing new config file to " << outputFile << endl;
-  ofstream out;
-  FileUtils::open(out, outputFile, ofstream::out | ofstream::trunc);
-  out << configFileContents;
-  out.close();
+  writeConfigFile();
 
   cout << "You should be now able to run KataGo with this config via something like:" << endl;
   if(modelFileIsDefault)

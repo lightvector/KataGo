@@ -271,19 +271,18 @@ int MainCmds::evalsgf(const vector<string>& args) {
   {
     Setup::initializeSession(cfg);
     int expectedConcurrentEvals = params.numThreads;
-    int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     bool defaultRequireExactNNLen = true;
     bool disableFP16 = false;
     string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      board.x_size,board.y_size,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
     if(humanModelFile != "") {
       humanEval = Setup::initializeNNEvaluator(
         humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-        board.x_size,board.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        board.x_size,board.y_size,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_GTP
       );
     }

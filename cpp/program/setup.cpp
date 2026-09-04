@@ -37,7 +37,7 @@ NNEvaluator* Setup::initializeNNEvaluator(
   int expectedConcurrentEvals,
   int defaultNNXLen,
   int defaultNNYLen,
-  int defaultMaxBatchSize,
+  MaxBatchSizeRequest maxBatchSizeRequest,
   bool defaultRequireExactNNLen,
   bool disableFP16,
   setup_for_t setupFor
@@ -53,7 +53,7 @@ NNEvaluator* Setup::initializeNNEvaluator(
       expectedConcurrentEvals,
       defaultNNXLen,
       defaultNNYLen,
-      defaultMaxBatchSize,
+      maxBatchSizeRequest,
       defaultRequireExactNNLen,
       disableFP16,
       setupFor
@@ -72,7 +72,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   int expectedConcurrentEvals,
   int defaultNNXLen,
   int defaultNNYLen,
-  int defaultMaxBatchSize,
+  MaxBatchSizeRequest maxBatchSizeRequest,
   bool defaultRequireExactNNLen,
   bool disableFP16,
   setup_for_t setupFor
@@ -191,7 +191,6 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
     logger.write("nnRandSeed" + idxStr + " = " + nnRandSeed);
 
 #ifndef USE_EIGEN_BACKEND
-    (void)expectedConcurrentEvals;
     cfg.markAllKeysUsedWithPrefix("numEigenThreadsPerModel");
     int numNNServerThreadsPerModel =
       cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel",1,1024) : 1;
@@ -271,6 +270,7 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("nnCacheSizePowerOfTwo") ? cfg.getInt("nnCacheSizePowerOfTwo", -1, 48) :
       setupFor == SETUP_FOR_GTP ? 20 :
       setupFor == SETUP_FOR_BENCHMARK ? 20 :
+      setupFor == SETUP_FOR_BENCHMARKNN ? 16 :
       setupFor == SETUP_FOR_DISTRIBUTED ? 19 :
       setupFor == SETUP_FOR_MATCH ? 21 :
       setupFor == SETUP_FOR_ANALYSIS ? 23 :
@@ -280,42 +280,66 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       cfg.contains("nnMutexPoolSizePowerOfTwo") ? cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24) :
       setupFor == SETUP_FOR_GTP ? 16 :
       setupFor == SETUP_FOR_BENCHMARK ? 16 :
+      setupFor == SETUP_FOR_BENCHMARKNN ? 12 :
       setupFor == SETUP_FOR_DISTRIBUTED ? 16 :
       setupFor == SETUP_FOR_MATCH ? 17 :
       setupFor == SETUP_FOR_ANALYSIS ? 17 :
       cfg.getInt("nnMutexPoolSizePowerOfTwo", -1, 24);
 
-#ifndef USE_EIGEN_BACKEND
+    // Turn what the caller knows (maxBatchSizeRequest) into a batch size the way this backend wants
+    // it (NeuralNet::getBatchPolicy), rather than having every call site bake in a formula that is
+    // only right for GPU backends.
+    const NeuralNet::BatchPolicy batchPolicy = NeuralNet::getBatchPolicy(cfg);
+
     int nnMaxBatchSize;
-    if(setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_DISTRIBUTED) {
-      nnMaxBatchSize = defaultMaxBatchSize;
+    if(maxBatchSizeRequest.kind == MaxBatchSizeRequest::EXPLICIT_SIZE) {
+      // The caller already has an exact batch size in hand (a benchmark or test tool's own number),
+      // so no policy transform applies - not even CpuLocal's fixed size, since these tools exist
+      // precisely to measure or exercise a specific batch size.
+      nnMaxBatchSize = maxBatchSizeRequest.size;
+      if(nnMaxBatchSize <= 0 || nnMaxBatchSize > 65536)
+        throw StringError("Invalid explicit max batch size: " + Global::intToString(nnMaxBatchSize));
     }
-    else if(defaultMaxBatchSize > 0) {
-      nnMaxBatchSize =
-        cfg.contains("nnMaxBatchSize") ? cfg.getInt("nnMaxBatchSize", 1, 65536) :
-        defaultMaxBatchSize;
+    else if(batchPolicy == NeuralNet::BatchPolicy::CpuLocal) {
+      // Batching doesn't help this backend (see BatchPolicy::CpuLocal), so fix a small size that
+      // saves memory, ignoring both the request and anything the user specified for GPUs.
+      nnMaxBatchSize = 2;
+      cfg.markAllKeysUsedWithPrefix("nnMaxBatchSize");
     }
-    else {
+    else if(maxBatchSizeRequest.kind == MaxBatchSizeRequest::REQUIRE_FROM_CONFIG) {
+      // No default to fall back on, so the config has to say. Callers using this always pass a
+      // setupFor that does not force the request, so there is nothing to force here.
       nnMaxBatchSize = cfg.getInt("nnMaxBatchSize", 1, 65536);
     }
-#else
-    //Large batches don't really help CPUs the way they do GPUs because a single CPU on its own is single-threaded
-    //and doesn't greatly benefit from having a bigger chunk of parallelizable work to do on the large scale.
-    //So we just fix a size here that isn't crazy and saves memory, completely ignore what the user would have
-    //specified for GPUs.
-    int nnMaxBatchSize = 2;
-    cfg.markAllKeysUsedWithPrefix("nnMaxBatchSize");
-    (void)defaultMaxBatchSize;
-#endif
+    else {
+      int derived;
+      if(batchPolicy == NeuralNet::BatchPolicy::FixedShape) {
+        // Every batch gets padded up to this size, so overshooting wastes real arithmetic on every
+        // evaluation. Server threads sharing a device share its concurrency, hence dividing by the
+        // number of distinct devices rather than by the thread count.
+        const int numDevices = NeuralNet::getNumEffectiveDevices(cfg, gpuIdxByServerThread);
+        derived = computeFixedShapeMaxBatchSize(expectedConcurrentEvals, numDevices);
+      }
+      else if(maxBatchSizeRequest.kind == MaxBatchSizeRequest::FROM_CONCURRENCY_STRICT) {
+        // The caller means exactly the concurrency it gave.
+        derived = std::max(1, expectedConcurrentEvals);
+      }
+      else {
+        // Any batch size is fine here and larger ones amortize per-call overhead, so round up and
+        // keep a floor.
+        derived = std::max(8, ((expectedConcurrentEvals + 3) / 4) * 4);
+      }
+
+      const bool forceRequest =
+        setupFor == SETUP_FOR_BENCHMARK || setupFor == SETUP_FOR_BENCHMARKNN || setupFor == SETUP_FOR_DISTRIBUTED;
+      nnMaxBatchSize =
+        (!forceRequest && cfg.contains("nnMaxBatchSize")) ? cfg.getInt("nnMaxBatchSize", 1, 65536) :
+        derived;
+    }
 
     int defaultSymmetry = forcedSymmetry >= 0 ? forcedSymmetry : 0;
     if(disableFP16)
       useFP16Mode = enabled_t::False;
-
-    //Pre-warm lazily-compiled backend graphs (e.g. cuDNN SDPA plans for transformer models) when each
-    //server thread's handle is created, so the first searches aren't stalled. On by default.
-    bool disableWarmup =
-      cfg.contains("cudaDisableWarmup") ? cfg.getBool("cudaDisableWarmup") : false;
 
     NNEvaluator* nnEval = new NNEvaluator(
       nnModelName,
@@ -337,16 +361,26 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       nnRandSeed,
       (forcedSymmetry >= 0 ? false : nnRandomize),
       defaultSymmetry,
-      disableWarmup,
       cfg
     );
 
-    nnEval->spawnServerThreads();
+    // benchmarkPureForward drives compute handles itself, without server threads.
+    if(setupFor != SETUP_FOR_BENCHMARKNN)
+      nnEval->spawnServerThreads();
 
     nnEvals.push_back(nnEval);
   }
 
   return nnEvals;
+}
+
+int Setup::computeFixedShapeMaxBatchSize(int expectedConcurrentEvals, int numDevices) {
+  numDevices = std::max(1, numDevices);
+  const int perDevice = (expectedConcurrentEvals + numDevices - 1) / numDevices;
+  // Floor of 2 rather than 1: batch size 1 makes OpenVINO's NPU inference produce nonfinite
+  // policy outputs (a provider bug, observed with OpenVINO 2026.2.1), and a 2-row batch costs
+  // low-thread-count configurations only a little on the other providers.
+  return std::max(2, (perDevice + 1) / 2);
 }
 
 int Setup::computeDefaultEigenBackendThreads(int expectedConcurrentEvals, Logger& logger) {

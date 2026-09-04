@@ -2636,6 +2636,19 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
   return std::string();
 }
 
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  (void)cfg;
+  return NeuralNet::BatchPolicy::CpuLocal;
+}
+
+int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  // There are no devices to select - the server threads are CPU workers on the one machine - so
+  // ignore any gpu/device config keys rather than letting stray ones inflate the count.
+  (void)cfg;
+  (void)gpuIdxByServerThread;
+  return 1;
+}
+
 // FOR TESTING ---------------------------------------------------------------------------------------------------------
 bool NeuralNet::testEvaluateConv(
   const ConvLayerDesc* desc,

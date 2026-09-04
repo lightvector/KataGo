@@ -19,8 +19,50 @@ namespace Setup {
     SETUP_FOR_MATCH,
     SETUP_FOR_ANALYSIS,
     SETUP_FOR_OTHER,
-    SETUP_FOR_DISTRIBUTED
+    SETUP_FOR_DISTRIBUTED,
+    // Pure NN forward benchmark - does not spawn NN server threads, the benchmark drives
+    // compute handles itself. See NNEvaluator::benchmarkPureForward.
+    SETUP_FOR_BENCHMARKNN
   };
+
+  // How a caller wants nnMaxBatchSize decided. The caller says what it knows about the work it
+  // is about to do, and the backend's NeuralNet::BatchPolicy decides how that turns into a batch
+  // size, since the right answer differs between GPU backends, fixed-shape backends and CPU
+  // backends.
+  // A user-specified nnMaxBatchSize wins over the concurrency-based kinds, except where setupFor
+  // forces the caller's value (benchmarks sweeping thread counts, and distributed). It never
+  // applies under EXPLICIT_SIZE, nor for CpuLocal backends, which ignore it entirely.
+  struct MaxBatchSizeRequest {
+    enum Kind {
+      // Size it for expectedConcurrentEvals, with room to spare: this is a search whose threads all
+      // want evaluations at once, and a batch a little larger than strictly needed costs nothing on
+      // a GPU. The overwhelmingly common case.
+      FROM_CONCURRENCY,
+      // Size it for exactly expectedConcurrentEvals, with no rounding up or floor. For callers
+      // that already know their true concurrency and mean it exactly, rather than a search whose
+      // thread count is only an upper bound on how many evals are really in flight.
+      FROM_CONCURRENCY_STRICT,
+      // No default at all: nnMaxBatchSize must come from the config, and it is an error if absent.
+      // For the long-running multi-game tools whose configs are expected to set it.
+      REQUIRE_FROM_CONFIG,
+      // Use exactly this batch size, overriding every policy including CpuLocal's fixed size and
+      // any config value. For benchmarking and testing tools whose number is already a batch size
+      // rather than a concurrency, so no policy transform may be applied to it.
+      EXPLICIT_SIZE,
+    };
+    Kind kind;
+    int size; // Only meaningful for EXPLICIT_SIZE
+
+    static MaxBatchSizeRequest fromConcurrency() { return {FROM_CONCURRENCY,-1}; }
+    static MaxBatchSizeRequest fromConcurrencyStrict() { return {FROM_CONCURRENCY_STRICT,-1}; }
+    static MaxBatchSizeRequest requireFromConfig() { return {REQUIRE_FROM_CONFIG,-1}; }
+    static MaxBatchSizeRequest explicitSize(int size) { return {EXPLICIT_SIZE,size}; }
+  };
+
+  // The default nnMaxBatchSize for backends whose BatchPolicy is FixedShape: half of the evals one
+  // device sees at a time, rounded up, so that two batches can be in flight per device. Exposed so
+  // that the benchmark can compute the same per-thread-count batch sizes this policy would pick.
+  int computeFixedShapeMaxBatchSize(int expectedConcurrentEvals, int numDevices);
 
   NNEvaluator* initializeNNEvaluator(
     const std::string& nnModelNames,
@@ -32,7 +74,7 @@ namespace Setup {
     int expectedConcurrentEvals,
     int defaultNNXLen,
     int defaultNNYLen,
-    int defaultMaxBatchSize,
+    MaxBatchSizeRequest maxBatchSizeRequest,
     bool defaultRequireExactNNLen,
     bool disableFP16,
     setup_for_t setupFor
@@ -48,7 +90,7 @@ namespace Setup {
     int expectedConcurrentEvals,
     int defaultNNXLen,
     int defaultNNYLen,
-    int defaultMaxBatchSize,
+    MaxBatchSizeRequest maxBatchSizeRequest,
     bool defaultRequireExactNNLen,
     bool disableFP16,
     setup_for_t setupFor

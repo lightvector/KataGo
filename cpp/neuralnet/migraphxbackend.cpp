@@ -779,6 +779,35 @@ void NeuralNet::printDevices() {
   }
 }
 
+std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
+  (void)cfg;
+  return std::string();
+}
+
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  // Unlike the CUDA/ROCm/OpenCL backends this is not fixed by the backend, because MIGraphX
+  // compiles for one exact input shape and which shapes exist is a config choice.
+  //
+  // With bucketing (the default) a ladder of shapes is compiled at startup and each eval is
+  // dispatched to the smallest bucket that fits, so padding waste is bounded by the ratio between
+  // adjacent buckets and a batch sized to all the work in flight is the right ask: Dynamic.
+  //
+  // With migraphxBatchBuckets = false there is a single program compiled at nnMaxBatchSize and
+  // every short batch pads up to it, which is exactly the FixedShape case. See the rationale at
+  // the top of this file: at 192 threads the average batch is ~89 against a 192-row program, so
+  // under half the compute is useful. FixedShape makes Setup ask for about half the per-device
+  // concurrency instead, which is the sizing that mode wants.
+  const bool useBatchBuckets =
+    cfg.contains("migraphxBatchBuckets") ? cfg.getBool("migraphxBatchBuckets") : true;
+  return useBatchBuckets ? NeuralNet::BatchPolicy::Dynamic : NeuralNet::BatchPolicy::FixedShape;
+}
+
+int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  (void)cfg;
+  std::set<int> distinctDevices(gpuIdxByServerThread.begin(), gpuIdxByServerThread.end());
+  return std::max(1, (int)distinctDevices.size());
+}
+
 struct InputBuffers {
   int maxBatchSize;
 

@@ -1,6 +1,6 @@
 # ONNX Model Files
 
-*Applies to KataGo 1.17.3 and later. Earlier versions have neither the `dumponnx` command nor the ability to load `.onnx` model files.*
+*Applies to KataGo 1.18.0 and later. Earlier versions have neither the `dumponnx` command nor the ability to load `.onnx` model files.*
 
 The TensorRT and ONNX Runtime backends do not evaluate KataGo's `.bin.gz` model files directly. They translate the model into an [ONNX](https://onnx.ai/) graph in memory and hand that to TensorRT's `nvonnxparser` or to ONNX Runtime. This document covers:
 
@@ -105,7 +105,7 @@ Required always:
 |---|---|
 | `katago.metadataVersion` | Version of this contract. See [Versioning](#versioning). Currently `1`. |
 | `katago.name` | Model name. 1 to 96 characters of `[A-Za-z0-9_-]`, since it is used in cache filenames. |
-| `katago.modelVersion` | KataGo model version, which fixes the input encoding and the output decoding. KataGo 1.17.3 accepts 3 through 17. |
+| `katago.modelVersion` | KataGo model version, which fixes the input encoding and the output decoding. KataGo 1.18.0 accepts 3 through 17. |
 | `katago.numInputChannels`, `katago.numInputGlobalChannels`, `katago.numInputMetaChannels` | Input channel counts. Each has exactly one legal value for the model version, and is checked. |
 | `katago.numPolicyChannels`, `katago.numValueChannels`, `katago.numScoreValueChannels`, `katago.numOwnershipChannels` | Output channel counts, likewise checked. |
 | `katago.build.nnXLen`, `katago.build.nnYLen` | Board buffer size the graph was built for. |

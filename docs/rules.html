@@ -227,7 +227,7 @@ window.onload = function() {
 <body>
 
 <h1>KataGo's Supported Go Rules (Version 3) </h1>
-This page describes the full rigorous rules implemented by KataGo. Updated from <a href="./rulesv2.html">rules version 2</a> in 2026 to fix an issue with territory scoring when TaxRule is None, where unfilled ko mouths in sekis would count as a point of territory, and could result in pass fights over such kos. These rules are supported in KataGo version 1.17.3 and later. Additionally, neural nets trained with the old rules may fail to evaluate such situations correctly even when used with KataGo version 1.17.3 or later - the version *and* the net both need to be up-to-date.
+This page describes the full rigorous rules implemented by KataGo. Updated from <a href="./rulesv2.html">rules version 2</a> in 2026 to fix an issue with territory scoring when TaxRule is None, where unfilled ko mouths in sekis would count as a point of territory, and could result in pass fights over such kos. These rules are supported in KataGo version 1.18.0 and later. Additionally, neural nets trained with the old rules may fail to evaluate such situations correctly even when used with KataGo version 1.18.0 or later - the version *and* the net both need to be up-to-date.
 
 <p>
 A hope also is that this document can serve as a reference for anyone to implement any subset of such rules themselves - including a rigorous nearly-Japanese rules that bots can use for self-play or for competitive matches completely without need for outside adjudication or dispute resolution or any other protocol besides just the bots making ordinary plays.

@@ -1,5 +1,5 @@
 The code in this repository currently relies on several other libraries, parts of libraries,
-or external files: clblast, composable_kernel_fmha, cudnn-frontend, filesystem-1.5.8, half-2.2.0,
+or external files: clblast, composable_kernel_fmha, cudnn-frontend, cutlass, filesystem-1.5.8, half-2.2.0,
 httplib, katagocoreml (which itself vendors components from Apple's coremltools and the FP16
 library), macos (Swift CMake modules), mozilla-cacerts, nlohmann_json, sgfmill, onnx, and
 tclap-1.2.5. For the licenses for those libraries and/or files, see the individual readmes and/or

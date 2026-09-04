@@ -142,6 +142,20 @@ const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
 
 //--------------------------------------------------------------
 
+// The provider choice is required rather than defaulted, since a cpu default silently runs
+// many times slower than the user's hardware allows.
+static string getRequiredProviderLowercase(ConfigParser& cfg) {
+  if(!cfg.contains("onnxProvider"))
+    throw StringError(
+      "ONNX backend: onnxProvider is not set in the config. Set it to choose what hardware runs "
+      "the neural net: openvino (Intel GPUs and NPUs), directml (DirectX 12 GPUs, Windows only), "
+      "cuda or tensorrt (NVIDIA GPUs), migraphx (AMD GPUs, Linux only), or cpu (no GPU or NPU, "
+      "slow).");
+  return Global::toLower(cfg.getString("onnxProvider"));
+}
+
+//--------------------------------------------------------------
+
 struct ComputeContext {
   Ort::Env env;
   int nnXLen;
@@ -154,6 +168,10 @@ struct ComputeContext {
   string openvinoNumStreams;  // 1-8
   bool transformerNHWC;         // run the trunk block stack channel-last (NHWC)
   bool skipScale8;              // skip the scale8 FP16-range workaround (see createComputeContext)
+  // Pad every inference up to the max batch size so the graph only ever sees one input shape.
+  // Auto resolves per handle in shouldPadBatch(), since it depends on the provider and, for
+  // OpenVINO, on that thread's device.
+  enabled_t padBatchMode;
 
   // Per-thread device type (index = serverThreadIdx). Filled with openvinoDeviceType
   // by default, and individual entries are replaced by onnxOpenVINODeviceTypeThread<N>.
@@ -169,7 +187,8 @@ struct ComputeContext {
       openvinoPrecision(""),
       openvinoNumStreams(""),
       transformerNHWC(true),
-      skipScale8(false)
+      skipScale8(false),
+      padBatchMode(enabled_t::Auto)
   {}
 };
 
@@ -201,15 +220,15 @@ ComputeContext* NeuralNet::createComputeContext(
 
   ComputeContext* ctx = new ComputeContext(nnXLen, nnYLen);
 
-  // Provider selection. Defaults to CPU. OpenVINO is the EP used for Intel Arc GPUs.
-  string providerName = cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu";
-  ctx->providerName = Global::toLower(providerName);
+  // Provider selection. OpenVINO is the EP used for Intel Arc GPUs.
+  ctx->providerName = getRequiredProviderLowercase(cfg);
 
   // OpenVINO EP options.
   ctx->openvinoDeviceType = cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
   ctx->openvinoCacheDir = cfg.contains("onnxOpenVINOCacheDir") ? cfg.getString("onnxOpenVINOCacheDir") : "";
   ctx->openvinoPrecision = cfg.contains("onnxOpenVINOPrecision") ? cfg.getString("onnxOpenVINOPrecision") : "";
   ctx->openvinoNumStreams = cfg.contains("onnxOpenVINONumStreams") ? cfg.getString("onnxOpenVINONumStreams") : "";
+  ctx->padBatchMode = cfg.contains("onnxPadBatch") ? cfg.getEnabled("onnxPadBatch") : enabled_t::Auto;
 
   // useFP16 = false is an explicit request for full FP32 on every other backend. The only
   // provider here that downcasts an fp32 graph by default is OpenVINO (GPU/NPU run FP16
@@ -355,6 +374,50 @@ static std::vector<std::string> parseDeviceNames(const std::string& deviceType) 
 }
 
 //--------------------------------------------------------------
+// Helper: should this handle pad every inference up to the max batch size?
+//
+// Some execution providers compile the graph for one exact input shape and recompile whenever
+// the shape changes, and KataGo's search varies the batch size from call to call, so on those
+// providers nearly every inference pays a recompile, costing most of the potential throughput.
+// The compiled graphs are not cached per shape, so the cost never amortizes and warming up over
+// a ladder of batch sizes would not help. Padding trades some wasted arithmetic in short batches
+// for holding the shape still, and Setup::MaxBatchSizeRequest keeps the batch small enough that
+// the trade stays worth it.
+//
+// Auto turns this on only where that trade pays:
+//   - directml: always.
+//   - openvino: when this thread's device string can select an NPU, which has the same recompile
+//     behavior, unlike OpenVINO's GPU path which handles varying shapes fine.
+//     "Can select" is the strongest statement available: for an explicit "NPU"/"NPU.0" we know,
+//     but for a composite like AUTO:GPU,NPU the choice is OpenVINO's at runtime and is not
+//     reported back through ORT's API, so any string mentioning NPU is treated as maybe-NPU.
+//   - everything else: off, since those providers handle varying shapes without recompiling.
+//--------------------------------------------------------------
+static bool padsBatchForDevice(const string& providerName, enabled_t padBatchMode, const string& deviceType) {
+  if(padBatchMode == enabled_t::True)
+    return true;
+  if(padBatchMode == enabled_t::False)
+    return false;
+
+  if(providerName == "directml")
+    return true;
+  if(providerName == "openvino") {
+    // Match NPU anywhere in the raw string rather than only in parsed device names, so that
+    // composite strings with prefixes other than AUTO/MULTI/HETERO (e.g. BATCH:NPU) still count.
+    if(Global::toUpper(deviceType).find("NPU") != string::npos)
+      return true;
+  }
+  return false;
+}
+
+static bool shouldPadBatch(const ComputeContext* ctx, int serverThreadIdx) {
+  string threadDeviceType = ctx->openvinoDeviceType;
+  if(serverThreadIdx >= 0 && serverThreadIdx < (int)ctx->perThreadDeviceType.size())
+    threadDeviceType = ctx->perThreadDeviceType[serverThreadIdx];
+  return padsBatchForDevice(ctx->providerName, ctx->padBatchMode, threadDeviceType);
+}
+
+//--------------------------------------------------------------
 
 struct ComputeHandle {
   ComputeContext* ctx;
@@ -374,6 +437,9 @@ struct ComputeHandle {
   vector<const char*> inputNamePtrs;
   vector<const char*> outputNamePtrs;
 
+  // Pad short batches out to a constant number of rows, see shouldPadBatch().
+  bool padBatch;
+
   ComputeHandle(ComputeContext* context, const LoadedModel& loadedModel, Logger* logger, int deviceIdxForThread, int serverThreadIdx, bool requireExactNNLen)
     : ctx(context),
       modelVersion(loadedModel.modelDesc.modelVersion),
@@ -383,7 +449,8 @@ struct ComputeHandle {
       numPolicyChannels(loadedModel.modelDesc.numPolicyChannels),
       numValueChannels(loadedModel.modelDesc.numValueChannels),
       numScoreValueChannels(loadedModel.modelDesc.numScoreValueChannels),
-      numOwnershipChannels(loadedModel.modelDesc.numOwnershipChannels)
+      numOwnershipChannels(loadedModel.modelDesc.numOwnershipChannels),
+      padBatch(shouldPadBatch(context, serverThreadIdx))
   {
     // The graph either comes verbatim from a .onnx file, or is emitted here from the .bin.gz weights
     // by the same emitter the TensorRT backend uses. Either way Ort::Session parses it directly. The
@@ -699,6 +766,10 @@ struct ComputeHandle {
       }
       logger->write("ONNX backend: session created, inputs=" + Global::uint64ToString(numInputs) +
                      " outputs=" + Global::uint64ToString(numOutputs));
+      if(padBatch)
+        logger->write(
+          "ONNX backend: padding every inference to the max batch size, so this provider never "
+          "sees a changing input shape (onnxPadBatch)");
     }
   }
 
@@ -858,6 +929,11 @@ void NeuralNet::getOutput(
   assert(numBatchEltsFilled > 0);
 
   const int batchSize = numBatchEltsFilled;
+  // Run at a constant number of rows and throw the extra ones away, see shouldPadBatch().
+  // On DirectML at least, a session is only ever fast at the first shape it runs and any other
+  // shape stays slow on every call, so running a different batch size well requires recreating
+  // the backend with a different maxBatchSize, as the benchmark does.
+  const int runBatchSize = gpuHandle->padBatch ? inputBuffers->maxBatchSize : batchSize;
   const int nnXLen = gpuHandle->ctx->nnXLen;
   const int nnYLen = gpuHandle->ctx->nnYLen;
   const int modelVersion = gpuHandle->modelVersion;
@@ -895,31 +971,52 @@ void NeuralNet::getOutput(
     }
   }
 
+  // Fill the padding rows with a copy of row 0 rather than leaving whatever the last call put
+  // there (or zeros on the first call). Their outputs are discarded, so any valid position would
+  // do, but an all-zero row is not one: its mask is empty, and the mask-weighted pooling and
+  // attention in the graph divide by the mask sum. Rows are independent, so a NaN in a padding
+  // row should stay there. This just avoids relying on that for every op in every model version.
+  for(int nIdx = batchSize; nIdx < runBatchSize; nIdx++) {
+    std::copy(
+      inputBuffers->maskInput.data(), inputBuffers->maskInput.data() + inputBuffers->singleMaskElts,
+      inputBuffers->maskInput.data() + inputBuffers->singleMaskElts * nIdx);
+    std::copy(
+      inputBuffers->spatialInput.data(), inputBuffers->spatialInput.data() + inputBuffers->singleInputElts,
+      inputBuffers->spatialInput.data() + inputBuffers->singleInputElts * nIdx);
+    std::copy(
+      inputBuffers->globalInput.data(), inputBuffers->globalInput.data() + inputBuffers->singleInputGlobalElts,
+      inputBuffers->globalInput.data() + inputBuffers->singleInputGlobalElts * nIdx);
+    if(numMetaFeatures > 0)
+      std::copy(
+        inputBuffers->metaInput.data(), inputBuffers->metaInput.data() + inputBuffers->singleInputMetaElts,
+        inputBuffers->metaInput.data() + inputBuffers->singleInputMetaElts * nIdx);
+  }
+
   // Build Ort::Value views over the host buffers. These stay in CPU memory - the execution
   // provider copies to device internally and returns outputs in CPU memory.
   Ort::MemoryInfo memInfo = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
 
-  std::array<int64_t, 4> maskShape = {batchSize, 1, nnYLen, nnXLen};
+  std::array<int64_t, 4> maskShape = {runBatchSize, 1, nnYLen, nnXLen};
   Ort::Value maskTensor = Ort::Value::CreateTensor<float>(
-    memInfo, inputBuffers->maskInput.data(), inputBuffers->singleMaskElts * batchSize,
+    memInfo, inputBuffers->maskInput.data(), inputBuffers->singleMaskElts * runBatchSize,
     maskShape.data(), maskShape.size());
 
-  std::array<int64_t, 4> spatialShape = {batchSize, numSpatialFeatures, nnYLen, nnXLen};
+  std::array<int64_t, 4> spatialShape = {runBatchSize, numSpatialFeatures, nnYLen, nnXLen};
   Ort::Value spatialTensor = Ort::Value::CreateTensor<float>(
-    memInfo, inputBuffers->spatialInput.data(), inputBuffers->singleInputElts * batchSize,
+    memInfo, inputBuffers->spatialInput.data(), inputBuffers->singleInputElts * runBatchSize,
     spatialShape.data(), spatialShape.size());
 
-  std::array<int64_t, 4> globalShape = {batchSize, numGlobalFeatures, 1, 1};
+  std::array<int64_t, 4> globalShape = {runBatchSize, numGlobalFeatures, 1, 1};
   Ort::Value globalTensor = Ort::Value::CreateTensor<float>(
-    memInfo, inputBuffers->globalInput.data(), inputBuffers->singleInputGlobalElts * batchSize,
+    memInfo, inputBuffers->globalInput.data(), inputBuffers->singleInputGlobalElts * runBatchSize,
     globalShape.data(), globalShape.size());
 
   Ort::Value metaTensor(nullptr);
   std::array<int64_t, 4> metaShape;
   if(numMetaFeatures > 0) {
-    metaShape = {batchSize, numMetaFeatures, 1, 1};
+    metaShape = {runBatchSize, numMetaFeatures, 1, 1};
     metaTensor = Ort::Value::CreateTensor<float>(
-      memInfo, inputBuffers->metaInput.data(), inputBuffers->singleInputMetaElts * batchSize,
+      memInfo, inputBuffers->metaInput.data(), inputBuffers->singleInputMetaElts * runBatchSize,
       metaShape.data(), metaShape.size());
   }
 
@@ -1109,7 +1206,11 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
   // Every piece of the result is a fixed string rather than any of the config text it was derived
   // from, so that whoever aggregates these sees a small closed set of values and never something a
   // user typed.
-  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+  // A missing or unknown provider is a config error, but one that createComputeContext raises
+  // later than this runs, so report nothing here.
+  if(!cfg.contains("onnxProvider"))
+    return string();
+  string provider = Global::toLower(cfg.getString("onnxProvider"));
 
   string detail;
   for(const char* knownProvider : kKnownProviders) {
@@ -1118,8 +1219,6 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
       break;
     }
   }
-  // An unknown provider is a config error, but one that createComputeContext raises later than
-  // this runs. Report nothing rather than anything derived from the offending value.
   if(detail.empty())
     return detail;
 
@@ -1148,6 +1247,55 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
       detail += "-" + name;
   }
   return detail;
+}
+
+int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  // Tolerate a missing onnxProvider rather than requiring it like getBatchPolicy and
+  // createComputeContext do: the NNEvaluator constructor calls this even for neural-net-less
+  // test evaluators that never select a provider at all.
+  string provider = Global::toLower(cfg.contains("onnxProvider") ? cfg.getString("onnxProvider") : "cpu");
+  if(provider != "openvino") {
+    std::set<int> distinctDevices(gpuIdxByServerThread.begin(), gpuIdxByServerThread.end());
+    return std::max(1, (int)distinctDevices.size());
+  }
+  // OpenVINO selects devices by device-type string, with the thread's gpu index only refining it
+  // to a "GPU.1"-style suffix, mirroring createComputeHandle.
+  string defaultDeviceType =
+    cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
+  std::set<string> distinctDevices;
+  for(int t = 0; t < (int)gpuIdxByServerThread.size(); t++) {
+    string key = "onnxOpenVINODeviceTypeThread" + Global::intToString(t);
+    string deviceType = Global::toUpper(cfg.contains(key) ? cfg.getString(key) : defaultDeviceType);
+    const int deviceIdx = gpuIdxByServerThread[t];
+    if(deviceIdx > 0 && deviceType.find('.') == string::npos && deviceType.find(':') == string::npos)
+      deviceType += "." + Global::intToString(deviceIdx);
+    distinctDevices.insert(deviceType);
+  }
+  return std::max(1, (int)distinctDevices.size());
+}
+
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  // Unlike every other backend this is not a property of the compiled backend: whether the graph
+  // gets recompiled per input shape depends on the execution provider, and for OpenVINO on the
+  // device, so it has to be decided from the same config keys createComputeContext reads. A single
+  // nnMaxBatchSize covers every server thread, so a thread that pads makes the whole evaluator
+  // FixedShape: padding a batch that did not need it costs some wasted rows, while failing to pad
+  // one that did costs a recompile per evaluation.
+  string provider = getRequiredProviderLowercase(cfg);
+  enabled_t padBatchMode = cfg.contains("onnxPadBatch") ? cfg.getEnabled("onnxPadBatch") : enabled_t::Auto;
+
+  string defaultDeviceType =
+    cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
+  int numThreads =
+    cfg.contains("numNNServerThreadsPerModel") ? cfg.getInt("numNNServerThreadsPerModel", 1, 1024) : 1;
+
+  for(int t = 0; t < numThreads; t++) {
+    string key = "onnxOpenVINODeviceTypeThread" + Global::intToString(t);
+    string threadDeviceType = cfg.contains(key) ? cfg.getString(key) : defaultDeviceType;
+    if(padsBatchForDevice(provider, padBatchMode, threadDeviceType))
+      return NeuralNet::BatchPolicy::FixedShape;
+  }
+  return NeuralNet::BatchPolicy::Dynamic;
 }
 
 void NeuralNet::printDevices() {

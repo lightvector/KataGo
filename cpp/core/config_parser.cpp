@@ -501,6 +501,14 @@ bool ConfigParser::containsAny(const std::vector<std::string>& possibleKeys) con
   return false;
 }
 
+bool ConfigParser::containsAnyKeyContaining(const std::string& substring) const {
+  for(auto it = keyValues.begin(); it != keyValues.end(); ++it) {
+    if(it->first.find(substring) != string::npos)
+      return true;
+  }
+  return false;
+}
+
 std::string ConfigParser::firstFoundOrFail(const std::vector<std::string>& possibleKeys) const {
   for(const string& key : possibleKeys) {
     if(contains(key))

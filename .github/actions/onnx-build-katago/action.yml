@@ -142,6 +142,8 @@ runs:
           }
         }
         Copy-Item "cpp\configs\gtp_example.cfg" "release\"
+        # The ONNX backend requires an explicit onnxProvider, so preset the one this artifact ships.
+        Add-Content "release\gtp_example.cfg" "`n# This package supports the ${{ inputs.ep }} provider.`nonnxProvider = ${{ inputs.ep }}"
         Write-Output "--- release contents ---"
         Get-ChildItem "release" | Select-Object Name, Length
 
@@ -154,6 +156,8 @@ runs:
         cp deps/install/ort/lib/libonnxruntime*.so* release/ 2>/dev/null || true
         # EP-specific runtime libs (TensorRT/CUDA/ROCm, etc.) go here once wired up.
         cp cpp/configs/gtp_example.cfg release/
+        # The ONNX backend requires an explicit onnxProvider, so preset the one this artifact ships.
+        printf '\n# This package supports the %s provider.\nonnxProvider = %s\n' "${{ inputs.ep }}" "${{ inputs.ep }}" >> release/gtp_example.cfg
         # katago's build-time DT_RUNPATH points at the CI workspace
         # (deps/install/ort/lib), which no longer exists once the artifact is downloaded
         # elsewhere. Rewrite it to $ORIGIN so the binary finds the sibling

@@ -47,6 +47,34 @@ namespace NeuralNet {
   // so keep results short and stable for a given config.
   std::string getRuntimeBackendDetail(ConfigParser& cfg);
 
+  // How this backend wants nnMaxBatchSize chosen. Setup::initializeNNEvaluator asks the backend
+  // rather than deriving one number for everybody, because "bigger batches up to the number of
+  // concurrent evaluations" is only right for GPU backends that accept any batch size.
+  enum class BatchPolicy {
+    // Any batch size is fine and larger ones amortize per-call overhead, so size the batch to the
+    // work that can be in flight. Every GPU backend except the fixed-shape cases below.
+    Dynamic,
+    // The graph is compiled for one exact input shape and recompiles whenever it changes, so the
+    // batch size is held constant and short batches are padded up to it (see the ONNX backend's
+    // onnxPadBatch). Wants a batch of about half the evals one device sees at a time, so that two
+    // batches can be in flight per device without the padding wasting many rows.
+    FixedShape,
+    // Batching buys nothing: each evaluation runs single-threaded on a CPU core, with parallelism
+    // coming from many server threads evaluating at once, so a big batch only costs memory. Wants
+    // a small fixed size regardless of concurrency or config. Currently also tells the benchmark
+    // that the server threads are the CPU workers, so it resizes and respawns them per tested
+    // thread count. A CPU-style backend that manages its own parallelism instead should get a new
+    // policy value here rather than reusing this one.
+    CpuLocal,
+  };
+  BatchPolicy getBatchPolicy(ConfigParser& cfg);
+
+  // The number of distinct devices that server threads with these gpu indices will run on, for
+  // per-device sizing such as Setup::computeFixedShapeMaxBatchSize. Most backends identify a
+  // device by the gpu index alone. The ONNX backend's OpenVINO provider instead selects devices
+  // by device-type string, which it reads from the same config keys createComputeContext does.
+  int getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread);
+
   // Model I/O -----------------------------------------------------------------
 
   LoadedModel* loadModelFile(const std::string& file, const std::string& expectedSha256);

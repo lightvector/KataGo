@@ -207,6 +207,8 @@ NNEvaluator* TestSearchCommon::startNNEval(
   //NHWC layout is no longer a generic NNEvaluator option; only the CUDA backend reads it (off cfg).
   //Route the test's useNHWC param into a cudaUseNHWC override so it still drives the CUDA layout.
   cfg.overrideKey("cudaUseNHWC", useNHWC ? "true" : "false");
+  //The ONNX backend requires an explicit provider choice in real configs, so tests set cpu.
+  cfg.overrideKey("onnxProvider", "cpu");
   //The MIGraphX backend reads migraphxTransformerNHWC off the cfg, but this test builds an
   //empty ConfigParser, so an NHWC A/B run through runnnonmanyposestest silently compares
   //NCHW against NCHW. Route an env var in so the layout can actually be toggled under test.
@@ -245,7 +247,6 @@ NNEvaluator* TestSearchCommon::startNNEval(
     nnRandSeed,
     nnRandomize,
     defaultSymmetry,
-    false,
     cfg
   );
 

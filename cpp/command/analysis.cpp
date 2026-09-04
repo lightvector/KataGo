@@ -158,18 +158,17 @@ int MainCmds::analysis(const vector<string>& args) {
     Setup::initializeSession(cfg);
     const int expectedConcurrentEvals = numAnalysisThreads * defaultParams.numThreads;
     const bool defaultRequireExactNNLen = false;
-    const int defaultMaxBatchSize = -1;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,Setup::MaxBatchSizeRequest::requireFromConfig(),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
     if(humanModelFile != "") {
       humanEval = Setup::initializeNNEvaluator(
         humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-        NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,Setup::MaxBatchSizeRequest::requireFromConfig(),defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_ANALYSIS
       );
       if(!humanEval->requiresSGFMetadata()) {

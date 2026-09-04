@@ -456,20 +456,19 @@ int MainCmds::genbook(const vector<string>& args) {
   {
     Setup::initializeSession(cfg);
     const int expectedConcurrentEvals = numGameThreads * params.numThreads;
-    const int defaultMaxBatchSize = std::max(8,((numGameThreads * params.numThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = true;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-      boardSizeX,boardSizeY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      boardSizeX,boardSizeY,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
     logger.write("Loaded neural net");
     if(humanModelFile != "") {
       humanEval = Setup::initializeNNEvaluator(
         humanModelFile,humanModelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-        boardSizeX,boardSizeY,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        boardSizeX,boardSizeY,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_ANALYSIS
       );
       logger.write("Loaded human SL net with nnXLen " + Global::intToString(humanEval->getNNXLen()) + " nnYLen " + Global::intToString(humanEval->getNNYLen()));
@@ -1886,13 +1885,12 @@ int MainCmds::booktoposes(const vector<string>& args) {
   {
     Setup::initializeSession(cfg);
     int expectedConcurrentEvals = numThreads;
-    int defaultMaxBatchSize = std::max(8,((numThreads+3)/4)*4);
     bool defaultRequireExactNNLen = true;
     bool disableFP16 = false;
     string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      book->initialBoard.x_size,book->initialBoard.y_size,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      book->initialBoard.x_size,book->initialBoard.y_size,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
   }

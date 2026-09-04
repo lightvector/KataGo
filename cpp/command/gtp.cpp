@@ -489,19 +489,18 @@ struct GTPEngine {
       }
 
       const int expectedConcurrentEvals = std::max(genmoveParams.numThreads, analysisParams.numThreads);
-      const int defaultMaxBatchSize = std::max(8,((expectedConcurrentEvals+3)/4)*4);
       const bool disableFP16 = false;
       const string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
         nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-        nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        nnXLen,nnYLen,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_GTP
       );
       logger.write("Loaded neural net with nnXLen " + Global::intToString(nnEval->getNNXLen()) + " nnYLen " + Global::intToString(nnEval->getNNYLen()));
       if(humanModelFile != "") {
         humanEval = Setup::initializeNNEvaluator(
           humanModelFile,humanModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-          nnXLen,nnYLen,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+          nnXLen,nnYLen,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
           Setup::SETUP_FOR_GTP
         );
         logger.write("Loaded human SL net with nnXLen " + Global::intToString(humanEval->getNNXLen()) + " nnYLen " + Global::intToString(humanEval->getNNYLen()));

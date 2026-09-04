@@ -896,9 +896,11 @@ int MainCmds::contribute(const vector<string>& args) {
     }
 
     const int maxSimultaneousGamesThisNet = isRatingManager ? maxSimultaneousRatingGamesPossible : maxSimultaneousGames;
-    const int expectedConcurrentEvals = runParams.maxSearchThreadsAllowed * maxSimultaneousGamesThisNet;
+    //Games here are each effectively single-threaded, so the number of simultaneous games is the
+    //real number of evaluations in flight. Multiplying by maxSearchThreadsAllowed would only
+    //inflate the batch size, and the eigen backend's thread count, past anything that gets used.
+    const int expectedConcurrentEvals = maxSimultaneousGamesThisNet;
     const bool defaultRequireExactNNLen = false;
-    const int defaultMaxBatchSize = maxSimultaneousGamesThisNet;
 
     //Unlike local self-play, which waits to accumulate a fixed number of rows before writing, distributed selfplay writes
     //training data game by game. So we set a buffer size here large enough to always hold all the rows of a game.
@@ -914,7 +916,7 @@ int MainCmds::contribute(const vector<string>& args) {
       const bool disableFP16 = false;
       nnEval = Setup::initializeNNEvaluator(
         modelName,modelFile,modelInfo.sha256,*userCfg,logger,rand,expectedConcurrentEvals,
-        NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,Setup::MaxBatchSizeRequest::fromConcurrencyStrict(),defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_DISTRIBUTED
       );
       testAssert(!nnEval->isNeuralNetLess() || modelFile == "/dev/null");
@@ -928,7 +930,7 @@ int MainCmds::contribute(const vector<string>& args) {
         const bool disableFP16 = true;
         nnEval32 = Setup::initializeNNEvaluator(
           modelName,modelFile,modelInfo.sha256,*userCfg,logger,rand,expectedConcurrentEvals,
-          NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+          NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,Setup::MaxBatchSizeRequest::fromConcurrencyStrict(),defaultRequireExactNNLen,disableFP16,
           Setup::SETUP_FOR_DISTRIBUTED
         );
       }

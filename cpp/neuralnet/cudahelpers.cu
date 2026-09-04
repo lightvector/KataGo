@@ -13,4 +13,9 @@
 #define KATAGO_GPU_CUDA 1
 #define KATAGO_GPU_SINCOSF __sincosf
 
+// Tensor-core flash attention is CUDA-only (mma.sync/ldmatrix/cp.async PTX). The shared .inc
+// provides a fallback stub for builds without it.
+#include "../neuralnet/cudaflashmma.cuh"
+#define KATAGO_HAS_FLASH_MMA 1
+
 #include "../neuralnet/cudaandrocmhelpers.inc"

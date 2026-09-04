@@ -265,7 +265,10 @@ searchFactorWhenWinningThreshold = 0.95
 # Maximum number of positions to send to a single GPU at once. The default
 # value is roughly equal to numSearchThreads, but can be specified manually
 # if running out of memory, or using multiple GPUs that expect to share work.
-# nnMaxBatchSize = <integer>
+# Tuning may have specified a value here if it measured it to be faster.
+# If you later change numSearchThreads yourself, and this has been set to a
+# specific value, adjust this proportionally and/or consider benchmarking.
+$$NN_MAX_BATCH_SIZE
 
 # Controls the neural network cache size, which is the primary RAM/memory use.
 # KataGo will cache up to (2 ** nnCacheSizePowerOfTwo) many neural net
@@ -466,10 +469,13 @@ string GTPConfig::makeConfig(
   double maxTime,
   double maxPonderTime,
   const std::vector<int>& deviceIdxs,
+  int serverThreadsPerDevice,
+  int nnMaxBatchSize,
   int nnCacheSizePowerOfTwo,
   int nnMutexPoolSizePowerOfTwo,
   int numSearchThreads
 ) {
+  testAssert(serverThreadsPerDevice >= 1);
   string config = gtpBasePart1 + gtpBasePart2;
   auto replace = [&](const string& key, const string& replacement) {
     size_t pos = config.find(key);
@@ -521,29 +527,41 @@ string GTPConfig::makeConfig(
   replace("$$NN_CACHE_SIZE_POWER_OF_TWO", Global::intToString(nnCacheSizePowerOfTwo));
   replace("$$NN_MUTEX_POOL_SIZE_POWER_OF_TWO", Global::intToString(nnMutexPoolSizePowerOfTwo));
 
+  if(nnMaxBatchSize > 0)
+    replace("$$NN_MAX_BATCH_SIZE", "nnMaxBatchSize = " + Global::intToString(nnMaxBatchSize));
+  else
+    replace("$$NN_MAX_BATCH_SIZE", "# nnMaxBatchSize = <integer>");
+
   if(deviceIdxs.size() <= 0) {
-    replace("$$MULTIPLE_GPUS", "");
+    if(serverThreadsPerDevice > 1)
+      replace("$$MULTIPLE_GPUS", "numNNServerThreadsPerModel = " + Global::intToString(serverThreadsPerDevice) + "\n");
+    else
+      replace("$$MULTIPLE_GPUS", "");
   }
   else {
     string replacement = "";
-    replacement += "numNNServerThreadsPerModel = " + Global::uint64ToString(deviceIdxs.size()) + "\n";
+    replacement += "numNNServerThreadsPerModel = " + Global::uint64ToString(deviceIdxs.size() * serverThreadsPerDevice) + "\n";
 
+    int threadIdx = 0;
     for(int i = 0; i<deviceIdxs.size(); i++) {
+      for(int j = 0; j<serverThreadsPerDevice; j++) {
 #ifdef USE_CUDA_BACKEND
-      replacement += "cudaDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
+        replacement += "cudaDeviceToUseThread" + Global::intToString(threadIdx) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif
 #ifdef USE_TENSORRT_BACKEND
-      replacement += "trtDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
+        replacement += "trtDeviceToUseThread" + Global::intToString(threadIdx) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif
 #ifdef USE_OPENCL_BACKEND
-      replacement += "openclDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
+        replacement += "openclDeviceToUseThread" + Global::intToString(threadIdx) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif
 #ifdef USE_ONNX_BACKEND
-      replacement += "onnxDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
+        replacement += "onnxDeviceToUseThread" + Global::intToString(threadIdx) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif
 #ifdef USE_ROCM_BACKEND
-      replacement += "rocmDeviceToUseThread" + Global::intToString(i) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
+        replacement += "rocmDeviceToUseThread" + Global::intToString(threadIdx) + " = " + Global::intToString(deviceIdxs[i]) + "\n";
 #endif
+        threadIdx += 1;
+      }
     }
     replace("$$MULTIPLE_GPUS", replacement);
   }

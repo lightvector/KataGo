@@ -27,9 +27,14 @@ function(katago_default_hip_archs out_var)
     if(NOT EXISTS "${_probe_src}")
       file(WRITE "${_probe_src}" "int main(){return 0;}\n")
     endif()
+    # -nogpulib -nogpuinc: the probe only tests whether the compiler recognizes
+    # the arch name (unknown archs fail at the driver stage regardless). Pulling
+    # in the HIP headers and device libs would make every probe fail whenever
+    # clang can't autodetect the ROCm path, e.g. an SDK outside /opt/rocm,
+    # silently shrinking the default arch list to just the required archs.
     foreach(_arch IN LISTS _optional_archs)
       execute_process(
-        COMMAND "${CMAKE_HIP_COMPILER}" --offload-arch=${_arch} -x hip -c
+        COMMAND "${CMAKE_HIP_COMPILER}" --offload-arch=${_arch} -nogpulib -nogpuinc -x hip -c
                 "${_probe_src}" -o "${_probe_dir}/probe_${_arch}.o"
         RESULT_VARIABLE _rc
         OUTPUT_QUIET ERROR_QUIET)
@@ -137,15 +142,29 @@ function(katago_win_apply_vcvarsall vcvarsall_bat vcvars_ver)
   if(NOT _rc EQUAL 0 OR NOT EXISTS "${_out_file}")
     return()
   endif()
-  # Read line-by-line via file(STRINGS) rather than splitting the raw output ourselves - INCLUDE/
-  # LIB/PATH are themselves semicolon-separated, which would corrupt a naive string(REPLACE "\n" ";"
-  # ...) split. file(STRINGS) keeps each real line, with its embedded semicolons, as one entry.
-  file(STRINGS "${_out_file}" _env_lines)
-  foreach(_line IN LISTS _env_lines)
+  # Walk the dump one line at a time with plain string operations, not by iterating a cmake list
+  # from file(STRINGS). Two properties of this output make list handling wrong: INCLUDE, LIB, and
+  # PATH are themselves semicolon-separated, and many Windows values end in a backslash
+  # (VSINSTALLDIR, WindowsSdkBinPath, ...). A trailing backslash escapes the list separator that
+  # follows it, silently gluing the next variable onto this one's value and losing that variable
+  # entirely. A corrupted VSINSTALLDIR then breaks -vcvars_ver resolution in every later vcvarsall
+  # call, which is exactly what probing more than one toolset in a single configure run does.
+  file(READ "${_out_file}" _env_raw)
+  string(REPLACE "\r\n" "\n" _env_raw "${_env_raw}")
+  while(NOT _env_raw STREQUAL "")
+    string(FIND "${_env_raw}" "\n" _nl)
+    if(_nl EQUAL -1)
+      set(_line "${_env_raw}")
+      set(_env_raw "")
+    else()
+      string(SUBSTRING "${_env_raw}" 0 ${_nl} _line)
+      math(EXPR _nl_next "${_nl} + 1")
+      string(SUBSTRING "${_env_raw}" ${_nl_next} -1 _env_raw)
+    endif()
     if(_line MATCHES "^([A-Za-z_][A-Za-z0-9_().]*)=(.*)$")
       set(ENV{${CMAKE_MATCH_1}} "${CMAKE_MATCH_2}")
     endif()
-  endforeach()
+  endwhile()
 endfunction()
 
 # Helper: with the given HIP compiler and whatever environment is currently active, try compiling a
@@ -184,22 +203,22 @@ function(katago_win_pathlist_to_flags pathlist flagprefix out_var)
   set(${out_var} "${_flags}" PARENT_SCOPE)
 endfunction()
 
-# Helper: find an MSVC "v143" toolset (possibly one of several 14.3x/14.4x versions installed
-# side-by-side under one or more VS installs) whose STL doesn't conflict with the HIP compiler's
-# own CUDA/HIP math forward-declare headers, apply the vcvarsall.bat environment for it (so the
-# rest of THIS configure run - the HIP arch probing below, and project()'s own HIP compiler ABI
-# test - see it), and also bake the resulting INCLUDE/LIB paths into cached compiler/linker flags
-# so a later, separate `ninja` invocation (which does NOT inherit this configure run's environment
-# - see katago_win_apply_vcvarsall's comment) keeps working too.
+# Helper: find an MSVC toolset (possibly one of several versions installed side-by-side under one
+# or more VS installs) whose STL doesn't conflict with the HIP compiler's own CUDA/HIP math
+# forward-declare headers, apply the vcvarsall.bat environment for it (so the rest of THIS
+# configure run - the HIP arch probing below, and project()'s own HIP compiler ABI test - see it),
+# and also bake the resulting INCLUDE/LIB paths into cached compiler/linker flags so a later,
+# separate `ninja` invocation (which does NOT inherit this configure run's environment - see
+# katago_win_apply_vcvarsall's comment) keeps working too.
 #
-# Deliberately pinned to the v143 toolset family (MSVC 14.3x/14.4x) rather than probing every
-# installed toolset regardless of version: a newer MSVC STL (seen with a VS "18" preview-channel
-# toolset, MSVC 14.51+, i.e. the next "v144" family) declares math functions like isgreater/isless
-# in a way that conflicts with clang's forward declarations for CUDA/HIP device overloads ("device
-# function cannot overload host device function"), because that clang version predates the STL's
-# newly-added declarations. v143 is the toolset known to work with TheRock's clang. Probe within
-# the v143 family (oldest first) rather than hardcoding one exact version, since multiple v143
-# point releases can be installed side by side and this needs one that's actually present.
+# Every installed toolset is a candidate, probed newest first, and the compile probe rather than
+# a hardcoded version range decides which one gets used. The conflict the probe catches: newer
+# MSVC STLs (first seen with MSVC 14.51 in a VS 18 preview) declare math functions like
+# isgreater/isless in a way that clashes with clang's forward declarations for CUDA/HIP device
+# overloads ("device function cannot overload host device function") whenever the clang predates
+# those STL declarations. That is a property of the specific STL/clang pair, not of a toolset
+# version family, so a newer TheRock clang can start accepting newer toolsets without needing an
+# edit here. If the newest toolset fails the probe, successively older ones are tried.
 function(katago_win_autoselect_msvc_toolset hip_compiler)
   katago_win_find_vswhere(_vswhere)
   if(NOT _vswhere)
@@ -226,11 +245,6 @@ function(katago_win_autoselect_msvc_toolset hip_compiler)
     foreach(_t IN LISTS _tool_dirs)
       if(IS_DIRECTORY "${_t}" AND EXISTS "${_t}/include/cmath")
         get_filename_component(_ver "${_t}" NAME)
-        # v143 toolset versions are 14.3x/14.4x (the next-generation "v144" toolset, seen with
-        # VS 18 preview builds, starts at 14.5x and is the one known to conflict - see above).
-        if(NOT _ver MATCHES "^14\\.[34][0-9]\\.")
-          continue()
-        endif()
         set(_vcvarsall "${_install_path}/VC/Auxiliary/Build/vcvarsall.bat")
         if(EXISTS "${_vcvarsall}")
           list(APPEND _toolsets "${_ver}|${_vcvarsall}")
@@ -240,12 +254,27 @@ function(katago_win_autoselect_msvc_toolset hip_compiler)
   endforeach()
 
   if(NOT _toolsets)
-    message(FATAL_ERROR "No installed MSVC v143 toolset (14.3x/14.4x) found. Open the Visual Studio Installer, choose \"Modify\" on your VS installation, go to \"Individual Components\", and install \"MSVC v143 - VS 2022 C++ x64/x86 build tools\" (a newer toolset alone, e.g. a VS 18 preview's v144, is not compatible with TheRock's bundled clang).")
+    message(FATAL_ERROR "No installed MSVC toolset found under any Visual Studio installation. Open the Visual Studio Installer, choose \"Modify\" on your VS installation, go to \"Individual Components\", and install an \"MSVC ... C++ x64/x86 build tools\" component.")
   endif()
   list(REMOVE_DUPLICATES _toolsets)
-  list(SORT _toolsets COMPARE NATURAL ORDER ASCENDING)
+  # Newest first: prefer the most recent toolset installed, falling back to older ones only if the
+  # probe below rejects it.
+  list(SORT _toolsets COMPARE NATURAL ORDER DESCENDING)
+
+  # vcvarsall.bat prepends to these rather than replacing them, so probing a second toolset in
+  # the same cmake process would otherwise leave the rejected toolset's directories trailing
+  # behind the accepted one's and bake those leftovers into the cached flags below. Snapshot the
+  # pre-vcvars values and restore them before each attempt so every probe starts from the same
+  # clean environment. Each value is held in its own variable rather than in one cmake list,
+  # since the values are themselves semicolon-separated.
+  foreach(_env_var PATH INCLUDE LIB LIBPATH)
+    set(_orig_env_${_env_var} "$ENV{${_env_var}}")
+  endforeach()
 
   foreach(_entry IN LISTS _toolsets)
+    foreach(_env_var PATH INCLUDE LIB LIBPATH)
+      set(ENV{${_env_var}} "${_orig_env_${_env_var}}")
+    endforeach()
     string(REPLACE "|" ";" _entry_list "${_entry}")
     list(GET _entry_list 0 _ver)
     list(GET _entry_list 1 _vcvarsall)
@@ -292,7 +321,7 @@ function(katago_win_autoselect_msvc_toolset hip_compiler)
       message(STATUS "MSVC toolset ${_ver} conflicts with the HIP compiler's CUDA/HIP math headers; trying another")
     endif()
   endforeach()
-  message(FATAL_ERROR "None of the installed MSVC v143 toolset(s) (14.3x/14.4x) compiled cleanly against TheRock's HIP compiler. This indicates a problem beyond the usual v143-vs-newer-toolset conflict this check is meant to catch - please report this along with the MSVC/TheRock versions involved.")
+  message(FATAL_ERROR "None of the installed MSVC toolsets compiled cleanly against TheRock's HIP compiler. A newer MSVC STL can conflict with an older bundled clang (\"device function cannot overload host device function\"); if every installed toolset is affected, install an older one - e.g. \"MSVC v143 - VS 2022 C++ x64/x86 build tools\" from the Visual Studio Installer's \"Individual Components\" tab - or use a newer TheRock distribution.")
 endfunction()
 
 # Normalize case here too (it is normalized again later next to the cache definition): the
@@ -563,6 +592,14 @@ set(USE_BIGGER_BOARDS_EXPENSIVE 0 CACHE BOOL "Allow boards up to size 50. Compil
 set(USE_CACHE_TENSORRT_PLAN 0 CACHE BOOL "Use TENSORRT plan cache. May use a lot of disk space. Only applies when USE_BACKEND is TENSORRT.")
 mark_as_advanced(USE_CACHE_TENSORRT_PLAN)
 
+# CUDA-backend opt-outs of optional compiled-in paths, replicating what a build gets when the
+# dependency is unavailable (no vendored CUTLASS / MSVC, cuDNN older than 8.9.3). Mainly for
+# testing those fallback configurations on a machine whose toolchain would otherwise enable them.
+set(NO_CUTLASS_FUSED_FFN 0 CACHE BOOL "CUDA backend: build without the CUTLASS fused FFN kernel even if CUTLASS is available.")
+set(NO_CUDNN_SDPA 0 CACHE BOOL "CUDA backend: build without the cudnn frontend graph SDPA attention path.")
+mark_as_advanced(NO_CUTLASS_FUSED_FFN)
+mark_as_advanced(NO_CUDNN_SDPA)
+
 # ---------- Auto-fetch missing third-party deps (e.g. zlib on a Windows ROCm/TheRock install that
 # doesn't ship a linkable zlib) via a local vcpkg clone in the build tree.
 # Defaults ON only on Windows ROCm builds, where the ROCm/TheRock toolchain genuinely may have no
@@ -682,7 +719,6 @@ if(USE_BACKEND STREQUAL "CUDA")
 
   enable_language(CUDA)
 
-  set(CUDA_STANDARD 11)
   # cudabackend.cpp, cudautils.cpp, and cudahelpers.cu are thin wrappers around
   # cudaandrocmbackend.inc, cudaandrocmutils.inc, and cudaandrocmhelpers.inc, which are shared
   # with the ROCm backend (tracked via compiler depfiles, so they do not appear here).
@@ -691,6 +727,26 @@ if(USE_BACKEND STREQUAL "CUDA")
     neuralnet/cudautils.cpp
     neuralnet/cudahelpers.cu
   )
+  # Optional vendored CUTLASS enables the fused transformer FFN kernel. The fused kernel is
+  # built on the DualGemm extension shipped in CUTLASS's example 45, so both the include tree
+  # and that example directory must be present. CUTLASS 4.x requires CUDA Toolkit 11.4+ and
+  # does not build under MSVC, so those builds skip the kernel rather than break.
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/external/cutlass/include/cutlass/cutlass.h
+     AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/external/cutlass/examples/45_dual_gemm/device/dual_gemm.h
+     AND CMAKE_CUDA_COMPILER_VERSION VERSION_GREATER_EQUAL 11.4
+     AND NOT MSVC
+     AND NOT NO_CUTLASS_FUSED_FFN)
+    message(STATUS "Found vendored CUTLASS at external/cutlass, enabling the fused FFN kernel.")
+    set(KATAGO_USE_CUTLASS_FUSED_FFN 1)
+    set(NEURALNET_BACKEND_SOURCES ${NEURALNET_BACKEND_SOURCES} neuralnet/cudafusedffn.cu)
+    # CUTLASS requires C++17. CUDA_STANDARD is a target property that is silently ignored when
+    # set per-source, and nvcc before CUDA 12 defaults to C++14, so pass -std explicitly (no
+    # conflict: CMAKE_CUDA_STANDARD is unset, so CMake adds no -std flag of its own).
+    set_source_files_properties(neuralnet/cudafusedffn.cu PROPERTIES
+      COMPILE_OPTIONS "-std=c++17;--expt-relaxed-constexpr")
+  else()
+    message(STATUS "Vendored CUTLASS not found, not usable with this toolchain, or disabled via NO_CUTLASS_FUSED_FFN; building without the fused FFN kernel.")
+  endif()
   # The vendored header-only cudnn_frontend library trips GCC's -Wnull-dereference from its -O2
   # interprocedural analysis (no source location, so an in-file #pragma can't suppress it). It's
   # benign third-party code; silence it just for the one source that includes cudnn_frontend.h.
@@ -1047,6 +1103,7 @@ add_executable(katago
   command/commandline.cpp
   command/analysis.cpp
   command/benchmark.cpp
+  command/benchmarknn.cpp
   command/contribute.cpp
   command/dumponnx.cpp
   command/evalsgf.cpp
@@ -1076,6 +1133,16 @@ if(USE_BACKEND STREQUAL "CUDA")
   find_library(CUDNN_LIBRARY cudnn HINTS ${CUDNN_ROOT_DIR} ${CUDAToolkit_LIBRARY_DIR} PATH_SUFFIXES lib64)
   include_directories(SYSTEM ${CUDAToolkit_INCLUDE_DIRS} ${CUDNN_INCLUDE_DIR}) #SYSTEM is for suppressing some compiler warnings in thrust libraries
   include_directories(SYSTEM external/cudnn-frontend/include) #SYSTEM suppresses warnings inside the vendored header-only cudnn_frontend library
+  if(KATAGO_USE_CUTLASS_FUSED_FFN)
+    target_compile_definitions(katago PRIVATE USE_CUTLASS_FUSED_FFN)
+    target_include_directories(katago SYSTEM PRIVATE
+      external/cutlass/include
+      external/cutlass/examples/45_dual_gemm)
+  endif()
+  if(NO_CUDNN_SDPA)
+    message(STATUS "-DNO_CUDNN_SDPA=1 is set, building without the cudnn graph SDPA attention path.")
+    target_compile_definitions(katago PRIVATE NO_CUDNN_SDPA)
+  endif()
   # cudnn_frontend's experimental OSS engine headers reference NVRTC symbols at link time
   # (we don't actually use those engines, but the references are pulled in by the header-only includes).
   target_link_libraries(katago CUDA::cublas ${CUDNN_LIBRARY} CUDA::nvrtc)
@@ -1407,12 +1474,22 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   # install this was actually built and tested against - which is not guaranteed, especially for a
   # binary meant to be copied to another machine. CMAKE_SKIP_BUILD_RPATH/INSTALL_RPATH aren't set by
   # this project, so this also takes effect for the build-tree binary, not just `make install`.
+  #
+  # The generic /opt/rocm/lib symlink path is appended as a fallback, after the pinned path, for
+  # binaries run on machines that have a ROCm runtime but not the exact build-machine version
+  # (ROCm's packages don't register their lib dir with ldconfig, so without this the loader finds
+  # nothing). Sonames carry ROCm's major version, so a wrong-major install found there is skipped
+  # rather than mis-linked.
   if(KATAGO_ROCM_PREFIX)
+    set(_katago_rocm_rpath "${KATAGO_ROCM_PREFIX}/lib")
+    if(NOT "${KATAGO_ROCM_PREFIX}" STREQUAL "/opt/rocm")
+      list(APPEND _katago_rocm_rpath "/opt/rocm/lib")
+    endif()
     set_target_properties(katago PROPERTIES
-      BUILD_RPATH "${KATAGO_ROCM_PREFIX}/lib"
-      INSTALL_RPATH "${KATAGO_ROCM_PREFIX}/lib"
+      BUILD_RPATH "${_katago_rocm_rpath}"
+      INSTALL_RPATH "${_katago_rocm_rpath}"
     )
-    message(STATUS "Set katago RPATH to ${KATAGO_ROCM_PREFIX}/lib")
+    message(STATUS "Set katago RPATH to ${_katago_rocm_rpath}")
   endif()
 
   # ---------- Optional: Composable Kernel FMHA (fused attention) ----------

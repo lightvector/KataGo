@@ -2112,6 +2112,16 @@ class TransformerAttentionBlock(torch.nn.Module):
             assert self.q_head_dim % 4 == 0, f"Query head dim must be divisible by 4 for 2D RoPE"
         assert self.num_heads % self.num_kv_heads == 0, \
             f"Query heads ({self.num_heads}) must be divisible by KV heads ({self.num_kv_heads})"
+        # The C++ GPU backends require each projection's total channel count to be a multiple
+        # of 8 so that packed Q/K/V buffers stay 16-byte aligned. Reject at model construction
+        # rather than letting training succeed and inference fail.
+        for proj_name, total in (
+            ("Q", self.num_heads * self.q_head_dim),
+            ("K", self.num_kv_heads * self.q_head_dim),
+            ("V", self.num_kv_heads * self.v_head_dim),
+        ):
+            assert total % 8 == 0, \
+                f"{proj_name} projection total channels ({total}) must be a multiple of 8 for C++ GPU backend compatibility"
 
         self.q_proj = torch.nn.Linear(c_main, self.num_heads * self.q_head_dim, bias=False)
         self.k_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.q_head_dim, bias=False)
