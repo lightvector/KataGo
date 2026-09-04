@@ -6,6 +6,18 @@ training runs.
 Optimization toggles are controlled by environment variables.
 Set to "0" to disable an optimization.
 
+Model-side flags (read in katago/train/model_pytorch.py):
+KATAGO_FUSED_QKV_PROJ (default 1):
+  Compute Q/K/V (and the SwiGLU input/gate) projections as one GEMM over concatenated weights.
+KATAGO_FUSED_SWIGLU_KERNEL (default 1):
+  Under fp16/bf16 autocast, use the fused Triton dual-GEMM + SwiGLU kernel (katago/train/fused_swiglu.py)
+  for the FFN input projection. It never materializes the pre-gating intermediates.
+KATAGO_FUSED_ROPE_BACKWARD (default 1):
+  With learnable RoPE and the fused Q/K/V projection, apply RoPE with the Triton custom ops in
+  katago/train/fused_rope.py: one forward kernel writing Q/K/V in attention layout, and one backward
+  kernel writing the packed Q/K/V gradient directly. Only safe under torch.compile when the trunk is
+  compiled per block (KATAGO_COMPILE_PER_BLOCK). See configure_model_for_compile.
+
 KATAGO_COMPILE_MODE (default "default"):
   torch.compile mode for the model and compiled loss.
   "max-autotune-no-cudagraphs" trades minutes of extra compile/tuning time for a few percent throughput.
@@ -29,6 +41,27 @@ KATAGO_STEP_NORMS_ONLY_AT_PRINT (default 1):
 KATAGO_DEFER_GNORM_SYNC (default 1):
   Record the clipped gradient norm as a tensor and convert to a float only at end-of-batch metric collection,
   instead of forcing a GPU sync between backward and optimizer step.
+KATAGO_DDP_BF16_GRAD_COMPRESSION (default 0):
+  Under DDP, all-reduce gradients in bf16 (PyTorch's bf16_compress_hook) instead of fp32,
+  halving gradient communication. This rounds each gradient to bf16 before averaging, a
+  numerics change, so it is opt-in.
+KATAGO_COMPILE_PER_BLOCK (default 1):
+  Under torch.compile, compile the model as one graph per trunk block (plus an embedding graph and
+  a heads graph) instead of one graph for the whole model. See Model.compile_per_block_trunk.
+  The math is unchanged, and the residual add is still fused into each block's first norm.
+
+  Under DDP this overlaps communication with compute. With one graph and dynamo's DDPOptimizer off
+  (the default for flex-attention models, see KATAGO_DYNAMO_OPTIMIZE_DDP), every gradient is
+  produced by a single compiled backward node, so DDP's all-reduces only start after the entire
+  backward has finished. With per-block graphs the gradients of later blocks are ready while
+  earlier blocks are still running backward. On a single GPU it costs a few percent of throughput
+  in launch overhead, but it is what makes the fused RoPE custom ops safe to use (see
+  configure_model_for_compile), which is a larger gain.
+
+  Only for plain transformer trunks (Model.supports_per_block_compile). Other models are compiled
+  as a single graph. This is a separate mechanism from DDPOptimizer's graph splitting, which
+  stays at its own setting. With -no-compile none of this applies and the fused kernels simply run
+  in eager mode.
 """
 
 import logging
@@ -37,6 +70,7 @@ import os
 from collections import defaultdict
 
 import torch
+import torch._dynamo
 from torch.nn.parallel import DistributedDataParallel
 
 
@@ -119,6 +153,8 @@ def wrap_model_for_training(raw_model, device, world_size: int, no_compile: bool
     Must be called before the optimizer is constructed because 1x1 conv stride alignment can replace Parameter objects.
     """
     compile_mode = None if no_compile else get_compile_mode()
+    if not no_compile:
+        configure_model_for_compile(raw_model)
     if world_size <= 1:
         logging.info(
             f"Training model wrapper: single GPU, compile={not no_compile}, "
@@ -179,10 +215,63 @@ def wrap_model_for_training(raw_model, device, world_size: int, no_compile: bool
         ddp_kwargs["gradient_as_bucket_view"] = True
 
     if no_compile:
-        return DistributedDataParallel(raw_model, **ddp_kwargs)
+        ddp_model = DistributedDataParallel(raw_model, **ddp_kwargs)
+        _maybe_register_ddp_comm_hook(ddp_model)
+        return ddp_model
 
     compiled_model = torch.compile(raw_model, mode=compile_mode)
-    return DistributedDataParallel(compiled_model, **ddp_kwargs)
+    ddp_model = DistributedDataParallel(compiled_model, **ddp_kwargs)
+    _maybe_register_ddp_comm_hook(ddp_model)
+    return ddp_model
+
+
+def configure_model_for_compile(raw_model, per_block=None):
+    """Decide how raw_model is going to be compiled and adjust it accordingly. Must run before
+    torch.compile(raw_model).
+
+    per_block None means KATAGO_COMPILE_PER_BLOCK decides. True/False forces it (when supported).
+
+    With per-block compilation the trunk blocks are compiled without the input-embedding and head
+    convolutions in their graphs. That matters for the fused RoPE custom ops (KATAGO_FUSED_ROPE_BACKWARD):
+    in a graph that also contains convolutions, inductor's convolution layout optimization copies the
+    ops' 4D outputs into channels-last order for flex attention, and the flex attention backward
+    template then produces garbage gradients for some head counts (observed with PyTorch 2.10 on a
+    6-head model: every gradient nonfinite at batch sizes of 128 or more). Disabling that inductor
+    optimization instead costs several percent of throughput on these models. So when the model is
+    compiled as a single graph, the fused Q/K/V projection and RoPE path is turned off here.
+    """
+    if per_block is None:
+        per_block = env_flag("KATAGO_COMPILE_PER_BLOCK", default=True)
+    if per_block and not raw_model.supports_per_block_compile():
+        logging.info("Model does not support per-block compilation, compiling it as a single graph instead")
+        per_block = False
+    raw_model.compile_per_block_trunk = per_block
+    if per_block:
+        # Without the attention logit penalty the block unit compiles to a few variants (first
+        # block or not, train/eval). With the penalty, dynamo guards on the length of the list the
+        # blocks append their logit bounds to, giving one variant per block, again for train and
+        # for eval. Exceeding the limit would run the remaining blocks in eager mode, with only a
+        # warning in the log, so raise it with some margin.
+        needed = 3 * len(raw_model.blocks) + 8
+        if torch._dynamo.config.recompile_limit < needed:
+            torch._dynamo.config.recompile_limit = needed
+        logging.info("Compiling the trunk as one graph per block (KATAGO_COMPILE_PER_BLOCK=1)")
+    else:
+        # The fused SwiGLU kernel stays on. Its custom op's output is 2D and feeds an ordinary
+        # matmul, so the layout re-ordering that breaks the RoPE op's outputs does not apply to it.
+        logging.info("Compiling the model as a single graph")
+        if raw_model.disable_fused_attention_kernels():
+            logging.info(
+                "Disabled the fused Q/K/V projection and RoPE kernels: they are only safe under "
+                "torch.compile with the per-block compiled trunk (see configure_model_for_compile)"
+            )
+
+
+def _maybe_register_ddp_comm_hook(ddp_model):
+    if env_flag("KATAGO_DDP_BF16_GRAD_COMPRESSION", default=False):
+        from torch.distributed.algorithms.ddp_comm_hooks import default_hooks
+        ddp_model.register_comm_hook(state=None, hook=default_hooks.bf16_compress_hook)
+        logging.info("DDP: all-reducing gradients in bf16 (KATAGO_DDP_BF16_GRAD_COMPRESSION=1)")
 
 
 def maybe_enable_compiled_autograd():
@@ -232,7 +321,7 @@ def clip_gradients_and_record(ddp_model, gnorm_cap, metrics, batch_size):
         metrics["exgnorm_sum"] = torch.clamp(gnorm_tensor - gnorm_cap, min=0.0) * batch_size
     else:
         gnorm = gnorm_tensor.cpu().item()
-        if math.isfinite(gnorm) and abs(gnorm < 1e30):
+        if math.isfinite(gnorm) and abs(gnorm) < 1e30:
             metrics["gnorm_batch"] = gnorm
             exgnorm = max(0.0, gnorm - gnorm_cap)
             metrics["exgnorm_sum"] = exgnorm * batch_size
