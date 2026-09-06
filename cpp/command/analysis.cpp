@@ -248,20 +248,22 @@ int MainCmds::analysis(const vector<string>& args) {
   };
 
   ThreadSafeQueue<string*> toWriteQueue;
-  auto writeLoop = [&toWriteQueue,&logAllResponses,&logger]() {
+  auto writeLoop = [&toWriteQueue]() {
     while(true) {
       string* message;
       bool suc = toWriteQueue.waitPop(message);
       if(!suc)
         break;
       cout << *message << endl;
-      if(logAllResponses)
-        logger.write("Response: " + *message);
       delete message;
     }
   };
 
-  auto pushToWrite = [&toWriteQueue](string* s) {
+  auto pushToWrite = [&toWriteQueue,&logAllResponses,&logger](string* s) {
+    //Log on the thread that produced the response, rather than on the write thread, so that the log order
+    //of a response relative to the request or error that produced it does not depend on thread timing.
+    if(logAllResponses)
+      logger.write("Response: " + *s);
     bool suc = toWriteQueue.forcePush(s);
     if(!suc)
       delete s;
