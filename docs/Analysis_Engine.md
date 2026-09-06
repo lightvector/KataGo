@@ -101,6 +101,9 @@ Explanation of fields (including some optional fields not present in the above q
       * `untilDepth` - a positive integer, indicating the ply such that moves are prohibited before that ply.
       * Multiple dicts can specify different `untilDepth` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `untilDepth`.
    * `allowMoves (list of dicts)`: Optional. Same as `avoidMoves` except prohibits all moves EXCEPT the moves specified. At most one dict may be specified per player (so the list may contain at most two dicts, one for `"B"` and one for `"W"`).
+   * `focusMoves (list of strings)`: Optional. Moves for the player to move at the analyzed position that should receive extra search, such as `["C3","Q4"]`. Each playout from the root is redirected with probability `focusProb` into one of these moves, chosen at random in proportion to `focusWeights`, as a weightless visit that does not count toward the root's own visits or value. The reported `visits` of a focused move include these extra visits, so the move is searched more deeply than it would be otherwise. These visits do not count toward `maxVisits` or `maxPlayouts`, so focusing adds search on top of the normal search rather than replacing part of it. Moves that are illegal or excluded by `avoidMoves` or `allowMoves` are ignored. See the `set_focus` action for changing the focus of a query that is already queued or running.
+   * `focusWeights (list of floats)`: Optional. Positive numbers, one per entry of `focusMoves`, giving the relative share of the focused playouts that each move receives. For example `[3, 1]` sends three quarters of them to the first move and one quarter to the second. Defaults to equal weights. Must be omitted or empty when `focusMoves` is omitted.
+   * `focusProb (float)`: Optional. The probability from 0.0 to 1.0 that each root playout is redirected into a focus move. Internally capped at 0.99 so that the root keeps receiving some visits and `maxVisits` is still reached. Defaults to 0.5. Must be valid even when `focusMoves` is omitted, but has no effect then.
    * `overrideSettings (object)`: Optional. Specify any number of `"paramName":value` entries in this object to override those params from command line `CONFIG_FILE` for this query. Most search parameters can be overriden: `cpuctExploration`, `winLossUtilityFactor`, etc. Some notable parameters include:
       * `playoutDoublingAdvantage (float)`. A value of PDA from -3 to 3 will adjust KataGo's evaluation to assume that the opponent is NOT of equal strength/compte, but rather that the current player has 2^(PDA) times as many playouts as the opponent. Dynamic versions of this are used to significant effect in handicap games in GTP mode, see [GTP example config](../cpp/configs/gtp_example.cfg).
       * `wideRootNoise (float)`. See documentation for this parameter in [the example config](../cpp/configs/analysis_example.cfg)
@@ -368,6 +371,27 @@ Examples:
 The terminate_all query itself will result in a response as well, to acknowledge receipt and processing of the action. The response consists of echoing a json object back with exactly the same fields and data of the query.
 
 See the documentation for terminate above regarding the output from terminated queries. As with terminate, the response to terminate_all will NOT wait for all of the effects of the action to take place, and the results of all the old queries as they are terminated will be reported back asynchronously.
+
+#### set_focus
+
+Changes the focus moves (see `focusMoves`, `focusWeights`, and `focusProb` above) of zero or more analysis queries that are queued or currently being analyzed. A query that is currently being analyzed picks up the new focus immediately for its subsequent playouts, without interrupting the search, so its search tree, visit budget, and any time limit continue as they were. Queries that have already finished are unaffected. Required fields:
+
+   * `id (string)`: Required. An arbitrary string identifier for this query.
+   * `action (string)`: Required. Should be the string `set_focus`.
+   * `targetId (string)`: Required. Change the focus of queries that were submitted with this `id` field.
+   * `turnNumbers (array of ints)`: Optional. If provided, restrict only to the queries with that id that were for these turn numbers.
+   * `focusMoves (list of strings)`: Optional. The new focus moves. Omit this field or pass an empty list to cancel any focus.
+   * `focusWeights (list of floats)`: Optional. Same meaning as for analysis queries. Defaults to equal weights.
+   * `focusProb (float)`: Optional. Same meaning as for analysis queries. Defaults to 0.5.
+
+Examples:
+```
+{"id":"bar","action":"set_focus","targetId":"foo","focusMoves":["C3"],"focusProb":0.5}
+{"id":"bar","action":"set_focus","targetId":"foo","turnNumbers":[2],"focusMoves":["C3","Q4"]}
+{"id":"bar","action":"set_focus","targetId":"foo"}
+```
+
+The set_focus query itself will result in a response as well, to acknowledge receipt and processing of the action. The response consists of echoing a json object back with exactly the same fields and data of the query. The focus is applied before the response is written, and later reports from the affected queries reflect it.
 
 #### query_models
 

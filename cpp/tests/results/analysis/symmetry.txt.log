@@ -58,6 +58,7 @@ trtUseFP16 = false
 : Request: {"id":"rect2","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":7,"boardYSize":13,"overrideSettings":{"maxVisits":10},"includeMovesOwnership":true,"includeOwnership":true}
 : Request: {"id":"rect3","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":7,"boardYSize":13,"overrideSettings":{"maxVisits":20},"includeMovesOwnership":true,"includeOwnership":true}
 : Request: {"id":"rect4","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":7,"boardYSize":13,"overrideSettings":{"maxVisits":20},"includeMovesOwnershipStdev":true,"includeOwnershipStdev":true}
+: Request: {"id":"focussym","initialStones":[],"moves":[],"rules":"tromp-taylor","komi":7.5,"boardXSize":19,"boardYSize":19,"overrideSettings":{"maxVisits":10},"focusMoves":["C3","Q16"],"focusWeights":[3,1],"focusProb":0.9}
 : MoveNum: 0 HASH: CDCBC1F514D7E680FACD226074256633
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -288,9 +289,48 @@ D10 : T  -2.69c W  -3.87c S  -0.96c ( -0.1 L  -0.1) LCB  -18.45c P 47.49% WF  13
 D4  : T  -5.62c W  -5.69c S  -1.30c ( -0.3 L  -0.1) LCB  -31.73c P 39.04% WF   6.0 PSV       6 N       6  --  D4 D10 D11 E11
 
 : Response: {"id":"rect4","isDuringSearch":false,"moveInfos":[{"edgeVisits":13,"edgeWeight":13.0,"lcb":0.42434337,"move":"D10","order":0,"ownershipStdev":[0.06083,0.041107,0.045968,0.044428,0.051192,0.066297,0.032955,0.037212,0.065523,0.045969,0.091325,0.062715,0.070044,0.041203,0.035351,0.054052,0.106803,0.115727,0.04985,0.046803,0.044229,0.046517,0.028924,0.022229,0.024149,0.024253,0.031335,0.045812,0.049671,0.030222,0.075131,0.033182,0.080875,0.025431,0.036452,0.075852,0.055208,0.058051,0.070011,0.074413,0.051207,0.055181,0.121383,0.081915,0.070079,0.128375,0.084254,0.082567,0.103461,0.204758,0.218884,0.079053,0.076859,0.089695,0.162537,0.160618,0.29888,0.384778,0.21714,0.090489,0.188781,0.200411,0.210034,0.365953,0.397496,0.244292,0.138551,0.267573,0.323561,0.283785,0.388223,0.419101,0.588296,0.308904,0.535561,0.381008,0.330322,0.387262,0.386476,0.393039,0.19431,0.291393,0.361383,0.333562,0.321233,0.362526,0.25126,0.172204,0.173338,0.313201,0.300767],"playSelectionValue":13.0,"prior":0.474901229,"pv":["D10","D4","D3","E3","C3","E4","B5"],"scoreLead":-0.078334462,"scoreMean":-0.078334462,"scoreSelfplay":-0.0915921012,"scoreStdev":13.7440304,"utility":-0.0268819151,"utilityLcb":-0.184549622,"visits":13,"weight":13.0,"winrate":0.480653266},{"edgeVisits":6,"edgeWeight":6.0,"lcb":0.378337805,"move":"D4","order":1,"ownershipStdev":[0.112823,0.163756,0.148027,0.14914,0.128531,0.160774,0.113027,0.203121,0.217984,0.185691,0.101785,0.212282,0.199119,0.168747,0.155428,0.143444,0.348484,0.438149,0.322121,0.159975,0.14227,0.1567,0.165009,0.103174,0.204057,0.11793,0.1194,0.13573,0.105932,0.076891,0.083872,0.242363,0.080825,0.061301,0.083397,0.108792,0.043013,0.088375,0.094163,0.083359,0.050824,0.081599,0.092025,0.050964,0.049672,0.090825,0.055876,0.050887,0.065142,0.066857,0.037487,0.065658,0.045295,0.051523,0.040858,0.054824,0.069456,0.043612,0.073418,0.029025,0.046428,0.040357,0.051158,0.060732,0.02667,0.016978,0.027185,0.034638,0.042651,0.067988,0.004847,0.010719,0.050338,0.028656,0.022803,0.027492,0.018261,0.058904,0.015519,0.013038,0.032245,0.031395,0.014677,0.030017,0.057893,0.04016,0.010995,0.020462,0.029688,0.121401,0.070152],"playSelectionValue":6.0,"prior":0.39042151,"pv":["D4","D10","D11","E11"],"scoreLead":-0.0837293936,"scoreMean":-0.0837293936,"scoreSelfplay":-0.316974916,"scoreStdev":13.4473596,"utility":-0.0562283636,"utilityLcb":-0.317266869,"visits":6,"weight":6.0,"winrate":0.471565843}],"ownershipStdev":[0.119308,0.123372,0.138856,0.144675,0.126758,0.148992,0.106844,0.159901,0.144551,0.152311,0.13507,0.153386,0.1511,0.136804,0.156982,0.173847,0.235474,0.224591,0.215318,0.163764,0.124317,0.142075,0.18033,0.302762,0.639997,0.295408,0.16923,0.124818,0.118039,0.129372,0.1929,0.230209,0.209607,0.141302,0.086842,0.105819,0.08362,0.077594,0.100185,0.086464,0.069676,0.074028,0.11433,0.076091,0.067038,0.120913,0.081888,0.077283,0.099755,0.186151,0.195027,0.109621,0.11875,0.111545,0.158848,0.173043,0.274099,0.348478,0.253087,0.236799,0.272132,0.242288,0.23889,0.334513,0.366396,0.358217,0.648304,0.435647,0.359646,0.306498,0.355662,0.382145,0.537511,0.287765,0.531397,0.402582,0.336672,0.353298,0.350572,0.356855,0.199118,0.297798,0.362278,0.333155,0.295946,0.330294,0.230708,0.16414,0.182137,0.321998,0.308169],"rootInfo":{"currentPlayer":"B","rawLead":0.944224119,"rawNoResultProb":0.0,"rawScoreSelfplay":0.859573603,"rawScoreSelfplayStdev":15.1154385,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.536741912,"scoreLead":-0.0288250124,"scoreSelfplay":-0.11164866,"scoreStdev":13.7301596,"symHash":"8BC74662B7D456891A877976DC0B2EB9","thisHash":"8BC74662B7D456891A877976DC0B2EB9","utility":-0.0304666773,"visits":20,"weight":20.0,"winrate":0.480731471},"turnNumber":0}
+: MoveNum: 0 HASH: CDCBC1F514D7E680FACD226074256633
+   A B C D E F G H J K L M N O P Q R S T
+19 . . . . . . . . . . . . . . . . . . .
+18 . . . . . . . . . . . . . . . . . . .
+17 . . . . . . . . . . . . . . . . . . .
+16 . . . . . . . . . . . . . . . . . . .
+15 . . . . . . . . . . . . . . . . . . .
+14 . . . . . . . . . . . . . . . . . . .
+13 . . . . . . . . . . . . . . . . . . .
+12 . . . . . . . . . . . . . . . . . . .
+11 . . . . . . . . . . . . . . . . . . .
+10 . . . . . . . . . . . . . . . . . . .
+ 9 . . . . . . . . . . . . . . . . . . .
+ 8 . . . . . . . . . . . . . . . . . . .
+ 7 . . . . . . . . . . . . . . . . . . .
+ 6 . . . . . . . . . . . . . . . . . . .
+ 5 . . . . . . . . . . . . . . . . . . .
+ 4 . . . . . . . . . . . . . . . . . . .
+ 3 . . . . . . . . . . . . . . . . . . .
+ 2 . . . . . . . . . . . . . . . . . . .
+ 1 . . . . . . . . . . . . . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi7.5
+Root visits: 10
+New playouts: 10
+NN rows: 106
+NN batches: 106
+NN avg batch size: 1
+PV: Q3 R16 D3 D17
+Tree:
+: T  -0.44c W  -0.84c S   0.16c ( -0.1 L  +0.0) N      10  --  Q3 R16 D3 D17
+---Black(^)---
+Q3  : T   0.87c W   0.32c S   0.36c ( +0.2 L  +0.3) LCB  -42.29c P  8.99% WF   4.0 PSV       5 N       4  --  Q3 R16 D3 D17
+R4  : T   0.13c W  -0.46c S   0.06c ( -0.2 L  -0.2) LCB  -73.85c P  8.89% WF   3.0 PSV       3 N       3  --  R4 R16 D3
+Q17 : T  -1.37c W  -1.42c S   0.05c ( -0.3 L  -0.1) LCB -150.60c P  8.74% WF   2.0 PSV       2 N       2  --  Q17 D3
+Q16 : T  -1.10c W  -1.13c S   0.20c ( -0.0 L  -0.0) LCB -1400.00c P  3.91% WF   0.0 PSV       0 N      15  --  Q16 D3 C16 Q3 E16
+C3  : T  -2.75c W  -2.46c S  -0.07c ( -0.4 L  -0.5) LCB -1400.00c P  3.24% WF   0.0 PSV       0 N      32  --  C3 R16 C16 Q3 E16
+
+: Response: {"id":"focussym","isDuringSearch":false,"moveInfos":[{"edgeVisits":4,"edgeWeight":4.0,"lcb":0.347440015,"move":"Q3","order":0,"playSelectionValue":5.1829162,"prior":0.0898519158,"pv":["Q3","R16","D3","D17"],"scoreLead":0.310715266,"scoreMean":0.310715266,"scoreSelfplay":0.195064358,"scoreStdev":30.6140462,"utility":0.00872657909,"utilityLcb":-0.422926868,"visits":4,"weight":4.0,"winrate":0.501601961},{"edgeVisits":3,"edgeWeight":3.0,"lcb":0.233462017,"move":"R4","order":1,"playSelectionValue":3.0,"prior":0.0889108479,"pv":["R4","R16","D3"],"scoreLead":-0.166091919,"scoreMean":-0.166091919,"scoreSelfplay":-0.239707579,"scoreStdev":30.8299839,"utility":0.00133593451,"utilityLcb":-0.7384681,"visits":3,"weight":3.0,"winrate":0.497677743},{"edgeVisits":2,"edgeWeight":2.0,"lcb":-0.0400463951,"move":"Q17","order":2,"playSelectionValue":2.0,"prior":0.087358892,"pv":["Q17","D3"],"scoreLead":-0.108917817,"scoreMean":-0.108917817,"scoreSelfplay":-0.257352814,"scoreStdev":30.8637308,"utility":-0.0136513996,"utilityLcb":-1.50597038,"visits":2,"weight":2.0,"winrate":0.492924668},{"edgeVisits":0,"edgeWeight":0.0,"lcb":-4.50565548,"move":"Q16","order":3,"playSelectionValue":0.0,"prior":0.0390564427,"pv":["Q16","D3","C16","Q3","E16"],"scoreLead":-0.0153653295,"scoreMean":-0.0153653295,"scoreSelfplay":-0.0335839716,"scoreStdev":30.5184575,"utility":-0.0109508697,"utilityLcb":-14.0,"visits":15,"weight":15.0,"winrate":0.494344517},{"edgeVisits":0,"edgeWeight":0.0,"lcb":-4.51232157,"move":"C3","order":4,"playSelectionValue":0.0,"prior":0.0324283391,"pv":["C3","R16","C16","Q3","E16"],"scoreLead":-0.52167716,"scoreMean":-0.52167716,"scoreSelfplay":-0.435675953,"scoreStdev":30.4789317,"utility":-0.0275021072,"utilityLcb":-14.0,"visits":32,"weight":32.0,"winrate":0.48767843}],"rootInfo":{"currentPlayer":"B","rawLead":-0.0361211784,"rawNoResultProb":0.0,"rawScoreSelfplay":-0.502035618,"rawScoreSelfplayStdev":31.2238158,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.472509012,"scoreLead":0.0490628492,"scoreSelfplay":-0.095560655,"scoreStdev":30.7912767,"symHash":"47E1EBDAE69A5DED3FF8DB1FA4E91845","thisHash":"47E1EBDAE69A5DED3FF8DB1FA4E91845","utility":-0.00445259044,"visits":10,"weight":10.0,"winrate":0.495779942},"turnNumber":0}
 : tests/models/g170-b6c96-s175395328-d26788732.bin.gz
-: NN rows: 61
-: NN batches: 61
+: NN rows: 106
+: NN batches: 106
 : NN avg batch size: 1
-: GPU -1 finishing, processed 61 rows 61 batches
+: GPU -1 finishing, processed 106 rows 106 batches
 : All cleaned up, quitting

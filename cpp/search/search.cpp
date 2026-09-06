@@ -76,6 +76,7 @@ Search::Search(const SearchParams& params, NNEvaluator* nnEval, NNEvaluator* hum
    rootGraphHash(),
    rootHintLoc(Board::NULL_LOC),
    avoidMoveUntilByLocBlack(),avoidMoveUntilByLocWhite(),avoidMoveUntilRescaleRoot(false),
+   rootFocus(nullptr),rootFocusCleanupMutex(),rootFocusToCleanUp(),
    rootSymmetries(),
    rootPruneOnlySymmetries(),
    rootSafeArea(NULL),
@@ -148,6 +149,8 @@ Search::Search(const SearchParams& params, NNEvaluator* nnEval, NNEvaluator* hum
 Search::~Search() {
   clearSearch();
 
+  cleanUpOldRootFocus();
+  delete rootFocus.load(std::memory_order_acquire);
   delete[] rootSafeArea;
   delete rootKoHashTable;
   delete valueWeightDistribution;
@@ -215,6 +218,7 @@ void Search::setPosition(Player pla, const Board& board, const BoardHistory& his
   rootKoHashTable->recompute(rootHistory);
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
+  setRootFocus(std::vector<Loc>(), std::vector<double>(), 0.0);
 }
 
 void Search::setPlayerAndClearHistory(Player pla) {
@@ -261,6 +265,35 @@ void Search::setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vec
 
 void Search::setAvoidMoveUntilRescaleRoot(bool b) {
   avoidMoveUntilRescaleRoot = b;
+}
+
+void Search::setRootFocus(const std::vector<Loc>& moves, const std::vector<double>& weights, double prob) {
+  assert(moves.size() == weights.size());
+  //No need to clear the search. Focus only changes which child is selected by playouts from the root,
+  //so an existing tree remains valid.
+  FocusMoves* newFocus = nullptr;
+  if(moves.size() > 0 && prob > 0.0) {
+    newFocus = new FocusMoves();
+    newFocus->moves = moves;
+    newFocus->weights = weights;
+    for(size_t i = 0; i<newFocus->weights.size(); i++)
+      newFocus->weights[i] = std::min(newFocus->weights[i], MAX_ROOT_FOCUS_WEIGHT);
+    newFocus->prob = std::min(prob, MAX_ROOT_FOCUS_PROB);
+  }
+  //Search threads may still be using the old struct, so defer freeing it until no search is running.
+  FocusMoves* oldFocus = rootFocus.exchange(newFocus, std::memory_order_acq_rel);
+  if(oldFocus != nullptr) {
+    std::lock_guard<std::mutex> lock(rootFocusCleanupMutex);
+    rootFocusToCleanUp.push_back(oldFocus);
+  }
+}
+
+//Must not be called while a search is running.
+void Search::cleanUpOldRootFocus() {
+  std::lock_guard<std::mutex> lock(rootFocusCleanupMutex);
+  for(FocusMoves* focus: rootFocusToCleanUp)
+    delete focus;
+  rootFocusToCleanUp.clear();
 }
 
 void Search::setRootHintLoc(Loc loc) {
@@ -431,9 +464,10 @@ bool Search::makeMove(Loc moveLoc, Player movePla, bool preventEncore) {
     }
   }
 
-  //Explicitly clear avoid move arrays when we play a move - user needs to respecify them if they want them.
+  //Explicitly clear avoid move arrays and focus moves when we play a move - user needs to respecify them if they want them.
   avoidMoveUntilByLocBlack.clear();
   avoidMoveUntilByLocWhite.clear();
+  setRootFocus(std::vector<Loc>(), std::vector<double>(), 0.0);
 
   //If we're newly inferring some moves as handicap that we weren't before, clear since score will be wrong.
   if(rootHistory.whiteHandicapBonusScore != oldWhiteHandicapBonusScore)
@@ -656,6 +690,9 @@ void Search::runWholeSearch(
 
   //Relaxed load is fine since numPlayoutsShared should be synchronized already due to the joins
   lastSearchNumPlayouts = numPlayoutsShared.load(std::memory_order_relaxed);
+
+  //No search threads are running any more, so focus structs replaced during the search can be freed.
+  cleanUpOldRootFocus();
   effectiveSearchTimeCarriedOver += timer.getSeconds() - actualSearchStartTime;
 }
 
@@ -751,6 +788,8 @@ void Search::beginSearch(bool pondering) {
     rootSymmetries.clear();
     rootSymmetries.push_back(0);
   }
+
+  computeRootSymRepresentativeLocs();
 
   SearchThread dummyThread(-1, *this);
 
