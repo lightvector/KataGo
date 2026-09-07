@@ -27,6 +27,7 @@
 
 #include "../core/global.h"
 #include "../core/rand_helpers.h"
+#include "../core/test.h"
 
 class Rand
 {
@@ -229,6 +230,8 @@ inline uint32_t Rand::nextUInt(const double* relProbs, size_t n)
     assert(relProbs[i] >= 0);
     sum += relProbs[i];
   }
+  testAssert(std::isfinite(sum));
+  testAssert(sum > 0);
 
   double d = nextDouble(sum);
   sum = 0.0;
@@ -238,7 +241,17 @@ inline uint32_t Rand::nextUInt(const double* relProbs, size_t n)
     if(sum > d)
       return i;
   }
-  return (uint32_t)(n-1);
+
+  //Reachable if nextDouble returned exactly sum.
+  //Under IEEE round-to-nearest this only happens when sum is subnormal or is the smallest normal double,
+  //since nextDouble() is at most 1 - 2^-53 and for larger sums the product rounds to less than sum.
+  //Pick the last index with positive weight, rather than the last index, which might have zero weight.
+  for(uint32_t i = (uint32_t)(n-1); i > 0; i--)
+  {
+    if(relProbs[i] > 0)
+      return i;
+  }
+  return 0;
 }
 
 
