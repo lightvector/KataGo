@@ -395,14 +395,37 @@ struct Builder {
       // mish(x)         = x * tanh(softplus(x))           = x * tanh(log(1+exp(x)))
       // mish_scale8(x)  = x * tanh(softplus_{beta=8}(x))  = x * tanh(log(1+exp(8x)))
       // The SCALE8 variant is the runtime applyScale8ToReduceActivations() transform that keeps
-      // FP16 activations small. ONNX Softplus has no beta, so for SCALE8 we
-      // scale the input by 8 before Softplus and do NOT scale the result.
-      string spIn = input;
+      // FP16 activations small. ONNX Softplus has no beta, so the 8 has to be folded into the
+      // graph. The obvious way, Mul(x, Tanh(Softplus(Mul(x,8)))), is correct but defeats every
+      // Mish fusion pass we know of: they match the canonical shape Mul(u, Tanh(Softplus(u))),
+      // and here the outer Mul takes x while Softplus takes 8x, so the operands differ and the
+      // pattern does not match. OpenVINO in particular then runs Softplus, Tanh and Mul as three
+      // separate ops over the full trunk. That costs about 4.8x the throughput on an Intel NPU,
+      // and on the OpenVINO GPU plugin it is not merely slow: the unfused chain produces
+      // non-finite outputs and KataGo dies with "Got nonfinite for policy sum". Presumably the
+      // intermediate log(1+exp(8x)) overflows the FP16 the plugin infers in, which the fused Mish
+      // avoids by evaluating it stably. Both were reproduced against two binaries differing only
+      // in this file, and both disappear with onnxSkipScale8 = true, which takes the plain Mish
+      // path below.
+      //
+      // Emit mish_scale8 through its own definition instead, mish_scale8(x) = mish(8x)/8 (see
+      // desc.cpp applyScale8ToReduceActivations), substituting u = 8x:
+      //
+      //   mish_scale8(x) = Mul(Mul(u, Tanh(Softplus(u))), 1/8)   with u = Mul(x, 8)
+      //
+      // That contains an exact canonical Mish subgraph over u, so the fusion fires, and the only
+      // extra cost is two scalar multiplies. Numerically it is the same function as the form
+      // above: 8x * tanh(softplus(8x)) / 8 == x * tanh(softplus(8x)).
       if(act == ACTIVATION_MISH_SCALE8) {
         string bName = addScalarInitializer(uniq(desc.name + "/beta8"), 8.0f);
-        spIn = addNode("Mul", {input, bName}, uniq(desc.name + "/beta8mul"), desc.name + "/beta8mul");
+        string u = addNode("Mul", {input, bName}, uniq(desc.name + "/beta8mul"), desc.name + "/beta8mul");
+        string spU = addNode("Softplus", {u}, uniq(desc.name + "/softplus"), desc.name + "/softplus");
+        string thU = addNode("Tanh", {spU}, uniq(desc.name + "/tanh"), desc.name + "/tanh");
+        string mishU = addNode("Mul", {u, thU}, uniq(desc.name + "/mish8"), desc.name + "/mish8");
+        string invName = addScalarInitializer(uniq(desc.name + "/inv8"), 0.125f);
+        return addNode("Mul", {mishU, invName}, uniq(desc.name), desc.name);
       }
-      string sp = addNode("Softplus", {spIn}, uniq(desc.name + "/softplus"), desc.name + "/softplus");
+      string sp = addNode("Softplus", {input}, uniq(desc.name + "/softplus"), desc.name + "/softplus");
       string th = addNode("Tanh", {sp}, uniq(desc.name + "/tanh"), desc.name + "/tanh");
       return addNode("Mul", {input, th}, uniq(desc.name), desc.name);
     }
