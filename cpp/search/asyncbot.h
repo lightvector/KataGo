@@ -47,6 +47,9 @@ class AsyncBot {
   void setRootHintLoc(Loc loc);
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAvoidMoveUntilRescaleRoot(bool b);
+  //Exception to the above: does not stop the search. Safe to call at any time, including during a search,
+  //and takes effect for its subsequent playouts.
+  void setRootFocus(const std::vector<Loc>& moves, const std::vector<double>& weights, double prob);
   void setAlwaysIncludeOwnerMap(bool b);
   void setParams(const SearchParams& params);
   void setParamsNoClearing(const SearchParams& params);
