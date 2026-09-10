@@ -802,18 +802,19 @@ int MainCmds::contribute(const vector<string>& args) {
     std::unique_ptr<std::ostream> outputEachMove = nullptr;
     std::function<void()> flushOutputEachMove = nullptr;
     if(gameLoopThreadIdx == 0 && watchOngoingGameInFile) {
-      // TODO someday - doesn't handle non-ascii paths.
 #ifdef OS_IS_WINDOWS
+      // Open as a C file so that we can reach the underlying handle and flush it, since otherwise
+      // Windows may not make the writes visible to other programs watching the file.
       FILE* file = NULL;
-      fopen_s(&file, watchOngoingGameInFileName.c_str(), "a");
-      if(file == NULL)
-        throw StringError("Could not open file: " + watchOngoingGameInFileName);
+      FileUtils::open(file, watchOngoingGameInFileName, "a");
       outputEachMove = std::make_unique<std::ofstream>(file);
       flushOutputEachMove = [file]() {
         FlushFileBuffers((HANDLE) _get_osfhandle(_fileno(file)));
       };
 #else
-      outputEachMove = std::make_unique<std::ofstream>(watchOngoingGameInFileName.c_str(), ofstream::app);
+      std::unique_ptr<std::ofstream> out = std::make_unique<std::ofstream>();
+      FileUtils::open(*out, watchOngoingGameInFileName, ofstream::app);
+      outputEachMove = std::move(out);
 #endif
     }
 
