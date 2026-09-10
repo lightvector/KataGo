@@ -22,6 +22,15 @@
 #include "../command/commandline.h"
 #include "../main.h"
 
+#if __MINGW32__
+// `std::wstring_convert` needs explicit including in case of MINGW
+#include <locale>
+#endif
+
+#ifdef OS_IS_WINDOWS
+#include <codecvt>
+#endif
+
 #ifndef BUILD_DISTRIBUTED
 
 int MainCmds::contribute(const std::vector<std::string>& args) {
@@ -802,10 +811,17 @@ int MainCmds::contribute(const vector<string>& args) {
     std::unique_ptr<std::ostream> outputEachMove = nullptr;
     std::function<void()> flushOutputEachMove = nullptr;
     if(gameLoopThreadIdx == 0 && watchOngoingGameInFile) {
-      // TODO someday - doesn't handle non-ascii paths.
 #ifdef OS_IS_WINDOWS
+      std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+      std::wstring watchOngoingGameInFileWideName;
+      try {
+        watchOngoingGameInFileWideName = converter.from_bytes(watchOngoingGameInFileName);
+      }
+      catch(const std::range_error&) {
+        throw StringError("watchOngoingGameFileName is not valid UTF-8: " + watchOngoingGameInFileName);
+      }
       FILE* file = NULL;
-      fopen_s(&file, watchOngoingGameInFileName.c_str(), "a");
+      file = _wfopen(watchOngoingGameInFileWideName.c_str(), L"a");
       if(file == NULL)
         throw StringError("Could not open file: " + watchOngoingGameInFileName);
       outputEachMove = std::make_unique<std::ofstream>(file);
