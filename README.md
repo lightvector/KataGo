@@ -91,7 +91,7 @@ The community also provides KataGo packages for [Homebrew](https://brew.sh) on M
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep 'gtp.*\.cfg') -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
 ### OpenCL vs CUDA vs TensorRT vs ROCm vs ONNX vs Eigen
-KataGo has six backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), ROCm (GPU), ONNX Runtime (varied hardware), and Eigen (CPU). (On macOS there is also a Metal backend, most easily obtained via homebrew - see above.)
+KataGo has six backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), ROCm (GPU), ONNX Runtime (varied hardware), and Eigen (CPU). (On macOS there is also a Metal backend, most easily obtained via homebrew - see above, and on Apple Silicon additionally an MLX backend - see [Compiling.md](Compiling.md).)
 
 As of v1.17, KataGo supports transformer neural nets, which are generally much stronger for the same compute cost and which the main training run is switching to. Transformer models are more demanding on the GPU backend than the older convolutional nets, so the backend recommendations below matter more for them - in particular OpenCL is noticeably slower on transformers, and on NVIDIA the CUDNN and TensorRT versions make a large difference.
 
@@ -165,7 +165,7 @@ Run a high-performance match engine that will play a pool of bots against each o
 
    * `./katago match -config <MATCH_CONFIG>.cfg -log-file match.log -sgf-output-dir <DIR TO WRITE THE SGFS>`
 
-Force OpenCL tuner to re-tune:
+Force the OpenCL or MLX tuner to re-tune:
 
    * `./katago tuner -config <GTP_CONFIG>.cfg`
 
