@@ -20,6 +20,37 @@ def _env_flag(name: str, default: bool) -> bool:
     raise ValueError(f"Environment variable {name} must be exactly '0' or '1', got {value!r}")
 
 
+@torch.no_grad()
+def floored_weight_decay_(w: torch.Tensor, a: float, floor_norm: float):
+    """Weight decay by factor (1 - a) that leaves each output channel a norm floor.
+
+    Output channel j is w[j], indexed by dim 0, which is one output row for nn.Linear [out, in]
+    and conv [out, in, kh, kw] weights. Let r be the norm of w[j]. Only the part of r above
+    floor_norm decays. The new norm is r - a * (r - floor_norm) when r > floor_norm, and r is
+    unchanged otherwise. That is, w[j] *= 1 - a * max(0, r - floor_norm) / r.
+
+    The floor stops channels that receive little gradient from being decayed all the way to zero.
+    An FFN hidden channel or a q/k pair whose weights on both sides of the multiplication reach
+    exactly zero gets exactly zero gradient forever after, and Newton-Schulz maps zero gradient
+    rows to zero update rows, so under Muon that state is permanent. Held at the floor the
+    channel still produces a small activation, so the weights that read it keep receiving
+    gradient and it can be recruited again.
+
+    floor_norm <= 0 or a tensor with fewer than 2 dims gets plain decay. Norms are accumulated in
+    fp32 and the only temporaries are three vectors of length w.shape[0]. Rows at or below the
+    floor are scaled by exactly 1, and the divisor is never below floor_norm, so an all-zero row
+    causes no division by zero.
+    """
+    if w.dim() < 2 or floor_norm <= 0.0:
+        w.mul_(1.0 - a)
+        return
+    reduce_dims = tuple(range(1, w.dim()))
+    r = torch.linalg.vector_norm(w, dim=reduce_dims, dtype=torch.float32)
+    excess = (r - floor_norm).clamp_(min=0.0)
+    scale = excess.div_(r.clamp_(min=floor_norm)).mul_(-a).add_(1.0)
+    w.mul_(scale.to(w.dtype).view(-1, *([1] * (w.dim() - 1))))
+
+
 def zeropower_via_newtonschulz5(G, steps: int):
     """
     Newton-Schulz iteration to compute the zeroth power / orthogonalization of G. We opt to use a
@@ -391,6 +422,10 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
         self.muon_ns_batch_size = int(os.environ.get("KATAGO_MUON_NS_BATCH_SIZE", "32"))
         if self.muon_ns_batch_size <= 0:
             raise ValueError(f"KATAGO_MUON_NS_BATCH_SIZE must be positive, got {self.muon_ns_batch_size}")
+        # Parameter -> per-output-channel weight decay floor norm, see floored_weight_decay_.
+        # Empty means plain decay for everything. Not saved in the optimizer state dict, the
+        # caller recomputes the floors from stored initialization statistics at every startup.
+        self.weight_decay_floor_norms = {}
         if self.use_batched_muon_ns:
             logging.info(f"Muon: using batched Newton-Schulz with batch size {self.muon_ns_batch_size}")
         if self.use_foreach_aux_adam:
@@ -398,6 +433,10 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
         for group in param_groups:
             assert "use_muon" in group
             if group["use_muon"]:
+                # Both the distributed and the single-device optimizer sort, so that the position
+                # of each parameter in its group, which is what the optimizer state dict is keyed
+                # by, is the same whichever class wrote a checkpoint. The distributed class also
+                # relies on this order to balance round-robin parameter ownership across ranks.
                 if sort_muon_params:
                     group["params"] = sorted(group["params"], key=lambda x: x.size(), reverse=True)
                 # defaults
@@ -412,6 +451,80 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                 group["eps"] = group.get("eps", adam_eps)
                 group["weight_decay"] = group.get("weight_decay", 0)
         super().__init__(param_groups, dict())
+
+    def load_state_dict(self, state_dict):
+        """Load optimizer state, but drop it with a warning if the saved per-parameter tensors do
+        not match the shapes of the parameters at their positions. That happens for checkpoints
+        written before the single-device optimizer sorted its Muon groups the same way as the
+        distributed one, and the mismatch cannot be repaired from the saved positions alone.
+        Momentum and Adam moments are short-lived, so starting them fresh is harmless."""
+        saved_groups = state_dict["param_groups"]
+        if len(saved_groups) != len(self.param_groups) or any(
+            len(saved["params"]) != len(group["params"]) for saved, group in zip(saved_groups, self.param_groups)
+        ):
+            logging.warning("Optimizer state dict has a different parameter group layout than this optimizer, dropping optimizer state")
+            return
+        param_of_id = {}
+        for saved, group in zip(saved_groups, self.param_groups):
+            for param_id, p in zip(saved["params"], group["params"]):
+                param_of_id[param_id] = p
+        for param_id, state in state_dict["state"].items():
+            p = param_of_id.get(param_id)
+            if p is None:
+                logging.warning(f"Optimizer state refers to unknown parameter id {param_id}, dropping optimizer state")
+                return
+            for key, value in state.items():
+                if not isinstance(value, torch.Tensor):
+                    continue
+                expected = (p.shape[0],) if key == "normuon_v" else tuple(p.shape)
+                if tuple(value.shape) != expected:
+                    logging.warning(
+                        f"Optimizer state {key} of shape {tuple(value.shape)} does not match its parameter of shape "
+                        f"{expected}, so the parameter order differs from when the checkpoint was written "
+                        "(e.g. a single-GPU Muon checkpoint from before Muon groups were sorted). Dropping optimizer state."
+                    )
+                    return
+        super().load_state_dict(state_dict)
+
+    def set_weight_decay_floor_norms(self, floor_norms):
+        """Set per-parameter weight decay floors, a dict from parameter to floor norm (see
+        floored_weight_decay_). Replaces any floors set before. Parameters absent from the dict,
+        or with a floor of 0 or less, get plain weight decay. Every rank must set identical floors."""
+        params = set()
+        for group in self.param_groups:
+            params.update(group["params"])
+        for p in floor_norms:
+            if p not in params:
+                raise ValueError("Weight decay floor given for a tensor that is not an optimizer parameter")
+        self.weight_decay_floor_norms = {p: float(f) for p, f in floor_norms.items() if float(f) > 0.0}
+
+    def _apply_weight_decay(self, params, a):
+        """Multiply each parameter by (1 - a), honoring any registered per-output-channel floors.
+        Same arithmetic as floored_weight_decay_ for the floored parameters, but the per-channel
+        scale vectors of all of them are computed with multi-tensor kernels, so the per-tensor
+        launches are only the row norm and the final broadcast multiply."""
+        if a == 0.0:
+            return
+        if len(self.weight_decay_floor_norms) == 0:
+            torch._foreach_mul_(params, 1.0 - a)
+            return
+        floored = [p for p in params if p.dim() >= 2 and p in self.weight_decay_floor_norms]
+        plain = [p for p in params if not (p.dim() >= 2 and p in self.weight_decay_floor_norms)]
+        if len(plain) > 0:
+            torch._foreach_mul_(plain, 1.0 - a)
+        if len(floored) == 0:
+            return
+        floors = [self.weight_decay_floor_norms[p] for p in floored]
+        norms = [torch.linalg.vector_norm(p, dim=tuple(range(1, p.dim())), dtype=torch.float32) for p in floored]
+        scales = torch._foreach_sub(norms, floors)
+        torch._foreach_clamp_min_(scales, 0.0)
+        torch._foreach_clamp_min_(norms, floors)
+        torch._foreach_div_(scales, norms)
+        torch._foreach_mul_(scales, -a)
+        torch._foreach_add_(scales, 1.0)
+        torch._foreach_mul_(floored, [
+            s.to(p.dtype).view(-1, *([1] * (p.dim() - 1))) for s, p in zip(scales, floored)
+        ])
 
     def _ensure_muon_state(self, p):
         if p.grad is None:
@@ -444,7 +557,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                 normuon_beta2=self.normuon_beta2, normuon_eps=self.normuon_eps,
                 use_polar_express=self.use_polar_express,
             )
-        p.mul_(1 - group["lr"] * group["weight_decay"])
+        self._apply_weight_decay([p], group["lr"] * group["weight_decay"])
         p.add_(update.reshape(p.shape), alpha=-group["lr"])
 
     def _update_scale(self, matrix_shape):
@@ -455,10 +568,12 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
     def _apply_muon_updates(self, group, params, updates, chunk_size=64):
         """Apply weight decay and the scaled update for `params` given their bf16 orthogonalized
         `updates` (same shapes as the params), matching the arithmetic of _step_muon_params_batched:
-        scaled = update.to(p.dtype) * scale; p *= (1 - lr*wd); p -= lr * scaled.
+        scaled = update.to(p.dtype) * scale; p *= (1 - lr*wd), with per-output-channel floors
+        if any are set; p -= lr * scaled.
 
-        Every rank applies this to every Muon parameter, so group["lr"] and group["weight_decay"]
-        must be identical on all ranks for the parameters to stay identical across ranks.
+        Every rank applies this to every Muon parameter, so group["lr"], group["weight_decay"] and
+        the weight decay floors must be identical on all ranks for the parameters to stay
+        identical across ranks.
 
         The parameters are processed in chunks so that the fp32 scaled updates of only one chunk are
         alive at a time (the same elementwise ops in the same order, so the result is unchanged).
@@ -469,7 +584,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
             for p, update in zip(chunk_params, updates[start:start + chunk_size]):
                 matrix_shape = (len(p), p.numel() // len(p)) if p.ndim == 4 else tuple(p.shape)
                 scaled.append(update.to(p.dtype) * self._update_scale(matrix_shape))
-            torch._foreach_mul_(chunk_params, 1 - group["lr"] * group["weight_decay"])
+            self._apply_weight_decay(chunk_params, group["lr"] * group["weight_decay"])
             torch._foreach_add_(chunk_params, scaled, alpha=-group["lr"])
 
     def _step_muon_params_batched(self, group, param_indices, deferred_updates=None):
@@ -570,7 +685,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                     apply_updates.append(update.reshape(p.shape).to(p.dtype))
 
         if len(apply_params) > 0:
-            torch._foreach_mul_(apply_params, 1 - group["lr"] * group["weight_decay"])
+            self._apply_weight_decay(apply_params, group["lr"] * group["weight_decay"])
             torch._foreach_add_(apply_params, apply_updates, alpha=-group["lr"])
 
     def _step_muon_group(self, group, param_indices):
@@ -600,7 +715,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
             state["step"] += 1
             update = adam_update(p.grad, state["exp_avg"], state["exp_avg_sq"],
                                  state["step"], group["betas"], group["eps"])
-            p.mul_(1 - group["lr"] * group["weight_decay"])
+            self._apply_weight_decay([p], group["lr"] * group["weight_decay"])
             p.add_(update, alpha=-group["lr"])
 
     def _step_adam_group_foreach(self, group):
@@ -629,7 +744,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
             torch._foreach_add_(denominators, group["eps"])
             updates = torch._foreach_div(exp_avgs, denominators)
 
-            torch._foreach_mul_(params, 1 - adam_lr * group["weight_decay"])
+            self._apply_weight_decay(params, adam_lr * group["weight_decay"])
             torch._foreach_add_(params, updates, alpha=-adam_lr / bias_correction1)
 
 
@@ -975,7 +1090,7 @@ class SingleDeviceMuonWithAuxAdam(_MuonWithAuxAdamBase):
             use_aurora=use_aurora, aurora_pp_iterations=aurora_pp_iterations,
             aurora_pp_beta=aurora_pp_beta, aurora_eps=aurora_eps,
             ns_steps=ns_steps, use_polar_express=use_polar_express,
-            sort_muon_params=False,
+            sort_muon_params=True,
         )
 
     @torch.no_grad()

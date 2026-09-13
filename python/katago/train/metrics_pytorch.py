@@ -356,6 +356,55 @@ class Metrics:
         norms = Metrics.get_model_norms(raw_model)
         return {f"norm_{group_name}_batch": value for group_name, value in norms.items()}
 
+    # A channel counts as dead when its norm is at most this fraction of the reference norm of
+    # its tensor, see reference_channel_norm. Shared with resurrect_dead_channels.py.
+    DEAD_CHANNEL_NORM_FRAC = 0.01
+
+    @staticmethod
+    def is_output_channel_tensor(param):
+        """True for nn.Linear [out, in] and conv [out, in, kh, kw] weights, whose dim 0 indexes
+        output channels. Biases and norm gammas and betas are excluded, including ones stored as
+        [1, C, 1, 1]."""
+        return param.dim() in (2, 4) and param.shape[0] >= 2 and param[0].numel() >= 2
+
+    @staticmethod
+    def reference_channel_norm(norms):
+        """Typical norm of the live channels of a tensor, given the norms of all its channels:
+        the median over channels whose norm exceeds 0.1% of the largest, so that a tensor where
+        most channels are exactly zero still gets a reference from the live ones. Returns a 0-dim
+        tensor, which is 0 when every channel is near zero."""
+        largest = norms.max() if norms.numel() > 0 else torch.zeros([], device=norms.device)
+        live = norms[norms > 1e-3 * largest]
+        return live.median() if live.numel() > 0 else torch.zeros([], device=norms.device)
+
+    @staticmethod
+    def get_output_channel_metrics(raw_model, floor_norms_by_param=None):
+        """Fractions of output channels, over all output-channel tensors of the model, that are
+        dead or sitting at the weight decay floor.
+
+        deadrows_batch: channels whose weight norm is at most DEAD_CHANNEL_NORM_FRAC times the
+        tensor's reference channel norm. Exactly-zero channels always count. Such a channel
+        contributes nothing and, if the tensors reading it are also zero, can never recover.
+        floorrows_batch: channels whose norm is at or below the tensor's weight decay floor. Only
+        reported when floors are given (see -wd-floor-frac in train.py)."""
+        num_channels = 0
+        num_dead = 0
+        num_at_floor = 0
+        with torch.no_grad():
+            for param in raw_model.parameters():
+                if not Metrics.is_output_channel_tensor(param):
+                    continue
+                r = torch.linalg.vector_norm(param, dim=tuple(range(1, param.dim())), dtype=torch.float32)
+                ref = Metrics.reference_channel_norm(r)
+                num_channels += r.numel()
+                num_dead += int((r <= Metrics.DEAD_CHANNEL_NORM_FRAC * ref).sum().item())
+                if floor_norms_by_param is not None and param in floor_norms_by_param:
+                    num_at_floor += int((r <= floor_norms_by_param[param]).sum().item())
+        metrics = {"deadrows_batch": num_dead / max(1, num_channels)}
+        if floor_norms_by_param is not None:
+            metrics["floorrows_batch"] = num_at_floor / max(1, num_channels)
+        return metrics
+
     def get_specific_norms_and_gradient_stats(self,raw_model):
         with torch.no_grad():
             params = {}

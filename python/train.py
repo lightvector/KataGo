@@ -94,6 +94,7 @@ if __name__ == "__main__":
     optional_args.add_argument('-input-wd-factor', help='Extra scaling factor for input weight decay', type=float, required=False, default=1.0)
     optional_args.add_argument('-normal-wd-factor', help='Extra scaling factor for normal weight decay', type=float, required=False, default=1.0)
     optional_args.add_argument('-normal-attn-wd-factor', help='Extra scaling factor for normal_attn weight decay', type=float, required=False, default=1.0)
+    optional_args.add_argument('-wd-floor-frac', help='Exempt from weight decay the part of each output channel of each weight matrix whose RMS is below this fraction of the tensor\'s RMS at initialization, so that unused channels never decay to exactly zero, a state Muon cannot recover from. Can be changed between runs. Requires muon.', type=float, required=False)
     optional_args.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
     optional_args.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
     optional_args.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
@@ -361,6 +362,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
     input_wd_factor = args["input_wd_factor"]
     normal_wd_factor = args["normal_wd_factor"]
     normal_attn_wd_factor = args["normal_attn_wd_factor"]
+    wd_floor_frac = args["wd_floor_frac"]
     gnorm_clip_scale = args["gnorm_clip_scale"]
     sub_epochs = args["sub_epochs"]
     swa_period_samples = args["swa_period_samples"]
@@ -381,6 +383,11 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             raise ValueError("-ns-steps can only be used with muon or normuon or aurora optimizer")
         if use_polar_express:
             raise ValueError("-use-polar-express can only be used with muon or normuon or aurora optimizer")
+    if wd_floor_frac is not None:
+        if not use_muon:
+            raise ValueError("-wd-floor-frac can only be used with muon or normuon or aurora optimizer")
+        if wd_floor_frac < 0.0:
+            raise ValueError("-wd-floor-frac must be nonnegative")
     optimizer_name = "Aurora" if use_aurora else "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
     use_fp16 = args["use_fp16"]
     use_bf16 = args["use_bf16"]
@@ -822,6 +829,45 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         assert num_params == num_reg_dict_params, "Reg dict does not have entries for all params in model"
         return param_groups
 
+    def compute_param_init_rms(raw_model):
+        """RMS of every parameter tensor, keyed by parameter name. Meant to be called on a freshly
+        initialized model, before any checkpoint weights are loaded into it. Stored in the train
+        state so that the weight decay floors (-wd-floor-frac) can be recomputed at every startup."""
+        with torch.no_grad():
+            return {
+                name: math.sqrt(torch.mean(param.float() * param.float()).item())
+                for name, param in raw_model.named_parameters()
+            }
+
+    def set_optimizer_wd_floors(optimizer, raw_model, train_state):
+        """Register the per-output-channel weight decay floors with the optimizer when
+        -wd-floor-frac is set. See floored_weight_decay_ in muon/muon.py."""
+        if wd_floor_frac is None:
+            return
+        assert "param_init_rms" in train_state
+        param_init_rms = train_state["param_init_rms"]
+        floors = {}
+        num_zero_init = 0
+        for name, param in raw_model.named_parameters():
+            if not Metrics.is_output_channel_tensor(param):
+                continue
+            if name not in param_init_rms:
+                raise Exception(
+                    f"Parameter {name} has no initialization RMS in the train state, so its weight decay floor cannot be computed. "
+                    "The stored values do not match this model. Delete train_state.param_init_rms from the checkpoint "
+                    "(see edit_checkpoint.py) to have it recomputed."
+                )
+            floor_norm = wd_floor_frac * param_init_rms[name] * math.sqrt(param[0].numel())
+            if floor_norm > 0.0:
+                floors[param] = floor_norm
+            else:
+                num_zero_init += 1
+        optimizer.set_weight_decay_floor_norms(floors)
+        logging.info(
+            f"Weight decay floor frac {wd_floor_frac}: floors set for {len(floors)} weight tensors. "
+            f"{num_zero_init} zero-initialized tensors and all non-matrix parameters use plain decay."
+        )
+
     def load():
         loading_initial_checkpoint = False
         if not os.path.exists(get_checkpoint_path()) or always_initial_checkpoint:
@@ -880,6 +926,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             train_state["modelnorm_input_baseline"] = modelnorm_input_baseline
             logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
             logging.info(f"Model norm input baseline computed: {modelnorm_input_baseline}")
+            train_state["param_init_rms"] = compute_param_init_rms(raw_model)
 
             if use_adamw:
                 optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
@@ -890,6 +937,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                     optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
             else:
                 optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            set_optimizer_wd_floors(optimizer, raw_model, train_state)
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
         else:
@@ -922,11 +970,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 # fresh regardless of the counter stored in that checkpoint.
                 train_state["export_cycle_counter"] = 0
 
-            # Do this before loading the state dict, while the model is initialized to fresh values, to get a good baseline
+            # Do this before loading the state dict, while the model is initialized to fresh values, to get a good baseline.
+            # Each rank initializes with its own seed, so rank 0's values are broadcast to keep the
+            # baselines, and the weight decay derived from them, identical on every rank.
             if "modelnorm_normal_baseline" not in train_state or "modelnorm_input_baseline" not in train_state:
                 logging.info("Computing baseline since not in train state")
 
-                norms = Metrics.get_model_norms(raw_model)
+                norms_holder = [Metrics.get_model_norms(raw_model)]
+                if world_size > 1:
+                    torch.distributed.broadcast_object_list(norms_holder, src=0)
+                norms = norms_holder[0]
                 modelnorm_normal_baseline = norms["normal"]
                 modelnorm_input_baseline = norms["input"]
                 old_modelnorm_normal_baseline = train_state.get("modelnorm_normal_baseline",None)
@@ -941,6 +994,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 print("Clearing running metrics")
                 if "running_metrics" in state_dict:
                     del state_dict["running_metrics"]
+
+            # Also computed before loading the state dict, from the fresh initialization. Each rank
+            # initializes with its own seed, so rank 0's values are broadcast to keep the weight
+            # decay floors identical on every rank.
+            if "param_init_rms" not in train_state:
+                logging.info("Parameter initialization RMS values not in train state, computing them from the freshly initialized model")
+                param_init_rms_holder = [compute_param_init_rms(raw_model)]
+                if world_size > 1:
+                    torch.distributed.broadcast_object_list(param_init_rms_holder, src=0)
+                train_state["param_init_rms"] = param_init_rms_holder[0]
 
             # Strip off any "module." from when the model was saved with DDP or other things
             model_state_dict = load_model.load_model_state_dict(state_dict)
@@ -1009,6 +1072,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
             else:
                 logging.info("WARNING: Optimizer not found in state dict (e.g. a skip_optimizer save), using fresh optimizer")
                 train_state["optimizer_name"] = optimizer_name
+            set_optimizer_wd_floors(optimizer, raw_model, train_state)
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
@@ -1754,6 +1818,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                             running_metrics["sums"], running_metrics["weights"], metrics,
                             [key for key in metrics if key.startswith("step_norm_") and key.endswith("_batch")],
                         )
+
+                    # Fraction of output channels that are dead or held at the weight decay floor
+                    floor_norms_by_param = optimizer.weight_decay_floor_norms if use_muon else {}
+                    output_channel_metrics = Metrics.get_output_channel_metrics(
+                        raw_model, floor_norms_by_param if len(floor_norms_by_param) > 0 else None
+                    )
+                    metrics.update(output_channel_metrics)
+                    trainloop_helpers.set_snapshot_metrics(
+                        running_metrics["sums"], running_metrics["weights"], metrics, list(output_channel_metrics.keys())
+                    )
 
                     if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
                         metrics["brn_rmax"] = train_state["brenorm_rmax"]
