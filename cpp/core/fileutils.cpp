@@ -1,5 +1,6 @@
 #include "../core/fileutils.h"
 
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -7,6 +8,7 @@
 #include <ghc/filesystem.hpp>
 
 #include "../core/global.h"
+#include "../core/os.h"
 #include "../core/sha2.h"
 #include "../core/test.h"
 
@@ -55,6 +57,23 @@ void FileUtils::open(ifstream& in, const string& filename, std::ios_base::openmo
 }
 void FileUtils::open(ofstream& out, const string& filename, std::ios_base::openmode mode) {
   open(out, filename.c_str(), mode);
+}
+
+bool FileUtils::tryOpen(FILE*& file, const string& filename, const char* mode) {
+#ifdef OS_IS_WINDOWS
+  // On Windows the narrow-character fopen interprets the path in the current ANSI codepage rather than
+  // as utf-8, so convert to wide characters the same way as the rest of our path handling does.
+  gfs::path gfsPath(gfs::u8path(filename));
+  std::wstring wideMode(mode, mode + std::strlen(mode));
+  file = _wfopen(gfsPath.wstring().c_str(), wideMode.c_str());
+#else
+  file = std::fopen(filename.c_str(), mode);
+#endif
+  return file != NULL;
+}
+void FileUtils::open(FILE*& file, const string& filename, const char* mode) {
+  if(!tryOpen(file, filename, mode))
+    throw IOError("Could not open file " + filename + " - does not exist or invalid path or permissions?");
 }
 
 std::string FileUtils::weaklyCanonical(const std::string& path) {

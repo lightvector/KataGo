@@ -125,12 +125,14 @@ if __name__ == "__main__":
     optional_args.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
     optional_args.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
     optional_args.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
+    optional_args.add_argument('-initial-train-bucket-level', help='Train rows initially in the bucket when the checkpoint has no bucket state yet, default samples-per-epoch. No effect once the checkpoint has a bucket.', type=float, required=False)
     optional_args.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
     optional_args.add_argument('-stop-when-train-bucket-limited', help='Terminate due to train bucket rather than waiting for more', required=False, action='store_true')
     optional_args.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
     optional_args.add_argument('-data-prefetch-depth', help='Number of training data files to prefetch ahead of the one being consumed, to hide disk+decompress latency at file boundaries. Memory scales linearly with this (each in-flight file holds its full expanded arrays in RAM, per rank).', type=int, default=1, required=False)
     optional_args.add_argument('-randomize-val', help='Randomize order of validation files', required=False, action='store_true')
     optional_args.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
+    optional_args.add_argument('-no-longterm-checkpoints', help='Do not save the periodic archival checkpoints in longterm_checkpoints/', required=False, action='store_true')
     optional_args.add_argument('-no-repeat-files', help='Track what shuffled data was used and do not repeat, even when killed and resumed', required=False, action='store_true')
     optional_args.add_argument('-quit-if-no-data', help='If no data, quit instead of waiting for data', required=False, action='store_true')
 
@@ -259,7 +261,11 @@ def multiprocessing_setup(rank: int, world_size: int):
     if 'MASTER_PORT' not in os.environ or not os.environ['MASTER_PORT']:
         os.environ['MASTER_PORT'] = '23456'
     logging.info("Running torch.distributed.init_process_group")
-    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
+    # Ranks can reach their first collective many minutes apart, for example when one rank hits a
+    # warm torch.compile cache and another does not, or when data loading is slowed by other work
+    # on the machine. The default NCCL watchdog of about ten minutes then kills the run, so allow
+    # a much longer wait. A truly hung collective is still detected, just later.
+    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size, timeout=datetime.timedelta(hours=1))
     logging.info(f"Returned from torch.distributed.init_process_group, my rank = {rank}, world_size={world_size}")
 
 def multiprocessing_cleanup():
@@ -405,12 +411,14 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
     sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
     max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
     max_train_bucket_size = args["max_train_bucket_size"]
+    initial_train_bucket_level = args["initial_train_bucket_level"]
     max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
     stop_when_train_bucket_limited = args["stop_when_train_bucket_limited"]
     max_val_samples = args["max_val_samples"]
     randomize_val = args["randomize_val"]
     data_prefetch_depth = args["data_prefetch_depth"]
     no_export = args["no_export"]
+    no_longterm_checkpoints = args["no_longterm_checkpoints"]
     no_repeat_files = args["no_repeat_files"]
     quit_if_no_data = args["quit_if_no_data"]
 
@@ -670,7 +678,10 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                     if os.path.exists(get_checkpoint_prev_path(i)):
                         os.replace(get_checkpoint_prev_path(i), get_checkpoint_prev_path(i+1))
                 if os.path.exists(get_checkpoint_path()):
-                    shutil.copy(get_checkpoint_path(), get_checkpoint_prev_path(0))
+                    # Copy under a temporary name and rename so that a reader such as a backup
+                    # rsync never sees a partially written checkpoint_prev0.ckpt.
+                    shutil.copy(get_checkpoint_path(), get_checkpoint_prev_path(0) + ".tmp")
+                    os.replace(get_checkpoint_prev_path(0) + ".tmp", get_checkpoint_prev_path(0))
                 torch.save(state_dict, get_checkpoint_path() + ".tmp")
                 os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
@@ -1085,7 +1096,11 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
     if "global_step_samples" not in train_state:
         train_state["global_step_samples"] = 0
     if max_train_bucket_per_new_data is not None and "train_bucket_level" not in train_state:
-        train_state["train_bucket_level"] = samples_per_epoch
+        if initial_train_bucket_level is not None:
+            train_state["train_bucket_level"] = initial_train_bucket_level
+        else:
+            train_state["train_bucket_level"] = samples_per_epoch
+        logging.info("Checkpoint has no train bucket state, initial bucket level %.0f" % train_state["train_bucket_level"])
     if "train_steps_since_last_reload" not in train_state:
         train_state["train_steps_since_last_reload"] = 0
     if "export_cycle_counter" not in train_state:
@@ -2035,7 +2050,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
         else:
             time.sleep(sleep_seconds_per_epoch)
 
-        if rank == 0:
+        if rank == 0 and not no_longterm_checkpoints:
             now = datetime.datetime.now()
             if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
                 last_longterm_checkpoint_save_time = now

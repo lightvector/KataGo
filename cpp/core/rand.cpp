@@ -323,10 +323,20 @@ size_t Rand::nextIndexCumulative(const double* cumRelProbs, size_t n)
   testAssert(n > 0);
   testAssert(n < 0xFFFFFFFF);
   double sum = cumRelProbs[n-1];
+  testAssert(std::isfinite(sum));
+  testAssert(sum > 0);
   double d = nextDouble(sum);
   size_t r = BSearch::findFirstGt(cumRelProbs,d,0,n);
-  if(r == n)
-    return n-1;
+
+  //Reachable if nextDouble returned exactly sum.
+  //Under IEEE round-to-nearest this only happens when sum is subnormal or is the smallest normal double,
+  //since nextDouble() is at most 1 - 2^-53 and for larger sums the product rounds to less than sum.
+  //Pick the last index with positive weight, rather than the last index, which might have zero weight.
+  if(r == n) {
+    r = n-1;
+    while(r > 0 && cumRelProbs[r] <= cumRelProbs[r-1])
+      r--;
+  }
   return r;
 }
 
