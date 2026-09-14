@@ -28,7 +28,9 @@ definition as the deadrows_batch training metric (see Metrics.reference_channel_
 sources are channels that are live on every side. Noise is additive Gaussian with standard
 deviation -noise-frac times the RMS of the copied source row, and the result is rescaled to the
 source row's norm, so 1.0 means the copy is about as much noise as signal at a live channel's
-scale.
+scale. The FFN copies are then multiplied by -copy-scale: resurrecting many channels at full
+live norm inflates the model's total weight norm, which train.py's adaptive weight decay reacts
+to by decaying everything harder.
 
 Dead v/out attention channels and dead output channels of other weight tensors are reported but
 not resurrected.
@@ -77,7 +79,7 @@ def noisy_copy(src, noise_frac, generator):
     return out * (src_norm / out.norm())
 
 
-def resurrect_ffn(sd, prefix, dead_frac, noise_frac, generator, dry_run):
+def resurrect_ffn(sd, prefix, dead_frac, noise_frac, copy_scale, generator, dry_run):
     """Returns (num_dead, num_channels, num_one_row_dead). prefix ends with '.'"""
     w1 = sd[prefix + "ffn_linear1.weight"]
     w2 = sd[prefix + "ffn_linear2.weight"]
@@ -106,9 +108,9 @@ def resurrect_ffn(sd, prefix, dead_frac, noise_frac, generator, dry_run):
         src_idx = live_idx[torch.randint(live_idx.numel(), (n_dead,), generator=generator)]
         with torch.no_grad():
             for j, s in zip(dead_idx.tolist(), src_idx.tolist()):
-                w1[j] = noisy_copy(w1[s], noise_frac, generator)
+                w1[j] = noisy_copy(w1[s], noise_frac, generator) * copy_scale
                 if wg is not None:
-                    wg[j] = noisy_copy(wg[s], noise_frac, generator)
+                    wg[j] = noisy_copy(wg[s], noise_frac, generator) * copy_scale
                 w2[:, j] = 0.0
     return n_dead, ffn_dim, int(one_row_dead.sum().item())
 
@@ -172,6 +174,7 @@ def main():
     parser.add_argument("-output", required=True, help="Output checkpoint, must not already exist")
     parser.add_argument("-dead-frac", type=float, default=Metrics.DEAD_CHANNEL_NORM_FRAC, help=f"A channel side is dead when its norm is at most this fraction of the tensor's reference channel norm (default {Metrics.DEAD_CHANNEL_NORM_FRAC})")
     parser.add_argument("-noise-frac", type=float, default=1.0, help="Std of the additive noise on copied rows, relative to the source row RMS (default 1.0)")
+    parser.add_argument("-copy-scale", type=float, default=1.0, help="Scale of the resurrected FFN input and gate rows relative to the copied source rows (default 1.0). Below 1 keeps the resurrected rows from inflating the model's weight norm, which train.py's adaptive weight decay would otherwise react to, at the cost of a smaller initial activation (proportional to the square of the scale for SwiGLU) and so slower recruitment")
     parser.add_argument("-k-scale", type=float, default=0.1, help="Scale of the resurrected k rows relative to the copied source (default 0.1)")
     parser.add_argument("-seed", type=int, default=0)
     parser.add_argument("-dry-run", action="store_true", help="Only report what would be resurrected")
@@ -198,7 +201,7 @@ def main():
 
     total_ffn_dead = total_ffn = total_one_row = 0
     for prefix in ffn_prefixes:
-        n_dead, n, one_row = resurrect_ffn(by_name, prefix, args.dead_frac, args.noise_frac, generator, args.dry_run)
+        n_dead, n, one_row = resurrect_ffn(by_name, prefix, args.dead_frac, args.noise_frac, args.copy_scale, generator, args.dry_run)
         logging.info(f"{prefix}: FFN channels dead {n_dead}/{n}" + (f", with one input row dead and left alone {one_row}" if one_row > 0 else ""))
         total_ffn_dead += n_dead
         total_ffn += n
