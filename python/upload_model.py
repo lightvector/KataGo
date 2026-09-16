@@ -128,7 +128,7 @@ def check_network_exists(url):
             if sslVerifyPemPath is not None:
                 response = requests.get(url, verify=sslVerifyPemPath)
             else:
-                response = requests.get(url,files=data)
+                response = requests.get(url)
         response.raise_for_status()  # Raises HTTPError for bad responses
         return response.json()
     except (requests.RequestException, json.JSONDecodeError) as e:
