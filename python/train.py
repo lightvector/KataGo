@@ -47,6 +47,11 @@ from katago.train import data_processing_pytorch
 from katago.train import trainloop_helpers
 from katago.train.metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
 
+# Whether the validation pass may use flex attention, when the model is using it for training.
+# Set to 0 on platforms where the compiled eval-mode flex-attention graph crashes, see the
+# validation step below.
+FLEX_ATTENTION_VALIDATION = trainloop_helpers.env_flag("KATAGO_FLEX_ATTENTION_VALIDATION", default=True)
+
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 
 if __name__ == "__main__":
@@ -1930,6 +1935,16 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                 logging.info("No validation files, skipping validation step")
             else:
                 validation_model = trainloop_helpers.get_local_validation_model(ddp_model, raw_model, world_size)
+                # With KATAGO_FLEX_ATTENTION_VALIDATION=0, validation runs attention through SDPA
+                # masking instead of flex attention. The flex-attention inference kernel that
+                # inductor generates for the eval-mode graph crashes with an illegal memory access
+                # on some platforms (seen on sm_120 with torch 2.11 and triton 3.6), while the
+                # training-mode graph is fine. The two paths are equivalent. Dynamo guards on the
+                # flag, so this compiles a separate eval-mode graph once and the training graph is
+                # reused unchanged after the flag is restored.
+                saved_use_flex_attention = raw_model.use_flex_attention
+                if not FLEX_ATTENTION_VALIDATION:
+                    raw_model.use_flex_attention = False
                 with torch.no_grad():
                     validation_model.eval()
                     val_metric_sums = defaultdict(float)
@@ -1994,6 +2009,7 @@ def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes
                     t1 = time.perf_counter()
                     logging.info(f"Validation took {t1-t0} seconds")
                     validation_model.train()
+                raw_model.use_flex_attention = saved_use_flex_attention
 
         # The export cycle counter is not reset at export time. It keeps counting epochs so that
         # outside tooling can track a run's epoch count from its checkpoints, and anything that
