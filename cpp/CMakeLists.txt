@@ -1670,7 +1670,23 @@ elseif(USE_BACKEND STREQUAL "ONNX")
   # ONNX Runtime install tree (include/ lib/ bin/). The official prebuilt ORT packages do
   # NOT ship the OpenVINO execution provider, so for Intel GPU acceleration ORT must be
   # built from source with --use_openvino GPU (see Compiling.md).
-  set(ONNXRUNTIME_ROOT "" CACHE PATH "Path to ONNX Runtime package root (containing include/, lib/, bin/)")
+  # Which execution provider this build is being set up for. ONNX Runtime selects the provider at
+  # runtime from the onnxProvider config key, so this affects nothing but the default
+  # ONNXRUNTIME_ROOT below. With -DUSE_ONNX_EP=OPENVINO it points at an OpenVINO-enabled ONNX
+  # Runtime unpacked under cpp/external, which is where the Intel NPU / iGPU instructions in
+  # Compiling.md put it, so those builds configure without further flags. Left blank, there is no
+  # default and ONNXRUNTIME_ROOT must be given explicitly.
+  set(USE_ONNX_EP "" CACHE STRING "ONNX Runtime execution provider this build targets: blank or OPENVINO")
+  set_property(CACHE USE_ONNX_EP PROPERTY STRINGS "" OPENVINO)
+  set(_onnx_default_root "")
+  if(USE_ONNX_EP STREQUAL "OPENVINO")
+    if(WIN32)
+      set(_onnx_default_root "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime-win-x64-openvino")
+    elseif(UNIX AND NOT APPLE)
+      set(_onnx_default_root "${CMAKE_CURRENT_SOURCE_DIR}/external/onnxruntime-linux-x64-openvino")
+    endif()
+  endif()
+  set(ONNXRUNTIME_ROOT "${_onnx_default_root}" CACHE PATH "Path to ONNX Runtime package root (containing include/, lib/, bin/)")
   if(NOT IS_DIRECTORY "${ONNXRUNTIME_ROOT}")
     message(FATAL_ERROR "ONNXRUNTIME_ROOT does not exist: ${ONNXRUNTIME_ROOT}. Set -DONNXRUNTIME_ROOT=<ort install dir>.")
   endif()

@@ -277,14 +277,16 @@ Set `onnxProvider` in your config to choose the execution provider:
      cmake --build KataGo/cpp/build -j
      ```
    * `ONNXRUNTIME_ROOT` is the directory containing ONNX Runtime's `include/` and `lib/`.
+   * For an Intel NPU or iGPU build, `-DUSE_ONNX_EP=OPENVINO` defaults `ONNXRUNTIME_ROOT` to `KataGo/cpp/external/onnxruntime-win-x64-openvino` (or `-linux-x64-` on Linux), so unpacking your OpenVINO-enabled ONNX Runtime there lets you drop the flag. It changes nothing else: the execution provider is still chosen at runtime by `onnxProvider`.
    * If CMake does not find protobuf on its own, also pass `-DProtobuf_PROTOC_EXECUTABLE=<protoc>`, `-DProtobuf_INCLUDE_DIR=<include-dir>`, and `-DProtobuf_LIBRARY=<library>`.
    * As with other backends, `-DNO_GIT_REVISION=1` avoids embedding the git hash, and `-DBUILD_DISTRIBUTED=1` enables contributing to distributed training.
 
 ### Runtime
    * The `onnxruntime` shared library must be next to the executable or on your library path.
-   * For the OpenVINO provider, the OpenVINO runtime DLLs (`openvino.dll`, `openvino_intel_gpu_plugin.dll`, `tbb12.dll`, `cache.json`, etc.) must also be next to the executable or on the system path.
+   * For the OpenVINO provider, the OpenVINO runtime DLLs (`openvino.dll`, `tbb12.dll`, `cache.json`, etc.) must also be next to the executable or on the system path, along with the plugin for each device you want to use: `openvino_intel_gpu_plugin.dll` for Intel GPUs and `openvino_intel_npu_plugin.dll` for Intel NPUs. A device whose plugin is missing is simply not available, so shipping only the GPU plugin makes an NPU machine behave like a GPU-only one.
    * For the DirectML provider, `DirectML.dll` 1.8.0 or newer (from the Microsoft.AI.DirectML package) must be next to `onnxruntime.dll`. Without it, Windows 10 falls back to its much older inbox DirectML and the provider fails at startup.
-   * Choose the provider and its options with the `onnx*` keys in your config, e.g. `onnxProvider = openvino` and `onnxOpenVINODeviceType = GPU`. The ONNX section of `configs/gtp_example.cfg` documents all the options.
+   * Choose the provider with the `onnxProvider` key in your config, e.g. `onnxProvider = openvino`. The ONNX section of `configs/gtp_example.cfg` documents all the options.
+   * For OpenVINO you normally do not need to name a device. With `onnxOpenVINODeviceType` unset, KataGo probes the machine and picks the first device present, NPU before GPU, logging which one it chose, and also picks the transformer trunk layout to match it (NCHW for the NPU, NHWC for the GPU) since the two plugins want opposite layouts. Set `onnxOpenVINODeviceType` explicitly only to override that, e.g. to force `GPU` on a machine that also has an NPU; an explicit device is never second-guessed, so naming one that is not there fails at startup rather than falling back.
 
 ### Working with .onnx files
 This backend and the TensorRT backend can also write out the ONNX graph they build (`katago dumponnx`) and load a `.onnx` file as a model in place of the `.bin.gz`, including one produced by other tooling. See **[ONNX_Model_Files.md](docs/ONNX_Model_Files.md)** for the commands and the model file format.
