@@ -1024,7 +1024,8 @@ void PlayUtils::printGenmoveLog(
   Loc moveLoc,
   double timeTaken,
   Player perspective,
-  bool logSearchInfoForChosenMove
+  bool logSearchInfoForChosenMove,
+  const PrintTreeOptions& treeOptions
 ) {
   const Board& board = search->getRootBoard();
   Board::printBoard(out, board, moveLoc, &(search->getRootHist().moveHistory));
@@ -1048,9 +1049,9 @@ void PlayUtils::printGenmoveLog(
   out << "\n";
   out << "Tree:\n";
   if(logSearchInfoForChosenMove && moveLoc != Board::NULL_LOC)
-    search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10).alsoBranch(board,{Location::toString(moveLoc,board)}),perspective);
+    search->printTree(out, search->rootNode, treeOptions.alsoBranch(board,{Location::toString(moveLoc,board)}),perspective);
   else
-    search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+    search->printTree(out, search->rootNode, treeOptions,perspective);
 }
 
 Rules PlayUtils::genRandomRules(Rand& rand) {

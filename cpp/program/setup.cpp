@@ -14,6 +14,27 @@ void Setup::initializeSession(ConfigParser& cfg) {
   NeuralNet::globalInitialize();
 }
 
+PrintTreeOptions Setup::defaultLogSearchTreeOptions() {
+  return PrintTreeOptions().maxDepth(1).maxChildrenToShow(10);
+}
+
+PrintTreeOptions Setup::loadLogSearchTreeOptions(ConfigParser& cfg) {
+  PrintTreeOptions options = defaultLogSearchTreeOptions();
+  if(cfg.contains("logTreeMaxDepth"))
+    options = options.maxDepth(cfg.getInt("logTreeMaxDepth",1,1000000));
+  if(cfg.contains("logTreeMaxChildrenToShow"))
+    options = options.maxChildrenToShow(cfg.getInt("logTreeMaxChildrenToShow",1,1000000));
+  if(cfg.contains("logTreeMinVisitsToShow"))
+    options = options.minVisitsToShow(cfg.getInt64("logTreeMinVisitsToShow",(int64_t)0,(int64_t)1 << 50));
+  if(cfg.contains("logTreeMinVisitsToExpand"))
+    options = options.minVisitsToExpand(cfg.getInt64("logTreeMinVisitsToExpand",(int64_t)1,(int64_t)1 << 50));
+  if(cfg.contains("logTreeMaxPVDepth"))
+    options = options.maxPVDepth(cfg.getInt("logTreeMaxPVDepth",1,1000));
+  if(cfg.contains("logTreeShowAllRootChildren"))
+    options = options.showAllRootChildren(cfg.getBool("logTreeShowAllRootChildren"));
+  return options;
+}
+
 std::vector<std::string> Setup::getBackendPrefixes() {
   std::vector<std::string> prefixes;
   prefixes.push_back("cuda");

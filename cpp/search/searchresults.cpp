@@ -1233,12 +1233,14 @@ void Search::printTree(ostream& out, const SearchNode* node, const PrintTreeOpti
     data.weightFactor = NAN;
   }
   perspective = (perspective != P_BLACK && perspective != P_WHITE) ? node->nextPla : perspective;
-  printTreeHelper(out, node, options, prefix, 0, 0, data, perspective);
+  std::unordered_set<const SearchNode*> graphPath;
+  printTreeHelper(out, node, options, prefix, 0, 0, data, perspective, graphPath);
 }
 
 void Search::printTreeHelper(
   ostream& out, const SearchNode* n, const PrintTreeOptions& options,
-  string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
+  string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective,
+  std::unordered_set<const SearchNode*>& graphPath
 ) const {
   if(n == NULL)
     return;
@@ -1337,7 +1339,14 @@ void Search::printTreeHelper(
     if((double)data.numVisits < origVisits * options.minVisitsPropToExpand_)
       return;
   }
-  if((options.alsoBranch_ && depth == 0) || (!options.alsoBranch_ && depth == options.branch_.size())) {
+  //Graph search can transpose back to an ancestor on this path. Recursing into it again would repeat the cycle
+  //until maxDepth_, so stop after printing its own line.
+  if(!graphPath.insert(&node).second)
+    return;
+
+  //The top of the printed tree, which is below the root when only printing a branch.
+  const bool isDisplayRoot = options.alsoBranch_ ? depth == 0 : depth == options.branch_.size();
+  if(isDisplayRoot) {
     out << "---" << PlayerIO::playerToString(node.nextPla) << "(" << (node.nextPla == perspectiveToUse ? "^" : "v") << ")---" << endl;
   }
 
@@ -1364,10 +1373,13 @@ void Search::printTreeHelper(
   }
 
   int numChildrenToRecurseOn = numChildren;
-  if(options.maxChildrenToShow_ < numChildrenToRecurseOn)
-    numChildrenToRecurseOn = options.maxChildrenToShow_;
-  if(lastIdxWithEnoughVisits+1 < numChildrenToRecurseOn)
-    numChildrenToRecurseOn = lastIdxWithEnoughVisits+1;
+  //A child shown only due to showAllRootChildren_ is still not expanded if below minVisitsToExpand_.
+  if(!(options.showAllRootChildren_ && isDisplayRoot)) {
+    if(options.maxChildrenToShow_ < numChildrenToRecurseOn)
+      numChildrenToRecurseOn = options.maxChildrenToShow_;
+    if(lastIdxWithEnoughVisits+1 < numChildrenToRecurseOn)
+      numChildrenToRecurseOn = lastIdxWithEnoughVisits+1;
+  }
 
 
   for(int i = 0; i<numChildren; i++) {
@@ -1390,10 +1402,12 @@ void Search::printTreeHelper(
       int nextDepth = depth+1;
       if(depth < options.branch_.size() && moveLoc != options.branch_[depth])
         nextDepth = (int)options.branch_.size() + 1;
-      printTreeHelper(out,child,options,prefix,origVisits,nextDepth,analysisData[i], perspective);
+      printTreeHelper(out,child,options,prefix,origVisits,nextDepth,analysisData[i], perspective, graphPath);
       prefix.erase(oldLen);
     }
   }
+
+  graphPath.erase(&node);
 }
 
 

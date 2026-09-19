@@ -7,11 +7,17 @@
 #include "../core/rand.h"
 #include "../dataio/sgf.h"
 #include "../search/asyncbot.h"
+#include "../search/searchprint.h"
 
 //Some bits of initialization and main function logic shared between various programs
 namespace Setup {
 
   void initializeSession(ConfigParser& cfg);
+
+  //How much of the search tree gets written to the log after each move when logSearchInfo is enabled.
+  //The default is one level deep, showing the ten best moves. Loading reads the "logTree*" config keys.
+  PrintTreeOptions defaultLogSearchTreeOptions();
+  PrintTreeOptions loadLogSearchTreeOptions(ConfigParser& cfg);
 
   enum setup_for_t {
     SETUP_FOR_GTP,

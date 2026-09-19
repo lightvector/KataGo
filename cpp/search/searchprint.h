@@ -12,6 +12,8 @@ struct PrintTreeOptions {
   PrintTreeOptions minVisitsToExpand(int64_t) const;
   PrintTreeOptions minVisitsPropToShow(double) const;
   PrintTreeOptions minVisitsPropToExpand(double) const;
+  PrintTreeOptions maxPVDepth(int) const;
+  PrintTreeOptions showAllRootChildren(bool) const;
   PrintTreeOptions printSqs(bool) const;
   PrintTreeOptions printAvgShorttermError(bool) const;
   PrintTreeOptions onlyBranch(const Board& board, const std::string& moves) const;
@@ -24,6 +26,8 @@ struct PrintTreeOptions {
   double minVisitsPropToShow_;
   double minVisitsPropToExpand_;
   int maxPVDepth_;
+  //Print every child at the top of the printed tree, ignoring maxChildrenToShow_ and the minimum visits to show.
+  bool showAllRootChildren_;
   bool printRawNN_;
   bool printSqs_;
   bool printAvgShorttermError_;
@@ -39,6 +43,7 @@ inline PrintTreeOptions::PrintTreeOptions()
    minVisitsPropToShow_(0.0),
    minVisitsPropToExpand_(0.0),
    maxPVDepth_(7),
+   showAllRootChildren_(false),
    printRawNN_(false),
    printSqs_(false),
    printAvgShorttermError_(false),
@@ -52,6 +57,8 @@ inline PrintTreeOptions PrintTreeOptions::minVisitsToShow(int64_t v) const { Pri
 inline PrintTreeOptions PrintTreeOptions::minVisitsToExpand(int64_t v) const { PrintTreeOptions other = *this; other.minVisitsToExpand_ = v; return other;}
 inline PrintTreeOptions PrintTreeOptions::minVisitsPropToShow(double p) const { PrintTreeOptions other = *this; other.minVisitsPropToShow_ = p; return other;}
 inline PrintTreeOptions PrintTreeOptions::minVisitsPropToExpand(double p) const { PrintTreeOptions other = *this; other.minVisitsPropToExpand_ = p; return other;}
+inline PrintTreeOptions PrintTreeOptions::maxPVDepth(int d) const { PrintTreeOptions other = *this; other.maxPVDepth_ = d; return other;}
+inline PrintTreeOptions PrintTreeOptions::showAllRootChildren(bool b) const { PrintTreeOptions other = *this; other.showAllRootChildren_ = b; return other;}
 inline PrintTreeOptions PrintTreeOptions::printSqs(bool b) const { PrintTreeOptions other = *this; other.printSqs_ = b; return other;}
 inline PrintTreeOptions PrintTreeOptions::printAvgShorttermError(bool b) const { PrintTreeOptions other = *this; other.printAvgShorttermError_ = b; return other;}
 inline PrintTreeOptions PrintTreeOptions::onlyBranch(const Board& board, const std::string& moves) const {
