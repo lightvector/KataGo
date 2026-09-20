@@ -203,6 +203,24 @@ NNEvaluator* TestSearchCommon::startNNEval(
   const string& modelName = modelFile;
   const string homeDataDirOverride = "";
   ConfigParser cfg;
+#if defined(USE_EIGEN_BACKEND)
+  //The Eigen backend only implements the NHWC float32 path and hard-errors on anything else
+  //(see eigenbackend.cpp), but the tests and the runsearchtests*.sh scripts are written for the
+  //GPU backends and pass NCHW and/or FP16. Normalize here, at the one choke point every NN test
+  //goes through, rather than fixing up each call site.
+  if(!inputsUseNHWC) {
+    std::cout << "Backend is Eigen, ignoring args and forcing inputsUseNHWC=true" << std::endl;
+    inputsUseNHWC = true;
+  }
+  if(!useNHWC) {
+    std::cout << "Backend is Eigen, ignoring args and forcing useNHWC=true" << std::endl;
+    useNHWC = true;
+  }
+  if(useFP16) {
+    std::cout << "Backend is Eigen, ignoring args and forcing useFP16=false" << std::endl;
+    useFP16 = false;
+  }
+#endif
   //NHWC layout is no longer a generic NNEvaluator option; only the CUDA backend reads it (off cfg).
   //Route the test's useNHWC param into a cudaUseNHWC override so it still drives the CUDA layout.
   cfg.overrideKey("cudaUseNHWC", useNHWC ? "true" : "false");

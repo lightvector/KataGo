@@ -1980,7 +1980,9 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "C
     # For ARM architecture, as a hack, ensure that char is signed
     message(STATUS "ARM architecture detected: adding -fsigned-char flag")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsigned-char")
-  else()
+  elseif(${CMAKE_SYSTEM_PROCESSOR} MATCHES "(x86_64|amd64|AMD64|i386|i486|i586|i686|x86)")
+    # -mfpmath=sse only exists on x86, so non-x86 ISAs (loongarch64, riscv64, ppc64le, mips64,
+    # ...) must not get it - they hard-error with "unrecognized command-line option".
     # KataGo wants IEEE-compliant float math.
     # On x86-64 SSE-based IEEE float math is already the ABI default (x87 excess precision cannot occur),
     # but mandate it explicitly anyway.
