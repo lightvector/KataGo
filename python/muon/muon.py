@@ -40,6 +40,11 @@ def floored_weight_decay_(w: torch.Tensor, a: float, floor_norm: float):
     fp32 and the only temporaries are three vectors of length w.shape[0]. Rows at or below the
     floor are scaled by exactly 1, and the divisor is never below floor_norm, so an all-zero row
     causes no division by zero.
+
+    This standalone multiply is the reference definition of the decay. The optimizers below do not
+    call it. They fold the same per-channel decay into the parameter update instead, see
+    _apply_updates_with_weight_decay, because a standalone multiply of fp32 weights by a factor
+    within about 3e-8 of 1 rounds to no change at all.
     """
     if w.dim() < 2 or floor_norm <= 0.0:
         w.mul_(1.0 - a)
@@ -498,33 +503,59 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                 raise ValueError("Weight decay floor given for a tensor that is not an optimizer parameter")
         self.weight_decay_floor_norms = {p: float(f) for p, f in floor_norms.items() if float(f) > 0.0}
 
-    def _apply_weight_decay(self, params, a):
-        """Multiply each parameter by (1 - a), honoring any registered per-output-channel floors.
-        Same arithmetic as floored_weight_decay_ for the floored parameters, but the per-channel
-        scale vectors of all of them are computed with multi-tensor kernels, so the per-tensor
-        launches are only the row norm and the final broadcast multiply."""
-        if a == 0.0:
+    def _apply_updates_with_weight_decay(self, params, updates, lr, weight_decay):
+        """Apply p -= lr * (update + d * p) to each parameter, where d is weight_decay for a plain
+        parameter and weight_decay * max(0, r - floor) / r per output channel of norm r for a
+        parameter with a registered floor. This is the same decay as floored_weight_decay_ with
+        a = lr * weight_decay, folded into the update before the single add to the parameter.
+
+        The decay is folded in rather than applied as a separate multiply because the parameters
+        are fp32. A separate multiply by (1 - a) is quantized to the fp32 spacing below 1.0, about
+        6e-8, so it does nothing when a is below about 3e-8 and is off by tens of percent for a
+        up to about 1e-7, which is where a = lr * weight_decay lands at the low end of the learning
+        rate schedule and during warmup. Added to an update that is much larger than the fp32
+        spacing of the parameter, the decay term survives rounding in expectation. It is still
+        lost for an element whose update is zero, since nothing then separates the rounded sum
+        from the parameter itself. The expectation argument also assumes the update values are
+        spread evenly between fp32 grid points of the parameter. A Muon update is a bf16 value
+        times a scale, so its values lie on a coarse comb, and the realized decay is biased by an
+        amount that depends on the learning rate, about 1 percent at a = 1e-8 and larger still
+        for smaller a, where the decay is in any case negligible.
+
+        The per-channel factors of all floored parameters are computed with multi-tensor kernels,
+        so the per-tensor launches are only the row norm and the broadcast multiply-add. The
+        updates are consumed and may be modified in place. An update whose dtype differs from its
+        parameter is converted first, so the decay term is never rounded to a narrower dtype.
+        """
+        if len(params) == 0:
             return
-        if len(self.weight_decay_floor_norms) == 0:
-            torch._foreach_mul_(params, 1.0 - a)
-            return
-        floored = [p for p in params if p.dim() >= 2 and p in self.weight_decay_floor_norms]
-        plain = [p for p in params if not (p.dim() >= 2 and p in self.weight_decay_floor_norms)]
-        if len(plain) > 0:
-            torch._foreach_mul_(plain, 1.0 - a)
-        if len(floored) == 0:
-            return
-        floors = [self.weight_decay_floor_norms[p] for p in floored]
-        norms = [torch.linalg.vector_norm(p, dim=tuple(range(1, p.dim())), dtype=torch.float32) for p in floored]
-        scales = torch._foreach_sub(norms, floors)
-        torch._foreach_clamp_min_(scales, 0.0)
-        torch._foreach_clamp_min_(norms, floors)
-        torch._foreach_div_(scales, norms)
-        torch._foreach_mul_(scales, -a)
-        torch._foreach_add_(scales, 1.0)
-        torch._foreach_mul_(floored, [
-            s.to(p.dtype).view(-1, *([1] * (p.dim() - 1))) for s, p in zip(scales, floored)
-        ])
+        updates = [u if u.dtype == p.dtype else u.to(p.dtype) for p, u in zip(params, updates)]
+        if weight_decay != 0.0:
+            if len(self.weight_decay_floor_norms) == 0:
+                torch._foreach_add_(updates, params, alpha=weight_decay)
+            else:
+                is_floored = [p.dim() >= 2 and p in self.weight_decay_floor_norms for p in params]
+                plain_params = [p for p, f in zip(params, is_floored) if not f]
+                plain_updates = [u for u, f in zip(updates, is_floored) if not f]
+                floored_params = [p for p, f in zip(params, is_floored) if f]
+                floored_updates = [u for u, f in zip(updates, is_floored) if f]
+                if len(plain_params) > 0:
+                    torch._foreach_add_(plain_updates, plain_params, alpha=weight_decay)
+                if len(floored_params) > 0:
+                    floors = [self.weight_decay_floor_norms[p] for p in floored_params]
+                    norms = [
+                        torch.linalg.vector_norm(p, dim=tuple(range(1, p.dim())), dtype=torch.float32)
+                        for p in floored_params
+                    ]
+                    fractions = torch._foreach_sub(norms, floors)
+                    torch._foreach_clamp_min_(fractions, 0.0)
+                    torch._foreach_clamp_min_(norms, floors)
+                    torch._foreach_div_(fractions, norms)
+                    torch._foreach_mul_(fractions, weight_decay)
+                    torch._foreach_addcmul_(floored_updates, floored_params, [
+                        f.to(p.dtype).view(-1, *([1] * (p.dim() - 1))) for f, p in zip(fractions, floored_params)
+                    ])
+        torch._foreach_add_(params, updates, alpha=-lr)
 
     def _ensure_muon_state(self, p):
         if p.grad is None:
@@ -557,8 +588,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                 normuon_beta2=self.normuon_beta2, normuon_eps=self.normuon_eps,
                 use_polar_express=self.use_polar_express,
             )
-        self._apply_weight_decay([p], group["lr"] * group["weight_decay"])
-        p.add_(update.reshape(p.shape), alpha=-group["lr"])
+        self._apply_updates_with_weight_decay([p], [update.reshape(p.shape)], group["lr"], group["weight_decay"])
 
     def _update_scale(self, matrix_shape):
         """The match_rms_adamw scale for an orthogonalized update of the given 2D shape."""
@@ -568,8 +598,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
     def _apply_muon_updates(self, group, params, updates, chunk_size=64):
         """Apply weight decay and the scaled update for `params` given their bf16 orthogonalized
         `updates` (same shapes as the params), matching the arithmetic of _step_muon_params_batched:
-        scaled = update.to(p.dtype) * scale; p *= (1 - lr*wd), with per-output-channel floors
-        if any are set; p -= lr * scaled.
+        scaled = update.to(p.dtype) * scale, then _apply_updates_with_weight_decay.
 
         Every rank applies this to every Muon parameter, so group["lr"], group["weight_decay"] and
         the weight decay floors must be identical on all ranks for the parameters to stay
@@ -584,8 +613,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
             for p, update in zip(chunk_params, updates[start:start + chunk_size]):
                 matrix_shape = (len(p), p.numel() // len(p)) if p.ndim == 4 else tuple(p.shape)
                 scaled.append(update.to(p.dtype) * self._update_scale(matrix_shape))
-            self._apply_weight_decay(chunk_params, group["lr"] * group["weight_decay"])
-            torch._foreach_add_(chunk_params, scaled, alpha=-group["lr"])
+            self._apply_updates_with_weight_decay(chunk_params, scaled, group["lr"], group["weight_decay"])
 
     def _step_muon_params_batched(self, group, param_indices, deferred_updates=None):
         """Same equations as the scalar path, but Newton-Schulz iterations for
@@ -684,9 +712,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                     apply_params.append(p)
                     apply_updates.append(update.reshape(p.shape).to(p.dtype))
 
-        if len(apply_params) > 0:
-            self._apply_weight_decay(apply_params, group["lr"] * group["weight_decay"])
-            torch._foreach_add_(apply_params, apply_updates, alpha=-group["lr"])
+        self._apply_updates_with_weight_decay(apply_params, apply_updates, group["lr"], group["weight_decay"])
 
     def _step_muon_group(self, group, param_indices):
         if self.use_batched_muon_ns:
@@ -715,8 +741,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
             state["step"] += 1
             update = adam_update(p.grad, state["exp_avg"], state["exp_avg_sq"],
                                  state["step"], group["betas"], group["eps"])
-            self._apply_weight_decay([p], group["lr"] * group["weight_decay"])
-            p.add_(update, alpha=-group["lr"])
+            self._apply_updates_with_weight_decay([p], [update], group["lr"], group["weight_decay"])
 
     def _step_adam_group_foreach(self, group):
         """Update an auxiliary Adam group with one multi-tensor launch per operation.
@@ -744,8 +769,11 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
             torch._foreach_add_(denominators, group["eps"])
             updates = torch._foreach_div(exp_avgs, denominators)
 
-            self._apply_weight_decay(params, adam_lr * group["weight_decay"])
-            torch._foreach_add_(params, updates, alpha=-adam_lr / bias_correction1)
+            # The bias correction is applied through the step size, so the weight decay is scaled
+            # up by the same factor to keep the decay per step at adam_lr * weight_decay.
+            self._apply_updates_with_weight_decay(
+                params, updates, adam_lr / bias_correction1, group["weight_decay"] * bias_correction1
+            )
 
 
 class MuonWithAuxAdam(_MuonWithAuxAdamBase):
