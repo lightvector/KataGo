@@ -2621,6 +2621,196 @@ x.x.x
 
   {
     cout << "===================================================================" << endl;
+    cout << "Visit cap contempt" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+..x..o...
+.........
+..x...o..
+...o.....
+..o.x.x..
+.........
+.........
+)%%");
+
+    //Check that exactly the capped nodes that reached the cap have a snapshot, and that their child weight distribution
+    //matches it. Relies on this test net giving every visit the same weight. Multithreading and virtual losses can
+    //make the distribution overshoot, so the tolerance is looser then.
+    //Returns the number of snapshot nodes well past the cap.
+    auto checkTree = [&](Search* search, Player cappedPla, int64_t visitCap, int numThreads) {
+      testAssert(search->getVisitCap(P_BLACK) == (cappedPla == P_BLACK ? visitCap : 0));
+      testAssert(search->getVisitCap(P_WHITE) == (cappedPla == P_WHITE ? visitCap : 0));
+      vector<SearchNode*> nodes = search->enumerateTreePostOrder();
+      int numNodesWellPastCap = 0;
+      for(SearchNode* node: nodes) {
+        int64_t visits = node->stats.visits.load(std::memory_order_acquire);
+        const VisitCapSnapshot* snapshot = node->visitCapSnapshot.load(std::memory_order_acquire);
+        if(cappedPla == C_EMPTY || node->nextPla != cappedPla || visits < visitCap) {
+          testAssert(snapshot == NULL);
+          continue;
+        }
+        testAssert(snapshot != NULL);
+        if(visits >= 3 * visitCap)
+          numNodesWellPastCap++;
+
+        ConstSearchNodeChildrenReference children = node->getChildren();
+        int childrenCapacity = children.getCapacity();
+        double totalWeight = 0.0;
+        double totalFrac = 0.0;
+        int numChildren = 0;
+        for(int i = 0; i<childrenCapacity; i++) {
+          const SearchNode* child = children[i].getIfAllocated();
+          if(child == NULL)
+            break;
+          numChildren++;
+          totalWeight += child->stats.getChildWeight(children[i].getEdgeVisits());
+          totalFrac += snapshot->getWeightFrac(search->getPos(children[i].getMoveLoc()));
+        }
+        testAssert(std::fabs(totalFrac - 1.0) < 1e-6);
+        double weightPerVisit = totalWeight / (double)std::max((int64_t)1, visits - 1);
+        double tolerance;
+        if(numThreads == 1)
+          tolerance = 1.0 * weightPerVisit + 1e-6;
+        else
+          tolerance = (numThreads * search->searchParams.numVirtualLossesPerThread + 2.0) * weightPerVisit;
+        for(int i = 0; i<numChildren; i++) {
+          const SearchNode* child = children[i].getIfAllocated();
+          int64_t edgeVisits = children[i].getEdgeVisits();
+          double childWeight = child->stats.getChildWeight(edgeVisits);
+          double frac = snapshot->getWeightFrac(search->getPos(children[i].getMoveLoc()));
+          //With one thread, the snapshot is taken at exactly cap-1 edge visits.
+          if(numThreads == 1) {
+            double edgeVisitsAtSnapshot = frac * (double)(visitCap - 1);
+            testAssert(std::fabs(edgeVisitsAtSnapshot - std::round(edgeVisitsAtSnapshot)) < 1e-6);
+          }
+          //A child with no share may only have visits that were in flight when the snapshot was taken.
+          if(frac <= 0.0)
+            testAssert(edgeVisits <= numThreads);
+          testAssert(std::fabs(childWeight - frac * totalWeight) <= tolerance);
+        }
+      }
+      return numNodesWellPastCap;
+    };
+
+    auto runTest = [&](int numThreads) {
+      cout << "Threads: " << numThreads << endl;
+      SearchParams params;
+      params.maxVisits = 1500;
+      params.maxVisitsPondering = 1500;
+      params.numThreads = numThreads;
+      params.visitCapContempt = 20;
+      Search* search = new Search(params, nnEval, &logger, "visitCapContemptSeed" + Global::intToString(numThreads));
+      Player nextPla = P_BLACK;
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
+      search->setPosition(nextPla,board,hist);
+
+      //Visits of the chosen root child just before the move was made.
+      int64_t chosenChildVisits = 0;
+      auto playChosenMove = [&](Player pla) {
+        Loc loc = search->getChosenMoveLoc();
+        testAssert(loc != Board::NULL_LOC);
+        const SearchNode* child = search->getChildForMove(search->getRootNode(), loc);
+        testAssert(child != NULL);
+        chosenChildVisits = child->stats.visits.load(std::memory_order_acquire);
+        testAssert(chosenChildVisits >= 2);
+        testAssert(search->makeMove(loc,pla));
+      };
+      //A kept tree starts with the chosen child's visits, so needs that many fewer playouts, up to one per thread.
+      auto treeWasKept = [&]() {
+        return search->lastSearchNumPlayouts <= params.maxVisits - chosenChildVisits + numThreads - 1;
+      };
+      auto treeWasCleared = [&]() {
+        return search->lastSearchNumPlayouts >= params.maxVisits;
+      };
+
+      int numNodesWellPastCap = 0;
+
+      //Search for black, so white is capped.
+      search->runWholeSearch(P_BLACK);
+      numNodesWellPastCap += checkTree(search, P_WHITE, 20, numThreads);
+
+      //Ponder on white's turn. The search is still for black, so white stays capped.
+      playChosenMove(P_BLACK);
+      search->runWholeSearch(P_WHITE,true);
+      cout << "Tree kept when pondering with the capped player to move: " << treeWasKept() << endl;
+      numNodesWellPastCap += checkTree(search, P_WHITE, 20, numThreads);
+
+      //Back to searching for black, same caps.
+      playChosenMove(P_WHITE);
+      search->runWholeSearch(P_BLACK);
+      cout << "Tree kept when searching for the uncapped player again: " << treeWasKept() << endl;
+      numNodesWellPastCap += checkTree(search, P_WHITE, 20, numThreads);
+
+      //Explicitly cap black instead.
+      params.visitCapContemptPla = P_BLACK;
+      search->setParamsNoClearing(params);
+      playChosenMove(P_BLACK);
+      search->runWholeSearch(P_WHITE);
+      cout << "Tree cleared when the capped player changes: " << treeWasCleared() << endl;
+      numNodesWellPastCap += checkTree(search, P_BLACK, 20, numThreads);
+
+      //Searching for black keeps black capped when set explicitly.
+      playChosenMove(P_WHITE);
+      search->runWholeSearch(P_BLACK);
+      cout << "Tree kept when searching for the capped player with visitCapContemptPla set: " << treeWasKept() << endl;
+      numNodesWellPastCap += checkTree(search, P_BLACK, 20, numThreads);
+
+      //Changing the cap clears the tree.
+      params.visitCapContempt = 40;
+      search->setParamsNoClearing(params);
+      playChosenMove(P_BLACK);
+      search->runWholeSearch(P_WHITE);
+      cout << "Tree cleared when the cap changes: " << treeWasCleared() << endl;
+      numNodesWellPastCap += checkTree(search, P_BLACK, 40, numThreads);
+
+      //Disabling the cap clears the tree.
+      params.visitCapContempt = 0;
+      search->setParamsNoClearing(params);
+      playChosenMove(P_WHITE);
+      search->runWholeSearch(P_BLACK);
+      cout << "Tree cleared when the cap is disabled: " << treeWasCleared() << endl;
+      checkTree(search, C_EMPTY, 0, numThreads);
+
+      //Enabling it again clears the tree.
+      params.visitCapContempt = 20;
+      params.visitCapContemptPla = C_EMPTY;
+      search->setParamsNoClearing(params);
+      playChosenMove(P_BLACK);
+      search->runWholeSearch(P_WHITE);
+      cout << "Tree cleared when the cap is enabled: " << treeWasCleared() << endl;
+      numNodesWellPastCap += checkTree(search, P_BLACK, 20, numThreads);
+
+      cout << "Found enough capped nodes well past the cap to exercise the snapshot matching: " << (numNodesWellPastCap >= 10) << endl;
+
+      //A cap of 1 is rejected.
+      params.visitCapContempt = 1;
+      search->setParamsNoClearing(params);
+      bool threw = false;
+      try {
+        search->runWholeSearch(P_WHITE);
+      }
+      catch(const StringError& e) {
+        (void)e;
+        threw = true;
+      }
+      cout << "Cap of 1 is rejected: " << threw << endl;
+
+      delete search;
+    };
+    runTest(1);
+    runTest(4);
+
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Board size distribution" << endl;
     cout << "===================================================================" << endl;
     ConfigParser cfg;

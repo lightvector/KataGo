@@ -21891,6 +21891,8 @@ alwaysComputePassAliveUnderSuicideRules: auto
 excludeTerritoryAdjacentToAtari: auto
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
+visitCapContempt: 0
+visitCapContemptPla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
@@ -22002,6 +22004,8 @@ alwaysComputePassAliveUnderSuicideRules: auto
 excludeTerritoryAdjacentToAtari: auto
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
+visitCapContempt: 0
+visitCapContemptPla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
@@ -22113,6 +22117,8 @@ alwaysComputePassAliveUnderSuicideRules: auto
 excludeTerritoryAdjacentToAtari: auto
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
+visitCapContempt: 0
+visitCapContemptPla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
@@ -22224,6 +22230,8 @@ alwaysComputePassAliveUnderSuicideRules: auto
 excludeTerritoryAdjacentToAtari: auto
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
+visitCapContempt: 0
+visitCapContemptPla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
@@ -22335,6 +22343,8 @@ alwaysComputePassAliveUnderSuicideRules: auto
 excludeTerritoryAdjacentToAtari: auto
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
+visitCapContempt: 0
+visitCapContemptPla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
@@ -22446,6 +22456,8 @@ alwaysComputePassAliveUnderSuicideRules: auto
 excludeTerritoryAdjacentToAtari: auto
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
+visitCapContempt: 0
+visitCapContemptPla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
@@ -22557,6 +22569,8 @@ alwaysComputePassAliveUnderSuicideRules: auto
 excludeTerritoryAdjacentToAtari: auto
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
+visitCapContempt: 0
+visitCapContemptPla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
@@ -22668,6 +22682,8 @@ alwaysComputePassAliveUnderSuicideRules: auto
 excludeTerritoryAdjacentToAtari: auto
 playoutDoublingAdvantage: 0
 playoutDoublingAdvantagePla: 0
+visitCapContempt: 0
+visitCapContemptPla: 0
 avoidRepeatedPatternUtility: 0
 nnPolicyTemperature: 1
 antiMirror: 0
@@ -22722,6 +22738,32 @@ Differing params hash differ: 1
 After search A: A-slot populated, B-slot empty: 1
 After search B: B-slot populated, A-slot unchanged, distinct slots: 1
 After search A2 (identical to A): reuses A's slot: 1
+: GPU 0 finishing, processed 0 rows 0 batches
+
+===================================================================
+Visit cap contempt
+===================================================================
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
+Threads: 1
+Tree kept when pondering with the capped player to move: 1
+Tree kept when searching for the uncapped player again: 1
+Tree cleared when the capped player changes: 1
+Tree kept when searching for the capped player with visitCapContemptPla set: 1
+Tree cleared when the cap changes: 1
+Tree cleared when the cap is disabled: 1
+Tree cleared when the cap is enabled: 1
+Found enough capped nodes well past the cap to exercise the snapshot matching: 1
+Cap of 1 is rejected: 1
+Threads: 4
+Tree kept when pondering with the capped player to move: 1
+Tree kept when searching for the uncapped player again: 1
+Tree cleared when the capped player changes: 1
+Tree kept when searching for the capped player with visitCapContemptPla set: 1
+Tree cleared when the cap changes: 1
+Tree cleared when the cap is disabled: 1
+Tree cleared when the cap is enabled: 1
+Found enough capped nodes well past the cap to exercise the snapshot matching: 1
+Cap of 1 is rejected: 1
 : GPU 0 finishing, processed 0 rows 0 batches
 
 ===================================================================

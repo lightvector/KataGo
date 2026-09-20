@@ -709,6 +709,7 @@ vector<double> PlayUtils::computeOwnership(
   SearchParams newParams = getNoiselessParams(oldParams,numVisits);
   newParams.playoutDoublingAdvantagePla = C_EMPTY;
   newParams.playoutDoublingAdvantage = 0.0;
+  newParams.visitCapContempt = 0;
   //Make sure the search is always from a state where the game isn't believed to end with another pass
   newParams.conservativePass = true;
 
@@ -1039,6 +1040,9 @@ void PlayUtils::printGenmoveLog(
     out << "PlayoutDoublingAdvantage: " << (
       search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
       -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
+  if(search->searchParams.visitCapContempt > 0)
+    out << "VisitCapContempt: " << search->searchParams.visitCapContempt
+        << " (capped player " << PlayerIO::playerToString(search->getVisitCappedPla()) << ")" << endl;
   out << "PV: ";
   search->printPV(out, search->rootNode, 25);
   out << "\n";
@@ -1199,6 +1203,7 @@ Loc PlayUtils::maybeFriendlyPass(
     SearchParams newParams = getNoiselessParams(oldParams,numVisits);
     newParams.playoutDoublingAdvantagePla = C_EMPTY;
     newParams.playoutDoublingAdvantage = 0.0;
+    newParams.visitCapContempt = 0;
     //Conservative pass makes sure we evaluate the opponent's turn as one in which the game is neither finished nor the opponent
     //will be able to end the game via passing.
     newParams.conservativePass = true;

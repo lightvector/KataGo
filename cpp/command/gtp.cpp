@@ -1441,11 +1441,12 @@ struct GTPEngine {
   void computeAnticipatedWinnerAndScore(Player& winner, double& finalWhiteMinusBlackScore) {
     stopAndWait();
 
-    //No playoutDoublingAdvantage to avoid bias
+    //No playoutDoublingAdvantage or visitCapContempt to avoid bias
     //Also never assume the game will end abruptly due to pass
     {
       SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
+      tmpParams.visitCapContempt = 0;
       tmpParams.conservativePass = true;
       tmpParams.humanSLChosenMoveProp = 0.0;
       tmpParams.humanSLRootExploreProbWeightful = 0.0;
@@ -1503,11 +1504,12 @@ struct GTPEngine {
   vector<bool> computeAnticipatedStatuses() {
     stopAndWait();
 
-    //No playoutDoublingAdvantage to avoid bias
+    //No playoutDoublingAdvantage or visitCapContempt to avoid bias
     //Also never assume the game will end abruptly due to pass
     {
       SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
+      tmpParams.visitCapContempt = 0;
       tmpParams.conservativePass = true;
       tmpParams.humanSLChosenMoveProp = 0.0;
       tmpParams.humanSLRootExploreProbWeightful = 0.0;

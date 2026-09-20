@@ -729,6 +729,17 @@ vector<SearchParams> Setup::loadParams(
     else if(cfg.contains("playoutDoublingAdvantagePla"))   params.playoutDoublingAdvantagePla = parsePlayer("playoutDoublingAdvantagePla",cfg.getString("playoutDoublingAdvantagePla"));
     else                                                   params.playoutDoublingAdvantagePla = C_EMPTY;
 
+    {
+      const string key = cfg.contains("visitCapContempt"+idxStr) ? "visitCapContempt"+idxStr : "visitCapContempt";
+      if(cfg.contains(key)) params.visitCapContempt = cfg.getInt64(key, (int64_t)0, (int64_t)1 << 50);
+      else                  params.visitCapContempt = 0;
+      if(params.visitCapContempt == 1)
+        throw StringError(key + " must be 0 or at least 2");
+    }
+    if(cfg.contains("visitCapContemptPla"+idxStr)) params.visitCapContemptPla = parsePlayer("visitCapContemptPla",cfg.getString("visitCapContemptPla"+idxStr));
+    else if(cfg.contains("visitCapContemptPla"))   params.visitCapContemptPla = parsePlayer("visitCapContemptPla",cfg.getString("visitCapContemptPla"));
+    else                                           params.visitCapContemptPla = C_EMPTY;
+
     if(cfg.contains("avoidRepeatedPatternUtility"+idxStr)) params.avoidRepeatedPatternUtility = cfg.getDouble("avoidRepeatedPatternUtility"+idxStr, -3.0, 3.0);
     else if(cfg.contains("avoidRepeatedPatternUtility"))   params.avoidRepeatedPatternUtility = cfg.getDouble("avoidRepeatedPatternUtility", -3.0, 3.0);
     else                                                   params.avoidRepeatedPatternUtility = 0.0;
