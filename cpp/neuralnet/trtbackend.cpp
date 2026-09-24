@@ -14,6 +14,7 @@
 #include <atomic>
 #include <cstdint>
 #include <fstream>
+#include <mutex>
 #include <random>
 #include <set>
 
@@ -32,6 +33,12 @@
 using namespace std;
 using namespace nvinfer1;
 
+// TensorRT 10.16 has been observed to fail nondeterministically when handles for different GPU
+// architectures are initialized concurrently, including "invalid device kernel image" failures.
+// Serialize the complete handle initialization so builder/resource lifetimes and engine
+// deserialization do not overlap across devices. Inference remains fully concurrent afterward.
+static mutex trtInitializationMutex;
+
 // Define this to print out some of the intermediate values of the neural net
 //#define DEBUG_INTERMEDIATE_VALUES
 
@@ -48,8 +55,8 @@ static void checkCudaError(const cudaError_t status, const char* opName, const c
 // old file or the complete new one, never a torn/truncated write from a crash or a racing process.
 static void writeFileAtomically(const string& path, const char* data, size_t size) {
   // Unique temp suffix: a per-process random base (distinct across racing processes) plus a
-  // monotonic counter (distinct across calls within a process). Both writes here hold tuneMutex, but
-  // the random base keeps two processes from picking the same temp name.
+  // monotonic counter (distinct across calls within a process). Calls here hold the TensorRT
+  // initialization mutex, but the random base keeps two processes from picking the same temp name.
   static const uint64_t randBase = std::random_device{}();
   static std::atomic<uint64_t> counter{0};
   string tmpPath = Global::strprintf(
@@ -1448,12 +1455,6 @@ struct ComputeHandle {
 
     string plan;
     {
-      static mutex tuneMutex;
-      // TensorRT 10.16 has been observed to segfault when builders on different devices call
-      // buildSerializedNetwork concurrently, particularly with timing-cache hits. Keep both cache
-      // access and engine building serialized, and use RAII so exceptions cannot leave the mutex held.
-      lock_guard<mutex> tuneLock(tuneMutex);
-
       auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
       cacheDir += "/trtcache";
       MakeDir::make(cacheDir);
@@ -1815,6 +1816,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
   if(inputsUseNHWC) {
     throw StringError("TensorRT backend: inputsUseNHWC = false required, other configurations not supported");
   }
+
+  // Keep device selection and all TensorRT initialization for this handle under one process-wide
+  // lock. RAII releases the lock if initialization throws.
+  lock_guard<mutex> initializationLock(trtInitializationMutex);
 
   // Use whatever CUDA believes GPU 0 to be.
   if(gpuIdxForThisThread == -1)
