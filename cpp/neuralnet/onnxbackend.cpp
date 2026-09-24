@@ -194,6 +194,32 @@ struct ComputeContext {
 
 static std::vector<std::string> parseDeviceNames(const std::string& deviceType);
 
+//--------------------------------------------------------------
+// Helper: is an OpenVINO device_type string usable on this machine?
+//
+// AppendExecutionProvider_OpenVINO_V2 validates device_type as soon as it is called and throws
+// "[OpenVINO] Device X is not available" for anything the installed plugins cannot provide, so a
+// throwaway SessionOptions is enough to probe. No model, session or inference is involved and the
+// call costs a plugin lookup, which is why this can run unconditionally at context creation.
+//
+// ONNX Runtime's own device enumeration (Ort::Env::GetEpDevices, OrtHardwareDeviceType) is
+// deliberately not used here: on a provider-bridge OpenVINO build it reports the CPU only, even on
+// a machine that does have an NPU and an integrated GPU, so it would steer exactly the setups this
+// is meant to help onto the slowest device available.
+//--------------------------------------------------------------
+static bool openvinoDeviceAvailable(const string& deviceType) {
+  try {
+    Ort::SessionOptions probeOpts;
+    std::unordered_map<std::string, std::string> probeEpOpts;
+    probeEpOpts["device_type"] = deviceType;
+    probeOpts.AppendExecutionProvider_OpenVINO_V2(probeEpOpts);
+    return true;
+  }
+  catch(const std::exception&) {
+    return false;
+  }
+}
+
 ComputeContext* NeuralNet::createComputeContext(
   const std::vector<int>& gpuIdxs,
   Logger* logger,
@@ -224,7 +250,29 @@ ComputeContext* NeuralNet::createComputeContext(
   ctx->providerName = getRequiredProviderLowercase(cfg);
 
   // OpenVINO EP options.
-  ctx->openvinoDeviceType = cfg.contains("onnxOpenVINODeviceType") ? cfg.getString("onnxOpenVINODeviceType") : "GPU";
+  // Device selection. An explicit onnxOpenVINODeviceType is always honored as-is, including when
+  // the device turns out not to exist: silently running somewhere other than where the user asked
+  // would be worse than the EP's "Device X is not available" error.
+  //
+  // When the key is absent, probe for a device instead of assuming one. NPU first, then GPU: on the
+  // Intel parts this backend targets the NPU is both the faster and the more power-efficient of the
+  // two for KataGo's trunk, and a machine that has one almost always wants it. CPU is not a
+  // candidate, since the OpenVINO provider rejects CPU-only device strings below.
+  if(cfg.contains("onnxOpenVINODeviceType")) {
+    ctx->openvinoDeviceType = cfg.getString("onnxOpenVINODeviceType");
+  }
+  else if(ctx->providerName == "openvino") {
+    static const char* const candidates[] = {"NPU", "GPU"};
+    for(const char* cand : candidates) {
+      if(openvinoDeviceAvailable(cand)) {
+        ctx->openvinoDeviceType = cand;
+        break;
+      }
+    }
+    if(logger != NULL)
+      logger->write(
+        string("ONNX backend: onnxOpenVINODeviceType not set, auto-selected '") + ctx->openvinoDeviceType + "'");
+  }
   ctx->openvinoCacheDir = cfg.contains("onnxOpenVINOCacheDir") ? cfg.getString("onnxOpenVINOCacheDir") : "";
   ctx->openvinoPrecision = cfg.contains("onnxOpenVINOPrecision") ? cfg.getString("onnxOpenVINOPrecision") : "";
   ctx->openvinoNumStreams = cfg.contains("onnxOpenVINONumStreams") ? cfg.getString("onnxOpenVINONumStreams") : "";
@@ -240,25 +288,6 @@ ComputeContext* NeuralNet::createComputeContext(
       logger->write("ONNX backend: useFP16 = false, forcing OpenVINO precision = FP32");
   }
 
-  // Trunk layout for transformer models. Default NHWC (channel-last), matching the TensorRT
-  // backend's trtTransformerNHWC default. NHWC is markedly faster for transformer trunks on
-  // OpenVINO GPU/NPU, and is ignored entirely for models without transformer blocks.
-  ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : true;
-  if(loadedModel->isExternalOnnx && logger != NULL && cfg.contains("onnxTransformerNHWC") &&
-     ctx->transformerNHWC != loadedModel->externalOnnx.buildParams.transformerNHWC &&
-     loadedModel->modelDesc.hasAnyTransformerBlocks())
-    logger->write(
-      "ONNX backend: WARNING - onnxTransformerNHWC = " + Global::boolToString(ctx->transformerNHWC) +
-      " has no effect on a model loaded from a .onnx file. The trunk layout is baked into the graph "
-      "(transformerNHWC=" + Global::boolToString(loadedModel->externalOnnx.buildParams.transformerNHWC) + ").");
-
-  // Skip the scale8 FP16-range workaround. Default false, meaning the workaround is applied.
-  // See the onnxSkipScale8 documentation in configs/gtp_example.cfg for the tradeoff.
-  ctx->skipScale8 = cfg.contains("onnxSkipScale8") ? cfg.getBool("onnxSkipScale8") : false;
-
-  // Must happen here rather than at compute-handle creation. See LoadedModel::scale8Resolved.
-  loadedModel->maybeApplyScale8(ctx->skipScale8, cfg.contains("onnxSkipScale8"), logger);
-
   // --- Per-thread device type assignment ---
   // Pre-parse onnxOpenVINODeviceTypeThread<N> keys so ComputeHandle can look up
   // the device type for each server thread without reaching back into ConfigParser.
@@ -273,6 +302,49 @@ ComputeContext* NeuralNet::createComputeContext(
         ctx->perThreadDeviceType[t] = cfg.getString(key);
     }
   }
+
+  // Trunk layout for transformer models, ignored entirely for models without transformer blocks.
+  //
+  // There is no layout that is right for both OpenVINO plugins. Measured on one transformer model,
+  // b11c768h12nbt3tflrs at 8 search threads: the GPU plugin runs NHWC about 1.5x faster than NCHW,
+  // while the NPU plugin runs NCHW about 1.75x faster than NHWC. So pick per device rather than by
+  // a fixed default, and default to NCHW as soon as any server thread might land on an NPU.
+  //
+  // "Might" is the operative word for composite device strings. As with padsBatchForDevice, a
+  // string like AUTO:GPU,NPU leaves the choice to OpenVINO at runtime and it is not reported back
+  // through ORT's API, so anything mentioning NPU counts. A bare AUTO counts too: it can resolve to
+  // an NPU, and the asymmetry above makes guessing NCHW the better bet either way, costing a GPU
+  // 1.5x when wrong but saving an NPU 1.75x when right.
+  //
+  // Non-OpenVINO providers keep NHWC, matching the TensorRT backend's trtTransformerNHWC default.
+  auto mayBeNPU = [](const string& dev) {
+    string upper = Global::toUpper(Global::trim(dev));
+    if(upper.find("NPU") != string::npos)
+      return true;
+    return upper == "AUTO";
+  };
+  bool anyMayBeNPU = false;
+  if(ctx->providerName == "openvino") {
+    for(const string& dev : ctx->perThreadDeviceType) {
+      if(mayBeNPU(dev))
+        anyMayBeNPU = true;
+    }
+  }
+  ctx->transformerNHWC = cfg.contains("onnxTransformerNHWC") ? cfg.getBool("onnxTransformerNHWC") : !anyMayBeNPU;
+  if(loadedModel->isExternalOnnx && logger != NULL && cfg.contains("onnxTransformerNHWC") &&
+     ctx->transformerNHWC != loadedModel->externalOnnx.buildParams.transformerNHWC &&
+     loadedModel->modelDesc.hasAnyTransformerBlocks())
+    logger->write(
+      "ONNX backend: WARNING - onnxTransformerNHWC = " + Global::boolToString(ctx->transformerNHWC) +
+      " has no effect on a model loaded from a .onnx file. The trunk layout is baked into the graph "
+      "(transformerNHWC=" + Global::boolToString(loadedModel->externalOnnx.buildParams.transformerNHWC) + ").");
+
+  // Skip the scale8 FP16-range workaround. Default false, meaning the workaround is applied.
+  // See the onnxSkipScale8 documentation in configs/gtp_example.cfg for the tradeoff.
+  ctx->skipScale8 = cfg.contains("onnxSkipScale8") ? cfg.getBool("onnxSkipScale8") : false;
+
+  // Must happen here rather than at compute-handle creation. See LoadedModel::scale8Resolved.
+  loadedModel->maybeApplyScale8(ctx->skipScale8, cfg.contains("onnxSkipScale8"), logger);
 
   // The OpenVINO provider is only used for GPU/NPU acceleration here. For CPU inference the
   // plain cpu provider (or the Eigen backend) is the right tool, so reject any device string
@@ -1306,7 +1378,8 @@ void NeuralNet::printDevices() {
   cout << "Set onnxProvider (e.g. 'openvino') plus provider-specific options in the config." << endl;
   cout << endl;
   cout << "OpenVINO provider options:" << endl;
-  cout << "  onnxOpenVINODeviceType = GPU            (default; GPU, NPU, GPU.0, GPU.1, etc.)" << endl;
+  cout << "  onnxOpenVINODeviceType = NPU            (GPU, NPU, GPU.0, GPU.1, etc.)" << endl;
+  cout << "    Leave it unset to auto-select: NPU if this machine has one, else GPU." << endl;
   cout << "  Also supports OpenVINO multi-device strings:" << endl;
   cout << "    AUTO:GPU,CPU  MULTI:GPU,NPU  HETERO:GPU,CPU" << endl;
   cout << endl;
