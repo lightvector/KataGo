@@ -319,6 +319,19 @@ SGFMetadata SGFMetadata::getProfile(const string& humanSLProfileName) {
       if(rankStr == "18k") return 27;
       if(rankStr == "19k") return 28;
       if(rankStr == "20k") return 29;
+      // Ranks weaker than 20k: the rank input encoding (RANK_LEN_PER_PLA = 34) saturates at
+      // inverse rank 34 = 25k, so 26k..30k encode IDENTICALLY to 25k (the net cannot distinguish
+      // them). The true inverse ranks are returned anyway; the encoding clamps >=34 to 25k.
+      if(rankStr == "21k") return 30;
+      if(rankStr == "22k") return 31;
+      if(rankStr == "23k") return 32;
+      if(rankStr == "24k") return 33;
+      if(rankStr == "25k") return 34;
+      if(rankStr == "26k") return 35;
+      if(rankStr == "27k") return 36;
+      if(rankStr == "28k") return 37;
+      if(rankStr == "29k") return 38;
+      if(rankStr == "30k") return 39;
       return -1;
     };
 
