@@ -285,6 +285,9 @@ if _NS_COMPILE_MODE not in ("default", "max-autotune-no-cudagraphs", "max-autotu
     raise ValueError(f"KATAGO_MUON_NS_COMPILE_MODE must be default|max-autotune-no-cudagraphs|max-autotune, got {_NS_COMPILE_MODE!r}")
 zeropower_via_newtonschulz5_compiled = torch.compile(zeropower_via_newtonschulz5, mode=_NS_COMPILE_MODE)
 zeropower_via_polar_express_compiled = torch.compile(zeropower_via_polar_express, mode=_NS_COMPILE_MODE)
+# Aurora's row preconditioning reduces over the last dim only and its iteration count is fixed, so it
+# also accepts stacked (B, m, n) input.
+_aurora_polar_compiled = torch.compile(_aurora_polar, mode=_NS_COMPILE_MODE)
 
 
 DEFAULT_DISTRIBUTED_BUCKET_CAP_BYTES = 16 * 1024 * 1024
@@ -392,7 +395,8 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
     debugging or exact regression comparison against the historical kernels):
       KATAGO_MUON_BATCHED_NS (default 1): stack Muon updates with the same
         matrix shape (up to KATAGO_MUON_NS_BATCH_SIZE, default 32) into a single
-        compiled Newton-Schulz iteration rather than one launch sequence per
+        compiled Newton-Schulz iteration (for Aurora, a single compiled
+        preconditioned polar iteration) rather than one launch sequence per
         parameter. Same update equations, but not bitwise identical to the
         scalar launches.
       KATAGO_AUX_ADAM_FOREACH (default 1): use torch._foreach multi-tensor
@@ -403,9 +407,9 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
         weight decay / update step identically on every rank, instead of
         all-gathering the updated fp32 parameters. This halves synchronization
         bytes, and parameters stay bitwise identical across ranks and to the
-        fp32-gather path. Plain Muon with adjust_lr_fn "match_rms_adamw" on the
-        batched Newton-Schulz path only. NorMuon, Aurora, and the scalar path
-        keep the parameter all-gather.
+        fp32-gather path. Plain Muon or Aurora with adjust_lr_fn "match_rms_adamw"
+        on the batched path only. NorMuon and the scalar path keep the parameter
+        all-gather.
     """
     def __init__(self, param_groups, adjust_lr_fn="match_rms_adamw", adam_betas=(0.95, 0.995), adam_eps=1e-6,
                  use_normuon=False, normuon_beta2=0.95, normuon_eps=1e-8,
@@ -420,8 +424,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
         self.aurora_eps = aurora_eps
         self.ns_steps = ns_steps
         self.use_polar_express = use_polar_express
-        # Aurora's data-dependent preconditioning loop stays on the scalar path.
-        self.use_batched_muon_ns = _env_flag("KATAGO_MUON_BATCHED_NS", default=True) and not use_aurora
+        self.use_batched_muon_ns = _env_flag("KATAGO_MUON_BATCHED_NS", default=True)
         self.use_foreach_aux_adam = _env_flag("KATAGO_AUX_ADAM_FOREACH", default=True)
         self.gather_bf16_updates_requested = _env_flag("KATAGO_MUON_GATHER_BF16_UPDATES", default=True)
         self.muon_ns_batch_size = int(os.environ.get("KATAGO_MUON_NS_BATCH_SIZE", "32"))
@@ -624,7 +627,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
         Per-parameter momentum/Nesterov mutation semantics are preserved.
         Only independent computations are regrouped.
 
-        If `deferred_updates` (a dict) is given, the plain-Muon match_rms_adamw path does not
+        If `deferred_updates` (a dict) is given, the plain-Muon or Aurora match_rms_adamw path does not
         modify the parameters. Instead it stores each parameter's bf16 orthogonalized update (in the
         parameter's shape) into the dict for a later _apply_muon_updates, so the same update can be
         shared across ranks before being applied.
@@ -652,6 +655,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
             assert matrix.ndim == 2
             # Normalize orientation to rows <= cols so that transposed shape pairs share a batch.
             # Zeropower of the transpose is the transpose of zeropower, so this is equivalent to the scalar path.
+            # The same holds for Aurora's polar factor, which always preconditions the tall orientation.
             was_transposed = matrix.shape[0] > matrix.shape[1]
             normalized = matrix.mT if was_transposed else matrix
             key = (normalized.device, normalized.dtype, normalized.shape[0], normalized.shape[1])
@@ -663,7 +667,12 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
             for chunk_begin in range(0, len(entries), self.muon_ns_batch_size):
                 chunk = entries[chunk_begin:chunk_begin + self.muon_ns_batch_size]
                 stacked = torch.stack([entry[1] for entry in chunk], dim=0)
-                if self.use_polar_express:
+                if self.use_aurora:
+                    orthogonalized = _aurora_polar_compiled(
+                        stacked, ns_steps=self.ns_steps, pp_iterations=self.aurora_pp_iterations,
+                        pp_beta=self.aurora_pp_beta, eps=self.aurora_eps, use_polar_express=self.use_polar_express,
+                    )
+                elif self.use_polar_express:
                     orthogonalized = zeropower_via_polar_express_compiled(stacked, steps=self.ns_steps)
                 else:
                     orthogonalized = zeropower_via_newtonschulz5_compiled(stacked, steps=self.ns_steps)
@@ -674,7 +683,7 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                             if was_transposed:
                                 update = update.mT
                             # Always copy: the update must outlive later invocations of the compiled
-                            # Newton-Schulz, whose output buffer can be reused. Under a compile mode
+                            # orthogonalization, whose output buffer can be reused. Under a compile mode
                             # that uses CUDA graphs (max-autotune) it lives in a CUDA-graph private pool.
                             deferred_updates[p] = update.reshape(p.shape).clone(memory_format=torch.contiguous_format)
                         continue
@@ -693,7 +702,8 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                 for (p, _, was_transposed, state), update in zip(chunk, orthogonalized.unbind(dim=0)):
                     if was_transposed:
                         update = update.mT
-                    normuon_v = state.get("normuon_v")
+                    # Aurora ignores NorMuon, as aurora_update on the scalar path does.
+                    normuon_v = None if self.use_aurora else state.get("normuon_v")
                     if normuon_v is not None:
                         assert group["adjust_lr_fn"] == "match_rms_adamw", \
                             f"NorMuon requires adjust_lr_fn='match_rms_adamw', got '{group['adjust_lr_fn']}'"
@@ -789,7 +799,7 @@ class MuonWithAuxAdam(_MuonWithAuxAdamBase):
     Muon parameter ownership is sharded round-robin across ranks. After each step the ranks are
     synchronized with reusable flat buckets (one all-gather per ~16 MiB bucket) rather than one
     collective per parameter, in one of two ways. By default (KATAGO_MUON_GATHER_BF16_UPDATES=1,
-    plain Muon only) each rank gathers the bf16 orthogonalized updates of the other ranks and
+    plain Muon or Aurora only) each rank gathers the bf16 orthogonalized updates of the other ranks and
     applies the fp32 update arithmetic to every parameter itself, which requires identical lr and
     weight decay on every rank. Otherwise the owners' updated fp32 parameters are gathered.
 
@@ -835,12 +845,11 @@ class MuonWithAuxAdam(_MuonWithAuxAdamBase):
             ns_steps=ns_steps, use_polar_express=use_polar_express,
             sort_muon_params=True,
         )
-        # bf16 update gathering requires every Muon group to take the batched plain-Muon path.
+        # bf16 update gathering requires every Muon group to take the batched plain-Muon or Aurora path.
         self.gather_bf16_updates = (
             self.gather_bf16_updates_requested
             and self.use_batched_muon_ns
             and not self.use_normuon
-            and not self.use_aurora
             and all(group["adjust_lr_fn"] == "match_rms_adamw" for group in self.param_groups if group["use_muon"])
         )
         if self.gather_bf16_updates:
