@@ -11,7 +11,7 @@ The TensorRT and ONNX Runtime backends do not evaluate KataGo's `.bin.gz` model 
 * [Checking your model](#checking-your-model).
 * [Versioning](#versioning), for extending the format.
 
-Only the TensorRT and ONNX backends can do any of this. The CUDA, OpenCL, Eigen and Metal backends read `.bin.gz` models only.
+Only the TensorRT and ONNX backends can do any of this. The CUDA, OpenCL, Eigen, ROCm, Metal and MLX backends read `.bin.gz` models only.
 
 ## Dumping the graph
 
