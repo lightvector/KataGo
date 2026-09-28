@@ -24,6 +24,19 @@ static NNEvaluator* startNNEval(
   bool debugSkipNeuralNet = modelFile == "/dev/null";
   const string homeDataDirOverride = "";
   ConfigParser cfg;
+#if defined(USE_EIGEN_BACKEND)
+  //The Eigen backend only implements the NHWC float32 path and hard-errors on NCHW
+  //(see eigenbackend.cpp). These tests default to useNHWC=false, which the GPU backends accept
+  //but Eigen does not, so normalize here at the one choke point they all go through.
+  if(!inputsUseNHWC) {
+    cout << "Backend is Eigen, ignoring args and forcing inputsUseNHWC=true" << endl;
+    inputsUseNHWC = true;
+  }
+  if(!useNHWC) {
+    cout << "Backend is Eigen, ignoring args and forcing useNHWC=true" << endl;
+    useNHWC = true;
+  }
+#endif
   //NHWC layout is no longer a generic NNEvaluator option; only the CUDA backend reads it (off cfg).
   //Route the test's useNHWC param into a cudaUseNHWC override so it still drives the CUDA layout.
   cfg.overrideKey("cudaUseNHWC", useNHWC ? "true" : "false");
