@@ -739,6 +739,7 @@ struct GTPEngine {
     double resignMinMovesPerBoardArea;
     bool logSearchInfo;
     bool logSearchInfoForChosenMove;
+    PrintTreeOptions logSearchTreeOptions;
     bool debug;
   };
 
@@ -1280,11 +1281,11 @@ struct GTPEngine {
 
     if(gargs.logSearchInfo) {
       ostringstream sout;
-      PlayUtils::printGenmoveLog(sout,search,nnEval,moveLoc,timeTaken,perspective,gargs.logSearchInfoForChosenMove);
+      PlayUtils::printGenmoveLog(sout,search,nnEval,moveLoc,timeTaken,perspective,gargs.logSearchInfoForChosenMove,gargs.logSearchTreeOptions);
       logger.write(sout.str());
     }
     if(gargs.debug) {
-      PlayUtils::printGenmoveLog(cerr,search,nnEval,moveLoc,timeTaken,perspective,gargs.logSearchInfoForChosenMove);
+      PlayUtils::printGenmoveLog(cerr,search,nnEval,moveLoc,timeTaken,perspective,gargs.logSearchInfoForChosenMove,gargs.logSearchTreeOptions);
     }
 
     //Hacks--------------------------------------------------
@@ -1441,11 +1442,12 @@ struct GTPEngine {
   void computeAnticipatedWinnerAndScore(Player& winner, double& finalWhiteMinusBlackScore) {
     stopAndWait();
 
-    //No playoutDoublingAdvantage to avoid bias
+    //No playoutDoublingAdvantage or visitCapContempt to avoid bias
     //Also never assume the game will end abruptly due to pass
     {
       SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
+      tmpParams.visitCapContempt = 0;
       tmpParams.conservativePass = true;
       tmpParams.humanSLChosenMoveProp = 0.0;
       tmpParams.humanSLRootExploreProbWeightful = 0.0;
@@ -1503,11 +1505,12 @@ struct GTPEngine {
   vector<bool> computeAnticipatedStatuses() {
     stopAndWait();
 
-    //No playoutDoublingAdvantage to avoid bias
+    //No playoutDoublingAdvantage or visitCapContempt to avoid bias
     //Also never assume the game will end abruptly due to pass
     {
       SearchParams tmpParams = genmoveParams;
       tmpParams.playoutDoublingAdvantage = 0.0;
+      tmpParams.visitCapContempt = 0;
       tmpParams.conservativePass = true;
       tmpParams.humanSLChosenMoveProp = 0.0;
       tmpParams.humanSLRootExploreProbWeightful = 0.0;
@@ -2085,6 +2088,7 @@ int MainCmds::gtp(const vector<string>& args) {
   const bool logAllGTPCommunication = cfg.getBool("logAllGTPCommunication");
   const bool logSearchInfo = cfg.getBool("logSearchInfo");
   const bool logSearchInfoForChosenMove = cfg.contains("logSearchInfoForChosenMove") ? cfg.getBool("logSearchInfoForChosenMove") : false;
+  const PrintTreeOptions logSearchTreeOptions = Setup::loadLogSearchTreeOptions(cfg);
 
   bool startupPrintMessageToStderr = true;
   if(cfg.contains("startupPrintMessageToStderr"))
@@ -3194,6 +3198,7 @@ int MainCmds::gtp(const vector<string>& args) {
         gargs.resignMinMovesPerBoardArea = resignMinMovesPerBoardArea;
         gargs.logSearchInfo = logSearchInfo;
         gargs.logSearchInfoForChosenMove = logSearchInfoForChosenMove;
+        gargs.logSearchTreeOptions = logSearchTreeOptions;
         gargs.debug = debug;
 
         if(command == "kata-search_cancellable") {
@@ -3253,6 +3258,7 @@ int MainCmds::gtp(const vector<string>& args) {
         gargs.resignMinMovesPerBoardArea = resignMinMovesPerBoardArea;
         gargs.logSearchInfo = logSearchInfo;
         gargs.logSearchInfoForChosenMove = logSearchInfoForChosenMove;
+        gargs.logSearchTreeOptions = logSearchTreeOptions;
         gargs.debug = debug;
 
         //Make sure the "equals" for GTP is printed out prior to the first analyze line, regardless of thread racing

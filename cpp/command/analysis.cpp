@@ -133,6 +133,7 @@ int MainCmds::analysis(const vector<string>& args) {
   const bool logAllResponses = cfg.contains("logAllResponses") ? cfg.getBool("logAllResponses") : false;
   const bool logErrorsAndWarnings = cfg.contains("logErrorsAndWarnings") ? cfg.getBool("logErrorsAndWarnings") : true;
   const bool logSearchInfo = cfg.contains("logSearchInfo") ? cfg.getBool("logSearchInfo") : false;
+  const PrintTreeOptions logSearchTreeOptions = Setup::loadLogSearchTreeOptions(cfg);
 
   const bool warnUnusedFields = cfg.contains("warnUnusedFields") ? cfg.getBool("warnUnusedFields") : true;
 
@@ -356,7 +357,7 @@ int MainCmds::analysis(const vector<string>& args) {
   }
 
   auto analysisLoop = [
-    &logger,&toAnalyzeQueue,&reportAnalysis,&reportNoAnalysis,&logSearchInfo,&nnEval,&openRequestsMutex,&openRequests
+    &logger,&toAnalyzeQueue,&reportAnalysis,&reportNoAnalysis,&logSearchInfo,&logSearchTreeOptions,&nnEval,&openRequestsMutex,&openRequests
   ](AsyncBot* bot, int threadIdx) {
     while(true) {
       std::pair<std::pair<int64_t,int64_t>,AnalyzeRequest*> analysisItem;
@@ -413,7 +414,7 @@ int MainCmds::analysis(const vector<string>& args) {
 
         if(logSearchInfo) {
           ostringstream sout;
-          PlayUtils::printGenmoveLog(sout,bot->getSearch(),nnEval,Board::NULL_LOC,NAN,request->perspective,false);
+          PlayUtils::printGenmoveLog(sout,bot->getSearch(),nnEval,Board::NULL_LOC,NAN,request->perspective,false,logSearchTreeOptions);
           logger.write(sout.str());
         }
 

@@ -39,6 +39,7 @@ struct SubtreeValueBiasTable;
 struct SearchNodeTable;
 struct SearchNodeChildrenReference;
 struct ConstSearchNodeChildrenReference;
+struct VisitCapSnapshot;
 
 //Per-thread state
 struct SearchThread {
@@ -147,6 +148,10 @@ struct Search {
   uint32_t searchNodeAge;
   Player plaThatSearchIsFor;
   Player plaThatSearchIsForLastSearch;
+  //Visit cap per player that the current tree was searched with, 0 if none. Resolved at the start of each search,
+  //and the tree is cleared if they change.
+  int64_t visitCapForBlack;
+  int64_t visitCapForWhite;
   int64_t lastSearchNumPlayouts;
   double effectiveSearchTimeCarriedOver; //Effective search time carried over from previous moves due to ponder/tree reuse
 
@@ -242,6 +247,12 @@ struct Search {
   const BoardHistory& getRootHist() const;
   Player getRootPla() const;
   Player getPlayoutDoublingAdvantagePla() const;
+  //The player capped by visitCapContempt, empty if there is no cap.
+  Player getVisitCappedPla() const;
+  //Visit cap in effect for nodes where pla is to move, as of the most recent search begun, 0 if none.
+  inline int64_t getVisitCap(Player pla) const {
+    return pla == P_BLACK ? visitCapForBlack : pla == P_WHITE ? visitCapForWhite : 0;
+  }
 
   //Get the NNPos corresponding to a loc, convenience method
   inline int getPos(Loc moveLoc) const { return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen); }
@@ -636,6 +647,13 @@ private:
     double& parentUtility, double& parentWeightPerVisit, double& parentUtilityStdevFactor
   ) const;
 
+  void selectChildToMatchVisitCapSnapshot(
+    const VisitCapSnapshot& snapshot, ConstSearchNodeChildrenReference children,
+    const float* policyProbs, double parentWeightPerVisit, bool countEdgeVisit,
+    bool focusPlayout, Loc focusTarget,
+    int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc
+  ) const;
+
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
     int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc, bool& countEdgeVisit,
@@ -716,6 +734,7 @@ private:
   //with the human net's own resolution, which may differ from the modes the search is using.
   MiscNNInputParams paramsForHumanEvaluator(const MiscNNInputParams& nnInputParams) const;
   void computeRootValues(); // Helper for begin search
+  void applyVisitCapsForSearch(); // Helper for begin search
   void recursivelyRecomputeStats(SearchNode& node); // Helper for search initialization
   void recursivelyRecordEvalCache(SearchNode& n);
 
@@ -753,7 +772,8 @@ private:
 
   void printTreeHelper(
     std::ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
+    std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective,
+    std::unordered_set<const SearchNode*>& graphPath
   ) const;
 
   bool getSharpScoreHelper(

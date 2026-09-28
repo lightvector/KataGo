@@ -87,6 +87,7 @@ Search::Search(const SearchParams& params, NNEvaluator* nnEval, NNEvaluator* hum
    alwaysIncludeOwnerMap(false),
    searchParams(params),numSearchesBegun(0),searchNodeAge(0),
    plaThatSearchIsFor(C_EMPTY),plaThatSearchIsForLastSearch(C_EMPTY),
+   visitCapForBlack(0),visitCapForWhite(0),
    lastSearchNumPlayouts(0),
    effectiveSearchTimeCarriedOver(0.0),
    randSeed(rSeed),
@@ -174,6 +175,12 @@ Player Search::getRootPla() const {
 
 Player Search::getPlayoutDoublingAdvantagePla() const {
   return searchParams.playoutDoublingAdvantagePla == C_EMPTY ? plaThatSearchIsFor : searchParams.playoutDoublingAdvantagePla;
+}
+
+Player Search::getVisitCappedPla() const {
+  if(searchParams.visitCapContempt <= 0)
+    return C_EMPTY;
+  return searchParams.visitCapContemptPla == C_EMPTY ? getOpp(plaThatSearchIsFor) : searchParams.visitCapContemptPla;
 }
 
 bool Search::resolveAlwaysComputePassAliveUnderSuicideRules(const SearchParams& params, const NNEvaluator* nnEval) {
@@ -744,6 +751,8 @@ void Search::beginSearch(bool pondering) {
   plaThatSearchIsForLastSearch = plaThatSearchIsFor;
   //cout << "BEGINSEARCH " << PlayerIO::playerToString(rootPla) << " " << PlayerIO::playerToString(plaThatSearchIsFor) << endl;
 
+  applyVisitCapsForSearch();
+
   clearOldNNOutputs();
   computeRootValues();
 
@@ -801,8 +810,12 @@ void Search::beginSearch(bool pondering) {
 
   //Precompute the params hash once per search (params are constant during a search) so it can be cheaply
   //folded into every eval cache lookup, keeping cached search results from leaking across different params.
-  if(searchParams.useEvalCache && searchParams.useGraphSearch)
+  if(searchParams.useEvalCache && searchParams.useGraphSearch) {
     evalCacheParamsHash = searchParams.getHash();
+    //Which player is capped can depend on plaThatSearchIsFor, which the params hash does not cover.
+    if(visitCapForBlack != 0 || visitCapForWhite != 0)
+      evalCacheParamsHash ^= Hash128(Hash::murmurMix((uint64_t)visitCapForBlack), Hash::murmurMix((uint64_t)visitCapForWhite + 0x9E3779B97F4A7C15ULL));
+  }
   else
     evalCacheParamsHash = Hash128();
 
@@ -1158,6 +1171,26 @@ void Search::recursivelyRecordEvalCache(SearchNode& n) {
   applyRecursivelyPostOrderMulithreaded(nodes,&f);
 }
 
+
+//The caps are tracked by color rather than relative to the root player, so that a tree built while pondering
+//stays valid for the following search on our own turn, and vice versa.
+void Search::applyVisitCapsForSearch() {
+  if(searchParams.visitCapContempt == 1 || searchParams.visitCapContempt < 0)
+    throw StringError("visitCapContempt must be 0 or at least 2");
+  int64_t newVisitCapForBlack = 0;
+  int64_t newVisitCapForWhite = 0;
+  Player cappedPla = getVisitCappedPla();
+  if(cappedPla == P_BLACK)
+    newVisitCapForBlack = searchParams.visitCapContempt;
+  else if(cappedPla == P_WHITE)
+    newVisitCapForWhite = searchParams.visitCapContempt;
+
+  if(newVisitCapForBlack != visitCapForBlack || newVisitCapForWhite != visitCapForWhite) {
+    clearSearch();
+    visitCapForBlack = newVisitCapForBlack;
+    visitCapForWhite = newVisitCapForWhite;
+  }
+}
 
 void Search::computeRootValues() {
   //rootSafeArea is strictly pass-alive groups and strictly safe territory.

@@ -321,6 +321,88 @@ double Search::getFpuValueForChildrenAssumeVisited(
 }
 
 
+//Select the existing child furthest behind its share of the snapshot distribution, counting virtual losses as
+//weight as in PUCT. Never creates a new child, except for a root focus target, which is weightless.
+//Sets bestChildIdx to -1 if no child has a positive share.
+void Search::selectChildToMatchVisitCapSnapshot(
+  const VisitCapSnapshot& snapshot, ConstSearchNodeChildrenReference children,
+  const float* policyProbs, double parentWeightPerVisit, bool countEdgeVisit,
+  bool focusPlayout, Loc focusTarget,
+  int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc
+) const {
+  int childrenCapacity = children.getCapacity();
+  double childWeightBuf[NNPos::MAX_NN_POLICY_SIZE];
+  double childFracBuf[NNPos::MAX_NN_POLICY_SIZE];
+
+  numChildrenFound = 0;
+  bestChildIdx = -1;
+  bestChildMoveLoc = Board::NULL_LOC;
+
+  double totalWeight = 0.0;
+  double totalFrac = 0.0;
+  bool focusTargetIsExistingChild = false;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
+    if(child == NULL)
+      break;
+    numChildrenFound++;
+
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
+    int movePos = getPos(moveLoc);
+    float nnPolicyProb = policyProbs[movePos];
+
+    double childWeight;
+    if(countEdgeVisit)
+      childWeight = child->stats.getChildWeight(childPointer.getEdgeVisits());
+    else
+      childWeight = child->stats.weightSum.load(std::memory_order_acquire);
+    childWeight += child->virtualLosses.load(std::memory_order_acquire) * searchParams.numVirtualLossesPerThread;
+
+    //Illegal moves get no share.
+    double frac = nnPolicyProb < 0 ? 0.0 : snapshot.getWeightFrac(movePos);
+    childWeightBuf[i] = childWeight;
+    childFracBuf[i] = frac;
+    totalWeight += childWeight;
+    totalFrac += frac;
+
+    if(focusPlayout && moveLoc == focusTarget) {
+      focusTargetIsExistingChild = true;
+      if(nnPolicyProb >= 0) {
+        bestChildIdx = i;
+        bestChildMoveLoc = moveLoc;
+      }
+    }
+  }
+
+  if(focusPlayout) {
+    if(!focusTargetIsExistingChild) {
+      bestChildIdx = numChildrenFound;
+      bestChildMoveLoc = focusTarget;
+      return;
+    }
+    if(bestChildIdx >= 0)
+      return;
+    //Focus target is now illegal, fall through to normal selection.
+  }
+
+  if(totalFrac <= 0.0)
+    return;
+
+  double newTotalWeight = totalWeight + parentWeightPerVisit;
+  double maxDeficit = -1e100;
+  for(int i = 0; i<numChildrenFound; i++) {
+    if(childFracBuf[i] <= 0.0)
+      continue;
+    double deficit = childFracBuf[i] / totalFrac * newTotalWeight - childWeightBuf[i];
+    if(deficit > maxDeficit) {
+      maxDeficit = deficit;
+      bestChildIdx = i;
+      bestChildMoveLoc = children[i].getMoveLocRelaxed();
+    }
+  }
+}
+
 void Search::selectBestChildToDescend(
   SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
   int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc, bool& countEdgeVisit,
@@ -385,6 +467,23 @@ void Search::selectBestChildToDescend(
   const NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
   const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+
+  //Capped nodes with a snapshot match the snapshot distribution instead of following PUCT.
+  if(getVisitCap(node.nextPla) > 0) {
+    const VisitCapSnapshot* visitCapSnapshot = node.visitCapSnapshot.load(std::memory_order_acquire);
+    if(visitCapSnapshot != NULL) {
+      int64_t visits = node.stats.visits.load(std::memory_order_acquire);
+      double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
+      double parentWeightPerVisit = weightSum / (double)std::max((int64_t)1, visits);
+      selectChildToMatchVisitCapSnapshot(
+        *visitCapSnapshot, children, policyProbs, parentWeightPerVisit, countEdgeVisit,
+        focusPlayout, focusTarget,
+        numChildrenFound, bestChildIdx, bestChildMoveLoc
+      );
+      return;
+    }
+  }
+
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchChildPointer& childPointer = children[i];
     const SearchNode* child = childPointer.getIfAllocated();
