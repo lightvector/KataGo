@@ -69,6 +69,9 @@ namespace Tests {
   //testtime.cpp
   void runTimeControlsTests();
 
+  //command/writetrainingdata.cpp
+  void runTrainingDataEndTests();
+
   //testtrainingwrite.cpp
   void runTrainingWriteTests();
   void runPassAliveSuicideGameTests();
