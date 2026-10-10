@@ -536,6 +536,7 @@ If you want to obtain human *style* moves, but play stronger than a given human 
 
 Note: For GTP users, the parameter `humanSLChosenMovePiklLambda` does precisely this exp-based probability scaling.
 An example set of parameters is given in [gtp_human9d_search_example.cfg](../cpp/configs/gtp_human9d_search_example.cfg), some of which may also be instructive to read even if you're using the analysis engine mode rather than GTP.
+It also accepts negative values, which correspond to a negative divisor in the formula above: instead of attenuating the moves that lose utility, they attenuate the moves that gain it, so that a small negative value like `-0.01` always plays the worst move that was searched, and a large negative value is the same as a large positive one (purely the human policy). This is a way to play *weaker* than the human SL model rather than stronger.
 
 #### Heavily bias the search to anticipate human-like sequences rather than KataGo sequences.
 

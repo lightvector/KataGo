@@ -386,8 +386,34 @@ bool Search::getPlaySelectionValues(
         }
       }
       // Perform shift
-      for(Loc loc: locs)
-        shiftedPolicy[loc] *= exp((selfUtilities[loc] - selfUtilityMax)/searchParams.humanSLChosenMovePiklLambda);
+      const double piklLambda = searchParams.humanSLChosenMovePiklLambda;
+      if(!std::signbit(piklLambda)) {
+        for(Loc loc: locs)
+          shiftedPolicy[loc] *= exp((selfUtilities[loc] - selfUtilityMax)/piklLambda);
+      }
+      else {
+        // A negative lambda runs the shift the other way, boosting the moves that KataGo likes least
+        // instead of the ones it likes most, so that a lambda approaching -0.0 picks the worst move and
+        // a lambda approaching -infinity leaves the human SL policy alone, just like +infinity does.
+        // Subtracting the minimum utility rather than the maximum is what keeps the exponent <= 0 so
+        // that exp can never overflow no matter how small the lambda gets. The subtracted utility is
+        // only a constant factor that cancels out when we renormalize below.
+        // Moves that can't be chosen anyways must not set that reference, or every other move could
+        // underflow to zero at once. Pass is one of them when humanSLChosenMoveIgnorePass is leaving
+        // passing up to KataGo, since the renormalization below overwrites pass's weight in that case.
+        double selfUtilityMin = selfUtilityMax;
+        for(Loc loc: locs) {
+          if(shiftedPolicy[loc] <= 0.0 || (searchParams.humanSLChosenMoveIgnorePass && loc == Board::PASS_LOC))
+            continue;
+          selfUtilityMin = std::min(selfUtilityMin, selfUtilities[loc]);
+        }
+        for(Loc loc: locs) {
+          double utilityDiff = selfUtilities[loc] - selfUtilityMin;
+          // Zero at the reference move itself, where dividing by a lambda of -0.0 would give 0/0,
+          // and negative for the moves skipped just above, which this caps instead of overflowing.
+          shiftedPolicy[loc] *= utilityDiff <= 0.0 ? 1.0 : exp(utilityDiff/piklLambda);
+        }
+      }
 
       double shiftedPolicySum = 0.0;
       for(Loc loc: locs)

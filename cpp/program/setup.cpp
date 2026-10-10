@@ -904,8 +904,8 @@ vector<SearchParams> Setup::loadParams(
     else                                                   params.humanSLChosenMoveIgnorePass = false;
     if(!hasHumanModel && cfg.contains("humanSLChosenMovePiklLambda"+idxStr)) throwHumanParsingError("humanSLChosenMovePiklLambda"+idxStr);
     else if(!hasHumanModel && cfg.contains("humanSLChosenMovePiklLambda")) throwHumanParsingError("humanSLChosenMovePiklLambda");
-    else if(cfg.contains("humanSLChosenMovePiklLambda"+idxStr)) params.humanSLChosenMovePiklLambda = cfg.getDouble("humanSLChosenMovePiklLambda"+idxStr, 0.0, 1000000000.0);
-    else if(cfg.contains("humanSLChosenMovePiklLambda"))   params.humanSLChosenMovePiklLambda = cfg.getDouble("humanSLChosenMovePiklLambda",        0.0, 1000000000.0);
+    else if(cfg.contains("humanSLChosenMovePiklLambda"+idxStr)) params.humanSLChosenMovePiklLambda = cfg.getDouble("humanSLChosenMovePiklLambda"+idxStr, -1000000000.0, 1000000000.0);
+    else if(cfg.contains("humanSLChosenMovePiklLambda"))   params.humanSLChosenMovePiklLambda = cfg.getDouble("humanSLChosenMovePiklLambda",        -1000000000.0, 1000000000.0);
     else                                                   params.humanSLChosenMovePiklLambda = 1000000000.0;
 
     //On distributed, tolerate reading mutexPoolSize since older version configs use it.

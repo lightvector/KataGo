@@ -189,7 +189,7 @@ struct SearchParams {
   //These three are PRIOR to the normal chosenMoveTemperature.
   double humanSLChosenMoveProp; //Proportion of final move selection probability using human SL policy
   bool humanSLChosenMoveIgnorePass; //If true, ignore human SL pass probability and use KataGo's passing logic
-  double humanSLChosenMovePiklLambda; //Shift the final move selection significantly in response to utility differences this large.
+  double humanSLChosenMovePiklLambda; //Shift the final move selection significantly in response to utility differences this large. Negative shifts toward worse moves instead of better ones.
 
   SearchParams();
   ~SearchParams();
