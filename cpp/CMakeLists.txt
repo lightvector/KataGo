@@ -814,6 +814,10 @@ elseif(USE_BACKEND STREQUAL "METAL")
   include(InitializeSwift)
   include(AddSwift)
   set(CMAKE_OSX_DEPLOYMENT_TARGET 13.0)
+  # CMake does not pass the deployment target to swiftc, which also links katago.
+  if(NOT CMAKE_Swift_FLAGS MATCHES "-target ")
+    string(APPEND CMAKE_Swift_FLAGS " -target ${CMAKE_SYSTEM_PROCESSOR}-apple-macosx${CMAKE_OSX_DEPLOYMENT_TARGET}")
+  endif()
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/metalbackend.cpp
     )
