@@ -55,6 +55,8 @@ def main():
     parser.add_argument('-attn-logit-penalty-cap', help='Enable the attention logit bound penalty as in train.py, for benchmarking its overhead (trainloop mode)', type=float, default=None)
     parser.add_argument('-attn-logit-penalty-coeff', help='Coeff for -attn-logit-penalty-cap', type=float, default=1e-3)
     parser.add_argument('-attn-logit-penalty-batch-frac', help='Fraction of the batch to compute the penalty on, as in train.py', type=float, default=1.0)
+    parser.add_argument('-profile-dir', help='trainloop mode: after the timed iterations, run -profile-iters more under torch.profiler, print a kernel summary, and write a chrome trace to this directory (rank 0 only)', type=str, default=None)
+    parser.add_argument('-profile-iters', help='Number of iterations to profile with -profile-dir', type=int, default=3)
     args = vars(parser.parse_args())
 
     if args["mode"] == "trainloop":
@@ -125,6 +127,11 @@ def main():
         model = raw_model
     else:
         print("torch.compile: enabled (mode=default)")
+        if not args["forward_only"]:
+            # This mode compiles the model as a single graph, where the fused attention kernels are
+            # unsafe in backward (see configure_model_for_compile), so turn them off. Forward-only
+            # benchmarks keep them, since the hazard is in the backward pass only.
+            trainloop_helpers.configure_model_for_compile(raw_model, per_block=False)
         model = torch.compile(raw_model, mode="default")
     print()
 
@@ -552,8 +559,63 @@ def trainloop_worker(rank, world_size, args):
               f"({gnorm_watcher.total_nonfinite} nonfinite, {gnorm_watcher.total_extreme} extreme, "
               f"max consecutive {gnorm_watcher.max_consecutive_bad})")
 
+    if args["profile_dir"] is not None:
+        run_profile(one_batch, warmup_iters + num_iters, args["profile_iters"], args["profile_dir"], rank, world_size)
+
     if world_size > 1:
         torch.distributed.destroy_process_group()
+
+
+def run_profile(one_batch, start_batch_count, profile_iters, profile_dir, rank, world_size):
+    """Profile a few additional training iterations and summarize GPU kernel time."""
+    from torch.profiler import profile, ProfilerActivity
+    os.makedirs(profile_dir, exist_ok=True)
+    torch.cuda.synchronize()
+    with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=False) as prof:
+        for i in range(profile_iters):
+            one_batch(start_batch_count + i)
+        torch.cuda.synchronize()
+    if rank == 0:
+        trace_path = os.path.join(profile_dir, "trace.json")
+        prof.export_chrome_trace(trace_path)
+        print()
+        print("=" * 80)
+        print(f"PROFILE ({profile_iters} iters, top kernels by self CUDA time)")
+        print("=" * 80)
+        print(prof.key_averages().table(sort_by="self_device_time_total", row_limit=60, max_name_column_width=110))
+        # Aggregate GPU kernel time by coarse category for a quick read. Only device-side
+        # kernel events are counted, so nothing is double counted through the launching ops.
+        totals = defaultdict(float)
+        total_kernel = 0.0
+        for evt in prof.events():
+            if evt.device_type != torch.autograd.DeviceType.CUDA:
+                continue
+            t = evt.self_device_time_total
+            if t <= 0:
+                continue
+            total_kernel += t
+            lname = evt.name.lower()
+            if "flex_attention" in lname or "fmha" in lname or "flash" in lname:
+                cat = "attention"
+            elif "nccl" in lname:
+                cat = "nccl"
+            elif "gemm" in lname or "cublas" in lname or "splitk" in lname or "nvjet" in lname or "triton_tem_" in lname or "swiglu" in lname:
+                cat = "gemm (incl. fused kernels)"
+            elif "multi_tensor" in lname or "foreach" in lname:
+                cat = "foreach (optimizer/clip)"
+            elif lname.startswith("triton_"):
+                cat = "triton pointwise/reduction"
+            elif "memcpy" in lname or "memset" in lname:
+                cat = "memcpy/memset"
+            else:
+                cat = "other"
+            totals[cat] += t
+        print()
+        print(f"  GPU kernel time by category (per iter, ms):")
+        for cat, t in sorted(totals.items(), key=lambda kv: -kv[1]):
+            print(f"    {cat:>28s}: {t/1000.0/profile_iters:8.2f} ms  ({100.0*t/max(total_kernel,1e-9):5.1f}%)")
+        print(f"    {'total':>28s}: {total_kernel/1000.0/profile_iters:8.2f} ms")
+        print(f"  Chrome trace written to {trace_path}")
 
 
 def load_batch(data_path, batch_size, pos_len, model_config, device):

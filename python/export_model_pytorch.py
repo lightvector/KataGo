@@ -24,6 +24,156 @@ from katago.train.model_pytorch import Model, ResBlock, NestedBottleneckResBlock
 from katago.train.model_pytorch import compute_attn_logit_dataless_bounds
 from katago.train.load_model import load_model
 
+# A transformer FFN hidden channel is pruned when no weight touching it exceeds this in
+# absolute value. Training with Muon and weight decay can leave channels at exactly zero on
+# every side, and such channels never recover, so this only needs to catch exact zeros.
+DEAD_FFN_CHANNEL_MAX_ABS = 1e-15
+# Pruned FFN widths are multiples of this, or of the largest power of two dividing the original
+# width when that is smaller, so that the inference backends' matrix kernels keep tiling them
+# evenly. The OpenCL tensor core path needs a multiple of 32 and the CUDA fused FFN a multiple
+# of 8, and larger multiples keep the GEMM tiles full.
+FFN_CHANNEL_MULTIPLE = 64
+
+
+def ffn_width_granularity(ffn_dim):
+    """The step between allowed pruned widths for an FFN of width ffn_dim."""
+    g = 1
+    while g < FFN_CHANNEL_MULTIPLE and ffn_dim % (2 * g) == 0:
+        g *= 2
+    return g
+
+
+def ffn_blocks_in_export_order(model):
+    """(name, block) for every transformer FFN block, in the order the trunk is written."""
+    out = []
+    for i, block in enumerate(model.blocks):
+        if isinstance(block, TransformerFFNBlock):
+            out.append((f"blocks.{i}", block))
+        elif hasattr(block, "blockstack"):
+            for j, sub in enumerate(block.blockstack):
+                if isinstance(sub, TransformerFFNBlock):
+                    out.append((f"blocks.{i}.blockstack.{j}", sub))
+    return out
+
+
+def choose_ffn_widths(live_counts, ffn_dim, granularity, scratch_factor):
+    """Picks the width each FFN block of original width ffn_dim is pruned to. Each block gets the
+    smallest width from a chosen set of allowed widths that still holds its live channels. The
+    set is chosen to minimize the total width over the blocks, which is the compute spent on
+    dead channels, under a memory bound. The inference backends pool scratch buffers by exact
+    size and never free them, so every distinct width in use keeps FFN scratch memory
+    proportional to that width, and the sum of the distinct widths is held to at most
+    scratch_factor * ffn_dim. ffn_dim itself is always in the set, since the block the OpenCL
+    tuner keys on is kept at full width. Widths are multiples of granularity. Returns the list
+    of widths, one per entry of live_counts."""
+    def round_up(c):
+        return max(granularity, math.ceil(c / granularity) * granularity)
+    # Only widths that some block would exactly fill, plus ffn_dim, need considering: any other
+    # allowed width could be lowered to the next such width without changing any block's
+    # assignment or raising the sum.
+    cands = sorted(set(round_up(c) for c in live_counts) | {ffn_dim})
+    num_cands = len(cands)
+    units = [w // granularity for w in cands]
+    budget = math.floor(scratch_factor * ffn_dim / granularity + 1e-9)
+    if budget < units[-1]:
+        raise Exception(f"-prune-ffn-scratch-factor {scratch_factor} does not leave room for the full width {ffn_dim}")
+    # count_le[j] is the number of blocks whose live channels fit in cands[j].
+    count_le = [sum(1 for c in live_counts if c <= w) for w in cands]
+    # best[j][b] is the minimal total width for the blocks fitting in cands[j], using a set of
+    # allowed widths whose largest is cands[j] and whose sum is at most b units of granularity.
+    # prev holds the next smaller set element, for backtracking.
+    inf = float("inf")
+    best = [[inf] * (budget + 1) for _ in range(num_cands)]
+    prev = [[None] * (budget + 1) for _ in range(num_cands)]
+    for j in range(num_cands):
+        for b in range(units[j], budget + 1):
+            best[j][b] = count_le[j] * cands[j]
+            for i in range(j):
+                if best[i][b - units[j]] < inf:
+                    cost = best[i][b - units[j]] + (count_le[j] - count_le[i]) * cands[j]
+                    if cost < best[j][b]:
+                        best[j][b] = cost
+                        prev[j][b] = i
+    allowed = []
+    j = num_cands - 1
+    b = budget
+    while j is not None:
+        allowed.append(cands[j])
+        j, b = prev[j][b], b - units[j]
+    allowed.sort()
+    return [next(w for w in allowed if w >= c) for c in live_counts]
+
+
+def prune_dead_ffn_channels(model, scratch_factor):
+    """Removes hidden channels of the transformer FFN blocks whose ffn_linear1 row, gate row and
+    ffn_linear2 column are all zero (below DEAD_FFN_CHANNEL_MAX_ABS in absolute value), which
+    leaves the model's function unchanged. Each block keeps its live channels in their original
+    order plus the lowest-index dead channels needed to reach the width chosen for it by
+    choose_ffn_widths. The last FFN block is not pruned at all, because the OpenCL tuner sizes
+    its FFN tuning from that block and its tuning file is shared with unpruned exports of the
+    same architecture. Returns (channels before, channels after, live channels) summed over the
+    blocks."""
+    blocks = ffn_blocks_in_export_order(model)
+    if len(blocks) == 0:
+        logging.info("No transformer FFN blocks, nothing to prune")
+        return 0, 0, 0
+    dead_masks = []
+    for name, block in blocks:
+        assert not getattr(block, "use_depthwise_conv", False), f"{name}: pruning an FFN with a depthwise conv is not supported"
+        w1 = block.ffn_linear1.weight.detach()
+        w2 = block.ffn_linear2.weight.detach()
+        dead = (w1.abs().amax(dim=1) < DEAD_FFN_CHANNEL_MAX_ABS) & (w2.abs().amax(dim=0) < DEAD_FFN_CHANNEL_MAX_ABS)
+        if block.use_swiglu:
+            dead &= block.ffn_linear_gate.weight.detach().abs().amax(dim=1) < DEAD_FFN_CHANNEL_MAX_ABS
+        dead_masks.append(dead)
+
+    # Widths are chosen per original width, normally a single group.
+    widths = [None] * len(blocks)
+    widths[-1] = blocks[-1][1].ffn_dim
+    for ffn_dim in sorted(set(block.ffn_dim for _, block in blocks)):
+        idx = [i for i, (_, block) in enumerate(blocks) if block.ffn_dim == ffn_dim and widths[i] is None]
+        if len(idx) == 0:
+            continue
+        live_counts = [ffn_dim - int(dead_masks[i].sum().item()) for i in idx]
+        chosen = choose_ffn_widths(live_counts, ffn_dim, ffn_width_granularity(ffn_dim), scratch_factor)
+        for i, w in zip(idx, chosen):
+            widths[i] = w
+
+    total_before = total_after = total_live = 0
+    for (name, block), dead, num_keep in zip(blocks, dead_masks, widths):
+        ffn_dim = block.ffn_dim
+        num_live = ffn_dim - int(dead.sum().item())
+        total_before += ffn_dim
+        total_after += num_keep
+        total_live += num_live
+        logging.info(f"{name}: FFN channels {ffn_dim} -> {num_keep}, {num_live} live")
+        if num_keep == ffn_dim:
+            continue
+        live_idx = torch.nonzero(~dead).flatten()
+        dead_idx = torch.nonzero(dead).flatten()
+        keep = torch.sort(torch.cat([live_idx, dead_idx[:num_keep - num_live]])).values
+        w1 = block.ffn_linear1.weight.detach()
+        w2 = block.ffn_linear2.weight.detach()
+        with torch.no_grad():
+            block.ffn_linear1.weight = torch.nn.Parameter(w1[keep].clone())
+            block.ffn_linear1.out_features = num_keep
+            if block.use_swiglu:
+                block.ffn_linear_gate.weight = torch.nn.Parameter(block.ffn_linear_gate.weight.detach()[keep].clone())
+                block.ffn_linear_gate.out_features = num_keep
+            block.ffn_linear2.weight = torch.nn.Parameter(w2[:, keep].clone())
+            block.ffn_linear2.in_features = num_keep
+        block.ffn_dim = num_keep
+        if getattr(block, "fused_swiglu_kernel", False):
+            from katago.train.fused_swiglu import is_supported_shape
+            block.fused_swiglu_kernel = is_supported_shape(block.c_main, num_keep)
+    distinct = sorted(set(widths))
+    logging.info(
+        f"Pruned dead FFN channels: {total_before} -> {total_after} hidden channels over {len(blocks)} FFN blocks "
+        f"({total_live} live), distinct widths {distinct} summing to {sum(distinct)}"
+    )
+    return total_before, total_after, total_live
+
+
 #Command and args-------------------------------------------------------------------
 
 description = """
@@ -41,6 +191,8 @@ parser.add_argument('-export-14-as-15', help='Export model version 14 as 15', ac
 parser.add_argument('-export-15-or-16-as-17', help='Export model version 15 or 16 as 17', action="store_true", required=False)
 parser.add_argument('-attn-logit-bound-limit', help='Refuse to export if the data-free attention logit bound of any layer exceeds this (inference backends mask off-board keys with -3e4 in fp16, so genuine logits must stay well below that)', type=float, default=2.5e4, required=False)
 parser.add_argument('-ignore-attn-logit-bound', help='Export anyway when the attention logit bound limit is exceeded', action="store_true", required=False)
+parser.add_argument('-prune-dead-ffn-channels', help='Leave out transformer FFN hidden channels whose weights are all zero, to improve performance', action="store_true", required=False)
+parser.add_argument('-prune-ffn-scratch-factor', help='With -prune-dead-ffn-channels, the sum of the distinct FFN widths in use may be at most this multiple of the original width. Inference backends keep scratch memory for each distinct width, so this bounds the growth of that memory (default 2.0)', type=float, default=2.0, required=False)
 args = vars(parser.parse_args())
 
 
@@ -95,6 +247,10 @@ def main(args):
     # constants the inference backends use for off-board keys (-3e4 in fp16 backends).
     # See compute_attn_logit_dataless_bounds for the derivation and its tightness.
     model_to_export = swa_model if swa_model is not None else model
+
+    if args["prune_dead_ffn_channels"]:
+        prune_dead_ffn_channels(model_to_export, args["prune_ffn_scratch_factor"])
+
     attn_logit_bounds = compute_attn_logit_dataless_bounds(model_to_export)
     if len(attn_logit_bounds) > 0:
         top = sorted(attn_logit_bounds.items(), key=lambda kv: -kv[1])[:5]

@@ -771,7 +771,10 @@ static void failIllegalMove(const Search* bot, Logger& logger, const Board& boar
   ASSERT_UNREACHABLE;
 }
 
-static void logSearch(const Search* bot, Logger& logger, Loc loc, const OtherGameProperties& otherGameProps) {
+static void logSearch(
+  const Search* bot, Logger& logger, Loc loc, const OtherGameProperties& otherGameProps,
+  const PrintTreeOptions& treeOptions
+) {
   ostringstream sout;
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";
@@ -788,7 +791,7 @@ static void logSearch(const Search* bot, Logger& logger, Loc loc, const OtherGam
   bot->printPV(sout, bot->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
-  bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),P_WHITE);
+  bot->printTree(sout, bot->rootNode, treeOptions, P_WHITE);
 
   logger.write(sout.str());
 }
@@ -1818,7 +1821,7 @@ FinishedGameData* Play::runGame(
     if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
     if(logSearchInfo)
-      logSearch(toMoveBot,logger,loc,otherGameProps);
+      logSearch(toMoveBot,logger,loc,otherGameProps,playSettings.logSearchTreeOptions);
     if(logMoves)
       logger.write("Move " + Global::uint64ToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 

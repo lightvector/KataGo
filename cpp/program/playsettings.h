@@ -2,6 +2,7 @@
 #define PROGRAM_PLAYSETTINGS_H_
 
 #include "../core/config_parser.h"
+#include "../search/searchprint.h"
 
 struct PlaySettings {
   //Play a bunch of mostly policy-distributed moves at the start to initialize a game.
@@ -118,6 +119,9 @@ struct PlaySettings {
 
   //Record time taken per move
   bool recordTimePerMove;
+
+  //How much of the search tree to write to the log after each move, when logSearchInfo is on.
+  PrintTreeOptions logSearchTreeOptions;
 
   PlaySettings();
   ~PlaySettings();

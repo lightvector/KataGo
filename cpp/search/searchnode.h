@@ -173,6 +173,22 @@ struct ConstSearchNodeChildrenReference {
   int iterateAndCountChildren() const;
 };
 
+//Child weight distribution at a node where the player capped by SearchParams::visitCapContempt is to move,
+//taken when the node reaches the cap. With multiple threads, it may include up to about one extra visit per thread.
+struct VisitCapSnapshot {
+  struct Entry {
+    int pos;
+    double weightFrac;
+  };
+  //Fraction of the total child weight for each child that had weight, sorted by policy position. Sums to 1.
+  std::vector<Entry> entries;
+
+  //Sorts the entries. Call once after all entries are added.
+  void finalize();
+  //The weight fraction for the child at policy position pos, 0 if that child had no weight.
+  double getWeightFrac(int pos) const;
+};
+
 struct SearchNode {
   //Locks------------------------------------------------------------------------------
   mutable std::atomic_flag statsLock = ATOMIC_FLAG_INIT;
@@ -217,6 +233,10 @@ struct SearchNode {
   //Protected under statsLock for writing
   NodeStatsAtomic stats;
   std::atomic<int32_t> virtualLosses;
+
+  //During search, only ever transitions from NULL -> non-NULL, under statsLock, once the node reaches
+  //the visit cap for nextPla. Stays NULL if nextPla is not capped. Owned by this node.
+  std::atomic<VisitCapSnapshot*> visitCapSnapshot;
 
   //Protected under the entryLock in subtreeValueBiasTableEntry
   //Used only if subtreeValueBiasTableEntry is not nullptr.

@@ -321,6 +321,88 @@ double Search::getFpuValueForChildrenAssumeVisited(
 }
 
 
+//Select the existing child furthest behind its share of the snapshot distribution, counting virtual losses as
+//weight as in PUCT. Never creates a new child, except for a root focus target, which is weightless.
+//Sets bestChildIdx to -1 if no child has a positive share.
+void Search::selectChildToMatchVisitCapSnapshot(
+  const VisitCapSnapshot& snapshot, ConstSearchNodeChildrenReference children,
+  const float* policyProbs, double parentWeightPerVisit, bool countEdgeVisit,
+  bool focusPlayout, Loc focusTarget,
+  int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc
+) const {
+  int childrenCapacity = children.getCapacity();
+  double childWeightBuf[NNPos::MAX_NN_POLICY_SIZE];
+  double childFracBuf[NNPos::MAX_NN_POLICY_SIZE];
+
+  numChildrenFound = 0;
+  bestChildIdx = -1;
+  bestChildMoveLoc = Board::NULL_LOC;
+
+  double totalWeight = 0.0;
+  double totalFrac = 0.0;
+  bool focusTargetIsExistingChild = false;
+  for(int i = 0; i<childrenCapacity; i++) {
+    const SearchChildPointer& childPointer = children[i];
+    const SearchNode* child = childPointer.getIfAllocated();
+    if(child == NULL)
+      break;
+    numChildrenFound++;
+
+    Loc moveLoc = childPointer.getMoveLocRelaxed();
+    int movePos = getPos(moveLoc);
+    float nnPolicyProb = policyProbs[movePos];
+
+    double childWeight;
+    if(countEdgeVisit)
+      childWeight = child->stats.getChildWeight(childPointer.getEdgeVisits());
+    else
+      childWeight = child->stats.weightSum.load(std::memory_order_acquire);
+    childWeight += child->virtualLosses.load(std::memory_order_acquire) * searchParams.numVirtualLossesPerThread;
+
+    //Illegal moves get no share.
+    double frac = nnPolicyProb < 0 ? 0.0 : snapshot.getWeightFrac(movePos);
+    childWeightBuf[i] = childWeight;
+    childFracBuf[i] = frac;
+    totalWeight += childWeight;
+    totalFrac += frac;
+
+    if(focusPlayout && moveLoc == focusTarget) {
+      focusTargetIsExistingChild = true;
+      if(nnPolicyProb >= 0) {
+        bestChildIdx = i;
+        bestChildMoveLoc = moveLoc;
+      }
+    }
+  }
+
+  if(focusPlayout) {
+    if(!focusTargetIsExistingChild) {
+      bestChildIdx = numChildrenFound;
+      bestChildMoveLoc = focusTarget;
+      return;
+    }
+    if(bestChildIdx >= 0)
+      return;
+    //Focus target is now illegal, fall through to normal selection.
+  }
+
+  if(totalFrac <= 0.0)
+    return;
+
+  double newTotalWeight = totalWeight + parentWeightPerVisit;
+  double maxDeficit = -1e100;
+  for(int i = 0; i<numChildrenFound; i++) {
+    if(childFracBuf[i] <= 0.0)
+      continue;
+    double deficit = childFracBuf[i] / totalFrac * newTotalWeight - childWeightBuf[i];
+    if(deficit > maxDeficit) {
+      maxDeficit = deficit;
+      bestChildIdx = i;
+      bestChildMoveLoc = children[i].getMoveLocRelaxed();
+    }
+  }
+}
+
 void Search::selectBestChildToDescend(
   SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
   int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc, bool& countEdgeVisit,
@@ -333,6 +415,48 @@ void Search::selectBestChildToDescend(
   bestChildMoveLoc = Board::NULL_LOC;
   countEdgeVisit = true;
 
+  //A focus playout selects one of the focus moves at random in proportion to its weight. See FocusMoves in search.h.
+  //Focus moves that are illegal, avoided, or otherwise not searchable at the root get zero weight, and if none are
+  //searchable the playout is a normal one. If symmetry pruning searches an equivalent copy of the chosen move
+  //instead, that copy is the target. Analysis output reports the chosen move as a symmetry of that copy, so the
+  //focus still shows up on the requested move. The target gets a selection value above every other move, so it is
+  //chosen whenever it is selectable. If it is not, the playout falls through to the normal best move, still as a
+  //weightless and uncounted playout.
+  bool focusPlayout = false;
+  Loc focusTarget = Board::NULL_LOC;
+  if(isRoot) {
+    const FocusMoves* focus = rootFocus.load(std::memory_order_acquire);
+    if(focus != nullptr && thread.rand.nextDouble() < focus->prob) {
+      const std::vector<int>& rootAvoidMoveUntilByLoc = rootPla == P_BLACK ? avoidMoveUntilByLocBlack : avoidMoveUntilByLocWhite;
+      auto rootFocusTargetOf = [&](Loc loc) {
+        if(!rootHistory.isLegal(rootBoard,loc,rootPla))
+          return Board::NULL_LOC;
+        if(rootAvoidMoveUntilByLoc.size() > 0 && rootAvoidMoveUntilByLoc[loc] > 0)
+          return Board::NULL_LOC;
+        Loc target = rootSymRepresentativeLoc[loc];
+        if(target == Board::NULL_LOC || !isAllowedRootMove(target))
+          return Board::NULL_LOC;
+        return target;
+      };
+
+      std::vector<double>& cumWeights = thread.rootFocusCumWeightsBuf;
+      cumWeights.resize(focus->moves.size());
+      double cumWeight = 0.0;
+      for(size_t i = 0; i<focus->moves.size(); i++) {
+        if(rootFocusTargetOf(focus->moves[i]) != Board::NULL_LOC)
+          cumWeight += focus->weights[i];
+        cumWeights[i] = cumWeight;
+      }
+      if(cumWeight > 0.0) {
+        size_t idx = thread.rand.nextIndexCumulative(cumWeights.data(), cumWeights.size());
+        focusPlayout = true;
+        focusTarget = rootFocusTargetOf(focus->moves[idx]);
+        countEdgeVisit = false;
+        thread.shouldCountPlayout = false;
+      }
+    }
+  }
+
   ConstSearchNodeChildrenReference children = node.getChildren(nodeState);
   int childrenCapacity = children.getCapacity();
 
@@ -343,6 +467,23 @@ void Search::selectBestChildToDescend(
   const NNOutput* nnOutput = node.getNNOutput();
   assert(nnOutput != NULL);
   const float* policyProbs = nnOutput->getPolicyProbsMaybeNoised();
+
+  //Capped nodes with a snapshot match the snapshot distribution instead of following PUCT.
+  if(getVisitCap(node.nextPla) > 0) {
+    const VisitCapSnapshot* visitCapSnapshot = node.visitCapSnapshot.load(std::memory_order_acquire);
+    if(visitCapSnapshot != NULL) {
+      int64_t visits = node.stats.visits.load(std::memory_order_acquire);
+      double weightSum = node.stats.weightSum.load(std::memory_order_acquire);
+      double parentWeightPerVisit = weightSum / (double)std::max((int64_t)1, visits);
+      selectChildToMatchVisitCapSnapshot(
+        *visitCapSnapshot, children, policyProbs, parentWeightPerVisit, countEdgeVisit,
+        focusPlayout, focusTarget,
+        numChildrenFound, bestChildIdx, bestChildMoveLoc
+      );
+      return;
+    }
+  }
+
   for(int i = 0; i<childrenCapacity; i++) {
     const SearchChildPointer& childPointer = children[i];
     const SearchNode* child = childPointer.getIfAllocated();
@@ -480,6 +621,8 @@ void Search::selectBestChildToDescend(
       countEdgeVisit,
       &thread
     );
+    if(focusPlayout && moveLoc == focusTarget && selectionValue > POLICY_ILLEGAL_SELECTION_VALUE)
+      selectionValue = ROOT_FOCUS_SELECTION_VALUE;
     if(selectionValue > maxSelectionValue) {
       // if(child->state.load(std::memory_order_seq_cst) == SearchNode::STATE_EVALUATING) {
       //   selectionValue -= EVALUATING_SELECTION_VALUE_PENALTY;
@@ -552,6 +695,7 @@ void Search::selectBestChildToDescend(
   //Try the new child with the best policy value
   Loc bestNewMoveLoc = Board::NULL_LOC;
   float bestNewNNPolicyProb = -1.0f;
+  bool focusTargetIsNewMove = false;
   for(int movePos = 0; movePos<policySize; movePos++) {
     bool alreadyTried = posesWithChildBuf[movePos];
     if(alreadyTried)
@@ -584,10 +728,19 @@ void Search::selectBestChildToDescend(
       maybeApplyAntiMirrorPolicy(nnPolicyProb, moveLoc, policyProbs, node.nextPla, &thread);
     }
 
+    if(focusPlayout && moveLoc == focusTarget)
+      focusTargetIsNewMove = true;
+
     if(nnPolicyProb > bestNewNNPolicyProb) {
       bestNewNNPolicyProb = nnPolicyProb;
       bestNewMoveLoc = moveLoc;
     }
+  }
+  //A focus target that is a not-yet-visited move beats every existing child and every other new move.
+  if(focusTargetIsNewMove) {
+    maxSelectionValue = ROOT_FOCUS_SELECTION_VALUE;
+    bestChildIdx = numChildrenFound;
+    bestChildMoveLoc = focusTarget;
   }
   if(bestNewMoveLoc != Board::NULL_LOC) {
     double selectionValue = getNewExploreSelectionValue(
@@ -609,7 +762,8 @@ void Search::selectBestChildToDescend(
   if(totalChildEdgeVisits >= 2 &&
      searchParams.enableMorePassingHacks &&
      thread.history.passWouldEndPhase(thread.board,thread.pla) &&
-     avoidMoveUntilByLoc.size() == 0 // Don't force playouts if there's any chance we're specifying specific moves since we don't want to force an avoided move
+     avoidMoveUntilByLoc.size() == 0 && // Don't force playouts if there's any chance we're specifying specific moves since we don't want to force an avoided move
+     !focusPlayout // Focus playouts are already forced to specific moves
   ) {
     bool hasPassMove = false;
     bool hasNonPassMove = false;

@@ -197,6 +197,23 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
     numGoodChildren++;
   }
 
+  //Take the visit cap snapshot if this update brings a capped node to its cap, using the child weights before
+  //noise pruning and downweighting. It is installed under statsLock below.
+  VisitCapSnapshot* newVisitCapSnapshot = NULL;
+  {
+    int64_t visitCap = getVisitCap(node.nextPla);
+    if(visitCap > 0 && numGoodChildren > 0 && node.visitCapSnapshot.load(std::memory_order_acquire) == NULL) {
+      int64_t newVisits = node.stats.visits.load(std::memory_order_acquire) + numVisitsToAdd;
+      if(newVisits >= visitCap) {
+        newVisitCapSnapshot = new VisitCapSnapshot();
+        newVisitCapSnapshot->entries.reserve(numGoodChildren);
+        for(int i = 0; i<numGoodChildren; i++)
+          newVisitCapSnapshot->entries.push_back({getPos(statsBuf[i].prevMoveLoc), statsBuf[i].weightAdjusted / origTotalChildWeight});
+        newVisitCapSnapshot->finalize();
+      }
+    }
+  }
+
   //Always tracks the sum of statsBuf[i].weightAdjusted across the children.
   double currentTotalChildWeight = origTotalChildWeight;
 
@@ -356,7 +373,16 @@ void Search::recomputeNodeStats(SearchNode& node, SearchThread& thread, int numV
   node.stats.weightSqSum.store(weightSqSum,std::memory_order_release);
   node.stats.weightSum.store(weightSum,std::memory_order_release);
   node.stats.visits.fetch_add(numVisitsToAdd,std::memory_order_release);
+  if(newVisitCapSnapshot != NULL) {
+    VisitCapSnapshot* expected = NULL;
+    if(node.visitCapSnapshot.compare_exchange_strong(expected, newVisitCapSnapshot, std::memory_order_acq_rel))
+      newVisitCapSnapshot = NULL;
+  }
   node.statsLock.clear(std::memory_order_release);
+
+  //Stats updates of a node are serialized, so the compare-exchange should never fail, but avoid leaking if it does.
+  if(newVisitCapSnapshot != NULL)
+    delete newVisitCapSnapshot;
 }
 
 void Search::adjustEvalsFromCacheHelper(

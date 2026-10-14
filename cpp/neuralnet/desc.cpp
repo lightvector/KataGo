@@ -41,11 +41,8 @@ static void readFloats(istream& in, size_t numFloats, bool binaryFloats, const s
   buf.resize(numFloats);
   if(!binaryFloats) {
     string tmp;
-    for(size_t i = 0; i<numFloats; i++) {
-      float x = readFloatFast(in,tmp);
-      CHECKFINITE(x,name);
-      buf[i] = x;
-    }
+    for(size_t i = 0; i<numFloats; i++)
+      buf[i] = readFloatFast(in,tmp);
     if(in.fail())
       throw StringError(name + ": could not read float weights. Invalid model - perhaps you are trying to load a .bin.gz model as a .txt.gz model?");
   }
@@ -83,9 +80,14 @@ static void readFloats(istream& in, size_t numFloats, bool binaryFloats, const s
       std::swap(bytes[i*4 + 1], bytes[i*4 + 2]);
     }
 #endif
-    for(size_t i = 0; i<numFloats; i++) {
-      CHECKFINITE(buf[i],name);
-    }
+  }
+
+  //Flush fp32 subnormals to zero. Some model files have such values, which is negligible for behavior
+  //but CPU arithmetic on them is extremely slow.
+  for(size_t i = 0; i<numFloats; i++) {
+    CHECKFINITE(buf[i],name);
+    if(std::fpclassify(buf[i]) == FP_SUBNORMAL)
+      buf[i] = 0.0f;
   }
 }
 

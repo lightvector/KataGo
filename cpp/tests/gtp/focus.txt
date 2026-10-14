@@ -1,0 +1,18 @@
+boardsize 9
+kata-search_analyze b rootInfo true focus C3,G7 0.9
+kata-search_analyze b rootInfo true focus C3 0.5
+kata-search_analyze b rootInfo true
+clear_board
+kata-search_analyze b rootInfo true focus C3 1.5
+kata-search_analyze b rootInfo true focus Z9 0.5
+kata-search_analyze b rootInfo true focus C3
+kata-search_analyze b rootInfo true focus C3:0,G7 0.5
+kata-search_analyze b rootInfo true focus C3:abc 0.5
+kata-search_analyze b rootInfo true focus C3 0.5 focus G7 0.5
+kata-search_analyze b rootInfo true focus C3:3,G7:1,C7 0.9
+clear_board
+kata-search_analyze b rootInfo true focus E5 1.0 avoid b E5 1
+clear_board
+play b D4
+kata-search_analyze w rootInfo true focus F6 0.9
+kata-search_analyze w rootInfo true focus F6 0.0

@@ -4,6 +4,7 @@
 import math
 import numpy as np
 import torch
+import torch._dynamo
 import torch.nn
 import torch.nn.functional
 import torch.nn.init
@@ -20,8 +21,24 @@ from ..train.trainloop_helpers import env_flag
 # Under AMP, cast the small cos/sin rotation tables to the input dtype before the
 # batch-sized Q/K rotation, instead of promoting the batch-sized rotation
 # intermediates to FP32. The trigonometric functions themselves remain FP32.
-# Set the environment variable to 0 for a full-FP32 rotation regression comparison.
+# Set the environment variable to 0 for a full-FP32 rotation regression comparison. Only affects the
+# plain PyTorch rotation. The fused Triton path (FUSED_ROPE_BACKWARD) always rotates in FP32.
 LEARNED_ROPE_CAST_TO_INPUT_DTYPE = env_flag("KATAGO_LEARNED_ROPE_CAST_TO_INPUT_DTYPE", default=True)
+# Compute the transformer Q/K/V projections (and the SwiGLU input/gate projections) as one GEMM
+# each over on-the-fly concatenated weights. Set to 0 to run them as separate matmuls.
+FUSED_QKV_PROJ = env_flag("KATAGO_FUSED_QKV_PROJ", default=True)
+# Under fp16/bf16 autocast on CUDA, compute the SwiGLU FFN input projection with the fused
+# Triton dual-GEMM kernel in katago.train.fused_swiglu, which never materializes the two
+# pre-gating intermediates. fp32 (non-autocast) paths, CPU, and export are unaffected.
+FUSED_SWIGLU_KERNEL = env_flag("KATAGO_FUSED_SWIGLU_KERNEL", default=True)
+# On CUDA with learnable RoPE and the fused Q/K/V projection, apply RoPE with the Triton custom ops in
+# katago.train.fused_rope: one forward kernel that rotates and writes Q, K, V in attention layout, and
+# one backward kernel that writes the packed Q/K/V gradient directly. The backward kernel is the main
+# saving. Grouped-query attention and register tokens are not supported and fall back to the plain
+# path. Under torch.compile this is only safe with the per-block compiled trunk, so
+# trainloop_helpers.configure_model_for_compile turns it (and the fused Q/K/V projection) off when the
+# model is compiled as a single graph.
+FUSED_ROPE_BACKWARD = env_flag("KATAGO_FUSED_ROPE_BACKWARD", default=True)
 
 EXTRA_SCORE_DISTR_RADIUS = 60
 
@@ -1368,12 +1385,16 @@ def get_flex_attention_fn():
     return _flex_attention_compiled
 
 
-def build_flex_attention_block_mask(mask):
+def build_flex_attention_block_mask(mask, compile_inner=False):
     """Build a flex-attention BlockMask for the board key-padding mask.
 
     mask: N1HW (or N11S) float 0/1 mask. The result is shared by every
     attention layer in the forward pass. Only key positions are masked.
     Off-board query rows produce garbage exactly like the additive-mask path.
+
+    compile_inner: when called from eager code (not inside an outer torch.compile region),
+    ask create_block_mask to compile its dense-mask construction rather than run the slow
+    eager fallback.
     """
     from torch.nn.attention.flex_attention import create_block_mask
     batch_size = mask.shape[0]
@@ -1383,7 +1404,7 @@ def build_flex_attention_block_mask(mask):
     def mask_mod(b, h, q_idx, kv_idx):
         return mask_bs[b, kv_idx]
 
-    return create_block_mask(mask_mod, batch_size, None, seq_len, seq_len, device=mask.device)
+    return create_block_mask(mask_mod, batch_size, None, seq_len, seq_len, device=mask.device, _compile=compile_inner)
 
 
 @dataclass
@@ -2127,6 +2148,12 @@ class TransformerAttentionBlock(torch.nn.Module):
         self.k_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.q_head_dim, bias=False)
         self.v_proj = torch.nn.Linear(c_main, self.num_kv_heads * self.v_head_dim, bias=False)
         self.out_proj = torch.nn.Linear(self.num_heads * self.v_head_dim, c_main, bias=False)
+        # Run the Q, K, V projections as a single GEMM over the concatenated weights.
+        # At these channel widths the projections are memory-bandwidth-bound, so reading the
+        # normalized input once instead of three times (and producing one input-gradient GEMM
+        # instead of three summed ones in backward) is a real saving. Parameters are unchanged:
+        # the concatenation happens on the fly each forward, so checkpoints and export are unaffected.
+        self.fused_qkv_proj = FUSED_QKV_PROJ
 
         # QK-norm: RMSNorm on Q and K per-head before the attention dot product.
         # See ViT-22B, etc.
@@ -2147,6 +2174,15 @@ class TransformerAttentionBlock(torch.nn.Module):
                 "Inline register tokens require learnable RoPE"
 
         self.learnable_rope = config.get("learnable_rope", False) if self.use_rope else False
+        # See FUSED_ROPE_BACKWARD. The remaining conditions are checked per forward.
+        self.fused_rope_backward = (
+            FUSED_ROPE_BACKWARD
+            and self.fused_qkv_proj
+            and self.learnable_rope
+            and self.num_kv_heads == self.num_heads
+            and self.q_head_dim % 2 == 0 and (self.q_head_dim & (self.q_head_dim - 1)) == 0
+            and (self.v_head_dim & (self.v_head_dim - 1)) == 0
+        )
         if self.use_rope:
             if self.learnable_rope:
                 assert self.q_head_dim % 2 == 0, f"Head dim must be even for learnable RoPE, got {self.q_head_dim}"
@@ -2312,15 +2348,40 @@ class TransformerAttentionBlock(torch.nn.Module):
 
         x_norm = self.norm1(x_in)
 
-        q = self.q_proj(x_norm)
-        k = self.k_proj(x_norm)
-        v = self.v_proj(x_norm)
+        use_fused_rope = (
+            self.fused_rope_backward
+            and self.fused_qkv_proj
+            and self.learnable_rope
+            and x_norm.is_cuda
+            and not (self.inline_registers and self.num_rw_registers > 0)
+        )
+        qkv_is_bhsd = False
+        if self.fused_qkv_proj:
+            qkv_weight = torch.cat([self.q_proj.weight, self.k_proj.weight, self.v_proj.weight], dim=0)
+            qkv = torch.nn.functional.linear(x_norm, qkv_weight)
+            if use_fused_rope:
+                from .fused_rope import learnable_rope_qkv
+                q, k, v = learnable_rope_qkv(
+                    qkv, self.rope_freqs, self.pos_len, self.num_heads, self.q_head_dim, self.v_head_dim,
+                )  # q, k rotated and v, each (B, H, S, head dim)
+                qkv_is_bhsd = True
+            else:
+                q, k, v = torch.split(
+                    qkv,
+                    [self.q_proj.weight.shape[0], self.k_proj.weight.shape[0], self.v_proj.weight.shape[0]],
+                    dim=-1,
+                )
+        else:
+            q = self.q_proj(x_norm)
+            k = self.k_proj(x_norm)
+            v = self.v_proj(x_norm)
 
-        q = q.view(batch_size, seq_len, self.num_heads, self.q_head_dim)
-        k = k.view(batch_size, seq_len, self.num_kv_heads, self.q_head_dim)
-        v = v.view(batch_size, seq_len, self.num_kv_heads, self.v_head_dim)
+        if not use_fused_rope:
+            q = q.view(batch_size, seq_len, self.num_heads, self.q_head_dim)
+            k = k.view(batch_size, seq_len, self.num_kv_heads, self.q_head_dim)
+            v = v.view(batch_size, seq_len, self.num_kv_heads, self.v_head_dim)
 
-        if self.use_rope:
+        if self.use_rope and not use_fused_rope:
             if self.learnable_rope:
                 # When inline registers are active, use precomputed all_pos_x/all_pos_y
                 # which covers both board and register positions. Otherwise compute from arange.
@@ -2347,9 +2408,10 @@ class TransformerAttentionBlock(torch.nn.Module):
             else:
                 q, k = apply_rotary_emb(q, k, self.cos_cached, self.sin_cached)
 
-        q = q.permute(0, 2, 1, 3)
-        k = k.permute(0, 2, 1, 3)
-        v = v.permute(0, 2, 1, 3)
+        if not qkv_is_bhsd:
+            q = q.permute(0, 2, 1, 3)
+            k = k.permute(0, 2, 1, 3)
+            v = v.permute(0, 2, 1, 3)
 
         if self.n_rep > 1:
             k = k.unsqueeze(2).expand(batch_size, self.num_kv_heads, self.n_rep, seq_len, self.q_head_dim)
@@ -2532,6 +2594,17 @@ class TransformerFFNBlock(torch.nn.Module):
         if self.use_depthwise_conv:
             self.ffn_dwconv = torch.nn.Conv2d(self.ffn_dim, self.ffn_dim, kernel_size=3, padding=1, groups=self.ffn_dim, bias=False)
         self.ffn_linear2 = torch.nn.Linear(self.ffn_dim, c_main, bias=False)
+        # Run the SwiGLU input and gate projections as one GEMM over the concatenated weights.
+        # Same rationale and same parameter layout as TransformerAttentionBlock.fused_qkv_proj.
+        self.fused_gate_proj = FUSED_QKV_PROJ and self.use_swiglu
+        # See FUSED_SWIGLU_KERNEL. Only shapes the kernel tiles evenly are eligible. Whether it is
+        # actually used is decided per forward, since it also requires autocast to be active.
+        self.fused_swiglu_kernel = False
+        if FUSED_SWIGLU_KERNEL and self.use_swiglu and not self.use_depthwise_conv:
+            from .fused_swiglu import is_supported_shape
+            # The kernel hardcodes SiLU gating.
+            assert isinstance(self.ffn_act, torch.nn.SiLU)
+            self.fused_swiglu_kernel = is_supported_shape(c_main, self.ffn_dim)
 
         self.norm = torch.nn.RMSNorm(c_main, eps=1e-6)
 
@@ -2583,10 +2656,30 @@ class TransformerFFNBlock(torch.nn.Module):
         xn = self.norm(x_in)
 
         if self.use_swiglu:
-            x1 = self.ffn_linear1(xn)
-            x1 = self.ffn_act(x1)
-            x_gate = self.ffn_linear_gate(xn)
-            x1 = x1 * x_gate
+            fused_kernel_dtype = None
+            if (
+                self.fused_swiglu_kernel
+                and xn.is_cuda
+                and torch.is_autocast_enabled("cuda")
+                and torch.get_autocast_dtype("cuda") in (torch.float16, torch.bfloat16)
+            ):
+                fused_kernel_dtype = torch.get_autocast_dtype("cuda")
+            if fused_kernel_dtype is not None:
+                from .fused_swiglu import fused_swiglu
+                x1 = fused_swiglu(
+                    xn.to(fused_kernel_dtype),
+                    self.ffn_linear1.weight.to(fused_kernel_dtype),
+                    self.ffn_linear_gate.weight.to(fused_kernel_dtype),
+                )
+            else:
+                if self.fused_gate_proj:
+                    w13 = torch.cat([self.ffn_linear1.weight, self.ffn_linear_gate.weight], dim=0)
+                    x1, x_gate = torch.split(torch.nn.functional.linear(xn, w13), self.ffn_dim, dim=-1)
+                else:
+                    x1 = self.ffn_linear1(xn)
+                    x_gate = self.ffn_linear_gate(xn)
+                x1 = self.ffn_act(x1)
+                x1 = x1 * x_gate
         else:
             x1 = self.ffn_linear1(xn)
             x1 = self.ffn_act(x1)
@@ -3497,6 +3590,16 @@ class Model(torch.nn.Module):
         self.attn_logit_penalty_cap = None
         self.attn_logit_penalty_batch_frac = 1.0
 
+        # When True, Model.forward routes through _forward_per_block_units: an untraced Python loop
+        # over trunk blocks calling separately compiled units, so that under torch.compile each block
+        # runs as its own compiled invocation. Under DDP this lets each block's parameter gradients be
+        # all-reduced before the rest of the backward finishes, and on any GPU count it keeps
+        # convolutions out of the trunk graphs, which the fused RoPE custom ops need (see
+        # FUSED_ROPE_BACKWARD). Only valid when supports_per_block_compile() is true. Set by
+        # trainloop_helpers.configure_model_for_compile (KATAGO_COMPILE_PER_BLOCK). Same math as the
+        # regular path.
+        self.compile_per_block_trunk = False
+
         if self.trunk_final_rmsnorm:
             spatial = config.get("trunk_rmsnorm_spatial", False)
             cgroup_size = config.get("rmsnorm_spatial_cgroup_size", None) if spatial else None
@@ -3742,6 +3845,11 @@ class Model(torch.nn.Module):
     ):
         # float_formatter = "{:.3f}".format
         # np.set_printoptions(formatter={'float_kind':float_formatter}, threshold=1000000, linewidth=10000)
+
+        if self.compile_per_block_trunk:
+            assert input_meta is None and extra_outputs is None, \
+                "per-block compiled trunk does not support metadata inputs or extra outputs"
+            return self._forward_per_block_units(input_spatial, input_global)
 
         mask = input_spatial[:, 0:1, :, :].contiguous()
         mask_sum_hw = torch.sum(mask,dim=(2,3),keepdim=True)
@@ -4067,6 +4175,134 @@ class Model(torch.nn.Module):
                 out_seki,
                 out_scorebelief_logprobs,
             ),)
+
+    # ---- Per-block compiled trunk (see compile_per_block_trunk) ---------------------------------
+    #
+    # torch.compile unrolls a traced Python loop into one graph, so to get a separate compiled
+    # invocation (and therefore a separate autograd node) per trunk block, the loop itself must
+    # not be traced. _forward_per_block_units is excluded from tracing (torch._dynamo.disable with
+    # recursive=False) and calls three kinds of compiled units: the embedding, one call per block
+    # of the block unit, and the trunk-final/heads section. With torch._dynamo.config's default
+    # inline_inbuilt_nn_modules=True, dynamo does not specialize the block unit on the block's
+    # identity (nn.Module arguments are inlined with their parameters as graph inputs), so all
+    # blocks share one compiled graph per (first block or not, train/eval) variant. With that config
+    # set to False every block would get its own graph and exhaust the recompile limit.
+    # Each unit adds the previous block's residual at its start, so that add fuses into the
+    # block's first norm just as it does in the single-graph path. The flex-attention block mask
+    # is built between units.
+
+    def disable_fused_attention_kernels(self) -> bool:
+        """Turn off the fused Q/K/V projection and the fused RoPE custom ops in every attention block
+        (see trainloop_helpers.configure_model_for_compile). Returns whether anything changed."""
+        changed = False
+        for m in self.modules():
+            if isinstance(m, TransformerAttentionBlock) and (m.fused_qkv_proj or m.fused_rope_backward):
+                m.fused_qkv_proj = False
+                m.fused_rope_backward = False
+                changed = True
+        return changed
+
+    def supports_per_block_compile(self) -> bool:
+        return (
+            all(bk[1] in _TRANSFORMER_SEQ_LAYOUT_KINDS for bk in self.block_kind)
+            and not self.has_intermediate_head
+            and not self.use_trunk_channel_gate
+            and not self.use_trunk_residual_backout
+            and not self.use_rw_registers
+            and self.metadata_encoder is None
+            and self.gab_template_mlp is None
+            and self.tab_module is None
+        )
+
+    @torch._dynamo.disable(recursive=False)
+    def _forward_per_block_units(self, input_spatial, input_global):
+        assert self.supports_per_block_compile()
+        out, mask, mask_sum_hw, mask_sum = self._per_block_embed(input_spatial, input_global)
+        batch_size, _, orig_H, orig_W = mask.shape
+
+        block_shared_data = {}
+        if self.use_flex_attention:
+            block_shared_data[FLEX_BLOCK_MASK] = build_flex_attention_block_mask(mask, compile_inner=True)
+        if self.attn_logit_penalty_cap is not None:
+            pen_batch_items = max(1, int(math.ceil(batch_size * self.attn_logit_penalty_batch_frac)))
+            block_shared_data[ATTN_LOGIT_UB] = {"num_batch_items": pen_batch_items, "ubs": []}
+
+        block_mask = mask.view(batch_size, orig_H * orig_W, 1) if self.transformer_seq_layout else mask
+        residual = None
+        for block in self.blocks:
+            out, residual = self._per_block_trunk_unit(
+                block, out, residual, block_mask, mask_sum_hw, mask_sum, block_shared_data,
+            )
+        ub_list = block_shared_data[ATTN_LOGIT_UB]["ubs"] if self.attn_logit_penalty_cap is not None else None
+        return self._per_block_finish(out, residual, input_global, mask, mask_sum_hw, mask_sum, orig_H, orig_W, ub_list)
+
+    def _per_block_embed(self, input_spatial, input_global):
+        mask = input_spatial[:, 0:1, :, :].contiguous()
+        mask_sum_hw = torch.sum(mask, dim=(2, 3), keepdim=True)
+        mask_sum = torch.sum(mask)
+        x_spatial = self.conv_spatial(input_spatial)
+        x_global = self.linear_global(input_global).unsqueeze(-1).unsqueeze(-1)
+        out = x_spatial + x_global
+        if self.transformer_seq_layout:
+            seq_B, seq_C, seq_H, seq_W = out.shape
+            assert seq_H == self.pos_len and seq_W == self.pos_len
+            out = out.view(seq_B, seq_C, seq_H * seq_W).transpose(1, 2).contiguous()
+        return out, mask, mask_sum_hw, mask_sum
+
+    def _per_block_trunk_unit(self, block, out, residual_in, mask, mask_sum_hw, mask_sum, block_shared_data):
+        if residual_in is not None:
+            out = out + residual_in
+        residual = block(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum, extra_outputs=None, block_shared_data=block_shared_data)
+        return out, residual
+
+    def _per_block_finish(self, out, residual, input_global, mask, mask_sum_hw, mask_sum, orig_H, orig_W, ub_list):
+        out = out + residual
+        if self.transformer_seq_layout:
+            out = out.transpose(1, 2).reshape(out.shape[0], self.c_trunk, orig_H, orig_W)
+
+        if self.attn_logit_penalty_cap is not None:
+            assert len(ub_list) > 0, "attn_logit_penalty_cap set but model has no attention layers"
+            ubs = torch.stack(ub_list)  # (num_attn_layers, B', H)
+            excess = torch.nn.functional.relu(ubs - self.attn_logit_penalty_cap)
+            self.attn_logit_penalty_per_sample = excess.mean(dim=2).sum(dim=0)  # (B',)
+            self.attn_logit_ub_batch_max = ubs.detach().amax()
+
+        out = self.norm_trunkfinal(out, mask=mask, mask_sum_hw=mask_sum_hw, mask_sum=mask_sum)
+        out = self.act_trunkfinal(out)
+
+        with autocast("cuda", enabled=False):
+            out = out.float()
+            mask_fp32 = mask.float()
+            mask_sum_hw_fp32 = mask_sum_hw.float()
+            mask_sum_fp32 = mask_sum.float()
+            input_global_fp32 = input_global.float()
+            out_policy = self.policy_head(
+                out, mask=mask_fp32, mask_sum_hw=mask_sum_hw_fp32, mask_sum=mask_sum_fp32, extra_outputs=None,
+            )
+            (
+                out_value,
+                out_miscvalue,
+                out_moremiscvalue,
+                out_ownership,
+                out_scoring,
+                out_futurepos,
+                out_seki,
+                out_scorebelief_logprobs,
+            ) = self.value_head(
+                out, mask=mask_fp32, mask_sum_hw=mask_sum_hw_fp32, mask_sum=mask_sum_fp32,
+                input_global=input_global_fp32, extra_outputs=None,
+            )
+        return ((
+            out_policy,
+            out_value,
+            out_miscvalue,
+            out_moremiscvalue,
+            out_ownership,
+            out_scoring,
+            out_futurepos,
+            out_seki,
+            out_scorebelief_logprobs,
+        ),)
 
     def float32ify_output(self, outputs_byheads):
         return tuple(self.float32ify_single_heads_output(outputs) for outputs in outputs_byheads)

@@ -1,5 +1,7 @@
 #include "../search/searchnode.h"
 
+#include <algorithm>
+
 #include "../search/search.h"
 #include "../core/test.h"
 
@@ -101,6 +103,21 @@ bool SearchChildPointer::compexweakEdgeVisits(int64_t& expected, int64_t desired
 //-----------------------------------------------------------------------------------------
 
 
+void VisitCapSnapshot::finalize() {
+  std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) { return a.pos < b.pos; });
+}
+
+double VisitCapSnapshot::getWeightFrac(int pos) const {
+  auto it = std::lower_bound(entries.begin(), entries.end(), pos, [](const Entry& e, int p) { return e.pos < p; });
+  if(it == entries.end() || it->pos != pos)
+    return 0.0;
+  return it->weightFrac;
+}
+
+
+//-----------------------------------------------------------------------------------------
+
+
 //Makes a search node resulting from prevPla playing prevLoc
 SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx, Hash128 gh)
   :nextPla(pla),
@@ -116,6 +133,7 @@ SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx, Hash128 gh)
    children2(NULL),
    stats(),
    virtualLosses(0),
+   visitCapSnapshot(NULL),
    lastSubtreeValueBiasDeltaSum(0.0),
    lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
@@ -139,6 +157,7 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
    children2(NULL),
    stats(other.stats),
    virtualLosses(other.virtualLosses.load(std::memory_order_acquire)),
+   visitCapSnapshot(NULL),
    lastSubtreeValueBiasDeltaSum(0.0),
    lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
@@ -155,6 +174,11 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
     std::shared_ptr<NNOutput>* otherVal = other.humanOutput.load(std::memory_order_acquire);
     if(otherVal != NULL)
       humanOutput.store(new std::shared_ptr<NNOutput>(*otherVal), std::memory_order_release);
+  }
+  {
+    const VisitCapSnapshot* otherVal = other.visitCapSnapshot.load(std::memory_order_acquire);
+    if(otherVal != NULL)
+      visitCapSnapshot.store(new VisitCapSnapshot(*otherVal), std::memory_order_release);
   }
   if(other.children0 != NULL) {
     children0 = new SearchChildPointer[SearchChildrenSizes::SIZE0OVERFLOW];
@@ -406,4 +430,6 @@ SearchNode::~SearchNode() {
     delete nnOutput;
   if(humanOutput != NULL)
     delete humanOutput;
+  if(visitCapSnapshot != NULL)
+    delete visitCapSnapshot;
 }

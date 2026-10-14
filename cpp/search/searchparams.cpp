@@ -75,6 +75,8 @@ SearchParams::SearchParams()
    excludeTerritoryAdjacentToAtari(enabled_t::Auto),
    playoutDoublingAdvantage(0.0),
    playoutDoublingAdvantagePla(C_EMPTY),
+   visitCapContempt(0),
+   visitCapContemptPla(C_EMPTY),
    avoidRepeatedPatternUtility(0.0),
    nnPolicyTemperature(1.0f),
    antiMirror(false),
@@ -206,6 +208,9 @@ bool SearchParams::operator==(const SearchParams& other) const {
 
     playoutDoublingAdvantage == other.playoutDoublingAdvantage &&
     playoutDoublingAdvantagePla == other.playoutDoublingAdvantagePla &&
+
+    visitCapContempt == other.visitCapContempt &&
+    visitCapContemptPla == other.visitCapContemptPla &&
 
     avoidRepeatedPatternUtility == other.avoidRepeatedPatternUtility &&
 
@@ -465,6 +470,9 @@ json SearchParams::changeableParametersToJson() const {
   ret["playoutDoublingAdvantage"] = playoutDoublingAdvantage;
   ret["playoutDoublingAdvantagePla"] = PlayerIO::playerToStringShort(playoutDoublingAdvantagePla);
 
+  ret["visitCapContempt"] = visitCapContempt;
+  ret["visitCapContemptPla"] = PlayerIO::playerToStringShort(visitCapContemptPla);
+
   // Special handling in GTP
   // ret["avoidRepeatedPatternUtility"] = avoidRepeatedPatternUtility;
 
@@ -639,7 +647,7 @@ void SearchParams::printParams(std::ostream& out) const {
   PRINTPARAM(rootPruneUselessMoves);
   PRINTPARAM(conservativePass);
   PRINTPARAM(fillDameBeforePass);
-  std::cout << "avoidMYTDaggerHackPla" << ": " << (int)avoidMYTDaggerHackPla << std::endl;
+  out << "avoidMYTDaggerHackPla" << ": " << (int)avoidMYTDaggerHackPla << std::endl;
   PRINTPARAM(wideRootNoise);
   PRINTPARAM(enablePassingHacks);
   PRINTPARAM(enableMorePassingHacks);
@@ -647,7 +655,10 @@ void SearchParams::printParams(std::ostream& out) const {
   out << "excludeTerritoryAdjacentToAtari: " << excludeTerritoryAdjacentToAtari.toString() << std::endl;
 
   PRINTPARAM(playoutDoublingAdvantage);
-  std::cout << "playoutDoublingAdvantagePla" << ": " << (int)playoutDoublingAdvantagePla << std::endl;
+  out << "playoutDoublingAdvantagePla" << ": " << (int)playoutDoublingAdvantagePla << std::endl;
+
+  PRINTPARAM(visitCapContempt);
+  out << "visitCapContemptPla" << ": " << (int)visitCapContemptPla << std::endl;
 
   PRINTPARAM(avoidRepeatedPatternUtility);
 

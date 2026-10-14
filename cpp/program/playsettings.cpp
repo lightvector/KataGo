@@ -1,5 +1,7 @@
 #include "../program/playsettings.h"
 
+#include "../program/setup.h"
+
 PlaySettings::PlaySettings()
   :initGamesWithPolicy(false),policyInitAreaProp(0.0),startPosesPolicyInitAreaProp(0.0),
    compensateAfterPolicyInitProb(0.0),policyInitGammaShape(1.0),sidePositionProb(0.0),
@@ -23,7 +25,8 @@ PlaySettings::PlaySettings()
    dynamicSelfKomiBonusMax(0.0),
    dynamicSelfKomiWinLossMin(-1.0),
    dynamicSelfKomiWinLossMax(1.0),
-   recordTimePerMove(false)
+   recordTimePerMove(false),
+   logSearchTreeOptions(Setup::defaultLogSearchTreeOptions())
 {}
 PlaySettings::~PlaySettings()
 {}
@@ -52,6 +55,7 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
     throw StringError("dynamicSelfKomiWinLossMin > dynamicSelfKomiWinLossMax");
 
   playSettings.recordTimePerMove = true;
+  playSettings.logSearchTreeOptions = Setup::loadLogSearchTreeOptions(cfg);
   return playSettings;
 }
 
@@ -61,6 +65,7 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
   playSettings.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   playSettings.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
   playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 100;
+  playSettings.logSearchTreeOptions = Setup::loadLogSearchTreeOptions(cfg);
   return playSettings;
 }
 
@@ -121,6 +126,7 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, bool isDistributed
   playSettings.minAsymmetricCompensateKomiProb = cfg.getDouble("minAsymmetricCompensateKomiProb",0.0,1.0);
   playSettings.sekiForkHackProb = cfg.contains("sekiForkHackProb") ? cfg.getDouble("sekiForkHackProb",0.0,1.0) : 0.0;
   playSettings.forSelfPlay = true;
+  playSettings.logSearchTreeOptions = Setup::loadLogSearchTreeOptions(cfg);
 
   if(playSettings.policySurpriseDataWeight + playSettings.valueSurpriseDataWeight > 1.0)
     throw StringError("policySurpriseDataWeight + valueSurpriseDataWeight > 1.0");

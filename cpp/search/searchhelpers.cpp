@@ -341,6 +341,23 @@ bool Search::isAllowedRootMove(Loc moveLoc) const {
   return true;
 }
 
+//Must be called after rootSymDupLoc and rootSymmetries are computed for the current search.
+void Search::computeRootSymRepresentativeLocs() {
+  for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
+    rootSymRepresentativeLoc[loc] = loc;
+    if(!searchParams.rootSymmetryPruning || loc == Board::PASS_LOC || !rootBoard.isOnBoard(loc) || !rootSymDupLoc[loc])
+      continue;
+    rootSymRepresentativeLoc[loc] = Board::NULL_LOC;
+    for(int symmetry: rootSymmetries) {
+      Loc symLoc = SymmetryHelpers::getSymLoc(loc, rootBoard, symmetry);
+      if(!rootSymDupLoc[symLoc]) {
+        rootSymRepresentativeLoc[loc] = symLoc;
+        break;
+      }
+    }
+  }
+}
+
 double Search::getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const {
   if(patternBonusTable == NULL || prevMovePla != plaThatSearchIsFor)
     return 0;

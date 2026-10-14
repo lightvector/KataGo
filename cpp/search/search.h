@@ -39,6 +39,7 @@ struct SubtreeValueBiasTable;
 struct SearchNodeTable;
 struct SearchNodeChildrenReference;
 struct ConstSearchNodeChildrenReference;
+struct VisitCapSnapshot;
 
 //Per-thread state
 struct SearchThread {
@@ -59,6 +60,8 @@ struct SearchThread {
 
   NNResultBuf nnResultBuf;
   std::vector<MoreNodeStats> statsBuf;
+  //Scratch space for choosing a root focus move by weight.
+  std::vector<double> rootFocusCumWeightsBuf;
 
   double upperBoundVisitsLeft;
 
@@ -99,8 +102,31 @@ struct Search {
   std::vector<int> avoidMoveUntilByLocWhite;
   bool avoidMoveUntilRescaleRoot; // When avoiding moves at the root, rescale the root policy to sum to 1.
 
+  //External user-specified moves at the root that should receive extra search. With probability prob, each playout
+  //from the root is redirected into one of these moves as a weightless visit, which does not count as a visit of the
+  //root or contribute to the root's value, and does not count toward visit or playout limits. The move is chosen at
+  //random with probability proportional to its weight. Weights are parallel to moves.
+  //prob is capped at MAX_ROOT_FOCUS_PROB so that visit and playout limits are still reached.
+  struct FocusMoves {
+    std::vector<Loc> moves;
+    std::vector<double> weights;
+    double prob;
+  };
+  static constexpr double MAX_ROOT_FOCUS_PROB = 0.99;
+  static constexpr double MAX_ROOT_FOCUS_WEIGHT = 1e30;
+  //Null if no focus is active. May be replaced at any time, including while a search is running. Search threads
+  //load it once per playout at the root. A replaced struct is kept in rootFocusToCleanUp and only freed at the end
+  //of a search or on destruction, so that a thread that loaded the old pointer can keep using it.
+  std::atomic<FocusMoves*> rootFocus;
+  std::mutex rootFocusCleanupMutex;
+  std::vector<FocusMoves*> rootFocusToCleanUp;
+
   //If rootSymmetryPruning==true and the board is symmetric, mask all the equivalent copies of each move except one.
   bool rootSymDupLoc[Board::MAX_ARR_SIZE];
+  //For each location, the location that the search actually explores for a move there at the root. Equal to the
+  //location itself unless rootSymDupLoc masks it, in which case it is the unmasked equivalent copy, or NULL_LOC
+  //if there is none. Recomputed at the start of each search.
+  Loc rootSymRepresentativeLoc[Board::MAX_ARR_SIZE];
   //If rootSymmetryPruning==true, symmetries under which the root board and history are invariant, including some heuristics for ko and encore-related state.
   std::vector<int> rootSymmetries;
   std::vector<int> rootPruneOnlySymmetries;
@@ -122,6 +148,10 @@ struct Search {
   uint32_t searchNodeAge;
   Player plaThatSearchIsFor;
   Player plaThatSearchIsForLastSearch;
+  //Visit cap per player that the current tree was searched with, 0 if none. Resolved at the start of each search,
+  //and the tree is cleared if they change.
+  int64_t visitCapForBlack;
+  int64_t visitCapForWhite;
   int64_t lastSearchNumPlayouts;
   double effectiveSearchTimeCarriedOver; //Effective search time carried over from previous moves due to ponder/tree reuse
 
@@ -217,6 +247,12 @@ struct Search {
   const BoardHistory& getRootHist() const;
   Player getRootPla() const;
   Player getPlayoutDoublingAdvantagePla() const;
+  //The player capped by visitCapContempt, empty if there is no cap.
+  Player getVisitCappedPla() const;
+  //Visit cap in effect for nodes where pla is to move, as of the most recent search begun, 0 if none.
+  inline int64_t getVisitCap(Player pla) const {
+    return pla == P_BLACK ? visitCapForBlack : pla == P_WHITE ? visitCapForWhite : 0;
+  }
 
   //Get the NNPos corresponding to a loc, convenience method
   inline int getPos(Loc moveLoc) const { return NNPos::locToPos(moveLoc,rootBoard.x_size,nnXLen,nnYLen); }
@@ -230,6 +266,10 @@ struct Search {
   void setRootHintLoc(Loc hintLoc);
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAvoidMoveUntilRescaleRoot(bool b);
+  //Does not clear search. Pass empty vectors to cancel any focus. Weights must be parallel to moves and positive.
+  //Unlike the other setters, this is safe to call at any time, including concurrently with a running search,
+  //and takes effect for subsequent playouts of that search.
+  void setRootFocus(const std::vector<Loc>& moves, const std::vector<double>& weights, double prob);
   void setAlwaysIncludeOwnerMap(bool b);
   void setRootSymmetryPruningOnly(const std::vector<int>& rootPruneOnlySymmetries);
   void setParams(const SearchParams& params);
@@ -431,6 +471,8 @@ private:
   static constexpr double POLICY_ILLEGAL_SELECTION_VALUE = -1e50;
   static constexpr double FUTILE_VISITS_PRUNE_VALUE = -1e40;
   static constexpr double EVALUATING_SELECTION_VALUE_PENALTY = 1e20;
+  //Above any other selection value, including the forced 1e20 values used for rootHintLoc and rootDesiredPerChildVisitsCoeff.
+  static constexpr double ROOT_FOCUS_SELECTION_VALUE = 1e30;
 
   //----------------------------------------------------------------------------------------
   // Dirichlet noise and temperature
@@ -461,6 +503,8 @@ private:
   // searchhelpers.cpp
   //----------------------------------------------------------------------------------------
   bool isAllowedRootMove(Loc moveLoc) const;
+  void computeRootSymRepresentativeLocs();
+  void cleanUpOldRootFocus();
   double getPatternBonus(Hash128 patternBonusHash, Player prevMovePla) const;
   double getEndingWhiteScoreBonus(const SearchNode& parent, Loc moveLoc) const;
   bool shouldSuppressPass(const SearchNode* n) const;
@@ -603,6 +647,13 @@ private:
     double& parentUtility, double& parentWeightPerVisit, double& parentUtilityStdevFactor
   ) const;
 
+  void selectChildToMatchVisitCapSnapshot(
+    const VisitCapSnapshot& snapshot, ConstSearchNodeChildrenReference children,
+    const float* policyProbs, double parentWeightPerVisit, bool countEdgeVisit,
+    bool focusPlayout, Loc focusTarget,
+    int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc
+  ) const;
+
   void selectBestChildToDescend(
     SearchThread& thread, const SearchNode& node, SearchNodeState nodeState,
     int& numChildrenFound, int& bestChildIdx, Loc& bestChildMoveLoc, bool& countEdgeVisit,
@@ -683,6 +734,7 @@ private:
   //with the human net's own resolution, which may differ from the modes the search is using.
   MiscNNInputParams paramsForHumanEvaluator(const MiscNNInputParams& nnInputParams) const;
   void computeRootValues(); // Helper for begin search
+  void applyVisitCapsForSearch(); // Helper for begin search
   void recursivelyRecomputeStats(SearchNode& node); // Helper for search initialization
   void recursivelyRecordEvalCache(SearchNode& n);
 
@@ -720,7 +772,8 @@ private:
 
   void printTreeHelper(
     std::ostream& out, const SearchNode* node, const PrintTreeOptions& options,
-    std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective
+    std::string& prefix, int64_t origVisits, int depth, const AnalysisData& data, Player perspective,
+    std::unordered_set<const SearchNode*>& graphPath
   ) const;
 
   bool getSharpScoreHelper(

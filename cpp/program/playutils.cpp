@@ -709,6 +709,7 @@ vector<double> PlayUtils::computeOwnership(
   SearchParams newParams = getNoiselessParams(oldParams,numVisits);
   newParams.playoutDoublingAdvantagePla = C_EMPTY;
   newParams.playoutDoublingAdvantage = 0.0;
+  newParams.visitCapContempt = 0;
   //Make sure the search is always from a state where the game isn't believed to end with another pass
   newParams.conservativePass = true;
 
@@ -1023,7 +1024,8 @@ void PlayUtils::printGenmoveLog(
   Loc moveLoc,
   double timeTaken,
   Player perspective,
-  bool logSearchInfoForChosenMove
+  bool logSearchInfoForChosenMove,
+  const PrintTreeOptions& treeOptions
 ) {
   const Board& board = search->getRootBoard();
   Board::printBoard(out, board, moveLoc, &(search->getRootHist().moveHistory));
@@ -1039,14 +1041,17 @@ void PlayUtils::printGenmoveLog(
     out << "PlayoutDoublingAdvantage: " << (
       search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
       -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
+  if(search->searchParams.visitCapContempt > 0)
+    out << "VisitCapContempt: " << search->searchParams.visitCapContempt
+        << " (capped player " << PlayerIO::playerToString(search->getVisitCappedPla()) << ")" << endl;
   out << "PV: ";
   search->printPV(out, search->rootNode, 25);
   out << "\n";
   out << "Tree:\n";
   if(logSearchInfoForChosenMove && moveLoc != Board::NULL_LOC)
-    search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10).alsoBranch(board,{Location::toString(moveLoc,board)}),perspective);
+    search->printTree(out, search->rootNode, treeOptions.alsoBranch(board,{Location::toString(moveLoc,board)}),perspective);
   else
-    search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+    search->printTree(out, search->rootNode, treeOptions,perspective);
 }
 
 Rules PlayUtils::genRandomRules(Rand& rand) {
@@ -1199,6 +1204,7 @@ Loc PlayUtils::maybeFriendlyPass(
     SearchParams newParams = getNoiselessParams(oldParams,numVisits);
     newParams.playoutDoublingAdvantagePla = C_EMPTY;
     newParams.playoutDoublingAdvantage = 0.0;
+    newParams.visitCapContempt = 0;
     //Conservative pass makes sure we evaluate the opponent's turn as one in which the game is neither finished nor the opponent
     //will be able to end the game via passing.
     newParams.conservativePass = true;
