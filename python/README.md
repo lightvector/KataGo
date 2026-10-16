@@ -26,6 +26,7 @@ These are some scripts on the side that might be useful for debugging or experim
 
 And:
 * `play.py` - A working very primitive GTP engine that just uses the raw neural net to make moves. Also implements a ton of GTP extensions to draw colored heatmaps in GoGUI. This or `test.py` are good places to look if you're interested in how to use the raw pytorch checkpoints for direct inference in python, rather than using the C++ KataGo engine.
+* `flask_wrapper_human_sl_server.py`, `flask_wrapper_analysis_engine.py` - Flask web servers that forward POSTed JSON queries to `humanslnet_server.py` or to the C++ analysis engine (command in `KATAGO_COMMAND`).
 
 
 ### Distributed backend
