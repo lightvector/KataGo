@@ -17,6 +17,7 @@ struct AnalysisData {
   double resultUtility; //Utility from winloss result
   double scoreUtility; //Utility from score. Summing with resultUtility gives utility.
   double winLossValue; //From -1 to 1
+  double noResultValue; //From 0 to 1
   double policyPrior; //From 0 to 1
   double scoreMean; //In units of points
   double scoreStdev; //In units of points

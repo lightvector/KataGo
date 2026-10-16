@@ -52,16 +52,16 @@ taxRules = NONE
 : Match Engine starting...
 : Git revision: ###
 : nnRandSeed = ###
-: After dedups: nnModelFile0 = MODELB useFP16 auto useNHWC auto
+: After dedups: nnModelFile0 = MODELB useFP16 auto
 : Initializing neural net buffer to be size 9 * 9 exactly
 : nnRandSeed = ###
-: After dedups: nnModelFile1 = MODELA useFP16 auto useNHWC auto
+: After dedups: nnModelFile1 = MODELA useFP16 auto
 : Initializing neural net buffer to be size 9 * 9 exactly
 : nnRandSeed = ###
-: After dedups: nnModelFile2 = MODELC useFP16 auto useNHWC auto
+: After dedups: nnModelFile2 = MODELC useFP16 auto
 : Initializing neural net buffer to be size 9 * 9 exactly
 : nnRandSeed = ###
-: After dedups: nnModelFile3 = MODELE useFP16 auto useNHWC auto
+: After dedups: nnModelFile3 = MODELE useFP16 auto
 : Initializing neural net buffer to be size 9 * 9 exactly
 : Loaded neural net
 : Loaded all config stuff, starting matches
@@ -144,16 +144,16 @@ taxRules = NONE
 : Match Engine starting...
 : Git revision: ###
 : nnRandSeed = ###
-: After dedups: nnModelFile0 = MODELB useFP16 auto useNHWC auto
+: After dedups: nnModelFile0 = MODELB useFP16 auto
 : Initializing neural net buffer to be size 9 * 9 exactly
 : nnRandSeed = ###
-: After dedups: nnModelFile1 = MODELA useFP16 auto useNHWC auto
+: After dedups: nnModelFile1 = MODELA useFP16 auto
 : Initializing neural net buffer to be size 9 * 9 exactly
 : nnRandSeed = ###
-: After dedups: nnModelFile2 = MODELC useFP16 auto useNHWC auto
+: After dedups: nnModelFile2 = MODELC useFP16 auto
 : Initializing neural net buffer to be size 9 * 9 exactly
 : nnRandSeed = ###
-: After dedups: nnModelFile3 = MODELE useFP16 auto useNHWC auto
+: After dedups: nnModelFile3 = MODELE useFP16 auto
 : Initializing neural net buffer to be size 9 * 9 exactly
 : Loaded neural net
 : Loaded all config stuff, starting matches

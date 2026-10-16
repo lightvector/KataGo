@@ -36,7 +36,7 @@ static void decodeBase64(const string& input, string& output) {
       int extracted = carry >> (numBitsInCarry-8);
       carry -= (extracted << (numBitsInCarry-8));
       numBitsInCarry -= 8;
-      assert(extracted >= 0 && extracted < 256);
+      testAssert(extracted >= 0 && extracted < 256);
       output.push_back((char)extracted);
     }
   }
@@ -81,13 +81,12 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     outModel.close();
 
     const int expectedConcurrentEvals = 1;
-    const int maxBatchSize = 8;
     const bool requireExactNNLen = false;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
       "tinyModel",tmpModelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,maxBatchSize,requireExactNNLen,disableFP16,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,Setup::MaxBatchSizeRequest::fromConcurrency(),requireExactNNLen,disableFP16,
       Setup::SETUP_FOR_DISTRIBUTED
     );
     nnEval->setDoRandomize(false);
@@ -117,7 +116,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
 
     const Player nextPla = P_BLACK;
     const Rules rules = Rules::getTrompTaylorish();
-    const BoardHistory hist(board,nextPla,rules,0);
+    const BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     auto runOneTest = [&]() {
       MiscNNInputParams nnInputParams;
@@ -211,8 +210,9 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     };
 
     vector<std::thread> testThreads;
+    testThreads.reserve(4);
     for(int i = 0; i<4; i++)
-      testThreads.push_back(std::thread(runAFewTests));
+      testThreads.emplace_back(runAFewTests);
     for(int i = 0; i<4; i++)
       testThreads[i].join();
 
@@ -241,13 +241,12 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     outModel.close();
 
     const int expectedConcurrentEvals = 1;
-    const int maxBatchSize = 8;
     const bool requireExactNNLen = false;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
       "tinyModel",tmpModelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,maxBatchSize,requireExactNNLen,disableFP16,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,Setup::MaxBatchSizeRequest::fromConcurrency(),requireExactNNLen,disableFP16,
       Setup::SETUP_FOR_DISTRIBUTED
     );
     nnEval->setDoRandomize(false);
@@ -277,7 +276,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
 
     const Player nextPla = P_BLACK;
     const Rules rules = Rules::getTrompTaylorish();
-    const BoardHistory hist(board,nextPla,rules,0);
+    const BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     auto runOneTest = [&]() {
       MiscNNInputParams nnInputParams;
@@ -371,8 +370,9 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     };
 
     vector<std::thread> testThreads;
+    testThreads.reserve(4);
     for(int i = 0; i<4; i++)
-      testThreads.push_back(std::thread(runAFewTests));
+      testThreads.emplace_back(runAFewTests);
     for(int i = 0; i<4; i++)
       testThreads[i].join();
 
@@ -401,13 +401,12 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     outModel.close();
 
     const int expectedConcurrentEvals = 1;
-    const int maxBatchSize = 8;
     const bool requireExactNNLen = false;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     NNEvaluator* nnEval = Setup::initializeNNEvaluator(
       "tinyModel",tmpModelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,maxBatchSize,requireExactNNLen,disableFP16,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,Setup::MaxBatchSizeRequest::fromConcurrency(),requireExactNNLen,disableFP16,
       Setup::SETUP_FOR_DISTRIBUTED
     );
     nnEval->setDoRandomize(false);
@@ -424,7 +423,7 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
 
     const Player nextPla = P_BLACK;
     const Rules rules = Rules::getTrompTaylorish();
-    const BoardHistory hist(board,nextPla,rules,0);
+    const BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     auto runOneTest = [&]() {
       MiscNNInputParams nnInputParams;
@@ -494,8 +493,9 @@ NNEvaluator* TinyModelTest::runTinyModelTest(const string& baseDir, Logger& logg
     };
 
     vector<std::thread> testThreads;
+    testThreads.reserve(4);
     for(int i = 0; i<4; i++)
-      testThreads.push_back(std::thread(runAFewTests));
+      testThreads.emplace_back(runAFewTests);
     for(int i = 0; i<4; i++)
       testThreads[i].join();
 

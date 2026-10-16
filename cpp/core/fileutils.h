@@ -1,6 +1,8 @@
 #ifndef CORE_FILEUTILS_H_
 #define CORE_FILEUTILS_H_
 
+#include <cstdio>
+
 #include "../core/global.h"
 
 namespace FileUtils {
@@ -16,6 +18,13 @@ namespace FileUtils {
   void open(std::ofstream& out, const char* filename, std::ios_base::openmode mode = std::ios_base::out);
   void open(std::ifstream& in, const std::string& filename, std::ios_base::openmode mode = std::ios_base::in);
   void open(std::ofstream& out, const std::string& filename, std::ios_base::openmode mode = std::ios_base::out);
+
+  // Open a C stdio file, where mode is a mode string just like the one fopen takes.
+  // Prefer the std::fstream versions above unless you specifically need a FILE, such as for
+  // platform-specific calls on the underlying file descriptor or handle.
+  bool tryOpen(FILE*& file, const std::string& filename, const char* mode);
+  // Raises exception unless file open was successful
+  void open(FILE*& file, const std::string& filename, const char* mode);
 
   void loadFileIntoString(const std::string& filename, const std::string& expectedSha256, std::string& buf);
   void loadFileIntoString(const std::string& filename, const std::string& expectedSha256, std::string& buf, std::string* actualSha256Buf);
@@ -46,7 +55,7 @@ namespace FileUtils {
 
   // Recursively walk a directory and find all the files that match fileFilter.
   // fileFilter receives just the file name and not the full path, but collected contains the paths.
-  void collectFiles(const std::string& dirname, std::function<bool(const std::string&)> fileFilter, std::vector<std::string>& collected);
+  void collectFiles(const std::string& dirname, const std::function<bool(const std::string&)>& fileFilter, std::vector<std::string>& collected);
 }
 
 

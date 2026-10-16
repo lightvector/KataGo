@@ -79,7 +79,7 @@ Explanation of fields (including some optional fields not present in the above q
      * See the documentation of `kata-get-rules` and `kata-set-rules` in [GTP Extensions](./GTP_Extensions.md) for a description of supported rules.
      * Some older neural net versions of KataGo do not support some rules options. If this is the case, then a warning will be issued and the rules will
        automatically be converted to the nearest rules that the neural net does support.
-   * `komi (integer or half-integer)`: Optional but HIGHLY recommended. Specify the komi for the game. If not specified, KataGo will guess a default value, generally 7.5 for area scoring, but 6.5 if using territory scoring, and 7.0 if area scoring with a button. Values of komi outside of [-150,150] are not supported.
+   * `komi (integer or half-integer)`: Optional but HIGHLY recommended. Specify the komi for the game. If not specified, KataGo will guess a default value, generally 7.5 for area scoring, but 6.5 if using territory scoring, and 7.0 if area scoring with a button. Values of komi outside of [-400,400] are not supported.
    * `whiteHandicapBonus (0|N|N-1)`: Optional. See `kata-get-rules` in [GTP Extensions](./GTP_Extensions.md) for what these mean. Can be used to override the handling of handicap bonus, taking precedence over `rules`. E.g. if you want `chinese` rules but with different compensation for handicap stones than Chinese rules normally use. You could also always specify this as 0 and do any adjustment you like on your own, by reporting an appropriate `komi`.
    * `boardXSize (integer)`: Required. The width of the board. Sizes > 19 are NOT supported unless KataGo has been compiled to support them (cpp/game/board.h, MAX_LEN = 19). KataGo's official neural nets have also not been trained for larger boards, but should work fine for mildly larger sizes (21,23,25).
    * `boardYSize (integer)`: Required. The height of the board. Sizes > 19 are NOT supported unless KataGo has been compiled to support them (cpp/game/board.h, MAX_LEN = 19). KataGo's official neural nets have also not been trained for larger boards, but should work fine for mildly larger sizes (21,23,25).
@@ -94,19 +94,24 @@ Explanation of fields (including some optional fields not present in the above q
    * `includeMovesOwnershipStdev (boolean)`: Optional. If true, report stdev of ownership prediction for every individual move too.
    * `includePolicy (boolean)`: Optional. If true, report neural network raw policy as a result. Will not signficiantly affect performance.
    * `includePVVisits (boolean)`: Optional. If true, report the number of visits for each move in any reported pv.
+   * `includeNoResultValue (boolean)`: Optional. If true, report the predicted no-result probability for each move.
    * `avoidMoves (list of dicts)`: Optional. Prohibit the search from exploring the specified moves for the specified player, until a certain number of ply deep in the search. Each dict must contain these fields:
       * `player` - the player to prohibit, `"B"` or `"W"`.
       * `moves` - an array of move locations to prohibit, such as `["C3","Q4","pass"]`
       * `untilDepth` - a positive integer, indicating the ply such that moves are prohibited before that ply.
       * Multiple dicts can specify different `untilDepth` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `untilDepth`.
-   * `allowMoves (list of dicts)`: Optional. Same as `avoidMoves` except prohibits all moves EXCEPT the moves specified. Currently, the list of dicts must also be length 1.
+   * `allowMoves (list of dicts)`: Optional. Same as `avoidMoves` except prohibits all moves EXCEPT the moves specified. At most one dict may be specified per player (so the list may contain at most two dicts, one for `"B"` and one for `"W"`).
+   * `focusMoves (list of strings)`: Optional. Moves for the player to move at the analyzed position that should receive extra search, such as `["C3","Q4"]`. Each playout from the root is redirected with probability `focusProb` into one of these moves, chosen at random in proportion to `focusWeights`, as a weightless visit that does not count toward the root's own visits or value. The reported `visits` of a focused move include these extra visits, so the move is searched more deeply than it would be otherwise. These visits do not count toward `maxVisits` or `maxPlayouts`, so focusing adds search on top of the normal search rather than replacing part of it. Moves that are illegal or excluded by `avoidMoves` or `allowMoves` are ignored. See the `set_focus` action for changing the focus of a query that is already queued or running.
+   * `focusWeights (list of floats)`: Optional. Positive numbers, one per entry of `focusMoves`, giving the relative share of the focused playouts that each move receives. For example `[3, 1]` sends three quarters of them to the first move and one quarter to the second. Defaults to equal weights. Must be omitted or empty when `focusMoves` is omitted.
+   * `focusProb (float)`: Optional. The probability from 0.0 to 1.0 that each root playout is redirected into a focus move. Internally capped at 0.99 so that the root keeps receiving some visits and `maxVisits` is still reached. Defaults to 0.5. Must be valid even when `focusMoves` is omitted, but has no effect then.
    * `overrideSettings (object)`: Optional. Specify any number of `"paramName":value` entries in this object to override those params from command line `CONFIG_FILE` for this query. Most search parameters can be overriden: `cpuctExploration`, `winLossUtilityFactor`, etc. Some notable parameters include:
       * `playoutDoublingAdvantage (float)`. A value of PDA from -3 to 3 will adjust KataGo's evaluation to assume that the opponent is NOT of equal strength/compte, but rather that the current player has 2^(PDA) times as many playouts as the opponent. Dynamic versions of this are used to significant effect in handicap games in GTP mode, see [GTP example config](../cpp/configs/gtp_example.cfg).
-        * `wideRootNoise (float)`. See documentation for this parameter in [the example config](../cpp/configs/analysis_example.cfg)
-        * `ignorePreRootHistory (boolean)`. Whether to ignore pre-root history during analysis.
-        * `antiMirror (boolean)`. Whether to enable anti-mirror play during analysis. Off by default. Will probably result in biased and nonsensical winrates and other analysis values, but moves may detect and crudely respond to mirror play.
-        * `rootNumSymmetriesToSample (int from 1 to 8)`. How many of the 8 possible random symmetries to evaluate the neural net with and average. Defaults to 1, but if you set this to 2, or 8 you might get a slightly higher-quality policy at the root due to noise reduction.
-        * `humanSLProfile (string)`. Set the human-like play that KataGo should imitate. Requires that a human SL model like `b18c384nbt-humanv0.bin.gz` is being used, typically via the command line parameter `-human-model`. Available profiles include:
+      * `visitCapContempt (int)`. Model the opponent of the player to move as searching with only this many visits per position (at least 2, or set to 0 to disable). Analysis values then reflect play against such an opponent. Set `visitCapContemptPla` to `B` or `W` to instead specify which player is capped. See [GTP example config](../cpp/configs/gtp_example.cfg), including for other parameters you may want to change along with this one.
+      * `wideRootNoise (float)`. See documentation for this parameter in [the example config](../cpp/configs/analysis_example.cfg)
+      * `ignorePreRootHistory (boolean)`. Whether to ignore pre-root history during analysis.
+      * `antiMirror (boolean)`. Whether to enable anti-mirror play during analysis. Off by default. Will probably result in biased and nonsensical winrates and other analysis values, but moves may detect and crudely respond to mirror play.
+      * `rootNumSymmetriesToSample (int from 1 to 8)`. How many of the 8 possible random symmetries to evaluate the neural net with and average. Defaults to 1, but if you set this to 2, or 8 you might get a slightly higher-quality policy at the root due to noise reduction.
+      * `humanSLProfile (string)`. Set the human-like play that KataGo should imitate. Requires that a human SL model like `b18c384nbt-humanv0.bin.gz` is being used, typically via the command line parameter `-human-model`. Available profiles include:
            * `preaz_20k` through `preaz_9d`: Imitate human players of the given rank. (based on 2016 pre-AlphaZero opening style).
            * `rank_20k` through `rank_9d`: Imitate human players of the given rank (modern opening style).
            * `preaz_{BR}_{WR}` or `rank_{BR}_{WR}`: Same, but predict how black with the rank BR and white with the rank WR would play against each other, *knowing* that the other player is stronger/weaker than them. Warning: for rank differences > 9 ranks, or drastically mis-matched to the handicap used in the game, this may be out of distribution due to lack of training data and the model might not behave well! Experiment with care.
@@ -243,13 +248,15 @@ Current fields are:
       * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
       * `scoreSelfplay` - The predicted average value of the final score of the game after this move during selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
       * `prior` - The policy prior of the move, as a float in [0,1].
+      * `noResultValue` - The predicted probability that the game ends in a no-result (e.g. triple ko/long cycle), as a float in [0,1]. Only present if `includeNoResultValue` was true. Relevant for rulesets like Japanese rules without superko.
       * `humanPrior` - The human policy for the move, as a float in [0,1], if available.
       * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility. The maximum winrate utility can be set by `winLossUtilityFactor` in the config, while the maximum score utility is the sum of `staticScoreUtilityFactor` and `dynamicScoreUtilityFactor`.
       * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate. Has the same units as winrate, but might lie outside of [0,1] since the current implementation doesn't strictly account for the 0-1 bounds.
       * `utilityLcb` - The LCB of the move's utility.
       * `weight` - The total weight of the visits that the child node received. The average weight of visits may be lower when less certain, and larger when more certain.
       * `edgeWeight` - The total weight of the visits the parent wants to invest into the move. The average weight of visits may be lower when less certain, and larger when more certain.
-      * `order` - KataGo's ranking of the move. 0 is the best, 1 is the next best, and so on.
+      * `order` - KataGo's ordinal ranking of the move. 0 is the best, 1 is the next best, and so on.
+      * `playSelectionValue` - The value used to compute `order`. KataGo chooses the move with the maximum playSelectionValue, which is based on a combination of winrate, score, and other properties. When playing with randomization (i.e. in GTP, rather than the Analysis Engine), KataGo chooses moves proportional to this value raised to a constant depending on the temperature.
       * `isSymmetryOf` - Another legal move. Possibly present if KataGo is configured to avoid searching some moves due to symmetry (`rootSymmetryPruning=true`). If present, this move was not actually searched, and all of its stats and PV are copied symmetrically from that other move.
       * `pv` - The principal variation ("PV") following this move. May be of variable length or even empty.
       * `pvVisits` - The number of visits used to explore the position resulting from each move in `pv`. Exists only if `includePVVisits` is true.
@@ -365,6 +372,27 @@ Examples:
 The terminate_all query itself will result in a response as well, to acknowledge receipt and processing of the action. The response consists of echoing a json object back with exactly the same fields and data of the query.
 
 See the documentation for terminate above regarding the output from terminated queries. As with terminate, the response to terminate_all will NOT wait for all of the effects of the action to take place, and the results of all the old queries as they are terminated will be reported back asynchronously.
+
+#### set_focus
+
+Changes the focus moves (see `focusMoves`, `focusWeights`, and `focusProb` above) of zero or more analysis queries that are queued or currently being analyzed. A query that is currently being analyzed picks up the new focus immediately for its subsequent playouts, without interrupting the search, so its search tree, visit budget, and any time limit continue as they were. Queries that have already finished are unaffected. Required fields:
+
+   * `id (string)`: Required. An arbitrary string identifier for this query.
+   * `action (string)`: Required. Should be the string `set_focus`.
+   * `targetId (string)`: Required. Change the focus of queries that were submitted with this `id` field.
+   * `turnNumbers (array of ints)`: Optional. If provided, restrict only to the queries with that id that were for these turn numbers.
+   * `focusMoves (list of strings)`: Optional. The new focus moves. Omit this field or pass an empty list to cancel any focus.
+   * `focusWeights (list of floats)`: Optional. Same meaning as for analysis queries. Defaults to equal weights.
+   * `focusProb (float)`: Optional. Same meaning as for analysis queries. Defaults to 0.5.
+
+Examples:
+```
+{"id":"bar","action":"set_focus","targetId":"foo","focusMoves":["C3"],"focusProb":0.5}
+{"id":"bar","action":"set_focus","targetId":"foo","turnNumbers":[2],"focusMoves":["C3","Q4"]}
+{"id":"bar","action":"set_focus","targetId":"foo"}
+```
+
+The set_focus query itself will result in a response as well, to acknowledge receipt and processing of the action. The response consists of echoing a json object back with exactly the same fields and data of the query. The focus is applied before the response is written, and later reports from the affected queries reflect it.
 
 #### query_models
 
@@ -495,14 +523,19 @@ If you've ensured that all likely human moves are analyzed, there might be some 
 
 #### How to get stronger human-style play
 
-If you want to obtain human *style* moves, but playing stronger than a given human level in strength (i.e. match just the style, but not necessarily the strength), you can try this:
+If you want to obtain human *style* moves, but play stronger than a given human level in strength (i.e. match just the style, but not necessarily the strength), or compensate for the gap in strength of the raw neural net at high-dan play, you can try this:
 
 * Ensure all human likely moves are analyzed, as described in an earlier section.
 * Choose a random move among all `moveInfos` with probability proportional to `humanPrior * exp(utility / 0.5)`. This will follow the humanPrior, but smoothly attenuate the probability of a move as it starts to lose more than 0.5 utility (about 25% winrate and/or some amount of score). Adjust the divisor 0.5 as desired.
 * Optionally, also set `staticScoreUtilityFactor` to `0.5`. (significantly increase how much score affects the utility, compared to just winrate).
-* A method like this, with adjusted numbers, might also be used to compensate for the gap that starts to open up in the human SL model no longer being able to match the strength of very top players at only 1 visit.
+* Another significant way to influence the strength is to decrease the temperature settings.
+    * In the analysis engine, this would be implemented by additionally raising `humanPrior ** (1/temperature)` for some temperature, and renormalizing.
+    * In GTP, this can be done by setting `chosenMoveTemperatureOnlyBelowProb` to `1.0` and then decreasing `chosenMoveTemperatureEarly` and `chosenMoveTemperature`.
+    * In either case, decreasing the temperature will make the bot play more deterministically and mimic a narrower fraction of the human distribution, but can improve strength as well.
+* A combination of methods like this, with appropriate adjusted numbers, is a good way to compensate for the gap that starts to open up in the human SL model no longer being able to match the strength of very top players at only 1 visit, but experimentation may be needed to tune the numbers.
 
-(Note: For GTP users, the parameter `humanSLChosenMovePiklLambda` does precisely this exp-based probability scaling.)
+Note: For GTP users, the parameter `humanSLChosenMovePiklLambda` does precisely this exp-based probability scaling.
+An example set of parameters is given in [gtp_human9d_search_example.cfg](../cpp/configs/gtp_human9d_search_example.cfg), some of which may also be instructive to read even if you're using the analysis engine mode rather than GTP.
 
 #### Heavily bias the search to anticipate human-like sequences rather than KataGo sequences.
 

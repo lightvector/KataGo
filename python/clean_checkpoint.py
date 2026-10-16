@@ -6,6 +6,8 @@ import math
 import torch
 import json
 
+import katago.train.load_model
+
 description = """
 Utility for cleaning torch checkpoints for release.
 """
@@ -18,14 +20,29 @@ args = vars(parser.parse_args())
 checkpoint_path = args["checkpoint"]
 output_path = args["output"]
 
-data = torch.load(checkpoint_path,map_location="cpu")
+data = katago.train.load_model.load_checkpoint(checkpoint_path)
 
 if "optimizer" in data:
     del data["optimizer"]
-del data["running_metrics"]
-del data["metrics"]
-del data["train_state"]["old_train_data_dirs"]
-del data["train_state"]["data_files_used"]
+
+if "running_metrics" in data:
+    del data["running_metrics"]
+if "metrics" in data:
+    del data["metrics"]
+
+if "train_state" in data:
+    if "old_train_data_dirs" in data["train_state"]:
+        del data["train_state"]["old_train_data_dirs"]
+    if "data_files_used" in data["train_state"]:
+        del data["train_state"]["data_files_used"]
+    if "rev_data_files_remaining" in data["train_state"]:
+        del data["train_state"]["rev_data_files_remaining"]
+    # Export cycle state is specific to the run that produced the checkpoint. A run seeded from
+    # the cleaned checkpoint should start its export cycle fresh with its own settings.
+    if "export_cycle_counter" in data["train_state"]:
+        del data["train_state"]["export_cycle_counter"]
+    if "epochs_per_export" in data["train_state"]:
+        del data["train_state"]["epochs_per_export"]
 
 if "last_val_metrics" in data:
     del data["last_val_metrics"]

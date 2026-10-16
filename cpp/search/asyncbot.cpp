@@ -1,6 +1,8 @@
 #include "../search/asyncbot.h"
 
+#include "../core/test.h"
 #include "../core/timer.h"
+#include "../search/reportedsearchvalues.h"
 
 using namespace std;
 
@@ -20,7 +22,7 @@ static void searchThreadLoop(AsyncBot* asyncBot, Logger* logger) {
 }
 
 AsyncBot::AsyncBot(
-  SearchParams params,
+  const SearchParams& params,
   NNEvaluator* nnEval,
   Logger* l,
   const string& randSeed
@@ -39,7 +41,7 @@ AsyncBot::AsyncBot(
 }
 
 AsyncBot::AsyncBot(
-  SearchParams params,
+  const SearchParams& params,
   NNEvaluator* nnEval,
   NNEvaluator* humanEval,
   Logger* l,
@@ -60,7 +62,7 @@ AsyncBot::AsyncBot(
 
 AsyncBot::~AsyncBot() {
   stopAndWait();
-  assert(!isRunning);
+  testAssert(!isRunning);
   {
     lock_guard<std::mutex> lock(controlMutex);
     isKilled = true;
@@ -119,6 +121,9 @@ void AsyncBot::setAvoidMoveUntilRescaleRoot(bool b) {
   stopAndWait();
   search->setAvoidMoveUntilRescaleRoot(b);
 }
+void AsyncBot::setRootFocus(const std::vector<Loc>& moves, const std::vector<double>& weights, double prob) {
+  search->setRootFocus(moves,weights,prob);
+}
 void AsyncBot::setRootHintLoc(Loc loc) {
   stopAndWait();
   search->setRootHintLoc(loc);
@@ -127,11 +132,11 @@ void AsyncBot::setAlwaysIncludeOwnerMap(bool b) {
   stopAndWait();
   search->setAlwaysIncludeOwnerMap(b);
 }
-void AsyncBot::setParams(SearchParams params) {
+void AsyncBot::setParams(const SearchParams& params) {
   stopAndWait();
   search->setParams(params);
 }
-void AsyncBot::setParamsNoClearing(SearchParams params) {
+void AsyncBot::setParamsNoClearing(const SearchParams& params) {
   stopAndWait();
   search->setParamsNoClearing(params);
 }
@@ -143,9 +148,18 @@ void AsyncBot::setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternB
   stopAndWait();
   search->setCopyOfExternalPatternBonusTable(table);
 }
+void AsyncBot::setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache) {
+  stopAndWait();
+  search->setExternalEvalCache(cache);
+}
 void AsyncBot::clearSearch() {
   stopAndWait();
   search->clearSearch();
+}
+void AsyncBot::clearEvalCache() {
+  stopAndWait();
+  if(search->evalCache != nullptr)
+    search->evalCache->clear();
 }
 
 bool AsyncBot::makeMove(Loc moveLoc, Player movePla) {
@@ -175,7 +189,7 @@ void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc
 void AsyncBot::genMoveAsync(Player movePla, int searchId, const TimeControls& tc, double sf, const std::function<void(Loc,int,Search*)>& onMove, const std::function<void()>& onSearchBegun) {
   std::unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
-  assert(!isRunning);
+  testAssert(!isRunning);
   if(isKilled)
     return;
 
@@ -207,9 +221,8 @@ Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double 
 
 Loc AsyncBot::genMoveSynchronous(Player movePla, const TimeControls& tc, double sf, const std::function<void()>& onSearchBegun) {
   Loc moveLoc = Board::NULL_LOC;
-  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, Search* s) {
-    assert(searchId == 0);
-    (void)searchId; //avoid warning when asserts disabled
+  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, Search* s) noexcept {
+    testAssert(searchId == 0);
     (void)s;
     moveLoc = loc;
   };
@@ -252,7 +265,7 @@ void AsyncBot::analyzeAsync(
 ) {
   std::unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
-  assert(!isRunning);
+  testAssert(!isRunning);
   if(isKilled)
     return;
 
@@ -300,7 +313,7 @@ void AsyncBot::genMoveAsyncAnalyze(
 ) {
   std::unique_lock<std::mutex> lock(controlMutex);
   stopAndWaitAlreadyLocked(lock);
-  assert(!isRunning);
+  testAssert(!isRunning);
   if(isKilled)
     return;
 
@@ -343,9 +356,8 @@ Loc AsyncBot::genMoveSynchronousAnalyze(
   const std::function<void()>& onSearchBegun
 ) {
   Loc moveLoc = Board::NULL_LOC;
-  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, Search* s) {
-    assert(searchId == 0);
-    (void)searchId; //avoid warning when asserts disabled
+  std::function<void(Loc,int,Search*)> onMove = [&moveLoc](Loc loc, int searchId, Search* s) noexcept {
+    testAssert(searchId == 0);
     (void)s;
     moveLoc = loc;
   };
@@ -441,12 +453,11 @@ void AsyncBot::internalSearchThreadLoop() {
           return;
       }
 
-      bool isFirstLoop = true;
+      double periodToWait = firstCallbackAfter;
+      bool gotReportYet = false;
       while(true) {
-        double periodToWait = isFirstLoop ? firstCallbackAfter : callbackPeriod;
         if(periodToWait < 0)
           return;
-        isFirstLoop = false;
 
         callbackLoopWaiting.wait_for(
           callbackLock,
@@ -455,6 +466,21 @@ void AsyncBot::internalSearchThreadLoop() {
         );
         if(callbackLoopShouldStop.load())
           return;
+
+        // If the search hasn't yet produced any reportable root values because firstCallbackAfter
+        // elapsed before the root NN eval finished, skip callback and re-wait.
+        // Use a mild exponential backoff to avoid overly eager busy looping for tiny waits, just in case.
+        if(!gotReportYet) {
+          ReportedSearchValues unusedVals;
+          if(!search->getRootValues(unusedVals)) {
+            periodToWait = periodToWait * 1.25 + 0.001;
+            double cap = std::max(firstCallbackAfter, (callbackPeriod < 0 ? 1.0 : callbackPeriod));
+            periodToWait = std::min(periodToWait,cap);
+            continue;
+          }
+          gotReportYet = true;
+          periodToWait = callbackPeriod;
+        }
         callbackLock.unlock();
         analyzeCallbackLocal(search);
         callbackLock.lock();
@@ -466,7 +492,11 @@ void AsyncBot::internalSearchThreadLoop() {
       callbackLoopThread = std::thread(callbackLoop);
     }
 
-    search->runWholeSearch(shouldStopNow,&searchBegun,pondering,tc,searchFactor);
+    std::function<bool()> shouldStopEarly = [this]() noexcept {
+      return shouldStopNow.load(std::memory_order_acquire);
+    };
+
+    search->runWholeSearch(&searchBegun,&shouldStopEarly,pondering,tc,searchFactor);
     Loc moveLoc = search->getChosenMoveLoc();
 
     if(usingCallbackLoop) {

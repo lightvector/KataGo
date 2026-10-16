@@ -1,5 +1,7 @@
 #include "../program/selfplaymanager.h"
 
+#include "../core/test.h"
+
 using namespace std;
 
 SelfplayManager::ModelData::ModelData(
@@ -11,6 +13,8 @@ SelfplayManager::ModelData::ModelData(
   modelName(name),
   nnEval(neval),
   gameStartedCount(0),
+  gamesFinishedCount(0),
+  movesPlayedCount(0),
   lastReleaseTime(initialTime),
   hasDataWriteLoop(hasDataLoop),
   finishedGameQueue(maxDQueueSize),
@@ -52,7 +56,7 @@ SelfplayManager::~SelfplayManager() {
   std::unique_lock<std::mutex> lock(managerMutex);
   for(size_t i = 0; i<modelDatas.size(); i++) {
     //If a client tries to delete this while something is still acquired, there's something wrong.
-    assert(modelDatas[i]->acquireCount == 0);
+    testAssert(modelDatas[i]->acquireCount == 0);
     //Trigger data writing loop to quit once it reaches end of its queue
     modelDatas[i]->finishedGameQueue.setReadOnly();
     totalNumRowsProcessed += modelDatas[i]->nnEval->numRowsProcessed();
@@ -85,7 +89,7 @@ void SelfplayManager::maybeAutoCleanupAlreadyLocked() {
     for(size_t i = 0; i<modelDatas.size()-1; i++) {
       ModelData* foundData = modelDatas[i];
       if(foundData->acquireCount <= 0) {
-        assert(foundData->acquireCount == 0);
+        testAssert(foundData->acquireCount == 0);
         //Trigger data writing loop to quit once it reaches end of its queue
         foundData->finishedGameQueue.setReadOnly();
         totalNumRowsProcessed += foundData->nnEval->numRowsProcessed();
@@ -106,7 +110,7 @@ void SelfplayManager::cleanupUnusedModelsOlderThan(double seconds) {
   for(size_t i = 0; i<modelDatas.size(); i++) {
     ModelData* foundData = modelDatas[i];
     if(foundData->acquireCount <= 0 && now - foundData->lastReleaseTime > seconds) {
-      assert(foundData->acquireCount == 0);
+      testAssert(foundData->acquireCount == 0);
       logger->write("Unloading network that hasn't been used in a while: " + foundData->modelName);
       //Trigger data writing loop to quit once it reaches end of its queue
       foundData->finishedGameQueue.setReadOnly();
@@ -183,6 +187,7 @@ size_t SelfplayManager::numModels() const {
 vector<string> SelfplayManager::modelNames() const {
   std::lock_guard<std::mutex> lock(managerMutex);
   vector<string> names;
+  names.reserve(modelDatas.size());
   for(size_t i = 0; i<modelDatas.size(); i++)
     names.push_back(modelDatas[i]->modelName);
   return names;
@@ -288,9 +293,14 @@ void SelfplayManager::countOneGameStarted(NNEvaluator* nnEval) {
   int64_t logNNEvery = logGamesEvery*100 > 1000 ? logGamesEvery*100 : 1000;
   if(logger != NULL && gameStartedCount % logNNEvery == 0) {
     logger->write(nnEval->getModelFileName());
+    logger->write("Games finished: " + Global::int64ToString(foundData->gamesFinishedCount.load(std::memory_order_relaxed)));
+    logger->write("Moves played: " + Global::int64ToString(foundData->movesPlayedCount.load(std::memory_order_relaxed)));
+    if(foundData->tdataWriter != NULL)
+      logger->write("Data rows: " + Global::int64ToString(foundData->tdataWriter->numRowsWritten()));
     logger->write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
     logger->write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
     logger->write("NN avg batch size: " + Global::doubleToString(nnEval->averageProcessedBatchSize()));
+    logger->write("NN cache hits: " + Global::int64ToString((int64_t)nnEval->numCacheHits()));
   }
 }
 
@@ -305,7 +315,7 @@ void SelfplayManager::enqueueDataToWrite(const string& modelName, FinishedGameDa
   }
   if(foundData == NULL)
     throw StringError("SelfplayManager::enqueueDataToWrite: could not find model. Possible bug - client did not acquire model?");
-  assert(foundData->hasDataWriteLoop == true);
+  testAssert(foundData->hasDataWriteLoop == true);
 
   //In case it takes a while to push the game on, drop the lock. We're guaranteed as a precondition that
   //the caller has acquired the model as well, so it won't be cleaned up underneath us.
@@ -350,12 +360,20 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
     if(!suc)
       break;
 
-    assert(gameData != NULL);
+    testAssert(gameData != NULL);
 
     modelData->tdataWriter->writeGame(*gameData);
 
+    modelData->gamesFinishedCount.fetch_add(1, std::memory_order_relaxed);
+    // Moves actually played by search this game (excludes any pre-placed opening/start-position moves).
+    testAssert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());
+    modelData->movesPlayedCount.fetch_add(
+      (int64_t)(gameData->endHist.moveHistory.size() - gameData->startHist.moveHistory.size()),
+      std::memory_order_relaxed
+    );
+
     if(modelData->sgfOut != NULL) {
-      assert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());
+      testAssert(gameData->startHist.moveHistory.size() <= gameData->endHist.moveHistory.size());
       WriteSgf::writeSgf(*modelData->sgfOut,gameData->bName,gameData->wName,gameData->endHist,gameData,false,true);
       (*modelData->sgfOut) << endl;
     }
@@ -369,7 +387,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
   if(logger != NULL)
     logger->write("Data write loop finishing for neural net: " + modelData->modelName);
 
-  assert(modelData->acquireCount == 0);
+  testAssert(modelData->acquireCount == 0);
 
   string name = modelData->modelName;
 
@@ -381,7 +399,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
     std::lock_guard<std::mutex> lock(managerMutex);
     for(size_t i = 0; i<modelDatas.size(); i++) {
       (void)i;
-      assert(modelDatas[i] != modelData);
+      testAssert(modelDatas[i] != modelData);
     }
   }
 
@@ -389,9 +407,13 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
   //block anyone else
   if(logger != NULL) {
     logger->write("Final cleanup of net: " + modelData->nnEval->getModelFileName());
+    logger->write("Final games finished: " + Global::int64ToString(modelData->gamesFinishedCount.load(std::memory_order_relaxed)));
+    logger->write("Final moves played: " + Global::int64ToString(modelData->movesPlayedCount.load(std::memory_order_relaxed)));
+    logger->write("Final data rows: " + Global::int64ToString(modelData->tdataWriter->numRowsWritten()));
     logger->write("Final NN rows: " + Global::int64ToString(modelData->nnEval->numRowsProcessed()));
     logger->write("Final NN batches: " + Global::int64ToString(modelData->nnEval->numBatchesProcessed()));
     logger->write("Final NN avg batch size: " + Global::doubleToString(modelData->nnEval->averageProcessedBatchSize()));
+    logger->write("Final NN cache hits: " + Global::int64ToString((int64_t)modelData->nnEval->numCacheHits()));
   }
 
   delete modelData;
@@ -403,9 +425,9 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
   //Check back in and notify that we're done once done cleaning up.
   std::unique_lock<std::mutex> lock(managerMutex);
   numDataWriteLoopsActive--;
-  assert(numDataWriteLoopsActive >= 0);
+  testAssert(numDataWriteLoopsActive >= 0);
   if(numDataWriteLoopsActive == 0) {
-    assert(modelDatas.size() == 0);
+    testAssert(modelDatas.size() == 0);
     dataWriteLoopsAreDone.notify_all();
   }
   lock.unlock();
@@ -413,7 +435,7 @@ void SelfplayManager::runDataWriteLoopImpl(ModelData* modelData) {
 
 void SelfplayManager::withDataWriters(
   NNEvaluator* nnEval,
-  std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)> f
+  const std::function<void(TrainingDataWriter* tdataWriter, std::ofstream* sgfOut)>& f
 ) {
   std::lock_guard<std::mutex> lock(managerMutex);
   ModelData* foundData = NULL;
@@ -425,7 +447,7 @@ void SelfplayManager::withDataWriters(
   }
   if(foundData == NULL)
     throw StringError("SelfplayManager::withDataWriters: could not find model. Possible bug - client did not acquire model?");
-  assert(foundData->hasDataWriteLoop == false);
+  testAssert(foundData->hasDataWriteLoop == false);
 
   f(foundData->tdataWriter, foundData->sgfOut);
 }

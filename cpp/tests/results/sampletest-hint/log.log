@@ -55,11 +55,11 @@ trtUseFP16 = false
 : Command: -auto-komi
 : Command: -for-testing
 : nnRandSeed0 = forTesting
-: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false useNHWC false
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false
 : Initializing neural net buffer to be size 19 * 19 allowing smaller boards
-: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25425608704 compute capability major 8 minor 6
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
-: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : Loaded neural net
 : --------------
 : WARNING: Config had unused keys! You may have a typo, an option you specified is being unused from configs/gtp_example.cfg and/or command-line and query overrides
@@ -85,7 +85,6 @@ trtUseFP16 = false
 : Begun 2 / 2 sgfs, done 2 sgfs, skipped 0 sgfs, filtered 0 sgfs, filtered 0 individual poses
 : All sgfs loaded, waiting for finishing analysis
 : 0 sgfs still enqueued
-: 0 sgfs still enqueued
 : Begun 20/93 poses
 : Done 20/93 poses
 : Begun 40/93 poses
@@ -97,8 +96,8 @@ trtUseFP16 = false
 : Begun 2 / 2 sgfs, done 2 sgfs, skipped 0 sgfs, filtered 0 sgfs, filtered 0 individual poses
 : Waiting for final writing and cleanup
 : tests/models/g170-b6c96-s175395328-d26788732.bin.gz
-: NN rows: 7260
-: NN batches: 7260
+: NN rows: 7279
+: NN batches: 7279
 : NN avg batch size: 1
 : All done
-: GPU -1 finishing, processed 7260 rows 7260 batches
+: GPU -1 finishing, processed 7279 rows 7279 batches

@@ -10,3 +10,4 @@ kata-search w
 kata-search b
 kata-search_debug w
 kata-search_debug b
+clear_cache

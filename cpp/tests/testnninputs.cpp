@@ -160,7 +160,7 @@ void Tests::runNNInputsV3V4Tests() {
   };
 
   auto fillRows = [](int version, Hash128& hash,
-                     Board& board, const BoardHistory& hist, Player nextPla, MiscNNInputParams nnInputParams, int nnXLen, int nnYLen, bool inputsUseNHWC,
+                     const Board& board, const BoardHistory& hist, Player nextPla, const MiscNNInputParams& nnInputParams, int nnXLen, int nnYLen, bool inputsUseNHWC,
                      float* rowBin, float* rowGlobal) {
     hash = NNInputs::getHash(board,hist,nextPla,nnInputParams);
 
@@ -191,7 +191,7 @@ void Tests::runNNInputsV3V4Tests() {
 
     const string sgfStr = "(;FF[4]KM[7.5];B[pd];W[pq];B[dq];W[dd];B[qo];W[pl];B[qq];W[qr];B[pp];W[rq];B[oq];W[qp];B[pr];W[qq];B[oo];W[ro];B[qn];W[do];B[dl];W[gp];B[eo];W[en];B[fo];W[dp];B[eq];W[cq];B[cr];W[br];B[dn];W[bp];B[cn];W[ep];B[fp];W[fq];B[gq];W[fr];B[gr];W[er];B[hp];W[go];B[fn];W[ho];B[ip];W[io];B[jp];W[jo];B[lp];W[kp];B[kq];W[ko];B[lq];W[ir];B[hq];W[jq];B[jr];W[em];B[gm];W[el];B[hl];W[kl];B[ek];W[fk];B[ej];W[fl];B[fj];W[gk];B[ik];W[gj];B[jj];W[dm];B[lk];W[mm];B[nl];W[nm];B[om];W[ol];B[nk];W[ll];B[kk];W[jl];B[im];W[jk];B[ij];W[kj];B[mk];W[ki];B[ih];W[jh];B[ig];W[jg];B[if];W[oi];B[mi];W[mh];B[lh];W[li];B[nh];W[mj];B[ni];W[nj];B[oj];W[lj];B[ok];W[oh];B[ng];W[pj];B[ji];W[kh];B[jf];W[lg];B[cm];W[cl];B[dk];W[bl];B[bk];W[bn];B[ck];W[bm];B[cc];W[cd];B[dc];W[ec];B[eb];W[fb];B[fc];W[ed];B[gb];W[bc];B[cb];W[cg];B[be];W[bd];B[bg];W[bh];B[cf];W[df];B[ch];W[dg];B[bi];W[qd];B[qc];W[rc];B[rd];W[qe];B[re];W[rb];B[pc];W[qb];B[qf];W[ff];B[sc];W[pb];B[bo];W[ob];B[nc];W[nb];B[mb];W[mc];B[lb])";
 
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     for(int version = minVersion; version <= maxVersion; version++) {
       cout << "VERSION " << version << endl;
@@ -200,7 +200,7 @@ void Tests::runNNInputsV3V4Tests() {
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist,BoardHistoryModes(false,false));
       vector<Move>& moves = sgf->moves;
 
       for(size_t i = 0; i<moves.size(); i++) {
@@ -240,8 +240,6 @@ void Tests::runNNInputsV3V4Tests() {
       delete[] rowBin;
       delete[] rowGlobal;
     }
-
-    delete sgf;
   }
 
   {
@@ -252,7 +250,7 @@ void Tests::runNNInputsV3V4Tests() {
 
     const string sgfStr = "(;FF[4]KM[0.5];B[rj];W[ri];B[si];W[rh];B[sh];W[sg];B[rk];W[sk];B[sl];W[sj];B[eg];W[fg];B[ff];W[gf];B[fh];W[gh];B[gg];W[hg];B[si];W[fg];B[sh];W[sk];B[gg])";
 
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     for(int version = minVersion; version <= maxVersion; version++) {
       cout << "VERSION " << version << endl;
@@ -261,7 +259,7 @@ void Tests::runNNInputsV3V4Tests() {
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist,BoardHistoryModes(false,false));
       vector<Move>& moves = sgf->moves;
 
       for(size_t i = 0; i<moves.size(); i++) {
@@ -301,8 +299,6 @@ void Tests::runNNInputsV3V4Tests() {
       delete[] rowBin;
       delete[] rowGlobal;
     }
-
-    delete sgf;
   }
 
 
@@ -314,7 +310,7 @@ void Tests::runNNInputsV3V4Tests() {
 
     const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Tromp-Taylor]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
 
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     for(int version = minVersion; version <= maxVersion; version++) {
       cout << "VERSION " << version << endl;
@@ -323,7 +319,7 @@ void Tests::runNNInputsV3V4Tests() {
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist,BoardHistoryModes(false,false));
       vector<Move>& moves = sgf->moves;
 
       for(size_t i = 0; i<moves.size(); i++) {
@@ -363,8 +359,6 @@ void Tests::runNNInputsV3V4Tests() {
       delete[] rowBin;
       delete[] rowGlobal;
     }
-
-    delete sgf;
   }
 
   {
@@ -375,7 +369,7 @@ void Tests::runNNInputsV3V4Tests() {
 
     const string sgfStr = "(;GM[1]FF[4]CA[UTF-8]ST[2]RU[Tromp-Taylor]SZ[7]HA[3]KM[-4.50]PW[White]PB[Black]AB[fb][bf][ff];W[ed];B[ee];W[de];B[dd];W[ef];B[df];W[fe];B[ce];W[dc];B[ee];W[eg];B[fd];W[de])";
 
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     for(int version = minVersion; version <= maxVersion; version++) {
       cout << "VERSION " << version << endl;
@@ -384,7 +378,7 @@ void Tests::runNNInputsV3V4Tests() {
       BoardHistory hist;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist,BoardHistoryModes(false,false));
       vector<Move>& moves = sgf->moves;
 
       for(size_t i = 0; i<moves.size(); i++) {
@@ -424,8 +418,6 @@ void Tests::runNNInputsV3V4Tests() {
       delete[] rowBin;
       delete[] rowGlobal;
     }
-
-    delete sgf;
   }
 
   {
@@ -451,7 +443,7 @@ xxx..xx
       Player nextPla = P_BLACK;
       Rules initialRules = Rules::getTrompTaylorish();
       initialRules.komi = 2;
-      BoardHistory hist(board,nextPla,initialRules,0);
+      BoardHistory hist(board,nextPla,initialRules,0,BoardHistoryModes(false,false));
 
       int nnXLen = 7;
       int nnYLen = 7;
@@ -603,7 +595,7 @@ xxx..xx
           for(int c = 0; c<numFeaturesGlobal; c++) {
             for(int j = 0; j<24; j++) {
               testAssert(i + j < rules.size());
-              BoardHistory hist(board,nextPla,rules[i+j],0);
+              BoardHistory hist(board,nextPla,rules[i+j],0,BoardHistoryModes(false,false));
               bool inputsUseNHWC = true;
               Hash128 hash;
               MiscNNInputParams nnInputParams;
@@ -633,7 +625,7 @@ xxx..xx
     //Immediately enters encore via b0 pass w1 pass. Through w19, sets up various ko shapes. Then starts ko captures. b26 pass b27 pass switches to second encore.
     const string sgfStr = "(;GM[1]FF[4]SZ[6]KM[0.00];B[];W[];B[ab];W[bb];B[ba];W[ca];B[ec];W[ed];B[fd];W[fe];B[fb];W[dc];B[db];W[ae];B[ea];W[bf];B[be];W[ad];B[cf];W[dd];B[af];W[aa];B[];W[fc];B[bd];W[eb];B[];W[];B[ec];W[bf];B[ac];W[eb];B[af];W[eb])";
 
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
     vector<Move>& moves = sgf->moves;
 
     for(int version = minVersion; version <= maxVersion; version++) {
@@ -645,7 +637,7 @@ xxx..xx
       BoardHistory hist;
       Rules initialRules = Rules(Rules::KO_SIMPLE, Rules::SCORING_TERRITORY, Rules::TAX_SEKI, false, false, Rules::WHB_ZERO, false, 0.0f);
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist,BoardHistoryModes(false,false));
 
       int nnXLen = 6;
       int nnYLen = 6;
@@ -701,8 +693,6 @@ xxx..xx
 
       cout << getAndClear(out) << endl;
     }
-
-    delete sgf;
   }
 
   {
@@ -713,7 +703,7 @@ xxx..xx
 
     const string sgfStr = "(;FF[4]GM[1]SZ[13]PB[s75411712-d5152283-b8c128]PW[s78621440-d5365731-b8c128]HA[0]KM[7.5]RU[koPOSITIONALscoreAREAsui0]RE[B+11.5];B[ck];W[lb];B[ke];W[ld];B[jd];W[kc];B[jc];W[jb];B[ib];W[kk];B[ki];W[kh];B[ja];W[le];B[ic];W[kf];B[lj];W[li];B[kj];W[lk];B[jk];W[jl];B[ik];W[mj];B[kb];W[jj];B[ji];W[ij];B[ii];W[hj];B[lh];W[mi];B[kg];W[jg];B[jh];W[lg];B[hk];W[hi];B[mh];W[gk];B[mk];W[il];B[jf];W[lf];B[ig];W[cc];B[dc];W[cd];B[ed];W[kd];B[dj];W[el];B[eg];W[de];B[ee];W[ec];B[je];W[db];B[fc];W[eb];B[bj];W[fd];B[gc];W[cl];B[df];W[dd];B[cf];W[dl];B[gh];W[fk];B[la];W[hh];B[hg];W[fi];B[gg];W[mc];B[bk];W[fb];B[gb];W[ei];B[gi];W[fe];B[ef];W[ej];B[gj];W[hl];B[bh];W[mg];B[be];W[bd];B[ad];W[bb];B[ae];W[di];B[me];W[ci];B[bi];W[bl];B[ab];W[ba];B[ac];W[ml];B[ga];W[fa];B[al];W[bc];B[bf];W[mj];B[mi];W[mb];B[ge];W[mk];B[dk];W[md];B[ek];W[fj];B[jb];W[fh];B[ff];W[bm];B[ka];W[ce];B[ak];W[cj];B[ch];W[];B[id];W[fl];B[hc];W[am];B[ik];W[jk];B[ma];W[];B[mm];W[gl];B[aa];W[ca];B[dh];W[fg];B[];W[lm];B[bg];W[];B[hd];W[];B[ag];W[];B[hf];W[];B[gd];W[];B[ih];W[];B[li];W[];B[hb];W[];B[af];W[];B[ia];W[];B[kl];W[];B[])";
 
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     for(int version = minVersion; version <= maxVersion; version++) {
       if(version == 5)
@@ -724,7 +714,7 @@ xxx..xx
       BoardHistory hist;
       Rules initialRules;
       initialRules = sgf->getRulesOrFailAllowUnspecified(initialRules);
-      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+      sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist,BoardHistoryModes(false,false));
       vector<Move>& moves = sgf->moves;
 
       int nnXLen = 13;
@@ -759,8 +749,6 @@ xxx..xx
 
       cout << getAndClear(out) << endl;
     }
-
-    delete sgf;
   }
 
 
@@ -801,7 +789,7 @@ o.xoo.x
           rules.komi = 6.5f;
           rules.multiStoneSuicideLegal = false;
           rules.taxRule = taxRules[whichRules];
-          BoardHistory hist(board,P_WHITE,rules,0);
+          BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
           auto run = [&](bool inputsUseNHWC) {
             Player nextPla = hist.moveHistory.size() > 0 ? getOpp(hist.moveHistory[hist.moveHistory.size()-1].pla) : hist.initialPla;
@@ -902,7 +890,7 @@ o.xoo.x
       Board board = Board(9,1);
       Player nextPla = P_BLACK;
       Rules initialRules = Rules::getSimpleTerritory();
-      BoardHistory hist(board,nextPla,initialRules,0);
+      BoardHistory hist(board,nextPla,initialRules,0,BoardHistoryModes(false,false));
 
       auto run = [&](bool inputsUseNHWC) {
         Hash128 hash;
@@ -986,7 +974,7 @@ o.xoo.x
         Board board = Board(size,size);
         Player nextPla = P_BLACK;
         Rules initialRules = rules[i];
-        BoardHistory hist(board,nextPla,initialRules,0);
+        BoardHistory hist(board,nextPla,initialRules,0,BoardHistoryModes(false,false));
         cout << "----------------------------------------" << endl;
         cout << "Black makes 3 moves in a row" << endl;
         if(i >= 3) {
@@ -1200,7 +1188,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1218,7 +1206,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1237,7 +1225,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1255,7 +1243,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1274,7 +1262,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1308,7 +1296,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1344,7 +1332,7 @@ ooxooxo
       cout << "---------------------------------------------------" << endl;
       cout << rules.toString() << endl;
       Board board(origBoard);
-      BoardHistory hist(board,P_WHITE,rules,0);
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,false));
 
       testScoring(board,hist,false);
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("C7",board),P_WHITE,NULL);
@@ -1404,7 +1392,7 @@ ooxooxo
 
       for(const string& sgfStr : sgfStrs) {
         cout << sgfStr << endl;
-        CompactSgf* sgf = CompactSgf::parse(sgfStr);
+        std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
         vector<Move>& moves = sgf->moves;
 
         for(int whichMode = 0; whichMode <= 2; whichMode++) {
@@ -1424,7 +1412,7 @@ ooxooxo
             Player nextPla;
             BoardHistory hist;
             Rules rules = sgf->getRulesOrFailAllowUnspecified(rulesToUse);
-            sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
+            sgf->setupInitialBoardAndHist(rules, board, nextPla, hist,BoardHistoryModes(false,false));
 
             int nnXLen = 9;
             int nnYLen = 9;
@@ -1490,9 +1478,183 @@ ooxooxo
             cout << getAndClear(out) << endl;
           }
         }
-        delete sgf;
       }
     }
   }
 }
 
+//==================================================================================================================
+
+void Tests::runExcludeTerritoryAtariNNInputsTests() {
+  cout << "Running NN inputs excludeTerritoryAdjacentToAtari tests" << endl;
+  ostringstream out;
+  out << std::setprecision(5);
+
+  //Twin of the territory TAX_NONE case of "NN Inputs V6 Area Feature and Komi" above (same board,
+  //move sequence, and input versions), but with excludeTerritoryAdjacentToAtari on (rules version
+  //3). Under this mode, empty points adjacent to chains in atari (the seki ko mouth, and black's
+  //eye once black's top right group falls into atari) do not count as territory in features 18/19
+  //or in scoring, and the nn input hash differs from the mode-off hash. The other rules combos of
+  //that test are omitted here since the mode is a no-op under them.
+  {
+    const char* name = "NN Inputs Area Feature exclude territory adjacent to atari";
+    cout << "-----------------------------------------------------------------" <<  endl;
+    cout << name << endl;
+    cout << "-----------------------------------------------------------------" <<  endl;
+
+    for(int version = 6; version <= 7; version++) {
+    cout << "VERSION " << version << endl;
+    int nnXLen = 7;
+    int nnYLen = 7;
+    double drawEquivalentWinsForWhite = 0.5;
+    static_assert(NNModelVersion::latestInputsVersionImplemented == 7, "");
+    int numFeaturesBin = version == 6 ? NNInputs::NUM_FEATURES_SPATIAL_V6 : NNInputs::NUM_FEATURES_SPATIAL_V7;
+    int numFeaturesGlobal = version == 6 ? NNInputs::NUM_FEATURES_GLOBAL_V6 : NNInputs::NUM_FEATURES_GLOBAL_V7;
+    float* rowBin = new float[numFeaturesBin * nnXLen * nnYLen];
+    float* rowGlobal = new float[numFeaturesGlobal];
+
+    for(int goToEncore2 = 0; goToEncore2 <= 1; goToEncore2++) {
+      Board board = Board::parseBoard(7,7,R"%%(
+...oxx.
+oooox.x
+xxxxoxx
+o.xoooo
+.oxox.o
+oxxo.x.
+o.xoo.x
+)%%");
+      Rules rules;
+      rules.koRule = Rules::KO_POSITIONAL;
+      rules.scoringRule = Rules::SCORING_TERRITORY;
+      rules.komi = 6.5f;
+      rules.multiStoneSuicideLegal = false;
+      rules.taxRule = Rules::TAX_NONE;
+      BoardHistory hist(board,P_WHITE,rules,0,BoardHistoryModes(false,true));
+
+      auto run = [&](bool inputsUseNHWC) {
+        Player nextPla = hist.moveHistory.size() > 0 ? getOpp(hist.moveHistory[hist.moveHistory.size()-1].pla) : hist.initialPla;
+        MiscNNInputParams nnInputParams;
+        nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+        Hash128 hash = NNInputs::getHash(board,hist,nextPla,nnInputParams);
+        if(version == 6)
+          NNInputs::fillRowV6(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        else
+          NNInputs::fillRowV7(board,hist,nextPla,nnInputParams,nnXLen,nnYLen,inputsUseNHWC,rowBin,rowGlobal);
+        out << hash << endl;
+        printNNInputGlobal(out,version,rowGlobal,5);
+        int c = 18;
+        printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
+        c = 19;
+        printNNInputHWAndBoard(out,version,board,hist,nnXLen,nnYLen,inputsUseNHWC,rowBin,c);
+        return getAndClear(out);
+      };
+      auto printScoring = [&]() {
+        Board b(board);
+        BoardHistory h(hist);
+        Color area[Board::MAX_ARR_SIZE];
+        float scoring[Board::MAX_ARR_SIZE];
+        h.endAndScoreGameNow(b,area);
+        NNInputs::fillScoring(b,area,false,scoring);
+        for(int y = 0; y<board.y_size; y++) {
+          for(int x = 0; x<board.x_size; x++) {
+            Loc loc = Location::getLoc(x,y,board.x_size);
+            cout << Global::strprintf("%4.0f",100*scoring[loc]) << " ";
+          }
+          cout << endl;
+        }
+        cout << endl;
+      };
+      auto runBoth = [&]() {
+        string actualNHWC = run(true);
+        string actualNCHW = run(false);
+        expect(name,actualNHWC,actualNCHW);
+        cout << "Rules: " << hist.rules << endl;
+        cout << "Komi and Bonus: " << hist.rules.komi << " " << hist.whiteBonusScore << endl;
+        cout << "Encore phase: " << hist.encorePhase << endl;
+        for(int i = 0; i<hist.moveHistory.size(); i++)
+          cout << Location::toString(hist.moveHistory[i].loc,board) << " ";
+        cout << actualNHWC;
+        printScoring();
+      };
+
+      cout << "=========================================== " << endl;
+      cout << "goToEncore2 = " << goToEncore2 << endl;
+
+      runBoth();
+      if((bool)goToEncore2) {
+        hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_WHITE, NULL);
+        hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_BLACK, NULL);
+        runBoth();
+        hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_WHITE, NULL);
+        hist.makeBoardMoveAssumeLegal(board, Board::PASS_LOC, P_BLACK, NULL);
+        runBoth();
+      }
+      hist.makeBoardMoveAssumeLegal(board, Location::getLoc(6,5,board.x_size), P_WHITE, NULL);
+      runBoth();
+      hist.makeBoardMoveAssumeLegal(board, Location::getLoc(5,6,board.x_size), P_BLACK, NULL);
+      runBoth();
+      hist.makeBoardMoveAssumeLegal(board, Location::getLoc(0,4,board.x_size), P_WHITE, NULL);
+      runBoth();
+      hist.makeBoardMoveAssumeLegal(board, Location::getLoc(6,0,board.x_size), P_BLACK, NULL);
+      runBoth();
+      hist.makeBoardMoveAssumeLegal(board, Location::getLoc(1,0,board.x_size), P_WHITE, NULL);
+      runBoth();
+      hist.makeBoardMoveAssumeLegal(board, Location::getLoc(4,5,board.x_size), P_BLACK, NULL);
+      runBoth();
+      hist.makeBoardMoveAssumeLegal(board, Location::getLoc(5,4,board.x_size), P_WHITE, NULL);
+      runBoth();
+      cout << endl;
+    }
+
+    delete[] rowBin;
+    delete[] rowGlobal;
+    }
+  }
+
+  //A dame-touching pass-alive white group with both phenomena at once: a dead black throw-in
+  //stone in atari (A5, with liberty A4) inside its territory, and a ko mouth (D7, the sole
+  //liberty of the isolated white ko stone E7). The exclusion applies only to chains of the
+  //territory owner's own color, so the throw-in does NOT stop the surrounding territory
+  //(including its liberty A4 and the throw-in stone itself) from counting for white, while the
+  //own-color ko stone in atari DOES stop the mouth D7 from counting - the only point where the
+  //two modes differ.
+  {
+    cout << "Score and area with dead chain in atari adjacent to territory, and a ko mouth =====================" << endl;
+    Board board = Board::parseBoard(7,7,R"%%(
+.oo.ox.
+oo.oxx.
+xoooox.
+.oooox.
+oooo.x.
+o.ooox.
+ooooox.
+)%%");
+    Rules rules;
+    rules.koRule = Rules::KO_SIMPLE;
+    rules.scoringRule = Rules::SCORING_TERRITORY;
+    rules.komi = 6.5f;
+    rules.multiStoneSuicideLegal = false;
+    rules.taxRule = Rules::TAX_NONE;
+
+    double scores[2];
+    for(int mode = 0; mode <= 1; mode++) {
+      cout << "excludeTerritoryAdjacentToAtari = " << mode << endl;
+      Board b(board);
+      BoardHistory h(b,P_BLACK,rules,2,BoardHistoryModes(false,mode == 1));
+      Color area[Board::MAX_ARR_SIZE];
+      h.endAndScoreGameNow(b,area);
+      scores[mode] = h.finalWhiteMinusBlackScore;
+      cout << "SCORE NOW " << h.finalWhiteMinusBlackScore << endl;
+      for(int y = 0; y<board.y_size; y++) {
+        for(int x = 0; x<board.x_size; x++) {
+          Loc loc = Location::getLoc(x,y,board.x_size);
+          cout << PlayerIO::colorToChar(area[loc]);
+        }
+        cout << endl;
+      }
+      cout << endl;
+    }
+    //Opposing-color chains in atari do not block territory; the ko mouth is the only difference.
+    testAssert(scores[0] == scores[1] + 1.0);
+  }
+}

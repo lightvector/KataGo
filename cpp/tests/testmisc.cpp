@@ -3,8 +3,10 @@
 #include "../core/fileutils.h"
 #include "../dataio/files.h"
 #include "../dataio/loadmodel.h"
+#include "../neuralnet/desc.h"
 
 #include <chrono>
+#include <sstream>
 #include <thread>
 
 //------------------------
@@ -152,4 +154,71 @@ void Tests::runLoadModelTests() {
     testAssert(Global::isPrefix(FileUtils::weaklyCanonical(modelDir), FileUtils::weaklyCanonical(modelsDir)));
   }
   cout << "testloadmodel okay" << endl;
+
+  //A real v17 model file whose header slots after metaEncoderVersion are patched to 1 parse as
+  //declaring preferPassAliveUnderSuicideRules and preferExcludeTerritoryAdjacentToAtari - the engine
+  //side of the model-declaration handshake that lets the corresponding auto modes turn on. The same
+  //slot layout is what export_model_pytorch.py writes.
+  {
+    const string modelFile = "tests/models/b7c96h6kv3qk32v16tflrs-fson-bnh.bin.gz";
+    string uncompressed;
+    FileUtils::uncompressAndLoadFileIntoString(modelFile,"",uncompressed);
+
+    size_t binStart = uncompressed.find("@BIN@");
+    testAssert(binStart != string::npos);
+    const string headerPrefix = uncompressed.substr(0,binStart);
+    const string rest = uncompressed.substr(binStart);
+    vector<string> tokens = Global::split(headerPrefix);
+    //Header layout: name, version, numInputChannels, numInputGlobalChannels, 7 postprocess params,
+    //metaEncoderVersion, preferPassAliveUnderSuicideRules, preferExcludeTerritoryAdjacentToAtari,
+    //5 unused option slots, then the trunk.
+    const size_t passAliveSlot = 12;
+    const size_t excludeTerritorySlot = 13;
+    testAssert(tokens.size() > 19);
+    testAssert(tokens[1] == "17");
+    testAssert(tokens[11] == "0");
+    testAssert(tokens[passAliveSlot] == "0");
+    testAssert(tokens[excludeTerritorySlot] == "0");
+    testAssert(tokens[19] == "trunk");
+
+    auto parseWithSlot = [&](size_t slot, const string& slotValue) {
+      vector<string> patched = tokens;
+      patched[slot] = slotValue;
+      string contents = Global::concat(patched," ") + " " + rest;
+      std::istringstream in(contents);
+      return ModelDesc(in,"",true);
+    };
+    auto parseThrows = [&](size_t slot, const string& slotValue) {
+      bool threw = false;
+      try {
+        ModelDesc desc = parseWithSlot(slot,slotValue);
+      }
+      catch(const StringError&) {
+        threw = true;
+      }
+      return threw;
+    };
+
+    {
+      ModelDesc desc = parseWithSlot(passAliveSlot,"0");
+      testAssert(desc.modelVersion == 17);
+      testAssert(!desc.preferPassAliveUnderSuicideRules);
+      testAssert(!desc.preferExcludeTerritoryAdjacentToAtari);
+    }
+    {
+      ModelDesc desc = parseWithSlot(passAliveSlot,"1");
+      testAssert(desc.modelVersion == 17);
+      testAssert(desc.preferPassAliveUnderSuicideRules);
+      testAssert(!desc.preferExcludeTerritoryAdjacentToAtari);
+    }
+    {
+      ModelDesc desc = parseWithSlot(excludeTerritorySlot,"1");
+      testAssert(desc.modelVersion == 17);
+      testAssert(!desc.preferPassAliveUnderSuicideRules);
+      testAssert(desc.preferExcludeTerritoryAdjacentToAtari);
+    }
+    testAssert(parseThrows(passAliveSlot,"2"));
+    testAssert(parseThrows(excludeTerritorySlot,"2"));
+    cout << "model declaration parsing okay" << endl;
+  }
 }

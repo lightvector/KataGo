@@ -20,12 +20,26 @@ namespace NNPos {
   //Used various places we clip komi beyond board area.
   constexpr float KOMI_CLIP_RADIUS = 20.0f;
 
-  int xyToPos(int x, int y, int nnXLen);
-  int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen);
-  Loc posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnYLen);
-  int getPassPos(int nnXLen, int nnYLen);
-  bool isPassPos(int pos, int nnXLen, int nnYLen);
-  int getPolicySize(int nnXLen, int nnYLen);
+  inline int xyToPos(int x, int y, int nnXLen) { return y * nnXLen + x; }
+  inline int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen) {
+    if(loc == Board::PASS_LOC)
+      return nnXLen * nnYLen;
+    else if(loc == Board::NULL_LOC)
+      return nnXLen * (nnYLen + 1);
+    return Location::getY(loc,boardXSize) * nnXLen + Location::getX(loc,boardXSize);
+  }
+  inline Loc posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnYLen) {
+    if(pos == nnXLen * nnYLen)
+      return Board::PASS_LOC;
+    int x = pos % nnXLen;
+    int y = pos / nnXLen;
+    if(x < 0 || x >= boardXSize || y < 0 || y >= boardYSize)
+      return Board::NULL_LOC;
+    return Location::getLoc(x,y,boardXSize);
+  }
+  inline int getPassPos(int nnXLen, int nnYLen) { return nnXLen * nnYLen; }
+  inline bool isPassPos(int pos, int nnXLen, int nnYLen) { return pos == nnXLen * nnYLen; }
+  inline int getPolicySize(int nnXLen, int nnYLen) { return nnXLen * nnYLen + 1; }
 }
 
 namespace NNInputs {
@@ -44,6 +58,25 @@ struct MiscNNInputParams {
   int symmetry = NNInputs::SYMMETRY_NOTSPECIFIED;
   double policyOptimism = 0.0;
   int maxHistory = 1000;
+  // -1 = no override: pass-alive featurization follows hist.modes.alwaysComputePassAliveUnderSuicideRules.
+  // 0/1 = override that flag for featurization (and its contribution to the nn cache hash). Used when
+  // evaluating with a secondary net (e.g. a human SL profile net) whose declared featurization mode
+  // differs from the mode the search itself is using.
+  int passAliveSuicideRulesOverride = -1;
+  // Same, but for hist.modes.excludeTerritoryAdjacentToAtari.
+  int excludeTerritoryAdjAtariOverride = -1;
+
+  // The effective value of modes.alwaysComputePassAliveUnderSuicideRules for featurization: the
+  // override if one is set, else hist's own flag.
+  bool getAlwaysComputePassAliveUnderSuicideRules(const BoardHistory& hist) const;
+  // The effective value of modes.excludeTerritoryAdjacentToAtari for featurization: the override
+  // if one is set, else hist's own flag.
+  bool getExcludeTerritoryAdjacentToAtari(const BoardHistory& hist) const;
+  // The effective full modes for featurization, taking both overrides into account.
+  BoardHistoryModes getModes(const BoardHistory& hist) const;
+  // The suicide legality to use for pass-alive area computations in featurization, taking the
+  // override and hist.modes.alwaysComputePassAliveUnderSuicideRules into account.
+  bool getSuicideLegalForPassAlive(const BoardHistory& hist) const;
 
   static const Hash128 ZOBRIST_CONSERVATIVE_PASS;
   static const Hash128 ZOBRIST_FRIENDLY_PASS;
@@ -155,7 +188,7 @@ struct NNOutput {
 
   inline float* getPolicyProbsMaybeNoised() { return noisedPolicyProbs != NULL ? noisedPolicyProbs : policyProbs; }
   inline const float* getPolicyProbsMaybeNoised() const { return noisedPolicyProbs != NULL ? noisedPolicyProbs : policyProbs; }
-  void debugPrint(std::ostream& out, const Board& board);
+  void debugPrint(std::ostream& out, const Board& board) const;
   inline int getPos(Loc loc, const Board& board) const { return NNPos::locToPos(loc, board.x_size, nnXLen, nnYLen ); }
 };
 

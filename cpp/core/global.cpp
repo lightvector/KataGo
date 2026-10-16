@@ -23,13 +23,13 @@ using namespace std;
 void Global::fatalError(const char* s)
 {
   cout << "\nFATAL ERROR:\n" << s << endl;
-  exit(EXIT_FAILURE);
+  quick_exit(EXIT_FAILURE);
 }
 
 void Global::fatalError(const string& s)
 {
   cout << "\nFATAL ERROR:\n" << s << endl;
-  exit(EXIT_FAILURE);
+  quick_exit(EXIT_FAILURE);
 }
 
 //STRINGS---------------------------------
@@ -115,6 +115,13 @@ string Global::uint64ToHexString(uint64_t x)
   for(size_t i = 0; i < hex_len; i++)
     s[hex_len-i-1] = digits[(x >> (i*4)) & 0x0f];
   return s;
+}
+
+string Global::sizeToString(size_t x)
+{
+  stringstream ss;
+  ss << x;
+  return ss.str();
 }
 
 bool Global::tryStringToInt(const string& str, int& x)

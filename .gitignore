@@ -65,6 +65,7 @@ CMakeCache.txt
 CMakeFiles/
 Makefile
 cmake_install.cmake
+cpp/builds/
 
 .DS_Store
 GPATH
@@ -83,3 +84,11 @@ for_release/
 
 tests/results/matchsgfs/
 tests/results/matchsgfs2/
+
+# For Metal Backend
+cpp/.ninja_deps
+cpp/.ninja_log
+cpp/build.ninja
+cpp/KataGoSwift.*
+cpp/include/KataGoSwift/KataGoSwift-swift.h
+cpp/external/katagocoreml/proto/

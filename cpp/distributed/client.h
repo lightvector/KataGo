@@ -11,6 +11,8 @@
 #include "../dataio/sgf.h"
 #include "../dataio/trainingwrite.h"
 
+#include "../external/nlohmann_json/json.hpp"
+
 struct Url {
   std::string originalString;
   bool isSSL = true;
@@ -42,6 +44,9 @@ namespace Client {
     size_t bytes;
     std::string sha256;
     bool isRandom;
+    //Optional per-network lenience factor for the backend reference output check, from the
+    //server's network properties. 1.0 when the server does not provide it.
+    double backendRefTestLenienceFactor = 1.0;
 
     void failIfSha256Mismatch(const std::string& modelPath) const;
   };
@@ -64,6 +69,7 @@ namespace Client {
 
     std::string config;
     std::vector<Sgf::PositionSample> startPoses;
+    std::vector<std::string> overrides;
     bool doWriteTrainingData;
     bool isRatingGame;
   };
@@ -78,6 +84,9 @@ namespace Client {
       const Url& proxyUrl,
       const std::string& modelDownloadMirrorBaseUrl,
       bool mirrorUseProxy,
+      // Short runtime detail distinguishing configurations of the same compiled backend (NeuralNet::getRuntimeBackendDetail)
+      // Appended to the git revision reported to the server. Empty for most backends.
+      const std::string& runtimeBackendDetail,
       Logger* logger
     );
     ~Connection();
@@ -89,7 +98,7 @@ namespace Client {
 
     void testConnection();
     RunParameters getRunParameters();
-    
+
     //Returns true if a task was obtained. Returns false if no task was obtained, but not due to an error (e.g. shouldStop).
     //Raises an exception upon a repeated error that persists long enough.
     bool getNextTask(
@@ -100,6 +109,11 @@ namespace Client {
       bool allowRatingTask,
       int taskRepFactor,
       std::function<bool()> shouldStop
+    );
+
+    static void parseTask(
+      Task& task,
+      const nlohmann::json& response
     );
 
     static std::string getModelPath(const Client::ModelInfo& modelInfo, const std::string& modelDir);
@@ -156,6 +170,9 @@ namespace Client {
 
     std::string modelDownloadMirrorBaseUrl;
     bool mirrorUseProxy;
+
+    //Git revision + compile-time backend + runtime backend detail, as reported to the server
+    std::string gitRevisionWithBackendForServer;
 
     //Fixed string different on every startup but shared across all requests for this run of the client
     std::string clientInstanceId;

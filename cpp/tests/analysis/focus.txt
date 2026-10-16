@@ -1,0 +1,16 @@
+{"id":"focustest","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5","E5"],"focusProb":0.5}
+{"id":"focustest","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5"],"focusProb":0.9,"includePVVisits":true}
+{"id":"focustest","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5"]}
+{"id":"focusweighted","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5","E5","C3"],"focusWeights":[6,3,1],"focusProb":0.9}
+{"id":"focusbadweightlen","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5","E5"],"focusWeights":[1]}
+{"id":"focusbadweightval","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5","E5"],"focusWeights":[1,0]}
+{"id":"focusbadloc","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["Z9"]}
+{"id":"focusbadprob","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5"],"focusProb":1.5}
+{"id":"focusavoided","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5"],"focusProb":1.0,"avoidMoves":[{"player":"B","moves":["C5"],"untilDepth":1}]}
+{"id":"queued","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100}}
+{"id":"setfocus1","action":"set_focus","targetId":"queued","focusMoves":["C5"],"focusProb":0.9}
+{"id":"setfocus2","action":"set_focus"}
+{"id":"setfocus3","action":"set_focus","targetId":"queued","focusProb":2}
+{"id":"setfocus4","action":"set_focus","targetId":"queued","focusMoves":["Z9"]}
+{"id":"setfocus5","action":"set_focus","targetId":"nonexistent","focusMoves":["C5"]}
+{"id":"setfocus6","action":"set_focus","targetId":"queued","focusMoves":["C5"],"focusWeights":[1,2]}

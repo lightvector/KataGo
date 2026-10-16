@@ -3,6 +3,7 @@
 namespace MainCmds {
   int analysis(const std::vector<std::string>& args);
   int benchmark(const std::vector<std::string>& args);
+  int benchmarknn(const std::vector<std::string>& args);
   int contribute(const std::vector<std::string>& args);
   int evalsgf(const std::vector<std::string>& args);
   int gatekeeper(const std::vector<std::string>& args);
@@ -13,6 +14,8 @@ namespace MainCmds {
   int selfplay(const std::vector<std::string>& args);
 
   int testgpuerror(const std::vector<std::string>& args);
+  int testbackendreference(const std::vector<std::string>& args);
+  int dumponnx(const std::vector<std::string>& args);
 
   int runtests(const std::vector<std::string>& args);
   int runnnlayertests(const std::vector<std::string>& args);
@@ -31,6 +34,7 @@ namespace MainCmds {
   int runownershiptests(const std::vector<std::string>& args);
   int runtinynntests(const std::vector<std::string>& args);
   int runnnevalcanarytests(const std::vector<std::string>& args);
+  int runonnxmodelfiletests(const std::vector<std::string>& args);
   int runbeginsearchspeedtest(const std::vector<std::string>& args);
   int runownershipspeedtest(const std::vector<std::string>& args);
   int runsleeptest(const std::vector<std::string>& args);
@@ -42,14 +46,20 @@ namespace MainCmds {
   int writebook(const std::vector<std::string>& args);
   int checkbook(const std::vector<std::string>& args);
   int booktoposes(const std::vector<std::string>& args);
+  int comparebooks(const std::vector<std::string>& args);
+  int findbookbottlenecks(const std::vector<std::string>& args);
   int writetrainingdata(const std::vector<std::string>& args);
 
   int trystartposes(const std::vector<std::string>& args);
   int viewstartposes(const std::vector<std::string>& args);
+  int checksgfhintpolicy(const std::vector<std::string>& args);
+  int genposesfromselfplayinit(const std::vector<std::string>& args);
 
-  int demoplay(const std::vector<std::string>& args);
   int printclockinfo(const std::vector<std::string>& args);
   int sampleinitializations(const std::vector<std::string>& args);
+  int evalrandominits(const std::vector<std::string>& args);
+  int searchentropyanalysis(const std::vector<std::string>& args);
+  int selfplaysurprisedump(const std::vector<std::string>& args);
 
   int sandbox();
 }

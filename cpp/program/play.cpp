@@ -156,7 +156,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         int x = allowedBEdges[i];
         int y = allowedBEdges[j];
         if(x == y) {
-          allowedBSizes.push_back(std::make_pair(x,y));
+          allowedBSizes.emplace_back(x,y);
           allowedBSizeRelProbs.push_back(
             (1.0 - allowRectangleProb) * allowedBEdgeRelProbs[i] / relProbSum +
             allowRectangleProb * allowedBEdgeRelProbs[i] * allowedBEdgeRelProbs[j] / relProbSum / relProbSum
@@ -164,7 +164,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
         }
         else {
           if(allowRectangleProb > 0.0) {
-            allowedBSizes.push_back(std::make_pair(x,y));
+            allowedBSizes.emplace_back(x,y);
             allowedBSizeRelProbs.push_back(
               allowRectangleProb * allowedBEdgeRelProbs[i] * allowedBEdgeRelProbs[j] / relProbSum / relProbSum
             );
@@ -207,7 +207,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
   sgfCompensateKomiProb = cfg.contains("sgfCompensateKomiProb") ? cfg.getDouble("sgfCompensateKomiProb",0.0,1.0) : forkCompensateKomiProb;
   komiAllowIntegerProb = cfg.contains("komiAllowIntegerProb") ? cfg.getDouble("komiAllowIntegerProb",0.0,1.0) : 1.0;
 
-  auto generateCumProbs = [](const vector<Sgf::PositionSample> poses, double lambda, double& effectiveSampleSize) {
+  auto generateCumProbs = [](const vector<Sgf::PositionSample>& poses, double lambda, double& effectiveSampleSize) {
     int64_t minInitialTurnNumber = 0;
     for(size_t i = 0; i<poses.size(); i++)
       minInitialTurnNumber = std::min(minInitialTurnNumber, poses[i].initialTurnNumber);
@@ -259,7 +259,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
     std::set<Hash128> uniqueHashes;
     std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler = [startPosesLoadProb,this](
-      Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
+      const Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
     ) {
       (void)hist;
       (void)comments;
@@ -268,7 +268,7 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
     };
     int64_t numExcluded = 0;
     for(size_t i = 0; i<files.size(); i++) {
-      Sgf* sgf = NULL;
+      std::unique_ptr<Sgf> sgf = nullptr;
       try {
         sgf = Sgf::loadFile(files[i]);
         if(contains(excludeHashes,sgf->hash))
@@ -284,8 +284,6 @@ void GameInitializer::initShared(ConfigParser& cfg, Logger& logger) {
       catch(const StringError& e) {
         logger.write("Invalid SGF " + files[i] + ": " + e.what());
       }
-      if(sgf != NULL)
-        delete sgf;
     }
     logger.write("Kept " + Global::uint64ToString(startPoses.size()) + " start positions");
     logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(files.size()) + " sgf files");
@@ -390,11 +388,12 @@ void GameInitializer::createGame(
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
   OtherGameProperties& otherGameProps,
-  const Sgf::PositionSample* startPosSample
+  const Sgf::PositionSample* startPosSample,
+  const BoardHistoryModes& gameHistoryModes
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample,gameHistoryModes);
   if(noResultStdev != 0.0 || drawRandRadius != 0.0)
     throw StringError("GameInitializer::createGame called in a mode that doesn't support specifying noResultStdev or drawRandRadius");
 }
@@ -406,11 +405,12 @@ void GameInitializer::createGame(
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
   OtherGameProperties& otherGameProps,
-  const Sgf::PositionSample* startPosSample
+  const Sgf::PositionSample* startPosSample,
+  const BoardHistoryModes& gameHistoryModes
 ) {
   //Multiple threads will be calling this, and we have some mutable state such as rand.
   lock_guard<std::mutex> lock(createGameMutex);
-  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
+  createGameSharedUnsynchronized(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample,gameHistoryModes);
 
   if(noResultStdev > 1e-30) {
     double mean = params.noResultUtilityForWhite;
@@ -440,7 +440,7 @@ Rules GameInitializer::randomizeScoringAndTaxRules(Rules rules, Rand& randToUse)
   return rules;
 }
 
-bool GameInitializer::isAllowedBSize(int xSize, int ySize) {
+bool GameInitializer::isAllowedBSize(int xSize, int ySize) const {
   if(!contains(allowedBSizes,std::make_pair(xSize,ySize)))
     return false;
   return true;
@@ -487,11 +487,17 @@ void GameInitializer::createGameSharedUnsynchronized(
   const InitialPosition* initialPosition,
   const PlaySettings& playSettings,
   OtherGameProperties& otherGameProps,
-  const Sgf::PositionSample* startPosSample
+  const Sgf::PositionSample* startPosSample,
+  const BoardHistoryModes& gameHistoryModes
 ) {
+  //The game-level BoardHistoryModes, so that any adjudication during start position
+  //replay below is consistent with the game that will be played. (hist.clear() preserves these.)
+  hist.setModes(gameHistoryModes);
+
   if(initialPosition != NULL) {
     board = initialPosition->board;
     hist = initialPosition->hist;
+    hist.setModes(gameHistoryModes);
     pla = initialPosition->pla;
 
     //No handicap when starting from an initial position.
@@ -503,7 +509,7 @@ void GameInitializer::createGameSharedUnsynchronized(
       komiBiggerStdevProb, komiBiggerStdev,
       sqrt(board.x_size*board.y_size), rand
     );
-    assert(extraBlackAndKomi.extraBlack == 0);
+    testAssert(extraBlackAndKomi.extraBlack == 0);
     PlayUtils::setKomiWithNoise(extraBlackAndKomi, hist, rand);
     otherGameProps.isSgfPos = false;
     otherGameProps.isHintPos = false;
@@ -530,13 +536,13 @@ void GameInitializer::createGameSharedUnsynchronized(
 
   if(posSample == NULL) {
     if(startPosesProb > 0 && rand.nextBool(startPosesProb)) {
-      assert(startPoses.size() > 0);
+      testAssert(startPoses.size() > 0);
       size_t r = rand.nextIndexCumulative(startPosCumProbs.data(),startPosCumProbs.size());
       assert(r < startPosCumProbs.size());
       posSample = &(startPoses[r]);
     }
     else if(hintPosesProb > 0 && rand.nextBool(hintPosesProb)) {
-      assert(hintPoses.size() > 0);
+      testAssert(hintPoses.size() > 0);
       size_t r = rand.nextIndexCumulative(hintPosCumProbs.data(),hintPosCumProbs.size());
       assert(r < hintPosCumProbs.size());
       posSample = &(hintPoses[r]);
@@ -553,7 +559,9 @@ void GameInitializer::createGameSharedUnsynchronized(
     testAssert(startPos.moves.size() < 0xFFFFFF);
     for(size_t i = 0; i<startPos.moves.size(); i++) {
       bool isLegal = hist.isLegal(board,startPos.moves[i].loc,startPos.moves[i].pla);
-      if(!isLegal) {
+      //Makes a best effort to still use the position, stopping if we hit an illegal move. It's possible
+      //we hit this because of rules differences making a superko move or self-capture illegal, for example.
+      if(!isLegal || hist.isGameFinished) {
         //If we stop due to illegality, it doesn't make sense to still use the hintLoc
         hintLoc = Board::NULL_LOC;
         break;
@@ -615,7 +623,7 @@ void GameInitializer::createGameSharedUnsynchronized(
 
   double asymmetricProb = (extraBlackAndKomi.extraBlack > 0) ? playSettings.handicapAsymmetricPlayoutProb : playSettings.normalAsymmetricPlayoutProb;
   if(asymmetricProb > 0 && rand.nextBool(asymmetricProb)) {
-    assert(playSettings.maxAsymmetricRatio >= 1.0);
+    testAssert(playSettings.maxAsymmetricRatio >= 1.0);
     double maxNumDoublings = log(playSettings.maxAsymmetricRatio) / log(2.0);
     double numDoublings = rand.nextDouble(maxNumDoublings);
     if(extraBlackAndKomi.extraBlack > 0 || rand.nextBool(0.5)) {
@@ -664,9 +672,9 @@ MatchPairer::MatchPairer(
    logGamesEvery(),
    getMatchupMutex()
 {
-  assert(botNames.size() == numBots);
-  assert(nnEvals.size() == numBots);
-  assert(baseParamss.size() == numBots);
+  testAssert(botNames.size() == numBots);
+  testAssert(nnEvals.size() == numBots);
+  testAssert(baseParamss.size() == numBots);
 
   if(matchupsPerRound.size() <= 0)
     throw StringError("MatchPairer: no matchups specified");
@@ -751,7 +759,7 @@ pair<int,int> MatchPairer::getMatchupPairUnsynchronized() {
 
 //----------------------------------------------------------------------------------------------------------
 
-static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
+static void failIllegalMove(const Search* bot, Logger& logger, const Board& board, Loc loc) {
   ostringstream sout;
   sout << "Bot returned null location or illegal move!?!" << "\n";
   sout << board << "\n";
@@ -763,7 +771,10 @@ static void failIllegalMove(Search* bot, Logger& logger, Board board, Loc loc) {
   ASSERT_UNREACHABLE;
 }
 
-static void logSearch(Search* bot, Logger& logger, Loc loc, OtherGameProperties otherGameProps) {
+static void logSearch(
+  const Search* bot, Logger& logger, Loc loc, const OtherGameProperties& otherGameProps,
+  const PrintTreeOptions& treeOptions
+) {
   ostringstream sout;
   Board::printBoard(sout, bot->getRootBoard(), loc, &(bot->getRootHist().moveHistory));
   sout << "\n";
@@ -780,7 +791,7 @@ static void logSearch(Search* bot, Logger& logger, Loc loc, OtherGameProperties 
   bot->printPV(sout, bot->rootNode, 25);
   sout << "\n";
   sout << "Tree:\n";
-  bot->printTree(sout, bot->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),P_WHITE);
+  bot->printTree(sout, bot->rootNode, treeOptions, P_WHITE);
 
   logger.write(sout.str());
 }
@@ -808,21 +819,20 @@ void Play::extractPolicyTarget(
 ) {
   double scaleMaxToAtLeast = 10.0;
 
-  assert(node != NULL);
-  assert(!toMoveBot->searchParams.rootSymmetryPruning);
+  testAssert(node != NULL);
+  testAssert(!toMoveBot->searchParams.rootSymmetryPruning);
   bool allowDirectPolicyMoves = false;
   bool success = toMoveBot->getPlaySelectionValues(*node,locsBuf,playSelectionValuesBuf,NULL,scaleMaxToAtLeast,allowDirectPolicyMoves);
   testAssert(success);
-  (void)success; //Avoid warning when asserts are disabled
 
-  assert(locsBuf.size() == playSelectionValuesBuf.size());
-  assert(locsBuf.size() <= toMoveBot->rootBoard.x_size * toMoveBot->rootBoard.y_size + 1);
+  testAssert(locsBuf.size() == playSelectionValuesBuf.size());
+  testAssert(locsBuf.size() <= toMoveBot->rootBoard.x_size * toMoveBot->rootBoard.y_size + 1);
 
   //Make sure we don't overflow int16
   double maxValue = 0.0;
   for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
     double value = playSelectionValuesBuf[moveIdx];
-    testAssert(value >= 0.0);
+    testAssert(std::isfinite(value) && value >= 0.0);
     if(value > maxValue)
       maxValue = value;
   }
@@ -834,7 +844,7 @@ void Play::extractPolicyTarget(
   for(int moveIdx = 0; moveIdx<locsBuf.size(); moveIdx++) {
     double value = playSelectionValuesBuf[moveIdx] * factor;
     assert(value <= 30001.0);
-    buf.push_back(PolicyTargetMove(locsBuf[moveIdx],(int16_t)round(value)));
+    buf.emplace_back(locsBuf[moveIdx],(int16_t)round(value));
   }
 }
 
@@ -842,7 +852,6 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   ReportedSearchValues values;
   bool success = toMoveBot->getNodeValues(node,values);
   testAssert(success);
-  (void)success; //Avoid warning when asserts are disabled
 
   buf.win = (float)values.winValue;
   buf.loss = (float)values.lossValue;
@@ -850,12 +859,47 @@ static void extractValueTargets(ValueTargets& buf, const Search* toMoveBot, cons
   buf.score = (float)values.expectedScore;
 }
 
+static void extractQValueTargets(
+  vector<QValueTargetMove>& buf,
+  const Search* toMoveBot,
+  const SearchNode* node
+) {
+  ConstSearchNodeChildrenReference children = node->getChildren();
+  int numChildren = children.iterateAndCountChildren();
+  for(int childIdx = 0; childIdx < numChildren; childIdx++) {
+    const SearchChildPointer& childPtr = children[childIdx];
+    const SearchNode* child = childPtr.getIfAllocated();
+
+    if(child == NULL)
+      continue;
+
+    ReportedSearchValues values;
+    bool success = toMoveBot->getNodeValues(child, values);
+    if(!success)
+      continue;
+    if(values.visits <= 0)
+      continue;
+
+    Loc moveLoc = childPtr.getMoveLoc();
+    buf.emplace_back(
+      moveLoc,
+      (float)values.winLossValue,
+      (float)values.expectedScore,
+      values.visits
+    );
+  }
+}
+
 static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const BoardHistory& hist, Player pla) {
   NNResultBuf buf;
   MiscNNInputParams nnInputParams;
   nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-  Board b = board;
-  bot->nnEvaluator->evaluate(b,hist,pla,nnInputParams,buf,false,false);
+  //Featurize the way this bot's own searches would, even if the passed history differs.
+  nnInputParams.passAliveSuicideRulesOverride =
+    Search::resolveAlwaysComputePassAliveUnderSuicideRules(bot->searchParams, bot->nnEvaluator) ? 1 : 0;
+  nnInputParams.excludeTerritoryAdjAtariOverride =
+    Search::resolveExcludeTerritoryAdjacentToAtari(bot->searchParams, bot->nnEvaluator) ? 1 : 0;
+  bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
   NNOutput& nnOutput = *(buf.result);
 
   NNRawStats nnRawStats;
@@ -872,6 +916,40 @@ static NNRawStats computeNNRawStats(const Search* bot, const Board& board, const
     nnRawStats.policyEntropy = entropy;
   }
   return nnRawStats;
+}
+
+//One turn's worth of the per-turn training targets and stats recorded for selfplay training data, extracted
+//from the search a bot just completed on a position. Extracted both for every turn during the game and when
+//reanalyzing a position after the game - if adding a new per-turn target, make sure both get it.
+struct SearchTargetsThisTurn {
+  ValueTargets whiteValueTargets;
+  QValueTargets whiteQValueTargets;
+  std::vector<PolicyTargetMove>* policyTarget; //Receiver takes ownership
+  int64_t unreducedNumVisits;
+  NNRawStats nnRawStats;
+  double policySurprise;
+  double policyEntropy;
+  double searchEntropy;
+  ReportedSearchValues rawNNValues;
+};
+
+static void extractSearchTargetsThisTurn(
+  SearchTargetsThisTurn& targets,
+  Search* toMoveBot,
+  const Board& board, const BoardHistory& hist, Player pla,
+  vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf
+) {
+  extractValueTargets(targets.whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+  targets.whiteQValueTargets.targets.clear();
+  extractQValueTargets(targets.whiteQValueTargets.targets, toMoveBot, toMoveBot->rootNode);
+  targets.policyTarget = new vector<PolicyTargetMove>();
+  Play::extractPolicyTarget(*targets.policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
+  targets.unreducedNumVisits = toMoveBot->getRootVisits();
+  targets.nnRawStats = computeNNRawStats(toMoveBot, board, hist, pla);
+  bool success = toMoveBot->getPolicySurpriseAndEntropy(targets.policySurprise, targets.searchEntropy, targets.policyEntropy);
+  testAssert(success);
+  (void)success; //Avoid warning when asserts are disabled
+  targets.rawNNValues = toMoveBot->getRootRawNNValuesRequireSuccess();
 }
 
 //Recursively walk non-root-node subtree under node recording positions that have enough visits
@@ -898,11 +976,12 @@ static void recordTreePositionsRec(
     SidePosition* sp = new SidePosition(board,hist,pla,numNeuralNetChangesSoFar);
     Play::extractPolicyTarget(sp->policyTarget, toMoveBot, node, locsBuf, playSelectionValuesBuf);
     extractValueTargets(sp->whiteValueTargets, toMoveBot, node);
+    extractQValueTargets(sp->whiteQValueTargets.targets, toMoveBot, node);
 
     double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
     bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy, node);
     testAssert(success);
-    (void)success; //Avoid warning when asserts are disabled
+
     sp->policySurprise = policySurprise;
     sp->policyEntropy = policyEntropy;
     sp->searchEntropy = searchEntropy;
@@ -975,10 +1054,10 @@ static void recordTreePositions(
   vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
   Loc excludeLoc0, Loc excludeLoc1
 ) {
-  assert(toMoveBot->rootBoard.pos_hash == board.pos_hash);
-  assert(toMoveBot->rootHistory.moveHistory.size() == hist.moveHistory.size());
-  assert(toMoveBot->rootPla == pla);
-  assert(toMoveBot->rootNode != NULL);
+  testAssert(toMoveBot->rootBoard.pos_hash == board.pos_hash);
+  testAssert(toMoveBot->rootHistory.moveHistory.size() == hist.moveHistory.size());
+  testAssert(toMoveBot->rootPla == pla);
+  testAssert(toMoveBot->rootNode != NULL);
   //Don't go too deep recording extra positions
   int maxDepth = 5;
   recordTreePositionsRec(
@@ -1001,6 +1080,7 @@ struct SearchLimitsThisMove {
   bool clearBotBeforeSearchThisMove;
   bool removeRootNoise;
   float targetWeight;
+  bool isCheapSearch;
 
   //Note: these two behave slightly differently than the ones in searchParams - derived from OtherGameProperties
   //game, they make the playouts *actually* vary instead of only making the neural net think they do.
@@ -1010,11 +1090,18 @@ struct SearchLimitsThisMove {
   Loc hintLoc;
 };
 
+//forceFullSearch skips the hint and random cheap search branches, giving the limits that a full-search turn
+//would get, including any reduceVisits or asymmetric playout adjustments.
+//Only the first numHistoricalMctsValuesToUse entries of historicalMctsWinLossValues count as the past for this
+//turn - during the game that is all of them, while post-game reanalysis of a cheap-search position passes the
+//turn index so as to reproduce the state as of that turn.
 static SearchLimitsThisMove getSearchLimitsThisMove(
   const Search* toMoveBot, Player pla, const PlaySettings& playSettings, Rand& gameRand,
   const vector<double>& historicalMctsWinLossValues,
+  size_t numHistoricalMctsValuesToUse,
   bool clearBotBeforeSearch,
-  const OtherGameProperties& otherGameProps
+  const OtherGameProperties& otherGameProps,
+  bool forceFullSearch
 ) {
   bool doAlterVisitsPlayouts = false;
   int64_t numAlterVisits = toMoveBot->searchParams.maxVisits;
@@ -1022,13 +1109,14 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   bool clearBotBeforeSearchThisMove = clearBotBeforeSearch;
   bool removeRootNoise = false;
   float targetWeight = 1.0f;
+  bool isCheapSearch = false;
   double playoutDoublingAdvantage = 0.0;
   Player playoutDoublingAdvantagePla = C_EMPTY;
   Loc hintLoc = Board::NULL_LOC;
-  double cheapSearchProb = playSettings.cheapSearchProb;
+  double cheapSearchProb = forceFullSearch ? 0.0 : playSettings.cheapSearchProb;
 
   const BoardHistory& hist = toMoveBot->getRootHist();
-  if(otherGameProps.hintLoc != Board::NULL_LOC) {
+  if(!forceFullSearch && otherGameProps.hintLoc != Board::NULL_LOC) {
     if(otherGameProps.hintTurn == hist.moveHistory.size() &&
        otherGameProps.hintPosHash == toMoveBot->getRootBoard().pos_hash) {
       hintLoc = otherGameProps.hintLoc;
@@ -1052,6 +1140,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
       throw StringError("playSettings.cheapSearchVisits > maxVisits and/or maxPlayouts");
 
     doAlterVisitsPlayouts = true;
+    isCheapSearch = true;
     numAlterVisits = std::min(numAlterVisits,(int64_t)playSettings.cheapSearchVisits);
     numAlterPlayouts = std::min(numAlterPlayouts,(int64_t)playSettings.cheapSearchVisits);
     targetWeight *= playSettings.cheapSearchTargetWeight;
@@ -1069,25 +1158,26 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
        playSettings.reducedVisitsMin > toMoveBot->searchParams.maxPlayouts)
       throw StringError("playSettings.reducedVisitsMin > maxVisits and/or maxPlayouts");
 
-    if(historicalMctsWinLossValues.size() >= playSettings.reduceVisitsThresholdLookback) {
+    size_t numHistoricalValues = std::min(numHistoricalMctsValuesToUse, historicalMctsWinLossValues.size());
+    if(numHistoricalValues >= (size_t)playSettings.reduceVisitsThresholdLookback) {
       double minWinLossValue = 1e20;
       double maxWinLossValue = -1e20;
       for(int j = 0; j<playSettings.reduceVisitsThresholdLookback; j++) {
-        double winLossValue = historicalMctsWinLossValues[historicalMctsWinLossValues.size()-1-j];
+        double winLossValue = historicalMctsWinLossValues[numHistoricalValues-1-j];
         if(winLossValue < minWinLossValue)
           minWinLossValue = winLossValue;
         if(winLossValue > maxWinLossValue)
           maxWinLossValue = winLossValue;
       }
-      assert(playSettings.reduceVisitsThreshold >= 0.0);
+      testAssert(playSettings.reduceVisitsThreshold >= 0.0);
       double signedMostExtreme = std::max(minWinLossValue,-maxWinLossValue);
-      assert(signedMostExtreme <= 1.000001);
+      testAssert(signedMostExtreme <= 1.000001);
       if(signedMostExtreme > 1.0)
         signedMostExtreme = 1.0;
       double amountThrough = signedMostExtreme - playSettings.reduceVisitsThreshold;
       if(amountThrough > 0) {
         double proportionThrough = amountThrough / (1.0 - playSettings.reduceVisitsThreshold);
-        assert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
+        testAssert(proportionThrough >= 0.0 && proportionThrough <= 1.0);
         double visitReductionProp = proportionThrough * proportionThrough;
         doAlterVisitsPlayouts = true;
         numAlterVisits = (int64_t)round(numAlterVisits + visitReductionProp * ((double)playSettings.reducedVisitsMin - (double)numAlterVisits));
@@ -1100,7 +1190,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   }
 
   if(otherGameProps.playoutDoublingAdvantage != 0.0 && otherGameProps.playoutDoublingAdvantagePla != C_EMPTY) {
-    assert(pla == otherGameProps.playoutDoublingAdvantagePla || getOpp(pla) == otherGameProps.playoutDoublingAdvantagePla);
+    testAssert(pla == otherGameProps.playoutDoublingAdvantagePla || getOpp(pla) == otherGameProps.playoutDoublingAdvantagePla);
 
     playoutDoublingAdvantage = otherGameProps.playoutDoublingAdvantage;
     playoutDoublingAdvantagePla = otherGameProps.playoutDoublingAdvantagePla;
@@ -1132,6 +1222,7 @@ static SearchLimitsThisMove getSearchLimitsThisMove(
   limits.clearBotBeforeSearchThisMove = clearBotBeforeSearchThisMove;
   limits.removeRootNoise = removeRootNoise;
   limits.targetWeight = targetWeight;
+  limits.isCheapSearch = isCheapSearch;
   limits.playoutDoublingAdvantage = playoutDoublingAdvantage;
   limits.playoutDoublingAdvantagePla = playoutDoublingAdvantagePla;
   limits.hintLoc = hintLoc;
@@ -1155,8 +1246,8 @@ static Loc runBotWithLimits(
   }
 
   if(limits.doAlterVisitsPlayouts) {
-    assert(limits.numAlterVisits > 0);
-    assert(limits.numAlterPlayouts > 0);
+    testAssert(limits.numAlterVisits > 0);
+    testAssert(limits.numAlterPlayouts > 0);
     SearchParams oldParams = toMoveBot->searchParams;
 
     toMoveBot->searchParams.maxVisits = limits.numAlterVisits;
@@ -1188,7 +1279,7 @@ static Loc runBotWithLimits(
     }
 
     if(limits.hintLoc != Board::NULL_LOC) {
-      assert(limits.clearBotBeforeSearchThisMove);
+      testAssert(limits.clearBotBeforeSearchThisMove);
       //This will actually forcibly clear the search
       toMoveBot->setRootHintLoc(limits.hintLoc);
     }
@@ -1201,7 +1292,7 @@ static Loc runBotWithLimits(
     toMoveBot->searchParams = oldParams;
   }
   else {
-    assert(!limits.removeRootNoise);
+    testAssert(!limits.removeRootNoise);
     loc = toMoveBot->runWholeSearchAndGetMove(pla);
   }
 
@@ -1211,6 +1302,191 @@ static Loc runBotWithLimits(
   }
 
   return loc;
+}
+
+//KL divergence of a win/loss/noresult distribution from the raw neural net value prediction, capped at 1.
+static double valueSurpriseKL(double winValue, double lossValue, double noResultValue, const ReportedSearchValues& rawNNValues) {
+  double valueSurprise = 0.0;
+  if(winValue > 1e-100) valueSurprise += winValue * (log(winValue) - log(std::max((double)rawNNValues.winValue,1e-100)));
+  if(lossValue > 1e-100) valueSurprise += lossValue * (log(lossValue) - log(std::max((double)rawNNValues.lossValue,1e-100)));
+  if(noResultValue > 1e-100) valueSurprise += noResultValue * (log(noResultValue) - log(std::max((double)rawNNValues.noResultValue,1e-100)));
+
+  //Just in case, guard against float imprecision
+  if(valueSurprise < 0.0)
+    valueSurprise = 0.0;
+  //Cap value surprise at extreme value, to reduce the chance of a ridiculous weight on a move.
+  return std::min(valueSurprise,1.0);
+}
+
+//Compute how surprising the value result at each turn was (KL divergence), relative to the raw neural net
+//value prediction at that turn. By default the value result compared is the smoothed forward-looking game
+//result, which depends on how the game actually continued and ended. If useSearchValueSurprise is true, it is
+//instead the value result of that turn's own search, which depends only on information available at the time
+//of the search, so that data weighting/selection based on it does not condition on the game's realized outcome.
+//whiteValueTargetsByTurn should have one entry per turn plus a final entry for the game outcome.
+static void computeValueSurpriseByTurn(
+  vector<double>& valueSurpriseByTurn,
+  const vector<ValueTargets>& whiteValueTargetsByTurn,
+  const vector<ReportedSearchValues>& rawNNValues,
+  int boardArea,
+  bool useSearchValueSurprise
+) {
+  testAssert(whiteValueTargetsByTurn.size() == rawNNValues.size() + 1);
+  valueSurpriseByTurn.resize(rawNNValues.size());
+
+  if(useSearchValueSurprise) {
+    for(int i = 0; i < (int)rawNNValues.size(); i++) {
+      const ValueTargets& searchValues = whiteValueTargetsByTurn[i];
+      valueSurpriseByTurn[i] = valueSurpriseKL(searchValues.win, searchValues.loss, searchValues.noResult, rawNNValues[i]);
+    }
+    return;
+  }
+
+  double nowFactor = 1.0/(1.0 + boardArea * 0.016);
+
+  double winValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].win;
+  double lossValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].loss;
+  double noResultValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].noResult;
+  for(int i = (int)rawNNValues.size()-1; i >= 0; i--) {
+    winValue = winValue + nowFactor * (whiteValueTargetsByTurn[i].win - winValue);
+    lossValue = lossValue + nowFactor * (whiteValueTargetsByTurn[i].loss - lossValue);
+    noResultValue = noResultValue + nowFactor * (whiteValueTargetsByTurn[i].noResult - noResultValue);
+
+    valueSurpriseByTurn[i] = valueSurpriseKL(winValue, lossValue, noResultValue, rawNNValues[i]);
+  }
+}
+
+//After a game finishes, select some of the positions that got only cheap searches, favoring positions whose
+//cheap search was surprising, and redo them with full searches. Overwrites those turns' recorded targets and
+//stats with those of the new full searches and raises their target weights to what a full-search turn would get,
+//so that they get recorded as full-quality training positions. Does not affect the game itself in any way.
+static void reanalyzeCheapSearchPositions(
+  Search* botB, Search* botW,
+  const PlaySettings& playSettings,
+  const OtherGameProperties& otherGameProps,
+  bool clearBotBeforeSearch,
+  const vector<bool>& wasCheapSearchByTurn,
+  const vector<double>& valueSurpriseByTurn,
+  const vector<double>& historicalMctsWinLossValues,
+  Rand& gameRand,
+  const std::function<bool()>& shouldStop,
+  const WaitableFlag* shouldPause,
+  const std::function<void(int)>& maybeCheckForNewNNEval,
+  vector<ReportedSearchValues>& rawNNValues,
+  vector<Loc>& locsBuf, vector<double>& playSelectionValuesBuf,
+  FinishedGameData* gameData
+) {
+  int numMoves = (int)gameData->targetWeightByTurn.size();
+  testAssert((int)wasCheapSearchByTurn.size() == numMoves);
+  testAssert((int)valueSurpriseByTurn.size() == numMoves);
+  testAssert((int)gameData->policySurpriseByTurn.size() == numMoves);
+  testAssert((int)gameData->reanalysisByTurn.size() == numMoves);
+
+  vector<int> candidateTurns;
+  for(int i = 0; i<numMoves; i++)
+    if(wasCheapSearchByTurn[i])
+      candidateTurns.push_back(i);
+  if(candidateTurns.size() <= 0)
+    return;
+
+  //Binomial draw on the number of cheap search positions determines how many to reanalyze.
+  int numToReanalyze = 0;
+  for(size_t i = 0; i<candidateTurns.size(); i++)
+    if(gameRand.nextBool(playSettings.reanalyzeProp))
+      numToReanalyze += 1;
+  if(numToReanalyze <= 0)
+    return;
+
+  //Sample that many turns without replacement, proportionally to how surprising the cheap search was.
+  vector<double> relProbs(candidateTurns.size());
+  for(size_t i = 0; i<candidateTurns.size(); i++) {
+    int turn = candidateTurns[i];
+    double surprise =
+      playSettings.reanalyzePolicySurpriseWeight * gameData->policySurpriseByTurn[turn]
+      + playSettings.reanalyzeValueSurpriseWeight * valueSurpriseByTurn[turn];
+    relProbs[i] = pow(surprise, playSettings.reanalyzeSurpriseExponent);
+  }
+  vector<int> turnsToReanalyze;
+  for(int k = 0; k<numToReanalyze; k++) {
+    double probSum = 0.0;
+    for(size_t i = 0; i<relProbs.size(); i++)
+      probSum += relProbs[i];
+    size_t chosen;
+    if(probSum > 1e-30)
+      chosen = gameRand.nextUInt(relProbs.data(),relProbs.size());
+    else
+      chosen = gameRand.nextUInt((uint32_t)relProbs.size());
+    turnsToReanalyze.push_back(candidateTurns[chosen]);
+    candidateTurns.erase(candidateTurns.begin()+chosen);
+    relProbs.erase(relProbs.begin()+chosen);
+  }
+  std::sort(turnsToReanalyze.begin(),turnsToReanalyze.end());
+
+  //Replay the game forward, redoing a full search at each selected turn.
+  Board board = gameData->startBoard;
+  BoardHistory hist = gameData->startHist;
+  Player pla = gameData->startPla;
+  int startTurnIdx = (int)gameData->startHist.moveHistory.size();
+
+  size_t whichIdx = 0;
+  for(int turnAfterStart = 0; turnAfterStart<numMoves && whichIdx < turnsToReanalyze.size(); turnAfterStart++) {
+    if(turnAfterStart == turnsToReanalyze[whichIdx]) {
+      whichIdx += 1;
+      if(shouldPause != nullptr)
+        shouldPause->waitUntilFalse();
+      if(shouldStop != nullptr && shouldStop())
+        break;
+
+      Search* toMoveBot = pla == P_BLACK ? botB : botW;
+      toMoveBot->setPosition(pla,board,hist);
+
+      //Reproduce the search limits that this turn would have gotten if it had been a full-search turn,
+      //including any reduceVisits and asymmetric playout adjustments, based on the mcts winloss values
+      //of the turns leading up to this one.
+      SearchLimitsThisMove limits = getSearchLimitsThisMove(
+        toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, (size_t)turnAfterStart,
+        clearBotBeforeSearch, otherGameProps, true
+      );
+      runBotWithLimits(toMoveBot, pla, playSettings, limits);
+
+      //Record the original cheap search's surprise stats that drove the selection of this position, and its visits.
+      ReanalysisData& reanalysisData = gameData->reanalysisByTurn[turnAfterStart];
+      reanalysisData.wasReanalyzed = true;
+      reanalysisData.usedOutcomeTargets = playSettings.reanalyzeUseOutcomeTargets;
+      reanalysisData.selectionPolicySurprise = (float)gameData->policySurpriseByTurn[turnAfterStart];
+      reanalysisData.selectionValueSurprise = (float)valueSurpriseByTurn[turnAfterStart];
+      reanalysisData.originalNumVisits = gameData->policyTargetsByTurn[turnAfterStart].unreducedNumVisits;
+      reanalysisData.numNeuralNetChangesSoFar = (int)gameData->changedNeuralNets.size();
+
+      //Overwrite this turn's recorded targets and stats with those of the new full search.
+      //Note: replacing this turn's entry in whiteValueTargetsByTurn means the winloss-variance-timing training
+      //target of earlier turns will see cheap-vs-full estimator deltas at the boundaries of this turn that
+      //aren't purely game variance. Deltas of similar scale already pervade that target from consecutive
+      //cheap/full searches during play, and it is a tiny auxiliary target, so this is accepted.
+      SearchTargetsThisTurn targets;
+      extractSearchTargetsThisTurn(targets, toMoveBot, board, hist, pla, locsBuf, playSelectionValuesBuf);
+      gameData->whiteValueTargetsByTurn[turnAfterStart] = targets.whiteValueTargets;
+      gameData->whiteQValueTargetsByTurn[turnAfterStart] = targets.whiteQValueTargets;
+      delete gameData->policyTargetsByTurn[turnAfterStart].policyTargets;
+      gameData->policyTargetsByTurn[turnAfterStart].policyTargets = targets.policyTarget;
+      gameData->policyTargetsByTurn[turnAfterStart].unreducedNumVisits = targets.unreducedNumVisits;
+      gameData->nnRawStatsByTurn[turnAfterStart] = targets.nnRawStats;
+      gameData->policySurpriseByTurn[turnAfterStart] = targets.policySurprise;
+      gameData->policyEntropyByTurn[turnAfterStart] = targets.policyEntropy;
+      gameData->searchEntropyByTurn[turnAfterStart] = targets.searchEntropy;
+      rawNNValues[turnAfterStart] = targets.rawNNValues;
+      gameData->targetWeightByTurn[turnAfterStart] = limits.targetWeight;
+
+      testAssert(gameData->endHist.moveHistory.size() < 0x1FFFffff);
+      maybeCheckForNewNNEval((int)gameData->endHist.moveHistory.size());
+    }
+
+    Move move = gameData->endHist.moveHistory[turnAfterStart + startTurnIdx];
+    testAssert(move.pla == pla);
+    testAssert(hist.isLegal(board,move.loc,move.pla));
+    hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
+    pla = getOpp(pla);
+  }
 }
 
 
@@ -1225,8 +1501,8 @@ FinishedGameData* Play::runGame(
   const WaitableFlag* shouldPause,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
-  std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+  const std::function<NNEvaluator*()>& checkForNewNNEval,
+  const std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>& onEachMove
 ) {
   Search* botB;
   Search* botW;
@@ -1270,34 +1546,47 @@ FinishedGameData* Play::runGame(
   const WaitableFlag* shouldPause,
   const PlaySettings& playSettings, const OtherGameProperties& otherGameProps,
   Rand& gameRand,
-  std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+  const std::function<NNEvaluator*()>& checkForNewNNEval,
+  const std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>& onEachMove
 ) {
   FinishedGameData* gameData = new FinishedGameData();
 
   Board board(startBoard);
   BoardHistory hist(startHist);
+  //Game-level BoardHistoryModes, used for whole-game adjudication (endGameIfAllPassAlive,
+  //final scoring) and training data targets: use each new-behavior mode only if BOTH
+  //bots' searches will be using it. Each bot's Search still stamps its own resolved settings onto its
+  //internal copy of the history, which may differ from this when the two bots' settings differ.
+  {
+    const BoardHistoryModes modesB = Search::resolveHistoryModes(botSpecB.baseParams, botSpecB.nnEval);
+    const BoardHistoryModes modesW = Search::resolveHistoryModes(botSpecW.baseParams, botSpecW.nnEval);
+    hist.setModes(BoardHistoryModes(
+      modesB.alwaysComputePassAliveUnderSuicideRules && modesW.alwaysComputePassAliveUnderSuicideRules,
+      modesB.excludeTerritoryAdjacentToAtari && modesW.excludeTerritoryAdjacentToAtari
+    ));
+  }
   Player pla = startPla;
-  assert(!(extraBlackAndKomi.makeGameFair && extraBlackAndKomi.makeGameFairForEmptyBoard));
-  assert(!(playSettings.forSelfPlay && !clearBotBeforeSearch));
+  testAssert(!(extraBlackAndKomi.makeGameFair && extraBlackAndKomi.makeGameFairForEmptyBoard));
+  testAssert(!(playSettings.forSelfPlay && !clearBotBeforeSearch));
 
   if(extraBlackAndKomi.makeGameFairForEmptyBoard) {
     Board b(startBoard.x_size,startBoard.y_size);
     Player makeFairPla = P_BLACK;
     if(playSettings.flipKomiProbWhenNoCompensate != 0.0 && gameRand.nextBool(playSettings.flipKomiProbWhenNoCompensate))
       makeFairPla = P_WHITE;
-    BoardHistory h(b,makeFairPla,startHist.rules,startHist.encorePhase);
+    //Use the game-level BoardHistoryModes for the komi-fairing evals too.
+    BoardHistory h(b,makeFairPla,startHist.rules,startHist.encorePhase,hist.modes);
     //Restore baseline on empty hist, adjust empty hist to fair, then apply to real history.
     PlayUtils::setKomiWithoutNoise(extraBlackAndKomi,h);
     PlayUtils::adjustKomiToEven(botB,botW,b,h,makeFairPla,playSettings.compensateKomiVisits,otherGameProps,gameRand);
     extraBlackAndKomi.komiMean = h.rules.komi;
     PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
   }
-  if(extraBlackAndKomi.extraBlack > 0) {
+  if(extraBlackAndKomi.extraBlack > 0 && !hist.isGameFinished) {
     double extraBlackTemperature = playSettings.handicapTemperature;
-    assert(extraBlackTemperature > 0.0 && extraBlackTemperature < 10.0);
+    testAssert(extraBlackTemperature > 0.0 && extraBlackTemperature < 10.0);
     PlayUtils::playExtraBlack(botB,extraBlackAndKomi.extraBlack,board,hist,extraBlackTemperature,gameRand);
-    assert(hist.moveHistory.size() == 0);
+    testAssert(hist.moveHistory.size() == 0);
   }
   if(extraBlackAndKomi.makeGameFair) {
     //Restore baseline on hist, adjust hist to fair, then apply it with noise.
@@ -1375,6 +1664,10 @@ FinishedGameData* Play::runGame(
   auto maybeCheckForNewNNEval = [&botB,&botW,&botSpecB,&botSpecW,&checkForNewNNEval,&gameRand,&gameData](int nextTurnIdx) {
     //Check if we got a new nnEval, with some probability.
     //Randomized and low-probability so as to reduce contention in checking, while still probably happening in a timely manner.
+    //NOTE: swapping the nnEval mid-game re-resolves each bot's alwaysComputePassAliveUnderSuicideRules mode
+    //(via Search::setNNEval), but the game-level hist deliberately KEEPS the mode stamped at the start of the
+    //game - re-adjudicating a game under a different mode than it started with would be worse than letting
+    //the searches briefly disagree with the game-level adjudication for the remainder of this one game.
     if(checkForNewNNEval != nullptr && gameRand.nextBool(0.1)) {
       NNEvaluator* newNNEval = checkForNewNNEval();
       if(newNNEval != NULL) {
@@ -1383,21 +1676,22 @@ FinishedGameData* Play::runGame(
           botW->setNNEval(newNNEval);
         botSpecB.nnEval = newNNEval;
         botSpecW.nnEval = newNNEval;
-        gameData->changedNeuralNets.push_back(new ChangedNeuralNet(newNNEval->getModelName(),nextTurnIdx));
+        gameData->changedNeuralNets.emplace_back(new ChangedNeuralNet(newNNEval->getModelName(),nextTurnIdx));
       }
     }
   };
 
-  if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit) {
+  if(playSettings.initGamesWithPolicy && otherGameProps.allowPolicyInit && !hist.isGameFinished) {
     double proportionOfBoardArea = otherGameProps.isSgfPos ? playSettings.startPosesPolicyInitAreaProp : playSettings.policyInitAreaProp;
     if(proportionOfBoardArea > 0) {
       //Perform the initialization using a different noised komi, to get a bit of opening policy mixing across komi
       {
         float oldKomi = hist.rules.komi;
         PlayUtils::setKomiWithNoise(extraBlackAndKomi,hist,gameRand);
+        double policyInitGammaShape = playSettings.policyInitGammaShape;
         double temperature = playSettings.policyInitAreaTemperature;
-        assert(temperature > 0.0 && temperature < 10.0);
-        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+        testAssert(temperature > 0.0 && temperature < 10.0);
+        PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, policyInitGammaShape, temperature);
         hist.setKomi(oldKomi);
       }
       bool shouldCompensate =
@@ -1413,11 +1707,19 @@ FinishedGameData* Play::runGame(
   }
 
   //Make sure there's some minimum tiny amount of data about how the encore phases work
-  if(playSettings.forSelfPlay && !otherGameProps.isHintPos && hist.rules.scoringRule == Rules::SCORING_TERRITORY && hist.encorePhase == 0 && gameRand.nextBool(0.04)) {
+  if(
+    playSettings.forSelfPlay &&
+    !otherGameProps.isHintPos &&
+    hist.rules.scoringRule == Rules::SCORING_TERRITORY &&
+    hist.encorePhase == 0 &&
+    gameRand.nextBool(0.04) &&
+    !hist.isGameFinished
+  ) {
     //Play out to go a quite a bit later in the game.
     double proportionOfBoardArea = 0.25;
+    double policyInitGammaShape = 1.0 * 0.8 + playSettings.policyInitGammaShape * 0.2;
     double temperature = 2.0/3.0;
-    PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, temperature);
+    PlayUtils::initializeGameUsingPolicy(botB, botW, board, hist, pla, gameRand, doEndGameIfAllPassAlive, proportionOfBoardArea, policyInitGammaShape, temperature);
 
     if(!hist.isGameFinished) {
       //Even out the game
@@ -1456,6 +1758,7 @@ FinishedGameData* Play::runGame(
   vector<double> historicalMctsLeads;
   vector<double> historicalMctsScoreStdevs;
   vector<ReportedSearchValues> rawNNValues;
+  vector<bool> wasCheapSearchByTurn;
 
   ClockTimer timer;
 
@@ -1493,7 +1796,8 @@ FinishedGameData* Play::runGame(
     }
 
     SearchLimitsThisMove limits = getSearchLimitsThisMove(
-      toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, clearBotBeforeSearch, otherGameProps
+      toMoveBot, pla, playSettings, gameRand, historicalMctsWinLossValues, historicalMctsWinLossValues.size(),
+      clearBotBeforeSearch, otherGameProps, false
     );
     Loc loc;
     if(playSettings.recordTimePerMove) {
@@ -1517,44 +1821,43 @@ FinishedGameData* Play::runGame(
     if(loc == Board::NULL_LOC || !toMoveBot->isLegalStrict(loc,pla))
       failIllegalMove(toMoveBot,logger,board,loc);
     if(logSearchInfo)
-      logSearch(toMoveBot,logger,loc,otherGameProps);
+      logSearch(toMoveBot,logger,loc,otherGameProps,playSettings.logSearchTreeOptions);
     if(logMoves)
       logger.write("Move " + Global::uint64ToString(hist.moveHistory.size()) + " made: " + Location::toString(loc,board));
 
-    ValueTargets whiteValueTargets;
-    extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
-    gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
-
     if(!recordFullData) {
+      ValueTargets whiteValueTargets;
+      extractValueTargets(whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+      gameData->whiteValueTargetsByTurn.push_back(whiteValueTargets);
+      QValueTargets whiteQValueTargets;
+      extractQValueTargets(whiteQValueTargets.targets, toMoveBot, toMoveBot->rootNode);
+      gameData->whiteQValueTargetsByTurn.push_back(whiteQValueTargets);
       //Go ahead and record this anyways with just the visits, as a bit of a hack so that the sgf output can also write the number of visits.
       int64_t unreducedNumVisits = toMoveBot->getRootVisits();
-      gameData->policyTargetsByTurn.push_back(PolicyTarget(NULL,unreducedNumVisits));
+      gameData->policyTargetsByTurn.emplace_back(nullptr,unreducedNumVisits);
     }
     else {
-      vector<PolicyTargetMove>* policyTarget = new vector<PolicyTargetMove>();
-      int64_t unreducedNumVisits = toMoveBot->getRootVisits();
-      Play::extractPolicyTarget(*policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
-      gameData->policyTargetsByTurn.push_back(PolicyTarget(policyTarget,unreducedNumVisits));
-      gameData->nnRawStatsByTurn.push_back(computeNNRawStats(toMoveBot, board, hist, pla));
+      SearchTargetsThisTurn targets;
+      extractSearchTargetsThisTurn(targets, toMoveBot, board, hist, pla, locsBuf, playSelectionValuesBuf);
+      gameData->whiteValueTargetsByTurn.push_back(targets.whiteValueTargets);
+      gameData->whiteQValueTargetsByTurn.push_back(targets.whiteQValueTargets);
+      gameData->policyTargetsByTurn.emplace_back(targets.policyTarget,targets.unreducedNumVisits);
+      gameData->nnRawStatsByTurn.push_back(targets.nnRawStats);
+      gameData->policySurpriseByTurn.push_back(targets.policySurprise);
+      gameData->policyEntropyByTurn.push_back(targets.policyEntropy);
+      gameData->searchEntropyByTurn.push_back(targets.searchEntropy);
+      rawNNValues.push_back(targets.rawNNValues);
 
       gameData->targetWeightByTurn.push_back(limits.targetWeight);
-
-      double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
-      bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
-      testAssert(success);
-      (void)success; //Avoid warning when asserts are disabled
-      gameData->policySurpriseByTurn.push_back(policySurprise);
-      gameData->policyEntropyByTurn.push_back(policyEntropy);
-      gameData->searchEntropyByTurn.push_back(searchEntropy);
-
-      rawNNValues.push_back(toMoveBot->getRootRawNNValuesRequireSuccess());
+      gameData->reanalysisByTurn.emplace_back();
+      wasCheapSearchByTurn.push_back(limits.isCheapSearch);
 
       //Occasionally fork off some positions to evaluate
       Loc sidePositionForkLoc = Board::NULL_LOC;
       if(playSettings.sidePositionProb > 0.0 && gameRand.nextBool(playSettings.sidePositionProb)) {
-        assert(toMoveBot->rootNode != NULL);
+        testAssert(toMoveBot->rootNode != NULL);
         const NNOutput* nnOutput = toMoveBot->rootNode->getNNOutput();
-        assert(nnOutput != NULL);
+        testAssert(nnOutput != NULL);
         Loc banMove = loc;
         sidePositionForkLoc = chooseRandomForkingMove(nnOutput, board, hist, pla, gameRand, banMove);
         if(sidePositionForkLoc != Board::NULL_LOC) {
@@ -1601,7 +1904,6 @@ FinishedGameData* Play::runGame(
       suc = botW->makeMove(loc,pla);
       testAssert(suc);
     }
-    (void)suc; //Avoid warning when asserts disabled
 
     //And make the move on our copy of the board
     testAssert(hist.isLegal(board,loc,pla));
@@ -1648,6 +1950,19 @@ FinishedGameData* Play::runGame(
   else
     gameData->hitTurnLimit = true;
 
+  // In self-play or match play, it should ALWAYS be the case that the entire game history is legal.
+  if(hist.numConsecValidTurnsThisGame != hist.moveHistory.size()) {
+    ostringstream sout;
+    sout << "Selfplay got history with not entire game legal!?!" << "\n";
+    sout << "hist.numConsecValidTurnsThisGame " << hist.numConsecValidTurnsThisGame << "\n";
+    sout << "hist.moveHistory.size() " << hist.moveHistory.size() << "\n";
+    hist.printBasicInfo(sout,board);
+    hist.printDebugInfo(sout,board);
+    logger.write(sout.str());
+    cerr << sout.str() << endl;
+    testAssert(false);
+  }
+
   {
     BoardHistory histCopy(hist);
     //Always use true for computing the handicap value that goes into an sgf
@@ -1661,9 +1976,9 @@ FinishedGameData* Play::runGame(
 
     ValueTargets finalValueTargets;
 
-    assert(gameData->finalFullArea == NULL);
-    assert(gameData->finalOwnership == NULL);
-    assert(gameData->finalSekiAreas == NULL);
+    testAssert(gameData->finalFullArea == NULL);
+    testAssert(gameData->finalOwnership == NULL);
+    testAssert(gameData->finalSekiAreas == NULL);
     gameData->finalFullArea = new Color[Board::MAX_ARR_SIZE];
     gameData->finalOwnership = new Color[Board::MAX_ARR_SIZE];
     gameData->finalSekiAreas = new bool[Board::MAX_ARR_SIZE];
@@ -1694,11 +2009,11 @@ FinishedGameData* Play::runGame(
 
       //Fill full and seki areas
       {
-        board.calculateArea(gameData->finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
+        board.calculateArea(gameData->finalFullArea, true, true, true, hist.suicideLegalForPassAlive());
 
         Color* independentLifeArea = new Color[Board::MAX_ARR_SIZE];
         int whiteMinusBlackIndependentLifeRegionCount;
-        board.calculateIndependentLifeArea(independentLifeArea,whiteMinusBlackIndependentLifeRegionCount, false, false, hist.rules.multiStoneSuicideLegal);
+        board.calculateIndependentLifeArea(independentLifeArea,whiteMinusBlackIndependentLifeRegionCount, false, false, hist.modes.excludeTerritoryAdjacentToAtari, hist.suicideLegalForPassAlive());
         for(int i = 0; i<Board::MAX_ARR_SIZE; i++) {
           if(independentLifeArea[i] == C_EMPTY && (gameData->finalFullArea[i] == C_BLACK || gameData->finalFullArea[i] == C_WHITE))
             gameData->finalSekiAreas[i] = true;
@@ -1716,59 +2031,80 @@ FinishedGameData* Play::runGame(
       gameData->whiteValueTargetsByTurn[0] = gameData->whiteValueTargetsByTurn[std::min((size_t)1,gameData->whiteValueTargetsByTurn.size()-1)];
     }
 
-    assert(gameData->finalWhiteScoring == NULL);
+    testAssert(gameData->finalWhiteScoring == NULL);
     gameData->finalWhiteScoring = new float[Board::MAX_ARR_SIZE];
     NNInputs::fillScoring(board,gameData->finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,gameData->finalWhiteScoring);
 
     gameData->hasFullData = true;
 
+    testAssert(gameData->whiteValueTargetsByTurn.size() == gameData->targetWeightByTurn.size() + 1);
+    testAssert(rawNNValues.size() == gameData->targetWeightByTurn.size());
+
     vector<double> valueSurpriseByTurn;
-    {
-      const vector<ValueTargets>& whiteValueTargetsByTurn = gameData->whiteValueTargetsByTurn;
-      assert(whiteValueTargetsByTurn.size() == gameData->targetWeightByTurn.size() + 1);
-      assert(rawNNValues.size() == gameData->targetWeightByTurn.size());
-      valueSurpriseByTurn.resize(rawNNValues.size());
+    computeValueSurpriseByTurn(
+      valueSurpriseByTurn, gameData->whiteValueTargetsByTurn, rawNNValues, board.x_size * board.y_size,
+      playSettings.useSearchValueSurprise
+    );
 
-      int boardArea = board.x_size * board.y_size;
-      double nowFactor = 1.0/(1.0 + boardArea * 0.016);
+    //After the game, select some of the positions that got only cheap searches and redo them with full searches,
+    //so that they get recorded as full training positions. This happens entirely after the game so it cannot
+    //affect the game's moves or outcome in any way.
+    if(playSettings.useReanalyze && playSettings.reanalyzeProp > 0.0) {
+      reanalyzeCheapSearchPositions(
+        botB, botW, playSettings, otherGameProps, clearBotBeforeSearch,
+        wasCheapSearchByTurn, valueSurpriseByTurn, historicalMctsWinLossValues,
+        gameRand, shouldStop, shouldPause, maybeCheckForNewNNEval,
+        rawNNValues, locsBuf, playSelectionValuesBuf,
+        gameData
+      );
+      //If we had a hintloc, refresh the copy of turn 1's value into turn 0 made above, in case turn 1 was
+      //reanalyzed and its value was updated.
+      if(otherGameProps.hintLoc != Board::NULL_LOC) {
+        gameData->whiteValueTargetsByTurn[0] = gameData->whiteValueTargetsByTurn[std::min((size_t)1,gameData->whiteValueTargetsByTurn.size()-1)];
+      }
 
-      double winValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].win;
-      double lossValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].loss;
-      double noResultValue = whiteValueTargetsByTurn[whiteValueTargetsByTurn.size()-1].noResult;
-      for(int i = (int)rawNNValues.size()-1; i >= 0; i--) {
-        winValue = winValue + nowFactor * (whiteValueTargetsByTurn[i].win - winValue);
-        lossValue = lossValue + nowFactor * (whiteValueTargetsByTurn[i].loss - lossValue);
-        noResultValue = noResultValue + nowFactor * (whiteValueTargetsByTurn[i].noResult - noResultValue);
+      //Reanalysis overwrote the searched values at the reanalyzed turns, which feed into the value targets and
+      //the value surprise of every turn at or before them (of just those turns themselves, for search value
+      //surprise), so recompute.
+      computeValueSurpriseByTurn(
+        valueSurpriseByTurn, gameData->whiteValueTargetsByTurn, rawNNValues, board.x_size * board.y_size,
+        playSettings.useSearchValueSurprise
+      );
 
-        double valueSurprise = 0.0;
-        if(winValue > 1e-100) valueSurprise += winValue * (log(winValue) - log(std::max((double)rawNNValues[i].winValue,1e-100)));
-        if(lossValue > 1e-100) valueSurprise += lossValue * (log(lossValue) - log(std::max((double)rawNNValues[i].lossValue,1e-100)));
-        if(noResultValue > 1e-100) valueSurprise += noResultValue * (log(noResultValue) - log(std::max((double)rawNNValues[i].noResultValue,1e-100)));
-
-        //Just in case, guard against float imprecision
-        if(valueSurprise < 0.0)
-          valueSurprise = 0.0;
-        //Cap value surprise at extreme value, to reduce the chance of a ridiculous weight on a move.
-        valueSurpriseByTurn[i] = std::min(valueSurprise,1.0);
+      if(logSearchInfo || logMoves) {
+        int numCheapSearchTurns = 0;
+        for(size_t i = 0; i<wasCheapSearchByTurn.size(); i++)
+          numCheapSearchTurns += wasCheapSearchByTurn[i] ? 1 : 0;
+        int numReanalyzedTurns = 0;
+        for(size_t i = 0; i<gameData->reanalysisByTurn.size(); i++)
+          numReanalyzedTurns += gameData->reanalysisByTurn[i].wasReanalyzed ? 1 : 0;
+        logger.write(
+          "Reanalyzed " + Global::intToString(numReanalyzedTurns) + " of " +
+          Global::intToString(numCheapSearchTurns) + " cheap-search positions for training data"
+        );
       }
     }
+
+    //Record for statistical purposes (e.g. the selfplaysurprisedump command)
+    gameData->valueSurpriseByTurn = valueSurpriseByTurn;
+    gameData->wasCheapSearchByTurn = wasCheapSearchByTurn;
 
     //Compute desired expectation with which to write main game rows
     if(playSettings.policySurpriseDataWeight > 0 || playSettings.valueSurpriseDataWeight > 0) {
       size_t numWeights = gameData->targetWeightByTurn.size();
-      assert(numWeights == gameData->policySurpriseByTurn.size());
+      testAssert(numWeights == gameData->policySurpriseByTurn.size());
 
       double sumWeights = 0.0;
       double sumPolicySurpriseWeighted = 0.0;
       double sumValueSurpriseWeighted = 0.0;
       for(size_t i = 0; i < numWeights; i++) {
         float targetWeight = gameData->targetWeightByTurn[i];
-        assert(targetWeight >= 0.0 && targetWeight <= 1.0);
+        testAssert(targetWeight >= 0.0 && targetWeight <= 1.0);
         sumWeights += targetWeight;
         double policySurprise = gameData->policySurpriseByTurn[i];
-        assert(policySurprise >= 0.0);
+        testAssert(policySurprise >= 0.0);
         double valueSurprise = valueSurpriseByTurn[i];
-        assert(valueSurprise >= 0.0);
+        testAssert(valueSurprise >= 0.0);
         sumPolicySurpriseWeighted += policySurprise * targetWeight;
         sumValueSurpriseWeighted += valueSurprise * targetWeight;
       }
@@ -1786,8 +2122,25 @@ FinishedGameData* Play::runGame(
         }
 
         //We also include some rows from non-full searches, if despite the shallow search
-        //they were quite surprising to the policy.
+        //they were quite surprising to the policy. When using reanalyze, reanalysis of the most surprising
+        //cheap searches replaces this behavior for cheap searches that were not reanalyzed, so for those the
+        //excess surprise term is turned off. It still applies to all other reduced-weight rows - rows whose
+        //visits and weight were reduced due to extreme winrates, including reanalyzed rows reduced that way
+        //(judged on the reanalysis search's own policy surprise).
         double thresholdToIncludeReduced = averagePolicySurpriseWeighted * 1.5;
+        auto policySurprisePropValueOfTurn = [&](int i) {
+          float targetWeight = gameData->targetWeightByTurn[i];
+          double policySurprise = gameData->policySurpriseByTurn[i];
+          bool excludeExcessSurprise =
+            playSettings.useReanalyze && wasCheapSearchByTurn[i] && !gameData->reanalysisByTurn[i].wasReanalyzed;
+          double excessSurprise = excludeExcessSurprise ? 0.0 : std::max(0.0,policySurprise-thresholdToIncludeReduced);
+          return targetWeight * policySurprise + (1-targetWeight) * excessSurprise;
+        };
+        auto valueSurprisePropValueOfTurn = [&](int i) {
+          float targetWeight = gameData->targetWeightByTurn[i];
+          double valueSurprise = valueSurpriseByTurn[i];
+          return targetWeight * valueSurprise;
+        };
 
         //Part of the weight will be proportional to surprisePropValue which is just policySurprise on normal rows
         //and the excess policySurprise beyond threshold on shallow searches.
@@ -1795,15 +2148,8 @@ FinishedGameData* Play::runGame(
         double sumPolicySurprisePropValue = 0.0;
         double sumValueSurprisePropValue = 0.0;
         for(int i = 0; i<numWeights; i++) {
-          float targetWeight = gameData->targetWeightByTurn[i];
-          double policySurprise = gameData->policySurpriseByTurn[i];
-          double valueSurprise = valueSurpriseByTurn[i];
-          double policySurprisePropValue =
-            targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
-          double valueSurprisePropValue =
-            targetWeight * valueSurprise;
-          sumPolicySurprisePropValue += policySurprisePropValue;
-          sumValueSurprisePropValue += valueSurprisePropValue;
+          sumPolicySurprisePropValue += policySurprisePropValueOfTurn(i);
+          sumValueSurprisePropValue += valueSurprisePropValueOfTurn(i);
         }
 
         //Just in case, avoid div by 0
@@ -1811,13 +2157,11 @@ FinishedGameData* Play::runGame(
         sumValueSurprisePropValue = std::max(sumValueSurprisePropValue,1e-10);
 
         for(int i = 0; i<numWeights; i++) {
+          //Note: the prop value lambdas read targetWeightByTurn[i], so they must be called before we
+          //overwrite it below, and each iteration reads only its own index.
           float targetWeight = gameData->targetWeightByTurn[i];
-          double policySurprise = gameData->policySurpriseByTurn[i];
-          double valueSurprise = valueSurpriseByTurn[i];
-          double policySurprisePropValue =
-            targetWeight * policySurprise + (1-targetWeight) * std::max(0.0,policySurprise-thresholdToIncludeReduced);
-          double valueSurprisePropValue =
-            targetWeight * valueSurprise;
+          double policySurprisePropValue = policySurprisePropValueOfTurn(i);
+          double valueSurprisePropValue = valueSurprisePropValueOfTurn(i);
           double newValue =
             (1.0-playSettings.policySurpriseDataWeight-valueSurpriseDataWeight) * targetWeight
             + playSettings.policySurpriseDataWeight * policySurprisePropValue * sumWeights / sumPolicySurprisePropValue
@@ -1843,14 +2187,15 @@ FinishedGameData* Play::runGame(
       toMoveBot->setPosition(sp->pla,sp->board,sp->hist);
       //We do NOT apply playoutDoublingAdvantage here. If changing this, note that it is coordinated with train data writing
       //not using playoutDoublingAdvantage for these rows too.
-      assert(toMoveBot->searchParams.playoutDoublingAdvantage == 0.0);
-      assert(toMoveBot->searchParams.playoutDoublingAdvantagePla == C_EMPTY);
+      testAssert(toMoveBot->searchParams.playoutDoublingAdvantage == 0.0);
+      testAssert(toMoveBot->searchParams.playoutDoublingAdvantagePla == C_EMPTY);
       sp->playoutDoublingAdvantagePla = C_EMPTY;
       sp->playoutDoublingAdvantage = 0.0;
       Loc responseLoc = toMoveBot->runWholeSearchAndGetMove(sp->pla);
 
       Play::extractPolicyTarget(sp->policyTarget, toMoveBot, toMoveBot->rootNode, locsBuf, playSelectionValuesBuf);
       extractValueTargets(sp->whiteValueTargets, toMoveBot, toMoveBot->rootNode);
+      extractQValueTargets(sp->whiteQValueTargets.targets, toMoveBot, toMoveBot->rootNode);
 
       double policySurprise = 0.0, policyEntropy = 0.0, searchEntropy = 0.0;
       bool success = toMoveBot->getPolicySurpriseAndEntropy(policySurprise, searchEntropy, policyEntropy);
@@ -1897,6 +2242,11 @@ FinishedGameData* Play::runGame(
           Search* toMoveBot2 = sp2->pla == P_BLACK ? botB : botW;
           MiscNNInputParams nnInputParams;
           nnInputParams.drawEquivalentWinsForWhite = toMoveBot2->searchParams.drawEquivalentWinsForWhite;
+          //Featurize the way this bot's own searches would, even if the game-level history differs.
+          nnInputParams.passAliveSuicideRulesOverride =
+            Search::resolveAlwaysComputePassAliveUnderSuicideRules(toMoveBot2->searchParams, toMoveBot2->nnEvaluator) ? 1 : 0;
+          nnInputParams.excludeTerritoryAdjAtariOverride =
+            Search::resolveExcludeTerritoryAdjacentToAtari(toMoveBot2->searchParams, toMoveBot2->nnEvaluator) ? 1 : 0;
           toMoveBot2->nnEvaluator->evaluate(
             sp2->board,sp2->hist,sp2->pla,nnInputParams,
             nnResultBuf,false,false
@@ -1952,7 +2302,7 @@ FinishedGameData* Play::runGame(
 
     //Fill in lead estimation on full-search positions
     if(playSettings.estimateLeadProb > 0.0) {
-      assert(gameData->targetWeightByTurn.size() + 1 == gameData->whiteValueTargetsByTurn.size());
+      testAssert(gameData->targetWeightByTurn.size() + 1 == gameData->whiteValueTargetsByTurn.size());
       board = gameData->startBoard;
       hist = gameData->startHist;
       pla = gameData->startPla;
@@ -1982,7 +2332,7 @@ FinishedGameData* Play::runGame(
           gameData->whiteValueTargetsByTurn[turnAfterStart].hasLead = true;
         }
         Move move = gameData->endHist.moveHistory[turnIdx];
-        assert(move.pla == pla);
+        testAssert(move.pla == pla);
         hist.makeBoardMoveAssumeLegal(board, move.loc, move.pla, NULL);
         pla = getOpp(pla);
       }
@@ -2018,6 +2368,10 @@ static void replayGameUpToMove(const FinishedGameData* finishedGameData, int mov
   board = finishedGameData->startHist.initialBoard;
   pla = finishedGameData->startHist.initialPla;
 
+  //Replay under the same BoardHistoryModes that the game was actually played and
+  //adjudicated with (clear() below preserves these).
+  hist.setModes(finishedGameData->endHist.modes);
+
   if(rules.scoringRule == Rules::SCORING_AREA)
     hist.clear(board,pla,rules,0);
   else
@@ -2045,7 +2399,7 @@ static void replayGameUpToMove(const FinishedGameData* finishedGameData, int mov
       //Just break out due to the illegal move and stop the replay here
       return;
     }
-    assert(finishedGameData->endHist.moveHistory[i].pla == pla);
+    testAssert(finishedGameData->endHist.moveHistory[i].pla == pla);
     hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
     pla = getOpp(pla);
 
@@ -2055,7 +2409,7 @@ static void replayGameUpToMove(const FinishedGameData* finishedGameData, int mov
 }
 
 static bool hasUnownedSpot(const FinishedGameData* finishedGameData) {
-  assert(finishedGameData->finalOwnership != NULL);
+  testAssert(finishedGameData->finalOwnership != NULL);
   const Board& board = finishedGameData->startBoard;
   for(int y = 0; y<board.y_size; y++) {
     for(int x = 0; x<board.x_size; x++) {
@@ -2076,8 +2430,8 @@ void Play::maybeForkGame(
 ) {
   if(forkData == NULL)
     return;
-  assert(finishedGameData->startHist.initialBoard.pos_hash == finishedGameData->endHist.initialBoard.pos_hash);
-  assert(finishedGameData->startHist.initialPla == finishedGameData->endHist.initialPla);
+  testAssert(finishedGameData->startHist.initialBoard.pos_hash == finishedGameData->endHist.initialBoard.pos_hash);
+  testAssert(finishedGameData->startHist.initialPla == finishedGameData->endHist.initialPla);
 
   //Just for conceptual simplicity, don't early fork games that started in the encore
   if(finishedGameData->startHist.encorePhase != 0)
@@ -2122,7 +2476,7 @@ void Play::maybeForkGame(
 
   //Generate a selection of a small random number of choices
   int numChoices = gameRand.nextInt(playSettings.forkGameMinChoices, maxChoices);
-  assert(numChoices <= NNPos::MAX_NN_POLICY_SIZE);
+  testAssert(numChoices <= NNPos::MAX_NN_POLICY_SIZE);
   Loc possibleMoves[NNPos::MAX_NN_POLICY_SIZE];
   int numPossible = PlayUtils::chooseRandomLegalMoves(board,hist,pla,gameRand,possibleMoves,numChoices);
   if(numPossible <= 0)
@@ -2141,6 +2495,11 @@ void Play::maybeForkGame(
     copyHist.makeBoardMoveAssumeLegal(copy,loc,pla,NULL);
     MiscNNInputParams nnInputParams;
     nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
+    //Featurize the way this bot's own searches would, even if the replayed game-level history differs.
+    nnInputParams.passAliveSuicideRulesOverride =
+      Search::resolveAlwaysComputePassAliveUnderSuicideRules(bot->searchParams, bot->nnEvaluator) ? 1 : 0;
+    nnInputParams.excludeTerritoryAdjAtariOverride =
+      Search::resolveExcludeTerritoryAdjacentToAtari(bot->searchParams, bot->nnEvaluator) ? 1 : 0;
     bot->nnEvaluator->evaluate(copy,copyHist,getOpp(pla),nnInputParams,buf,false,false);
     std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
     double whiteScore = nnOutput->whiteScoreMean;
@@ -2233,6 +2592,7 @@ void Play::maybeHintForkGame(
   if(hist.isGameFinished)
     return;
 
+  testAssert(pla == hist.presumedNextMovePla);
   if(!hist.isLegal(board,otherGameProps.hintLoc,pla))
     return;
 
@@ -2246,7 +2606,7 @@ void Play::maybeHintForkGame(
 }
 
 
-GameRunner::GameRunner(ConfigParser& cfg, PlaySettings pSettings, Logger& logger)
+GameRunner::GameRunner(ConfigParser& cfg, const PlaySettings& pSettings, Logger& logger)
   :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
    playSettings(pSettings),
    gameInit(NULL)
@@ -2259,7 +2619,7 @@ GameRunner::GameRunner(ConfigParser& cfg, PlaySettings pSettings, Logger& logger
   //Initialize object for randomizing game settings
   gameInit = new GameInitializer(cfg,logger);
 }
-GameRunner::GameRunner(ConfigParser& cfg, const string& gameInitRandSeed, PlaySettings pSettings, Logger& logger)
+GameRunner::GameRunner(ConfigParser& cfg, const string& gameInitRandSeed, const PlaySettings& pSettings, Logger& logger)
   :logSearchInfo(),logMoves(),maxMovesPerGame(),clearBotBeforeSearch(),
    playSettings(pSettings),
    gameInit(NULL)
@@ -2290,9 +2650,9 @@ FinishedGameData* GameRunner::runGame(
   Logger& logger,
   const std::function<bool()>& shouldStop,
   const WaitableFlag* shouldPause,
-  std::function<NNEvaluator*()> checkForNewNNEval,
-  std::function<void(const MatchPairer::BotSpec&, Search*)> afterInitialization,
-  std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)> onEachMove
+  const std::function<NNEvaluator*()>& checkForNewNNEval,
+  const std::function<void(const MatchPairer::BotSpec&, Search*)>& afterInitialization,
+  const std::function<void(const Board&, const BoardHistory&, Player, Loc, const std::vector<double>&, const std::vector<double>&, const std::vector<double>&, const Search*)>& onEachMove
 ) {
   MatchPairer::BotSpec botSpecB = bSpecB;
   MatchPairer::BotSpec botSpecW = bSpecW;
@@ -2316,15 +2676,23 @@ FinishedGameData* GameRunner::runGame(
   BoardHistory hist;
   ExtraBlackAndKomi extraBlackAndKomi;
   OtherGameProperties otherGameProps;
+  //Game-level BoardHistoryModes for this game, matching the values Play::runGame will
+  //stamp onto the game history it plays out: each on only if BOTH bots' searches will be using it.
+  const BoardHistoryModes modesB = Search::resolveHistoryModes(botSpecB.baseParams, botSpecB.nnEval);
+  const BoardHistoryModes modesW = Search::resolveHistoryModes(botSpecW.baseParams, botSpecW.nnEval);
+  const BoardHistoryModes gameHistoryModes = BoardHistoryModes(
+    modesB.alwaysComputePassAliveUnderSuicideRules && modesW.alwaysComputePassAliveUnderSuicideRules,
+    modesB.excludeTerritoryAdjacentToAtari && modesW.excludeTerritoryAdjacentToAtari
+  );
   if(playSettings.forSelfPlay) {
-    assert(botSpecB.botIdx == botSpecW.botIdx);
+    testAssert(botSpecB.botIdx == botSpecW.botIdx);
     SearchParams params = botSpecB.baseParams;
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,playSettings,otherGameProps,startPosSample);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,params,initialPosition,playSettings,otherGameProps,startPosSample,gameHistoryModes);
     botSpecB.baseParams = params;
     botSpecW.baseParams = params;
   }
   else {
-    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample);
+    gameInit->createGame(board,pla,hist,extraBlackAndKomi,initialPosition,playSettings,otherGameProps,startPosSample,gameHistoryModes);
 
     bool rulesWereSupported;
     if(botSpecB.nnEval != NULL) {
@@ -2393,8 +2761,8 @@ FinishedGameData* GameRunner::runGame(
     testAssert(finishedGameData->trainingWeight == startPosSample->trainingWeight);
   }
 
-  assert(finishedGameData->trainingWeight > 0.0);
-  assert(finishedGameData->trainingWeight < 5.0);
+  testAssert(finishedGameData->trainingWeight > 0.0);
+  testAssert(finishedGameData->trainingWeight < 5.0);
 
   //Make sure not to write the game if we terminated in the middle of this game!
   if(shouldStop != nullptr && shouldStop()) {
@@ -2405,7 +2773,7 @@ FinishedGameData* GameRunner::runGame(
     return NULL;
   }
 
-  assert(finishedGameData != NULL);
+  testAssert(finishedGameData != NULL);
 
   Play::maybeForkGame(finishedGameData, forkData, playSettings, gameRand, botB);
   if(!usedSekiForkHackPosition) {

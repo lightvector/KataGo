@@ -1,8 +1,10 @@
 #include "../program/playsettings.h"
 
+#include "../program/setup.h"
+
 PlaySettings::PlaySettings()
   :initGamesWithPolicy(false),policyInitAreaProp(0.0),startPosesPolicyInitAreaProp(0.0),
-   compensateAfterPolicyInitProb(0.0),sidePositionProb(0.0),
+   compensateAfterPolicyInitProb(0.0),policyInitGammaShape(1.0),sidePositionProb(0.0),
    policyInitAreaTemperature(1.0),handicapTemperature(1.0),
    compensateKomiVisits(20),flipKomiProbWhenNoCompensate(0.0),
    estimateLeadVisits(10),estimateLeadProb(0.0),
@@ -10,7 +12,10 @@ PlaySettings::PlaySettings()
    sekiForkHackProb(0.0),fancyKomiVarying(false),
    cheapSearchProb(0),cheapSearchVisits(0),cheapSearchTargetWeight(0.0f),
    reduceVisits(false),reduceVisitsThreshold(100.0),reduceVisitsThresholdLookback(1),reducedVisitsMin(0),reducedVisitsWeight(1.0f),
-   policySurpriseDataWeight(0.0),valueSurpriseDataWeight(0.0),scaleDataWeight(1.0),
+   policySurpriseDataWeight(0.0),valueSurpriseDataWeight(0.0),useSearchValueSurprise(false),scaleDataWeight(1.0),
+   useReanalyze(false),reanalyzeProp(0.0),
+   reanalyzePolicySurpriseWeight(1.0),reanalyzeValueSurpriseWeight(1.0),reanalyzeSurpriseExponent(1.0),
+   reanalyzeUseOutcomeTargets(true),
    recordTreePositions(false),recordTreeThreshold(0),recordTreeTargetWeight(0.0f),
    noResolveTargetWeights(false),
    allowResignation(false),resignThreshold(0.0),resignConsecTurns(1),
@@ -20,7 +25,8 @@ PlaySettings::PlaySettings()
    dynamicSelfKomiBonusMax(0.0),
    dynamicSelfKomiWinLossMin(-1.0),
    dynamicSelfKomiWinLossMax(1.0),
-   recordTimePerMove(false)
+   recordTimePerMove(false),
+   logSearchTreeOptions(Setup::defaultLogSearchTreeOptions())
 {}
 PlaySettings::~PlaySettings()
 {}
@@ -36,6 +42,7 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
     playSettings.policyInitAreaProp = cfg.getDouble("policyInitAreaProp",0.0,1.0);
     playSettings.startPosesPolicyInitAreaProp = cfg.contains("startPosesPolicyInitAreaProp") ? cfg.getDouble("startPosesPolicyInitAreaProp",0.0,1.0) : 0.0;
     playSettings.compensateAfterPolicyInitProb = cfg.contains("compensateAfterPolicyInitProb") ? cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0) : 1.0;
+    playSettings.policyInitGammaShape = cfg.contains("policyInitGammaShape") ? cfg.getDouble("policyInitGammaShape",0.5,100.0) : 1.0;
     playSettings.policyInitAreaTemperature = cfg.contains("policyInitAreaTemperature") ? cfg.getDouble("policyInitAreaTemperature",0.1,5.0) : 1.0;
   }
   playSettings.dynamicSelfKomiBonusMin = cfg.contains("dynamicSelfKomiBonusMin") ? cfg.getDouble("dynamicSelfKomiBonusMin",-100.0,100.0) : 0.0;
@@ -48,6 +55,7 @@ PlaySettings PlaySettings::loadForMatch(ConfigParser& cfg) {
     throw StringError("dynamicSelfKomiWinLossMin > dynamicSelfKomiWinLossMax");
 
   playSettings.recordTimePerMove = true;
+  playSettings.logSearchTreeOptions = Setup::loadLogSearchTreeOptions(cfg);
   return playSettings;
 }
 
@@ -57,6 +65,7 @@ PlaySettings PlaySettings::loadForGatekeeper(ConfigParser& cfg) {
   playSettings.resignThreshold = cfg.getDouble("resignThreshold",-1.0,0.0); //Threshold on [-1,1], regardless of winLossUtilityFactor
   playSettings.resignConsecTurns = cfg.getInt("resignConsecTurns",1,100);
   playSettings.compensateKomiVisits = cfg.contains("compensateKomiVisits") ? cfg.getInt("compensateKomiVisits",1,10000) : 100;
+  playSettings.logSearchTreeOptions = Setup::loadLogSearchTreeOptions(cfg);
   return playSettings;
 }
 
@@ -66,6 +75,7 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, bool isDistributed
   playSettings.policyInitAreaProp = cfg.contains("policyInitAreaProp") ? cfg.getDouble("policyInitAreaProp",0.0,1.0) : 0.04;
   playSettings.startPosesPolicyInitAreaProp = cfg.contains("startPosesPolicyInitAreaProp") ? cfg.getDouble("startPosesPolicyInitAreaProp",0.0,1.0) : 0.0;
   playSettings.compensateAfterPolicyInitProb = cfg.getDouble("compensateAfterPolicyInitProb",0.0,1.0);
+  playSettings.policyInitGammaShape = cfg.contains("policyInitGammaShape") ? cfg.getDouble("policyInitGammaShape",0.5,10.0) : 1.0;
   playSettings.sidePositionProb =
     //forkSidePositionProb is the legacy name, included for backward compatibility
     (cfg.contains("forkSidePositionProb") && !cfg.contains("sidePositionProb")) ?
@@ -100,13 +110,23 @@ PlaySettings PlaySettings::loadForSelfplay(ConfigParser& cfg, bool isDistributed
   playSettings.reducedVisitsWeight = cfg.getFloat("reducedVisitsWeight",0.0f,1.0f);
   playSettings.policySurpriseDataWeight = cfg.getDouble("policySurpriseDataWeight",0.0,1.0);
   playSettings.valueSurpriseDataWeight = cfg.getDouble("valueSurpriseDataWeight",0.0,1.0);
+  playSettings.useSearchValueSurprise = cfg.contains("useSearchValueSurprise") ? cfg.getBool("useSearchValueSurprise") : false;
   playSettings.scaleDataWeight = cfg.contains("scaleDataWeight") ? cfg.getDouble("scaleDataWeight",0.01,10.0) : 1.0;
+  playSettings.useReanalyze = cfg.contains("useReanalyze") ? cfg.getBool("useReanalyze") : false;
+  if(playSettings.useReanalyze) {
+    playSettings.reanalyzeProp = cfg.getDouble("reanalyzeProp",0.0,1.0);
+    playSettings.reanalyzePolicySurpriseWeight = cfg.getDouble("reanalyzePolicySurpriseWeight",0.0,100.0);
+    playSettings.reanalyzeValueSurpriseWeight = cfg.getDouble("reanalyzeValueSurpriseWeight",0.0,100.0);
+    playSettings.reanalyzeSurpriseExponent = cfg.getDouble("reanalyzeSurpriseExponent",0.0,10.0);
+    playSettings.reanalyzeUseOutcomeTargets = cfg.getBool("reanalyzeUseOutcomeTargets");
+  }
   playSettings.handicapAsymmetricPlayoutProb = cfg.getDouble("handicapAsymmetricPlayoutProb",0.0,1.0);
   playSettings.normalAsymmetricPlayoutProb = cfg.getDouble("normalAsymmetricPlayoutProb",0.0,1.0);
   playSettings.maxAsymmetricRatio = cfg.getDouble("maxAsymmetricRatio",1.0,100.0);
   playSettings.minAsymmetricCompensateKomiProb = cfg.getDouble("minAsymmetricCompensateKomiProb",0.0,1.0);
   playSettings.sekiForkHackProb = cfg.contains("sekiForkHackProb") ? cfg.getDouble("sekiForkHackProb",0.0,1.0) : 0.0;
   playSettings.forSelfPlay = true;
+  playSettings.logSearchTreeOptions = Setup::loadLogSearchTreeOptions(cfg);
 
   if(playSettings.policySurpriseDataWeight + playSettings.valueSurpriseDataWeight > 1.0)
     throw StringError("policySurpriseDataWeight + valueSurpriseDataWeight > 1.0");

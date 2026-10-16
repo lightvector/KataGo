@@ -6,13 +6,13 @@
 class AsyncBot {
  public:
   AsyncBot(
-    SearchParams params,
+    const SearchParams& params,
     NNEvaluator* nnEval,
     Logger* logger,
     const std::string& randSeed
   );
   AsyncBot(
-    SearchParams params,
+    const SearchParams& params,
     NNEvaluator* nnEval,
     NNEvaluator* humanEval,
     Logger* logger,
@@ -47,12 +47,17 @@ class AsyncBot {
   void setRootHintLoc(Loc loc);
   void setAvoidMoveUntilByLoc(const std::vector<int>& bVec, const std::vector<int>& wVec);
   void setAvoidMoveUntilRescaleRoot(bool b);
+  //Exception to the above: does not stop the search. Safe to call at any time, including during a search,
+  //and takes effect for its subsequent playouts.
+  void setRootFocus(const std::vector<Loc>& moves, const std::vector<double>& weights, double prob);
   void setAlwaysIncludeOwnerMap(bool b);
-  void setParams(SearchParams params);
-  void setParamsNoClearing(SearchParams params);
+  void setParams(const SearchParams& params);
+  void setParamsNoClearing(const SearchParams& params);
   void setExternalPatternBonusTable(std::unique_ptr<PatternBonusTable>&& table);
   void setCopyOfExternalPatternBonusTable(const std::unique_ptr<PatternBonusTable>& table);
+  void setExternalEvalCache(const std::shared_ptr<EvalCacheTable>& cache);
   void clearSearch();
+  void clearEvalCache();
 
   //Updates position and preserves the relevant subtree of search
   //Will stop any ongoing search, waiting for a full stop.

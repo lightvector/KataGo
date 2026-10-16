@@ -2,7 +2,20 @@
 
 #define CUDA_API_PER_THREAD_DEFAULT_STREAM
 #include <NvInfer.h>
+#include <NvOnnxParser.h>
 #include <cuda_runtime_api.h>
+
+// TensorRT versions before 10 cannot parse the ONNX this backend emits (verified failure on
+// TensorRT 8.6: "Kernel weight dimension failed to broadcast to input" at parse time).
+#if NV_TENSORRT_MAJOR < 10
+#error "The TensorRT backend requires TensorRT 10.0 or newer"
+#endif
+
+#include <atomic>
+#include <cstdint>
+#include <fstream>
+#include <random>
+#include <set>
 
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
@@ -14,6 +27,7 @@
 #include "../neuralnet/nneval.h"
 #include "../neuralnet/nninputs.h"
 #include "../neuralnet/nninterface.h"
+#include "../neuralnet/onnxmodelbuilder.h"
 
 using namespace std;
 using namespace nvinfer1;
@@ -30,6 +44,33 @@ static void checkCudaError(const cudaError_t status, const char* opName, const c
 #define CUDA_ERR(opName, x) \
   { checkCudaError((x), opName, __FILE__, #x, __LINE__); }
 
+// Write `data` to `path` atomically, so a reader either sees the complete
+// old file or the complete new one, never a torn/truncated write from a crash or a racing process.
+static void writeFileAtomically(const string& path, const char* data, size_t size) {
+  // Unique temp suffix: a per-process random base (distinct across racing processes) plus a
+  // monotonic counter (distinct across calls within a process). Both writes here hold tuneMutex, but
+  // the random base keeps two processes from picking the same temp name.
+  static const uint64_t randBase = std::random_device{}();
+  static std::atomic<uint64_t> counter{0};
+  string tmpPath = Global::strprintf(
+    "%s.tmp_%llx_%llu", path.c_str(),
+    (unsigned long long)randBase, (unsigned long long)counter.fetch_add(1));
+  {
+    ofstream ofs;
+    FileUtils::open(ofs, tmpPath, ios::out | ios::binary);
+    ofs.write(data, (std::streamsize)size);
+    ofs.close();
+    if(ofs.fail()) {
+      FileUtils::tryRemoveFile(tmpPath);
+      throw StringError("TensorRT backend: failed to write cache temp file " + tmpPath);
+    }
+  }
+  if(!FileUtils::tryRename(tmpPath, path)) {
+    FileUtils::tryRemoveFile(tmpPath);
+    throw StringError("TensorRT backend: failed to rename cache temp file " + tmpPath + " to " + path);
+  }
+}
+
 void NeuralNet::globalInitialize() {
   // Empty for TensorRT backend
 }
@@ -38,11 +79,49 @@ void NeuralNet::globalCleanup() {
   // Empty for TensorRT backend
 }
 
+struct LoadedModel {
+  ModelDesc modelDesc;
+  string modelFileName;
+
+  // True if the model came from a .onnx file rather than a .bin.gz. The network is then parsed from
+  // that graph verbatim instead of being emitted from weights.
+  bool isExternalOnnx;
+  OnnxModelBuilder::LoadResult externalOnnx;
+  // Whether the 1/8 activation rescaling is in effect, either because we applied it here or because
+  // the graph was emitted with it. Only used for reporting.
+  bool scale8Applied;
+
+  LoadedModel(const string& fileName, const string& expectedSha256)
+    : modelFileName(fileName), isExternalOnnx(false)
+  {
+    if(OnnxModelBuilder::isOnnxFileName(fileName)) {
+      isExternalOnnx = true;
+      // loadModelFile has no logger; createComputeHandle logs the graph's build settings instead.
+      externalOnnx = OnnxModelBuilder::load(fileName, expectedSha256, modelDesc, NULL);
+      // A loaded graph's weights are already whatever they are, and the postProcessParams read out
+      // of the same file already match them. Re-applying the transform would rescale
+      // outputScaleMultiplier alone, decoding every output 8x too large.
+      scale8Applied = externalOnnx.buildParams.scale8Applied;
+    }
+    else {
+      ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
+      scale8Applied = modelDesc.applyScale8ToReduceActivations();
+    }
+  }
+
+  LoadedModel() = delete;
+  LoadedModel(const LoadedModel&) = delete;
+  LoadedModel& operator=(const LoadedModel&) = delete;
+};
+
 struct ComputeContext {
   int nnXLen;
   int nnYLen;
   enabled_t useFP16Mode;
   string homeDataDirOverride;
+  bool useOnnx;          // build via the ONNX emitter (default true); false = hand-built ModelParser
+  bool transformerNHWC;  // ONNX emitter: run transformer blocks channel-last (default true)
+  string dumpDebugPlanToDir;  // if non-empty, dump emitted ONNX + built-engine layer info here (debug)
 };
 
 ComputeContext* NeuralNet::createComputeContext(
@@ -50,45 +129,52 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel) {
+  const LoadedModel* loadedModel,
+  ConfigParser& cfg) {
   (void)gpuIdxs;
-  (void)logger;
-  (void)openCLTunerFile;
-  (void)openCLReTunePerBoardSize;
-  (void)loadedModel;
-
-  if(useNHWCMode == enabled_t::True) {
-    throw StringError("TensorRT backend: useNHWC = false required, other configurations not supported");
-  }
 
   ComputeContext* context = new ComputeContext();
   context->nnXLen = nnXLen;
   context->nnYLen = nnYLen;
   context->useFP16Mode = useFP16Mode;
   context->homeDataDirOverride = homeDataDirOverride;
+  // The TensorRT backend builds its network by emitting ONNX from the model and parsing it with
+  // nvonnxparser (the default). trtDisableOnnx=true falls back to the hand-built ModelParser, which
+  // supports convnets only (transformer models will error in createComputeHandle).
+  context->useOnnx = !(cfg.contains("trtDisableOnnx") ? cfg.getBool("trtDisableOnnx") : false);
+  // ONNX transformer emitter layout. Default is NHWC (whole trunk channel-last with NCHW<->NHWC
+  // conversions around it). Equal or very slightly better than NCHW in accuracy and in throughput
+  // on TensorRT 10.9, but noticeably faster on many nvidia GPUs on TensorRT 10.16.
+  // Normalize convnets to false so their timing/plan cache keys don't change with this setting
+  // (the ONNX builder ignores it for models without transformers anyway).
+  context->transformerNHWC =
+    (cfg.contains("trtTransformerNHWC") ? cfg.getBool("trtTransformerNHWC") : true) &&
+    NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks();
+  // For a graph loaded from a .onnx file the layout is already baked in, so take the value from the
+  // file. The plan and timing cache keys are derived from it and would otherwise be wrong.
+  if(loadedModel->isExternalOnnx) {
+    bool bakedNHWC = loadedModel->externalOnnx.buildParams.transformerNHWC;
+    if(logger != NULL && cfg.contains("trtTransformerNHWC") && context->transformerNHWC != bakedNHWC)
+      logger->write(
+        "TensorRT backend: WARNING - trtTransformerNHWC = " + Global::boolToString(context->transformerNHWC) +
+        " has no effect on a model loaded from a .onnx file; the trunk layout is baked into the graph "
+        "(transformerNHWC=" + Global::boolToString(bakedNHWC) + ").");
+    context->transformerNHWC = bakedNHWC;
+  }
+  // Debugging: if set, the ONNX-emitter path dumps the emitted ONNX model and the built engine's
+  // per-layer info (precision/format/tactic, via a detailed-profiling build + IEngineInspector) into
+  // this directory. Files are disambiguated by board size, FP16/FP32, and exact/max NN-length so the
+  // multiple engines built in one process (e.g. an FP16 and an FP32 evaluator) don't overwrite each
+  // other. Off by default; only for investigating numerical/precision issues in the TRT graph.
+  context->dumpDebugPlanToDir = cfg.contains("trtDumpDebugPlanToDir") ? cfg.getString("trtDumpDebugPlanToDir") : "";
   return context;
 }
 
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
   delete computeContext;
 }
-
-struct LoadedModel {
-  ModelDesc modelDesc;
-
-  LoadedModel(const string& fileName, const string& expectedSha256) {
-    ModelDesc::loadFromFileMaybeGZipped(fileName, modelDesc, expectedSha256);
-  }
-
-  LoadedModel() = delete;
-  LoadedModel(const LoadedModel&) = delete;
-  LoadedModel& operator=(const LoadedModel&) = delete;
-};
 
 LoadedModel* NeuralNet::loadModelFile(const string& file, const string& expectedSha256) {
   LoadedModel* loadedModel = new LoadedModel(file, expectedSha256);
@@ -99,24 +185,8 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   delete loadedModel;
 }
 
-string NeuralNet::getModelName(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.name;
-}
-
-int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.modelVersion;
-}
-
-int NeuralNet::getNumInputMetaChannels(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.numInputMetaChannels;
-}
-
-Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
-  return loadedModel->modelDesc.getSupportedRules(desiredRules, supported);
-}
-
-ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loadedModel) {
-  return loadedModel->modelDesc.postProcessParams;
+const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
+  return loadedModel->modelDesc;
 }
 
 struct TRTModel {
@@ -161,7 +231,11 @@ struct ModelParser {
   ModelParser& operator=(const ModelParser&) = delete;
 
   // Bump this when between katago versions we want to forcibly drop old timing caches and plan caches.
-  static constexpr int tuneSalt = 5;
+  // Bumped 7->8 for the TensorRT ONNX overhaul (ONNX emitter as default path, NHWC trunk, FP32 pinning).
+  // Bumped 8->9 for SGF metadata encoder support on the ONNX path, and to discard caches potentially
+  // polluted by the concurrent-engine-build bug fixed in "Serialize TensorRT engine builds across GPU
+  // threads" (#1225).
+  static constexpr int tuneSalt = 9;
 
   unique_ptr<TRTModel> build(
     unique_ptr<INetworkDefinition> net,
@@ -243,7 +317,7 @@ struct ModelParser {
     debugOutput->setName(debugOutputName.c_str());
     debugOutput->setType(DataType::kFLOAT);
     debugOutput->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
-    model->debugOutputs.push_back(pair<string, string>(debugOutputName, description));
+    model->debugOutputs.emplace_back(debugOutputName, description);
 #else
     (void)tensor;
     (void)description;
@@ -432,10 +506,10 @@ struct ModelParser {
     auto initialMatMul = initialMatMulLayer->getOutput(0);
     auto initialMeta = initialMetaLayer == NULL ? NULL : initialMetaLayer->getOutput(0);
 
-    assert(initialConv->getDimensions().d[1] == numChannels);
-    assert(initialMatMul->getDimensions().d[1] == numChannels);
+    testAssert(initialConv->getDimensions().d[1] == numChannels);
+    testAssert(initialMatMul->getDimensions().d[1] == numChannels);
     if(initialMeta != NULL) {
-      assert(initialMeta->getDimensions().d[1] == numChannels);
+      testAssert(initialMeta->getDimensions().d[1] == numChannels);
     }
 
     markDebugOutput(initialConvLayer->getOutput(0), "After initial conv");
@@ -447,17 +521,22 @@ struct ModelParser {
     auto initialBiasLayerName = name + "/initbias";
     initialBiasLayer->setName(initialBiasLayerName.c_str());
 
-    assert(desc->blocks.size() == desc->numBlocks);
+    testAssert(desc->blocks.size() == desc->numBlocks);
     auto trunkScratchLayer = buildResidualBlockStack(initialBiasLayer->getOutput(0), desc->blocks, "trunk");
 
+    if(desc->trunkNormKind != TRUNK_NORM_KIND_STANDARD)
+      throw StringError(
+        "TensorRT backend: trunk RMSNorm is not supported by the non-ONNX ModelParser path. Remove "
+        "trtDisableOnnx (or set it to false) to use the ONNX path, which supports it.");
     auto trunkTipBatchNormLayer = buildBatchNormLayer(trunkScratchLayer->getOutput(0), &desc->trunkTipBN);
     auto trunkTipActivationLayer =
       buildActivationLayer(trunkTipBatchNormLayer->getOutput(0), &desc->trunkTipActivation);
     auto trunkTipMaskLayer = applyMaskLayer(trunkTipActivationLayer);
 
-    markDebugOutput(trunkTipMaskLayer->getOutput(0), "Trunk tip");
+    auto trunkTipCastLayer = applyCastLayer(trunkTipMaskLayer, DataType::kFLOAT);
+    markDebugOutput(trunkTipCastLayer->getOutput(0), "Trunk tip");
 
-    return trunkTipMaskLayer;
+    return trunkTipCastLayer;
   }
 
   ILayer* buildResidualBlockStack(
@@ -479,6 +558,11 @@ struct ModelParser {
       } else if(blocks[i].first == NESTED_BOTTLENECK_BLOCK_KIND) {
         auto blockDesc = static_cast<NestedBottleneckResidualBlockDesc*>(blocks[i].second.get());
         trunkScratchLayer = buildNestedBottleneckResidualBlock(trunkScratchLayer->getOutput(0), blockDesc);
+      } else if(blocks[i].first == TRANSFORMER_ATTENTION_BLOCK_KIND ||
+                blocks[i].first == TRANSFORMER_FFN_BLOCK_KIND) {
+        throw StringError(
+          "TensorRT backend: transformer blocks are not supported by the non-ONNX ModelParser path. "
+          "Remove trtDisableOnnx (or set it to false) to use the ONNX path, which supports them.");
       } else {
         ASSERT_UNREACHABLE;
       }
@@ -491,11 +575,11 @@ struct ModelParser {
     auto& network = model->network;
     string name = desc->name;
 
-    auto p1ConvLayer = buildConvLayer(input, &desc->p1Conv);
-    auto g1ConvLayer = buildConvLayer(input, &desc->g1Conv);
-    auto g1BatchNormLayer = buildBatchNormLayer(g1ConvLayer->getOutput(0), &desc->g1BN);
-    auto g1ActivationLayer = buildActivationLayer(g1BatchNormLayer->getOutput(0), &desc->g1Activation);
-    auto g1MaskLayer = applyMaskLayer(g1ActivationLayer);
+    auto p1ConvLayer = buildConvLayer(input, &desc->p1Conv, true);
+    auto g1ConvLayer = buildConvLayer(input, &desc->g1Conv, true);
+    auto g1BatchNormLayer = buildBatchNormLayer(g1ConvLayer->getOutput(0), &desc->g1BN, true);
+    auto g1ActivationLayer = buildActivationLayer(g1BatchNormLayer->getOutput(0), &desc->g1Activation, true);
+    auto g1MaskLayer = applyMaskLayer(g1ActivationLayer, true);
     auto g1CastLayer = applyCastLayer(g1MaskLayer, DataType::kFLOAT);
     auto gpoolLayer = applyGPoolLayer(g1CastLayer, true);
     auto gpoolToBiasMulLayer = buildMatMulLayer(gpoolLayer->getOutput(0), &desc->gpoolToBiasMul, true);
@@ -516,8 +600,8 @@ struct ModelParser {
     markDebugOutput(gpoolBiasLayer->getOutput(0), "p1 after-gpool-sum");
 
     // So that mask layer can be omitted
-    assert(desc->p2Conv.convXSize == 1);
-    assert(desc->p2Conv.convYSize == 1);
+    testAssert(desc->p2Conv.convXSize == 1);
+    testAssert(desc->p2Conv.convYSize == 1);
 
     auto p2ConvLayer = buildConvLayer(p1MaskLayer->getOutput(0), &desc->p2Conv, true);
     p2ConvLayer->setPrecision(DataType::kFLOAT);
@@ -555,10 +639,10 @@ struct ModelParser {
   void buildValueHead(ITensor* input, const ValueHeadDesc* desc) {
     auto& network = model->network;
 
-    auto v1ConvLayer = buildConvLayer(input, &desc->v1Conv);
-    auto v1BatchNormLayer = buildBatchNormLayer(v1ConvLayer->getOutput(0), &desc->v1BN);
-    auto v1ActivationLayer = buildActivationLayer(v1BatchNormLayer->getOutput(0), &desc->v1Activation);
-    auto v1MaskLayer = applyMaskLayer(v1ActivationLayer);
+    auto v1ConvLayer = buildConvLayer(input, &desc->v1Conv, true);
+    auto v1BatchNormLayer = buildBatchNormLayer(v1ConvLayer->getOutput(0), &desc->v1BN, true);
+    auto v1ActivationLayer = buildActivationLayer(v1BatchNormLayer->getOutput(0), &desc->v1Activation, true);
+    auto v1MaskLayer = applyMaskLayer(v1ActivationLayer, true);
     auto v1CastLayer = applyCastLayer(v1MaskLayer, DataType::kFLOAT);
 
     markDebugOutput(v1ConvLayer->getOutput(0), "v1");
@@ -578,10 +662,10 @@ struct ModelParser {
     auto sv3BiasLayer = buildMatBiasLayer(sv3MulLayer->getOutput(0), &desc->sv3Bias, true);
 
     // So that mask layer can be omitted
-    assert(desc->vOwnershipConv.convXSize == 1);
-    assert(desc->vOwnershipConv.convYSize == 1);
+    testAssert(desc->vOwnershipConv.convXSize == 1);
+    testAssert(desc->vOwnershipConv.convYSize == 1);
 
-    auto vOwnershipConvLayer = buildConvLayer(v1MaskLayer->getOutput(0), &desc->vOwnershipConv);
+    auto vOwnershipConvLayer = buildConvLayer(v1MaskLayer->getOutput(0), &desc->vOwnershipConv, true);
     auto vOwnershipCastLayer = applyCastLayer(vOwnershipConvLayer, DataType::kFLOAT);
 
     auto outputValue = v3BiasLayer->getOutput(0);
@@ -603,9 +687,9 @@ struct ModelParser {
     outputOwnership->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
 
     auto modelDesc = &model->rawModel->modelDesc;
-    assert(outputValue->getDimensions().d[1] == modelDesc->numValueChannels);
-    assert(outputScoreValue->getDimensions().d[1] == modelDesc->numScoreValueChannels);
-    assert(outputOwnership->getDimensions().d[1] == modelDesc->numOwnershipChannels);
+    testAssert(outputValue->getDimensions().d[1] == modelDesc->numValueChannels);
+    testAssert(outputScoreValue->getDimensions().d[1] == modelDesc->numScoreValueChannels);
+    testAssert(outputOwnership->getDimensions().d[1] == modelDesc->numOwnershipChannels);
   }
 
 
@@ -671,7 +755,7 @@ struct ModelParser {
   }
 
   ILayer* buildNestedBottleneckResidualBlock(ITensor* input, const NestedBottleneckResidualBlockDesc* desc) {
-    assert(desc->blocks.size() == desc->numBlocks);
+    testAssert(desc->blocks.size() == desc->numBlocks);
 
     auto preBatchNormLayer = buildBatchNormLayer(input, &desc->preBN);
     auto preActivationLayer = buildActivationLayer(preBatchNormLayer->getOutput(0), &desc->preActivation);
@@ -695,8 +779,8 @@ struct ModelParser {
 
     tuneDesc += Global::strprintf(R"|("%s"(%d,%d))|", desc->name.c_str(), desc->inChannels, desc->outChannels);
 
-    assert(desc->weights.size() == numInChannels * numOutChannels);
-    assert(input->getDimensions().d[1] == numInChannels);
+    testAssert(desc->weights.size() == numInChannels * numOutChannels);
+    testAssert(input->getDimensions().d[1] == numInChannels);
 
     // Transpose from model's CK to TensorRT's KC
     auto transposedWeights = make_unique<float[]>(desc->weights.size());
@@ -730,8 +814,8 @@ struct ModelParser {
 
     tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->numChannels);
 
-    assert(desc->weights.size() == numChannels);
-    assert(input->getDimensions().d[1] == numChannels);
+    testAssert(desc->weights.size() == numChannels);
+    testAssert(input->getDimensions().d[1] == numChannels);
 
     auto matBiasLayer = model->network->addScale(
       *input,
@@ -766,8 +850,8 @@ struct ModelParser {
       desc->dilationX,
       desc->dilationY);
 
-    assert(desc->weights.size() == convYSize * convXSize * numInChannels * numOutChannels);
-    assert(input->getDimensions().d[1] == numInChannels);
+    testAssert(desc->weights.size() == convYSize * convXSize * numInChannels * numOutChannels);
+    testAssert(input->getDimensions().d[1] == numInChannels);
 
     auto convLayer = model->network->addConvolutionNd(
       *input,
@@ -788,37 +872,28 @@ struct ModelParser {
 
   ILayer* buildBatchNormLayer(ITensor* input, const BatchNormLayerDesc* desc, bool forceFP32 = false) {
     int numChannels = desc->numChannels;
-    float epsilon = desc->epsilon;
 
     tuneDesc += Global::strprintf(R"|("%s"(%d))|", desc->name.c_str(), desc->numChannels);
 
-    assert(desc->mean.size() == numChannels);
-    assert(desc->variance.size() == numChannels);
-    assert(desc->scale.size() == numChannels);
-    assert(desc->bias.size() == numChannels);
-    assert(input->getDimensions().d[1] == numChannels);
-
-    auto mergedScale = make_unique<float[]>(numChannels);
-    auto mergedBias = make_unique<float[]>(numChannels);
-    for(int i = 0; i < numChannels; i++) {
-      mergedScale[i] = desc->scale[i] / sqrtf(desc->variance[i] + epsilon);
-      mergedBias[i] = desc->bias[i] - mergedScale[i] * desc->mean[i];
-    }
+    testAssert(desc->mean.size() == numChannels);
+    testAssert(desc->variance.size() == numChannels);
+    testAssert(desc->scale.size() == numChannels);
+    testAssert(desc->bias.size() == numChannels);
+    testAssert(desc->mergedScale.size() == numChannels);
+    testAssert(desc->mergedBias.size() == numChannels);
+    testAssert(input->getDimensions().d[1] == numChannels);
 
     auto bnLayer = model->network->addScale(
       *input,
       ScaleMode::kCHANNEL,
-      {DataType::kFLOAT, mergedBias.get(), static_cast<int64_t>(numChannels)},
-      {DataType::kFLOAT, mergedScale.get(), static_cast<int64_t>(numChannels)},
+      {DataType::kFLOAT, desc->mergedBias.data(), static_cast<int64_t>(numChannels)},
+      {DataType::kFLOAT, desc->mergedScale.data(), static_cast<int64_t>(numChannels)},
       {DataType::kFLOAT, nullptr, 0});
     bnLayer->setName(desc->name.c_str());
 
     if(forceFP32) {
       bnLayer->setPrecision(DataType::kFLOAT);
     }
-
-    model->extraWeights.push_back(move(mergedScale));
-    model->extraWeights.push_back(move(mergedBias));
 
     return bnLayer;
   }
@@ -832,14 +907,16 @@ struct ModelParser {
         activationLayer->setPrecision(DataType::kFLOAT);
       }
       return activationLayer;
-    } else if(desc->activation == ACTIVATION_RELU) {
+    }
+    else if(desc->activation == ACTIVATION_RELU) {
       auto activationLayer = model->network->addActivation(*input, ActivationType::kRELU);
       activationLayer->setName(desc->name.c_str());
       if(forceFP32) {
         activationLayer->setPrecision(DataType::kFLOAT);
       }
       return activationLayer;
-    } else if(desc->activation == ACTIVATION_MISH) {
+    }
+    else if(desc->activation == ACTIVATION_MISH) {
       auto softplusLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
       auto softplusLayerName = desc->name + "/softplus";
       softplusLayer->setName(softplusLayerName.c_str());
@@ -854,8 +931,32 @@ struct ModelParser {
         mergeLayer->setPrecision(DataType::kFLOAT);
       }
       return mergeLayer;
-    } else {
-      ASSERT_UNREACHABLE;
+    }
+    else if(desc->activation == ACTIVATION_MISH_SCALE8) {
+      auto softplusLayer = model->network->addActivation(*input, ActivationType::kSOFTPLUS);
+      softplusLayer->setAlpha(1.0f);
+      softplusLayer->setBeta(8.0f);
+      auto softplusLayerName = desc->name + "/softplus";
+      softplusLayer->setName(softplusLayerName.c_str());
+      auto tanhLayer = model->network->addActivation(*softplusLayer->getOutput(0), ActivationType::kTANH);
+      auto tanhLayerName = desc->name + "/tanh";
+      tanhLayer->setName(tanhLayerName.c_str());
+      auto mergeLayer = model->network->addElementWise(*input, *tanhLayer->getOutput(0), ElementWiseOperation::kPROD);
+      mergeLayer->setName(desc->name.c_str());
+      if(forceFP32) {
+        softplusLayer->setPrecision(DataType::kFLOAT);
+        tanhLayer->setPrecision(DataType::kFLOAT);
+        mergeLayer->setPrecision(DataType::kFLOAT);
+      }
+      return mergeLayer;
+    }
+    else {
+      // SILU (and any other newer activation) is only handled by the ONNX path; the hand-built
+      // ModelParser predates it. This is reachable only when trtDisableOnnx is set on such a model.
+      throw StringError(
+        "TensorRT backend: activation " + Global::intToString(desc->activation) +
+        " (e.g. SiLU) is not supported by the non-ONNX ModelParser path. Remove trtDisableOnnx (or "
+        "set it to false) to use the ONNX path, which supports it.");
     }
   }
 
@@ -964,17 +1065,22 @@ struct ModelParser {
   }
 
   ILayer* applyCastLayer(ILayer* inputLayer, DataType dataType) {
-#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
-    auto castLayer = model->network->addIdentity(*inputLayer->getOutput(0));
-    castLayer->setOutputType(0, dataType);
-#else
     auto castLayer = model->network->addCast(*inputLayer->getOutput(0), dataType);
-#endif
     auto castLayerName = string(inputLayer->getName()) + "/cast";
     castLayer->setName(castLayerName.c_str());
     return castLayer;
   }
 };
+
+// The builder's autotuner reports tactics that fail to compile or execute as ERROR-severity
+// "Skipping tactic ... due to exception ..." messages, but these are recoverable: the autotuner
+// moves on to other tactics, and if none work the build fails afterward with its own error.
+// Such messages can mention cask convolution execution failures that would otherwise match the
+// genuine GPU-health fatal checks below (observed on TensorRT 10.16 building on multiple
+// heterogeneous GPUs), so exempt them rather than killing the process mid-build.
+static bool isRecoverableTacticSkipMessage(const string& msg) {
+  return msg.find("Skipping tactic") != string::npos && msg.find("due to exception") != string::npos;
+}
 
 struct TRTLogger : ILogger {
   Logger* logger;
@@ -994,7 +1100,7 @@ struct TRTLogger : ILogger {
     if(severity == Severity::kERROR && logger && !logger->isLoggingToStderr() && !logger->isLoggingToStdout()) {
       std::cerr << ("TensorRT backend: " + string(msg)) << std::endl;
     }
-    if(severity == Severity::kERROR) {
+    if(severity == Severity::kERROR && !isRecoverableTacticSkipMessage(string(msg))) {
       if((string(msg).find("Cask convolution") != std::string::npos) ||
          (string(msg).find("Cask Convolution") != std::string::npos) ||
          (string(msg).find("elementWiseRunner.cpp") != std::string::npos) ||
@@ -1051,14 +1157,17 @@ struct TRTErrorRecorder : IErrorRecorder {
   }
   bool reportError(ErrorCode val, IErrorRecorder::ErrorDesc desc) noexcept {
     std::lock_guard<std::mutex> lock(mutex);
-    errors.push_back(std::make_pair(val,string(desc)));
+    errors.emplace_back(val,string(desc));
     if(
-      (val != ErrorCode::kUNSPECIFIED_ERROR && val != ErrorCode::kSUCCESS)
-      || (errors[errors.size()-1].second.find("Cask convolution") != std::string::npos)
-      || (errors[errors.size()-1].second.find("Cask Convolution") != std::string::npos)
-      || (errors[errors.size()-1].second.find("elementWiseRunner.cpp") != std::string::npos)
-      || (errors[errors.size()-1].second.find("convBaseRunner.cpp") != std::string::npos)
-      || (errors[errors.size()-1].second.find("Cuda Runtime") != std::string::npos)
+      !isRecoverableTacticSkipMessage(errors[errors.size()-1].second)
+      && (
+        (val != ErrorCode::kUNSPECIFIED_ERROR && val != ErrorCode::kSUCCESS)
+        || (errors[errors.size()-1].second.find("Cask convolution") != std::string::npos)
+        || (errors[errors.size()-1].second.find("Cask Convolution") != std::string::npos)
+        || (errors[errors.size()-1].second.find("elementWiseRunner.cpp") != std::string::npos)
+        || (errors[errors.size()-1].second.find("convBaseRunner.cpp") != std::string::npos)
+        || (errors[errors.size()-1].second.find("Cuda Runtime") != std::string::npos)
+      )
     ) {
       Global::fatalError("Fatal error reported from TensorRT: " + Global::intToString((int)val) + " " + std::string(desc));
     }
@@ -1113,6 +1222,8 @@ struct ComputeHandle {
 
     trtLogger.setLogger(logger);
 
+    const bool useOnnxEmit = ctx->useOnnx;
+
     auto builder = unique_ptr<IBuilder>(createInferBuilder(trtLogger));
     if(!builder) {
       throw StringError("TensorRT backend: failed to create builder");
@@ -1131,7 +1242,21 @@ struct ComputeHandle {
     } else if(ctx->useFP16Mode == enabled_t::True) {
       throw StringError("CUDA device does not support useFP16=true");
     }
-    config->setFlag(BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
+    // The ONNX path may pin specific layers to FP32 below and needs the constraint to be hard
+    // (kOBEY) so TensorRT cannot silently fall back to an FP16 path. The ModelParser path uses the
+    // softer kPREFER. We set the flag after building the network, once forceObeyPrecision is known.
+    bool forceObeyPrecision = false;
+
+    // Debug plan/engine dump (trtDumpDebugPlanToDir). Build a base path inside that dir, disambiguated
+    // by board size + precision + exact/max so the multiple engines built in one process don't collide.
+    const bool dumpDebugPlan = !ctx->dumpDebugPlanToDir.empty();
+    string dumpDebugBasePath;
+    if(dumpDebugPlan) {
+      MakeDir::make(ctx->dumpDebugPlanToDir);
+      dumpDebugBasePath = ctx->dumpDebugPlanToDir + "/plan_" +
+        Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) +
+        (usingFP16 ? "_fp16" : "_fp32") + (requireExactNNLen ? "_exact" : "_max");
+    }
 
     auto network = unique_ptr<INetworkDefinition>(
       builder->createNetworkV2(1U << static_cast<int>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH)));
@@ -1142,40 +1267,192 @@ struct ComputeHandle {
     if(!profile) {
       throw StringError("TensorRT backend: failed to create optimization profile");
     }
-    auto modelParser = make_unique<ModelParser>();
-    auto model = modelParser->build(
-      move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
+    // Build the network by emitting ONNX from the ModelDesc and parsing it with nvonnxparser (the
+    // default; supports convnets and transformers), or via the hand-built ModelParser when
+    // trtDisableOnnx is set (convnets only). Both produce the same raw-head outputs, so downstream
+    // getOutput decoding is identical.
+    unique_ptr<TRTModel> model;
+    // These must outlive buildSerializedNetwork below: nvonnxparser::parse() does not necessarily
+    // deep-copy initializer weights, so the parsed INetworkDefinition may reference data inside
+    // the ONNX bytes (and the parser object) until the engine is actually built. Keeping them at
+    // this scope avoids a use-after-free that manifests as all-NaN engine outputs. (For a model
+    // loaded from a .onnx file the bytes live in the LoadedModel, which outlives this entirely.)
+    string emittedOnnxBytes;
+    const string* onnxBytesPtr = NULL;
+    unique_ptr<nvonnxparser::IParser> onnxParser;
+    if(useOnnxEmit) {
+      const ModelDesc& desc = loadedModel->modelDesc;
+      vector<string> trunkTipAndHeadNodeNames;
+      vector<string> rmsNormNodeNames;
+      if(loadedModel->isExternalOnnx) {
+        OnnxModelBuilder::checkRuntimeParams(
+          loadedModel->externalOnnx, loadedModel->modelFileName, ctx->nnXLen, ctx->nnYLen, requireExactNNLen);
+        logger->write("TensorRT backend: building network from the ONNX graph in " + loadedModel->modelFileName);
+        onnxBytesPtr = &loadedModel->externalOnnx.serializedModel;
+        trunkTipAndHeadNodeNames = loadedModel->externalOnnx.trunkTipAndHeadNodeNames;
+        rmsNormNodeNames = loadedModel->externalOnnx.rmsNormNodeNames;
+      }
+      else {
+        logger->write("TensorRT backend: building network via ONNX emitter");
+        OnnxModelBuilder::BuildParams buildParams;
+        buildParams.nnXLen = ctx->nnXLen;
+        buildParams.nnYLen = ctx->nnYLen;
+        buildParams.requireExactNNLen = requireExactNNLen;
+        buildParams.transformerNHWC = ctx->transformerNHWC;
+        buildParams.scale8Applied = loadedModel->scale8Applied;
+        OnnxModelBuilder::Result onnxResult = OnnxModelBuilder::build(desc, buildParams, logger);
+        emittedOnnxBytes = std::move(onnxResult.serializedModel);
+        onnxBytesPtr = &emittedOnnxBytes;
+        trunkTipAndHeadNodeNames = std::move(onnxResult.trunkTipAndHeadNodeNames);
+        rmsNormNodeNames = std::move(onnxResult.rmsNormNodeNames);
+      }
+      const string& onnxBytes = *onnxBytesPtr;
+
+      if(dumpDebugPlan) {
+        string onnxPath = dumpDebugBasePath + ".onnx";
+        ofstream dumpOut;
+        FileUtils::open(dumpOut, onnxPath, ios::binary);
+        dumpOut.write(onnxBytes.data(), (std::streamsize)onnxBytes.size());
+        dumpOut.close();
+        logger->write("TensorRT backend: dumped emitted ONNX to " + onnxPath);
+      }
+
+      onnxParser.reset(nvonnxparser::createParser(*network, trtLogger));
+      if(!onnxParser)
+        throw StringError("TensorRT backend: failed to create ONNX parser");
+      if(!onnxParser->parse(onnxBytes.data(), onnxBytes.size())) {
+        string msg = "TensorRT backend: failed to parse emitted ONNX model:";
+        for(int i = 0; i < onnxParser->getNbErrors(); i++)
+          msg += "\n  " + string(onnxParser->getError(i)->desc());
+        throw StringError(msg);
+      }
+
+      // Constrain all graph outputs to linear FP32, matching what ModelParser sets on its outputs.
+      // getOutput does a flat cudaMemcpy of each output buffer assuming linear layout, so without
+      // this the parser may leave outputs in a reformatted layout and the copy reads garbage.
+      for(int i = 0; i < network->getNbOutputs(); i++) {
+        ITensor* out = network->getOutput(i);
+        out->setType(DataType::kFLOAT);
+        out->setAllowedFormats(1U << static_cast<int>(TensorFormat::kLINEAR));
+      }
+
+      // Force the numerically-sensitive regions to FP32: every RMSNorm reduction (square->reduce->
+      // sqrt, which sums over many elements and loses too much precision in FP16) plus the trunk-tip
+      // norm and policy/value heads. The emitter records these layer names; we pin them via per-layer
+      // setPrecision + kOBEY_PRECISION_CONSTRAINTS (a hard constraint) so correctness does not depend
+      // on TensorRT declining to fuse a numerically-equivalent FP16 path back in. This matches the
+      // FP32-forcing the hand-built ModelParser path already does for its heads/gpool.
+      std::set<string> fp32Names;
+      fp32Names.insert(trunkTipAndHeadNodeNames.begin(), trunkTipAndHeadNodeNames.end());
+      fp32Names.insert(rmsNormNodeNames.begin(), rmsNormNodeNames.end());
+      int pinned = 0;
+      for(int i = 0; i < network->getNbLayers(); i++) {
+        ILayer* layer = network->getLayer(i);
+        const char* lname = layer->getName();
+        if(lname != nullptr && fp32Names.count(string(lname))) {
+          layer->setPrecision(DataType::kFLOAT);
+          for(int o = 0; o < layer->getNbOutputs(); o++)
+            layer->setOutputType(o, DataType::kFLOAT);
+          pinned++;
+        }
+      }
+      forceObeyPrecision = true;
+      logger->write(Global::strprintf("TensorRT backend: pinned %d layers to FP32 (rmsnorm + heads)", pinned));
+      // Matching nothing means the network's layer names bear no relation to the list, which for a
+      // loaded .onnx means the graph was rewritten after the list was written. Under FP16 that
+      // silently drops the protection against overflow in the RMSNorm sum-of-squares and yields
+      // plausible-looking but wrong evaluations, so refuse rather than run.
+      if(usingFP16 && pinned == 0 && !fp32Names.empty())
+        throw StringError(
+          "TensorRT backend: none of the " + Global::uint64ToString(fp32Names.size()) +
+          " layers that must run in FP32 could be matched in the network built from " +
+          loadedModel->modelFileName +
+          (loadedModel->isExternalOnnx
+           ? ". The graph's node names disagree with its own metadata, so it was probably rewritten "
+             "after the metadata was written. Re-dump the model, or run with useFP16 = false."
+           : ". This is a bug; running with useFP16 = false avoids it."));
+      if(usingFP16 && fp32Names.empty())
+        logger->write(
+          "TensorRT backend: WARNING - " + loadedModel->modelFileName +
+          " declares no layers to keep in FP32 (katago.fp32Nodes.* metadata), and this engine is "
+          "FP16. Reductions such as RMSNorm sums-of-squares can overflow in FP16 at larger board "
+          "sizes. Use useFP16 = false if results look wrong.");
+
+      // Set optimization profile dims for each input the parser created.
+      auto setProfile = [&](const char* name, Dims4 minDims, Dims4 optMaxDims) {
+        profile->setDimensions(name, OptProfileSelector::kMIN, minDims);
+        profile->setDimensions(name, OptProfileSelector::kOPT, optMaxDims);
+        profile->setDimensions(name, OptProfileSelector::kMAX, optMaxDims);
+      };
+      setProfile("InputMask", Dims4(1, 1, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, 1, ctx->nnYLen, ctx->nnXLen));
+      setProfile("InputSpatial", Dims4(1, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen), Dims4(maxBatchSize, desc.numInputChannels, ctx->nnYLen, ctx->nnXLen));
+      setProfile("InputGlobal", Dims4(1, desc.numInputGlobalChannels, 1, 1), Dims4(maxBatchSize, desc.numInputGlobalChannels, 1, 1));
+      if(desc.metaEncoderVersion > 0)
+        setProfile("InputMeta", Dims4(1, desc.numInputMetaChannels, 1, 1), Dims4(maxBatchSize, desc.numInputMetaChannels, 1, 1));
+
+      model = make_unique<TRTModel>();
+      model->nnXLen = ctx->nnXLen;
+      model->nnYLen = ctx->nnYLen;
+      model->profile = profile;
+      model->network = move(network);
+      model->rawModel = loadedModel;
+      model->maxBatchSize = maxBatchSize;
+      model->requireExactNNLen = requireExactNNLen;
+      model->modelVersion = desc.modelVersion;
+      // tuneHash buckets the timing cache. This is the ONNX path's descriptor: the "onnxsalt" prefix
+      // already separates it from the ModelParser path (which builds its own "salt"-prefixed tuneDesc),
+      // and the "nhwc" field distinguishes the NHWC vs NCHW trunk layout (different layer signatures),
+      // so the two layouts don't share a timing-cache file full of mutual misses.
+      string tuneDesc = Global::strprintf(
+        "\"onnxsalt\"(%d)\"nhwc\"(%d)\"model\"(%d,%d,%d,%d,%d)",
+        ModelParser::tuneSalt, ctx->transformerNHWC ? 1 : 0,
+        desc.modelVersion, desc.numInputChannels, desc.numInputGlobalChannels,
+        desc.metaEncoderVersion, desc.numInputMetaChannels);
+      SHA2::get256(tuneDesc.c_str(), model->tuneHash);
+    }
+    else {
+      if(loadedModel->isExternalOnnx)
+        throw StringError(
+          "TensorRT backend: trtDisableOnnx = true cannot be used with the .onnx model file " +
+          loadedModel->modelFileName +
+          ". That option builds the network from a .bin.gz model's weights instead of from an ONNX "
+          "graph; load the .bin.gz model, or drop trtDisableOnnx.");
+      auto modelParser = make_unique<ModelParser>();
+      model = modelParser->build(
+        move(network), profile, loadedModel, ctx->nnXLen, ctx->nnYLen, maxBatchSize, requireExactNNLen);
+    }
     debugOutputs = model->debugOutputs;
     config->addOptimizationProfile(profile);
 
-#if NV_TENSORRT_MAJOR == 8 && NV_TENSORRT_MINOR == 5
-    // This is to avoid external tactic sources and tactics that have shape switching overhead
-    if(prop->major < 8) {
-      config->setTacticSources(
-        1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS) |
-        1U << static_cast<uint32_t>(TacticSource::kEDGE_MASK_CONVOLUTIONS));
-    } else {
-      config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
-    }
-#else
+    // Honor per-layer precision constraints. The ONNX path pins some layers to FP32 and needs a hard
+    // constraint (kOBEY) so TensorRT cannot fall back to FP16; the ModelParser path uses kPREFER.
+    config->setFlag(forceObeyPrecision ? BuilderFlag::kOBEY_PRECISION_CONSTRAINTS : BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
+
     if(prop->major >= 8) {
       // This is to avoid tactics that have shape switching overhead
       config->setTacticSources(1U << static_cast<uint32_t>(TacticSource::kJIT_CONVOLUTIONS));
       config->setBuilderOptimizationLevel(2);
     }
-#endif
+
+    // For the debug plan dump, build with detailed profiling so the engine inspector can report
+    // per-layer precision/format/tactic (see the inspector dump after deserialize).
+    if(dumpDebugPlan)
+      config->setProfilingVerbosity(ProfilingVerbosity::kDETAILED);
 
     // So that there are no concurrent kernel executions probably from other parts of code while profiling
     // See CUDA Runtime API document for more details related to NULL stream and synchronization behaviors
     config->setProfileStream(cudaStreamLegacy);
 
-    // Typical runtime allocation is much less than the 1 GiB specified below
-    config->setMemoryPoolLimit(MemoryPoolType::kWORKSPACE, 1U << 30);
+    // Leave workspace at TensorRT's device-dependent default (the GPU's total memory). This is a
+    // tactic-selection cap, not a preallocation; fixed caps can reject all tactics for larger profiles.
 
     string plan;
     {
       static mutex tuneMutex;
-      tuneMutex.lock();
+      // TensorRT 10.16 has been observed to segfault when builders on different devices call
+      // buildSerializedNetwork concurrently, particularly with timing-cache hits. Keep both cache
+      // access and engine building serialized, and use RAII so exceptions cannot leave the mutex held.
+      lock_guard<mutex> tuneLock(tuneMutex);
 
       auto cacheDir = HomeData::getHomeDataDir(true, ctx->homeDataDirOverride);
       cacheDir += "/trtcache";
@@ -1192,24 +1469,41 @@ struct ComputeHandle {
       deviceIdent[sizeof(deviceIdent) - 1] = 0;
 
 #ifdef CACHE_TENSORRT_PLAN
+      // The plan cache stores a fully serialized engine, reused only when the model SHA256 (appended
+      // to the blob and verified on read) AND paramStr both match. paramStr must therefore encode
+      // every knob that changes the built engine: lib/device/salt, board+batch+precision, and the
+      // backend build mode (ONNX vs ModelParser, and NHWC vs NCHW for the ONNX path). The
+      // build-mode tag is folded into both the filename (for human readability) and paramStr.
+      string buildModeStr = Global::strprintf(
+        "%s%s",
+        ctx->useOnnx ? "onnx" : "prsr",
+        (ctx->useOnnx && ctx->transformerNHWC) ? "nh" : "");
+      const char* lenStr = requireExactNNLen ? "ex" : "mx";
+      // A .onnx model file shares its net name with the .bin.gz it was dumped from, so fold the file
+      // hash into the filename so the two don't overwrite each other's cached plans.
+      string netName = loadedModel->modelDesc.name;
+      if(loadedModel->isExternalOnnx)
+        netName += "-onnxfile-" + loadedModel->modelDesc.sha256.substr(0, 8);
       auto planCacheFile = Global::strprintf(
-        "%s/trt-%d_gpu-%s_net-%s_%d_%s%dx%d_batch%d_fp%d",
+        "%s/trt-%d_gpu-%s_net-%s_s%d_%s_%s%dx%d_b%d_fp%d",
         cacheDir.c_str(),
         getInferLibVersion(),
         deviceIdent,
-        loadedModel->modelDesc.name.c_str(),
+        netName.c_str(),
         ModelParser::tuneSalt,
-        requireExactNNLen ? "exact" : "max",
+        buildModeStr.c_str(),
+        lenStr,
         ctx->nnYLen,
         ctx->nnXLen,
         maxBatchSize,
         usingFP16 ? 16 : 32);
       string paramStr = Global::strprintf(
-        "_%d_%s_%d_%s_%d_%d_%d_%d",
+        "_%d_%s_s%d_%s_%s_%d_%d_%d_%d",
         getInferLibVersion(),
         deviceIdent,
         ModelParser::tuneSalt,
-        requireExactNNLen ? "exact" : "max",
+        buildModeStr.c_str(),
+        lenStr,
         ctx->nnYLen,
         ctx->nnXLen,
         maxBatchSize,
@@ -1254,15 +1548,10 @@ struct ComputeHandle {
         }
         plan.insert(plan.end(), loadedModel->modelDesc.sha256.begin(), loadedModel->modelDesc.sha256.end());
         plan.insert(plan.end(), paramStr.begin(), paramStr.end());
-        ofstream ofs;
-        FileUtils::open(ofs, planCacheFile, ios::out | ios::binary);
-        ofs.write(plan.data(), plan.size());
-        ofs.close();
+        writeFileAtomically(planCacheFile, plan.data(), plan.size());
         logger->write("Saved new plan cache to " + planCacheFile);
         plan.erase(plan.size() - 64 - paramStr.size());
-        tuneMutex.unlock();
       } else {
-        tuneMutex.unlock();
         logger->write("Using existing plan cache at " + planCacheFile);
       }
 #else
@@ -1274,12 +1563,12 @@ struct ComputeHandle {
       tuneIdent[sizeof(tuneIdent) - 1] = 0;
 
       auto timingCacheFile = Global::strprintf(
-        "%s/trt-%d_gpu-%s_tune-%s_%s%dx%d_batch%d_fp%d",
+        "%s/trt-%d_gpu-%s_tune-%s_%s%dx%d_b%d_fp%d",
         cacheDir.c_str(),
         getInferLibVersion(),
         deviceIdent,
         tuneIdent,
-        requireExactNNLen ? "exact" : "max",
+        requireExactNNLen ? "ex" : "mx",
         ctx->nnYLen,
         ctx->nnXLen,
         maxBatchSize,
@@ -1294,7 +1583,7 @@ struct ComputeHandle {
       if(timingCacheBlob.size() > 0)
         logger->write("Using existing timing cache at " + timingCacheFile);
       else
-        logger->write("Creating new timing cache");
+        logger->write("Creating new timing cache (usingFP16=" + Global::boolToString(usingFP16) + " " + Global::intToString(ctx->nnXLen) + "x" + Global::intToString(ctx->nnYLen) + " maxBatchSizeLimit=" + Global::intToString(maxBatchSize) + ")");
 
       auto timingCache =
         unique_ptr<ITimingCache>(config->createTimingCache(timingCacheBlob.data(), timingCacheBlob.size()));
@@ -1312,14 +1601,10 @@ struct ComputeHandle {
           throw StringError("TensorRT backend: failed to create plan");
         }
         auto serializedTimingCache = unique_ptr<IHostMemory>(config->getTimingCache()->serialize());
-        ofstream ofs;
-        FileUtils::open(ofs, timingCacheFile, ios::out | ios::binary);
-        ofs.write(static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
-        ofs.close();
+        writeFileAtomically(
+          timingCacheFile, static_cast<char*>(serializedTimingCache->data()), serializedTimingCache->size());
         logger->write("Saved new timing cache to " + timingCacheFile);
-        tuneMutex.unlock();
       } else {
-        tuneMutex.unlock();
         planBuffer.reset(builder->buildSerializedNetwork(*model->network, *config));
         if(!planBuffer) {
           throw StringError("TensorRT backend: failed to create plan");
@@ -1330,6 +1615,15 @@ struct ComputeHandle {
         static_cast<char*>(planBuffer->data()),
         static_cast<char*>(planBuffer->data()) + planBuffer->size());
 #endif
+    }
+
+    if(dumpDebugPlan) {
+      string planPath = dumpDebugBasePath + ".plan";
+      ofstream pofs;
+      FileUtils::open(pofs, planPath, ios::out | ios::binary);
+      pofs.write(plan.data(), (std::streamsize)plan.size());
+      pofs.close();
+      logger->write("TensorRT backend: dumped serialized plan to " + planPath);
     }
 
     runtime.reset(createInferRuntime(trtLogger));
@@ -1346,6 +1640,23 @@ struct ComputeHandle {
     exec.reset(engine->createExecutionContext());
     if(!exec) {
       throw StringError("TensorRT backend: failed to create execution context");
+    }
+
+    // For the debug plan dump, write the built engine's per-layer info (precision, format, tactic) as
+    // JSON. This shows the realized graph: which ops fused (Myelin kgen/gemm kernels), the per-tensor
+    // Format/Datatype (Half vs Float), and where reformats/casts sit. Note: Myelin-fused kernels do not
+    // expose their internal accumulation precision here, so this reveals fusion + boundary types but not
+    // FP16-vs-FP32 inside a fused reduction (use a numerical activation comparison for that).
+    if(dumpDebugPlan) {
+      auto inspector = unique_ptr<IEngineInspector>(engine->createEngineInspector());
+      if(inspector) {
+        const char* info = inspector->getEngineInformation(LayerInformationFormat::kJSON);
+        string outPath = dumpDebugBasePath + ".engine.json";
+        std::ofstream ofs(outPath);
+        if(info != nullptr) ofs << info;
+        ofs.close();
+        if(logger != nullptr) logger->write("TensorRT backend: dumped engine layer info to " + outPath);
+      }
     }
 
     for(int i = 0; i < engine->getNbIOTensors(); i++) {
@@ -1409,6 +1720,45 @@ struct ComputeHandle {
       throw StringError(Global::strprintf("ComputeHandle: unknown tensor name %s", name));
     }
   }
+
+  // DEBUG (kept commented out): when KATAGO_TRT_DUMP_ACTS is set, dump every DBG__ output tensor (added
+  // by the ONNX emitter under KATAGO_TRT_DEBUG_ALL_OUTPUTS) to that file: name, shape, min/max/mean/L2,
+  // nan/inf counts, and the first few values of the first batch row. One append-block per eval. Running
+  // it once for fp32 and once for fp16 on a single isolated position (KATAGO_TEST_ONLY_POS) is how the
+  // trunk-tip RMSNorm sum-of-squares FP16 overflow was localized. Uncomment this, the call site after
+  // enqueueV3, the emitter block, and the testnnevalcanary.cpp hooks to re-enable.
+  // void maybeDumpDebugActivations(int batchSize) {
+  //   const char* dumpPath = std::getenv("KATAGO_TRT_DUMP_ACTS");
+  //   if(dumpPath == nullptr)
+  //     return;
+  //   cudaStreamSynchronize(cudaStreamPerThread);
+  //   std::ofstream ofs(dumpPath, std::ios::app);
+  //   for(auto& kv : buffers) {
+  //     const string& name = kv.first;
+  //     if(name.rfind("DBG__", 0) != 0)
+  //       continue;
+  //     auto dims = getBufferDynamicShape(name.c_str(), batchSize);
+  //     size_t total = accumulate(dims.d, dims.d + dims.nbDims, (size_t)1, multiplies<size_t>());
+  //     vector<float> v(total);
+  //     CUDA_ERR("maybeDumpDebugActivations",
+  //       cudaMemcpy(v.data(), getBuffer(name.c_str()), total * sizeof(float), cudaMemcpyDeviceToHost));
+  //     double mn = 1e30, mx = -1e30, sum = 0.0, sumsq = 0.0;
+  //     int nNan = 0, nInf = 0;
+  //     for(double x : v) {
+  //       if(std::isnan(x)) { nNan++; continue; }
+  //       if(std::isinf(x)) { nInf++; continue; }
+  //       mn = std::min(mn, x); mx = std::max(mx, x); sum += x; sumsq += x * x;
+  //     }
+  //     size_t rowElts = total / (size_t)dims.d[0];
+  //     ofs << name << " shape=[";
+  //     for(int d = 0; d < dims.nbDims; d++) ofs << dims.d[d] << (d + 1 < dims.nbDims ? "," : "");
+  //     ofs << "] min=" << mn << " max=" << mx << " mean=" << (sum / total)
+  //         << " l2=" << std::sqrt(sumsq) << " nan=" << nNan << " inf=" << nInf << " first:";
+  //     for(size_t i = 0; i < rowElts && i < 8; i++) ofs << " " << v[i];
+  //     ofs << "\n";
+  //   }
+  //   ofs.close();
+  // }
 
   void printDebugOutput(int batchSize) {
     for(auto& debugOutput: debugOutputs) {
@@ -1492,7 +1842,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
       " useFP16 = " + Global::boolToString(handle->usingFP16));
     logger->write(
       "TensorRT backend thread " + Global::intToString(serverThreadIdx) +
-      ": Model name: " + loadedModel->modelDesc.name);
+      ": Model name: " + loadedModel->modelDesc.name +
+      " (" + loadedModel->modelDesc.getShortInfoString() + ")");
   }
 
   return handle;
@@ -1506,6 +1857,12 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* gpuHandle) {
   return gpuHandle->usingFP16;
 }
 
+bool NeuralNet::setIsWarmup(const ComputeHandle* gpuHandle, bool isWarmup) {
+  (void)gpuHandle;
+  (void)isWarmup;
+  return false;
+}
+
 void NeuralNet::printDevices() {
   int numDevices = 0;
   CUDA_ERR("printDevices", cudaGetDeviceCount(&numDevices));
@@ -1514,6 +1871,22 @@ void NeuralNet::printDevices() {
     CUDA_ERR("printDevices", cudaGetDeviceProperties(&prop, i));
     cout << "Found GPU device " << i << ": " << prop.name << endl;
   }
+}
+
+std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
+  (void)cfg;
+  return std::string();
+}
+
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  (void)cfg;
+  return NeuralNet::BatchPolicy::Dynamic;
+}
+
+int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  (void)cfg;
+  std::set<int> distinctDevices(gpuIdxByServerThread.begin(), gpuIdxByServerThread.end());
+  return std::max(1, (int)distinctDevices.size());
 }
 
 struct InputBuffers {
@@ -1588,10 +1961,10 @@ struct InputBuffers {
     singleOwnershipResultElts = m.numOwnershipChannels * nnXLen * nnYLen;
     singleOwnershipResultBytes = singleOwnershipResultElts * sizeof(float);
 
-    assert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
-    assert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
+    testAssert(NNModelVersion::getNumSpatialFeatures(m.modelVersion) == m.numInputChannels);
+    testAssert(NNModelVersion::getNumGlobalFeatures(m.modelVersion) == m.numInputGlobalChannels);
     if(m.numInputMetaChannels > 0) {
-      assert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
+      testAssert(SGFMetadata::METADATA_INPUT_NUM_CHANNELS == m.numInputMetaChannels);
     }
 
     inputMaskBufferBytes = maxBatchSize * singleMaskBytes;
@@ -1803,7 +2176,7 @@ void NeuralNet::getOutput(
     // policy probabilities and white game outcome probabilities
     // Also we don't fill in the nnHash here either
     // Handle version >= 12 policy optimism
-    if(numPolicyChannels == 2) {
+    if(numPolicyChannels == 2 || (numPolicyChannels == 4 && modelVersion >= 16)) {
       // TRT is all NCHW
       for(int i = 0; i < nnXLen * nnYLen; i++) {
         float p = policySrcBuf[i];

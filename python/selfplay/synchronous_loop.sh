@@ -74,9 +74,11 @@ GATING_CONFIG="$GITROOTDIR"/cpp/configs/training/gatekeeper1.cfg
 # For archival and logging purposes - you can look back and see exactly the python code on a particular date
 DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
 DATED_ARCHIVE="$BASEDIR"/scripts/dated/"$DATE_FOR_FILENAME"
-mkdir -p "$DATED_ARCHIVE"
-cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$DATED_ARCHIVE"
-cp "$GITROOTDIR"/cpp/katago "$DATED_ARCHIVE"
+mkdir -p "$DATED_ARCHIVE"/bin
+cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.py "$GITROOTDIR"/python/selfplay/*.sh "$DATED_ARCHIVE"
+cp -r "$GITROOTDIR"/python/katago "$DATED_ARCHIVE"
+cp -r "$GITROOTDIR"/python/muon "$DATED_ARCHIVE"
+cp "$GITROOTDIR"/cpp/katago "$DATED_ARCHIVE"/bin
 cp "$SELFPLAY_CONFIG" "$DATED_ARCHIVE"/selfplay.cfg
 cp "$GATING_CONFIG" "$DATED_ARCHIVE"/gatekeeper.cfg
 git show --no-patch --no-color > "$DATED_ARCHIVE"/version.txt
@@ -91,16 +93,16 @@ set -x
 while true
 do
     echo "Gatekeeper"
-    time ./katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$DATED_ARCHIVE"/gatekeeper.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
+    time ./bin/katago gatekeeper -rejected-models-dir "$BASEDIR"/rejectedmodels -accepted-models-dir "$BASEDIR"/models/ -sgf-output-dir "$BASEDIR"/gatekeepersgf/ -test-models-dir "$BASEDIR"/modelstobetested/ -config "$DATED_ARCHIVE"/gatekeeper.cfg -quit-if-no-nets-to-test | tee -a "$BASEDIR"/gatekeepersgf/stdout.txt
 
     echo "Selfplay"
-    time ./katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$DATED_ARCHIVE"/selfplay.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
+    time ./bin/katago selfplay -max-games-total "$NUM_GAMES_PER_CYCLE" -output-dir "$BASEDIR"/selfplay -models-dir "$BASEDIR"/models -config "$DATED_ARCHIVE"/selfplay.cfg | tee -a "$BASEDIR"/selfplay/stdout.txt
 
     echo "Shuffle"
     (
         # Skip validate since peeling off 5% of data is actually a bit too chunky and discrete when running at a small scale, and validation data
         # doesn't actually add much to debugging a fast-changing RL training.
-        time SKIP_VALIDATE=1 ./shuffle.sh "$BASEDIR" "$SCRATCHDIR" "$NUM_THREADS_FOR_SHUFFLING" "$BATCHSIZE" -min-rows "$SHUFFLE_MINROWS" -keep-target-rows "$SHUFFLE_KEEPROWS" -taper-window-scale "$TAPER_WINDOW_SCALE" | tee -a "$BASEDIR"/logs/outshuffle.txt
+        time SKIP_VALIDATE=1 ./shuffle.sh "$BASEDIR" "$SCRATCHDIR" "$NUM_THREADS_FOR_SHUFFLING" -min-rows "$SHUFFLE_MINROWS" -keep-target-rows "$SHUFFLE_KEEPROWS" -taper-window-scale "$TAPER_WINDOW_SCALE" | tee -a "$BASEDIR"/logs/outshuffle.txt
     )
 
     echo "Train"

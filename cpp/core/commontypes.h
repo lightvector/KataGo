@@ -11,7 +11,7 @@ struct enabled_t {
   constexpr bool operator==(enabled_t a) const { return x == a.x; }
   constexpr bool operator!=(enabled_t a) const { return x != a.x; }
 
-  std::string toString() {
+  std::string toString() const {
     return x == True ? "true" : x == False ? "false" : "auto";
   }
 

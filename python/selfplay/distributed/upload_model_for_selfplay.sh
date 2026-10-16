@@ -25,6 +25,12 @@ shift
 
 #------------------------------------------------------------------------------
 
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+else
+  PYTHON=python
+fi
+
 mkdir -p "$BASEDIR"/modelstobetested
 mkdir -p "$BASEDIR"/modelsuploaded
 
@@ -33,9 +39,13 @@ function uploadStuff() {
     TODIR="$2"
 
     #Sort by timestamp so that we process in order of oldest to newest if there are multiple
-    for FILEPATH in $(find "$BASEDIR"/"$FROMDIR"/ -mindepth 1 -maxdepth 1 -printf "%T@ %p\n" | sort -n | cut -d ' ' -f 2)
+    $PYTHON -W ignore "$(dirname "$0")/list_by_mtime.py" "$BASEDIR/$FROMDIR" | while read -r FILEPATH
     do
-        if [ ${FILEPATH: -10} == ".uploading" ]
+        if [ -z "$FILEPATH" ]
+        then
+            continue
+        fi
+        if [ "${FILEPATH: -10}" == ".uploading" ]
         then
             echo "Skipping upload tmp file:" "$FILEPATH"
         else
@@ -49,23 +59,23 @@ function uploadStuff() {
 
             if [ -d "$BASEDIR"/modelsuploaded/"$NAME" ]
             then
-                echo "Model with same name aleady exists, so skipping:" "$SRC"
+                echo "Model with same name already exists, so skipping:" "$SRC"
             else
                 rm -rf "$TMPDST"
                 mkdir "$TMPDST"
 
-                TOBEZIPPED="$TMPDST"/"$RUNNAME"-"$NAME"
+                TOBEZIPPED="$TMPDST/$RUNNAME-$NAME"
                 mkdir "$TOBEZIPPED"
 
                 # Build zip containing the ckpt
-                cp "$SRC"/model.ckpt "$TOBEZIPPED"/model.ckpt
-                (cd "$TMPDST"; zip -r "$RUNNAME"-"$NAME".zip "$RUNNAME"-"$NAME"/)
+                cp "$SRC/model.ckpt" "$TOBEZIPPED/model.ckpt"
+                (cd "$TMPDST"; zip -r "$RUNNAME-$NAME.zip" "$RUNNAME-$NAME/")
                 rm "$TOBEZIPPED"/*
                 rmdir "$TOBEZIPPED"
 
-                cp "$SRC"/model.bin.gz "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz
-                cp "$SRC"/metadata.json "$TMPDST"/metadata.json
-                cp "$SRC"/log.txt "$TMPDST"/log.txt
+                cp "$SRC/model.bin.gz" "$TMPDST/$RUNNAME-$NAME.bin.gz"
+                cp "$SRC/metadata.json" "$TMPDST/metadata.json"
+                cp "$SRC/log.txt" "$TMPDST/log.txt"
 
                 #Sleep a little to allow some tolerance on the filesystem
                 sleep 3
@@ -76,13 +86,13 @@ function uploadStuff() {
                 do
                     set +e
                     set -x
-                    python3 ./upload_model.py \
+                    $PYTHON ./upload_model.py \
                             -run-name "$RUNNAME" \
-                            -model-name "$RUNNAME"-"$NAME" \
-                            -model-file "$TMPDST"/"$RUNNAME"-"$NAME".bin.gz \
-                            -model-zip "$TMPDST"/"$RUNNAME"-"$NAME".zip \
-                            -upload-log-file "$TMPDST"/upload_log.txt \
-                            -metadata-file "$TMPDST"/metadata.json \
+                            -model-name "$RUNNAME-$NAME" \
+                            -model-file "$TMPDST/$RUNNAME-$NAME.bin.gz" \
+                            -model-zip "$TMPDST/$RUNNAME-$NAME.zip" \
+                            -upload-log-file "$TMPDST/upload_log.txt" \
+                            -metadata-file "$TMPDST/metadata.json" \
                             -parents-dir "$TARGETDIR" \
                             -connection-config "$CONNECTION_CONFIG" \
                             -rating-only "$RATING_ONLY"

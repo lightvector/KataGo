@@ -1971,7 +1971,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     testAssert(hist.computeNumHandicapStones() == 0);
     testAssert(hist.computeWhiteHandicapBonus() == 0);
@@ -1993,7 +1993,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2012,7 +2012,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("aga");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2031,7 +2031,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("aga");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2062,7 +2062,7 @@ void Tests::runBoardHandicapTest() {
     Board board = Board(19,19);
     Player nextPla = P_BLACK;
     Rules rules = Rules::parseRules("chinese");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(true);
     testAssert(hist.computeNumHandicapStones() == 0);
@@ -2146,6 +2146,16 @@ void Tests::runBoardStressTest() {
       for(int i = 0; i<numBoards; i++) {
         testAssert(isLegal[i] == suc[i]);
         boards[i].checkConsistency();
+
+        //Periodically validate that regenerating all chain bookkeeping purely from colors[] reproduces a
+        //consistent board with identical stones (and, via checkConsistency, identical pos_hash/liberties).
+        if(n % 15 == 0) {
+          Board regen = boards[i];
+          regen.regenChainsFromColors();
+          for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++)
+            testAssert(regen.colors[loc] == boards[i].colors[loc]);
+          regen.checkConsistency();
+        }
 
         const Board& board = boards[i];
         const Board& copy = copies[i];
@@ -2238,7 +2248,7 @@ Caps 4420 4335
       for(int y = 0; y<b.y_size; y++) {
         for(int x = 0; x<b.x_size; x++) {
           Loc loc = Location::getLoc(x,y,b.x_size);
-          placements.push_back(Move(loc,b.colors[loc]));
+          placements.emplace_back(loc,b.colors[loc]);
         }
       }
       for(int i = 1; i<placements.size(); i++)
@@ -2251,7 +2261,7 @@ Caps 4420 4335
         for(int x = 0; x<b.x_size; x++) {
           Loc loc = Location::getLoc(x,y,b.x_size);
           if(b.colors[loc] != C_EMPTY)
-            placements.push_back(Move(loc,b.colors[loc]));
+            placements.emplace_back(loc,b.colors[loc]);
         }
       }
       for(int i = 1; i<placements.size(); i++)
@@ -2351,7 +2361,7 @@ Caps 4420 4335
         Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
         Player pla = rand.nextBool(0.5) ? P_BLACK : P_WHITE;
         if(board.isLegal(loc,pla,true)) {
-          placements.push_back(Move(loc,pla));
+          placements.emplace_back(loc,pla);
           bool anyCaps = board.wouldBeCapture(loc,pla) || board.isSuicide(loc,pla);
           board.playMoveAssumeLegal(loc,pla);
           Board copy(board.x_size,board.y_size);
@@ -2382,7 +2392,7 @@ Caps 4420 4335
         Loc loc = Location::getLoc(rand.nextUInt(board.x_size),rand.nextUInt(board.y_size),board.x_size);
         Color color = rand.nextBool(0.25) ? C_EMPTY : rand.nextBool(0.5) ? P_BLACK : P_WHITE;
 
-        placements.push_back(Move(loc,color));
+        placements.emplace_back(loc,color);
         if(prevPlacedLocs.find(loc) != prevPlacedLocs.end()) {
           Board copy(board.x_size,board.y_size);
           bool suc = copy.setStonesFailIfNoLibs(placements);
@@ -2447,7 +2457,7 @@ oxxxxx.xo
       rules.koRule = rand.nextBool(0.5) ? Rules::KO_SITUATIONAL : Rules::KO_POSITIONAL;
     if(rand.nextBool(0.2))
       rules.taxRule = rand.nextBool(0.5) ? Rules::TAX_SEKI : rand.nextBool(0.5) ? Rules::TAX_NONE : Rules::TAX_ALL;
-    BoardHistory hist(board,pla,rules,initialEncorePhase);
+    BoardHistory hist(board,pla,rules,initialEncorePhase,BoardHistoryModes(false,false));
     hist.setInitialTurnNumber(rand.nextInt(0,40));
     hist.setAssumeMultipleStartingBlackMovesAreHandicap(rand.nextBool(0.5));
 
@@ -2460,7 +2470,7 @@ oxxxxx.xo
     double passProb = rand.nextDouble(0.05,0.80);
     int numSteps = rand.nextInt(6,15);
     for(int i = 0; i<numSteps; i++) {
-      BoardHistory tmpHist(board,pla,rules,hist.encorePhase);
+      BoardHistory tmpHist(board,pla,rules,hist.encorePhase,hist.modes);
       Loc moveLoc;
       if(rand.nextBool(passProb))
         moveLoc = Board::PASS_LOC;
@@ -2507,9 +2517,9 @@ oxxxxx.xo
     //if(rep < 100)
     //  hist.printDebugInfo(cout,board);
 
-    testAssert(boardCopy.isEqualForTesting(board, true, true));
-    testAssert(boardCopy.isEqualForTesting(histCopy.getRecentBoard(0), true, true));
-    testAssert(histCopy.getRecentBoard(0).isEqualForTesting(hist.getRecentBoard(0), true, true));
+    testAssert(boardCopy.isEqualForTesting(board));
+    testAssert(boardCopy.isEqualForTesting(histCopy.getRecentBoard(0)));
+    testAssert(histCopy.getRecentBoard(0).isEqualForTesting(hist.getRecentBoard(0)));
     testAssert(BoardHistory::getSituationRulesAndKoHash(boardCopy,histCopy,pla,drawEquivalentWinsForWhite) == hist.getSituationRulesAndKoHash(board,hist,pla,drawEquivalentWinsForWhite));
     testAssert(histCopy.currentSelfKomi(P_BLACK, drawEquivalentWinsForWhite) == hist.currentSelfKomi(P_BLACK, drawEquivalentWinsForWhite));
     testAssert(histCopy.currentSelfKomi(P_WHITE, drawEquivalentWinsForWhite) == hist.currentSelfKomi(P_WHITE, drawEquivalentWinsForWhite));

@@ -8,6 +8,7 @@
 #include "../dataio/sgf.h"
 #include "../neuralnet/nninputs.h"
 #include "../search/asyncbot.h"
+#include "../search/evalcache.h"
 #include "../search/searchnode.h"
 #include "../program/playutils.h"
 #include "../program/setup.h"
@@ -55,7 +56,7 @@ void Tests::runNNLessSearchTests() {
 .........
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search->runWholeSearch(nextPla);
@@ -72,7 +73,7 @@ void Tests::runNNLessSearchTests() {
       }
       vector<pair<Loc,int>> moveLocsAndCountsSorted;
       std::copy(moveLocsAndCounts.begin(),moveLocsAndCounts.end(),std::back_inserter(moveLocsAndCountsSorted));
-      std::sort(moveLocsAndCountsSorted.begin(), moveLocsAndCountsSorted.end(), [](pair<Loc,int> a, pair<Loc,int> b) { return a.second > b.second; });
+      std::sort(moveLocsAndCountsSorted.begin(), moveLocsAndCountsSorted.end(), [](const pair<Loc,int>& a, const pair<Loc,int>& b) { return a.second > b.second; });
 
       for(int i = 0; i<moveLocsAndCountsSorted.size(); i++) {
         cout << Location::toString(moveLocsAndCountsSorted[i].first,board) << " " << moveLocsAndCountsSorted[i].second << endl;
@@ -101,7 +102,7 @@ void Tests::runNNLessSearchTests() {
       //Ugly hack to artifically fill history. Breaks all sorts of invariants, but should work to
       //make the search htink there's some history to choose an intermediate temperature
       for(int i = 0; i<16; i++)
-        search->rootHistory.moveHistory.push_back(Move(Board::NULL_LOC,P_BLACK));
+        search->rootHistory.moveHistory.emplace_back(Board::NULL_LOC,P_BLACK);
 
       search->searchParams.chosenMoveTemperature = 1.0;
       search->searchParams.chosenMoveTemperatureEarly = 0.0;
@@ -137,7 +138,7 @@ ooooooo
 ...o...
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     {
       //--------------------------------------
@@ -205,7 +206,7 @@ o..oo.x
 )%%");
     Player nextPla = P_BLACK;
     Rules rules = Rules::getTrompTaylorish();
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("B5",board),nextPla,NULL);
     nextPla = getOpp(nextPla);
     hist.makeBoardMoveAssumeLegal(board,Location::ofString("pass",board),nextPla,NULL);
@@ -378,7 +379,7 @@ o..o.oo
     Player nextPla = P_WHITE;
     Rules rules = Rules::getTrompTaylorish();
     rules.multiStoneSuicideLegal = false;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     {
       cout << "First with no pruning" << endl;
@@ -440,7 +441,7 @@ o..o.oo
 .........
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search->runWholeSearch(nextPla);
@@ -511,7 +512,7 @@ o..o.oo
 .........
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search->runWholeSearch(nextPla);
@@ -552,7 +553,7 @@ o..o.oo
 .........
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search->setRootSymmetryPruningOnly({0,3,4,7});
@@ -594,7 +595,7 @@ o..o.oo
 .........
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search->setRootSymmetryPruningOnly({0,3,4,7});
@@ -651,7 +652,7 @@ xx......x
     }
 
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search->setRootSymmetryPruningOnly({0,3,4,7});
@@ -674,9 +675,11 @@ xx......x
     bool includeMovesOwnership = false;
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
+    bool includeNoResultValue = false;
     bool suc = search->getAnalysisJson(
       perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      includeNoResultValue,
       json
     );
     testAssert(suc);
@@ -727,7 +730,7 @@ xx......x
     }
 
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search->setRootSymmetryPruningOnly({0,3,4,7});
@@ -750,9 +753,11 @@ xx......x
     bool includeMovesOwnership = false;
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
+    bool includeNoResultValue = false;
     bool suc = search->getAnalysisJson(
       perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      includeNoResultValue,
       json
     );
     testAssert(suc);
@@ -803,7 +808,7 @@ xx......x
     }
 
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search->setRootSymmetryPruningOnly({0,3,4,7});
@@ -826,9 +831,11 @@ xx......x
     bool includeMovesOwnership = false;
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
+    bool includeNoResultValue = false;
     bool suc = search->getAnalysisJson(
       perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      includeNoResultValue,
       json
     );
     testAssert(suc);
@@ -871,7 +878,7 @@ xx......x
 .......
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search->runWholeSearch(nextPla);
@@ -972,7 +979,7 @@ xxxxooo
 .xxxooo
 )%%");
     Player nextPla = P_WHITE;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     search->setPosition(nextPla,board,hist);
     search2->setPosition(nextPla,board,hist);
@@ -1062,7 +1069,7 @@ o.oo.oo
 .oooooo
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -1133,7 +1140,7 @@ oo.oxxxxxxxxoo
 ooooo.oooooooo
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -1198,7 +1205,7 @@ ooooo.oooooooo
 .......
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -1216,9 +1223,11 @@ ooooo.oooooooo
     bool includeMovesOwnership = false;
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = true;
+    bool includeNoResultValue = false;
     bool suc = search->getAnalysisJson(
       perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      includeNoResultValue,
       json
     );
     testAssert(suc);
@@ -1251,7 +1260,7 @@ ooooo.oooooooo
 .......
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -1269,9 +1278,11 @@ ooooo.oooooooo
     bool includeMovesOwnership = true;
     bool includeMovesOwnershipStdev = true;
     bool includePVVisits = false;
+    bool includeNoResultValue = false;
     bool suc = search->getAnalysisJson(
       perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      includeNoResultValue,
       json
     );
     testAssert(suc);
@@ -1305,7 +1316,7 @@ ooooo.oooooooo
 .......
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -1323,9 +1334,11 @@ ooooo.oooooooo
     bool includeMovesOwnership = true;
     bool includeMovesOwnershipStdev = true;
     bool includePVVisits = false;
+    bool includeNoResultValue = false;
     bool suc = search->getAnalysisJson(
       perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      includeNoResultValue,
       json
     );
     testAssert(suc);
@@ -1357,7 +1370,7 @@ xxx...xxx
 xxxxxxxxx
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -1375,9 +1388,11 @@ xxxxxxxxx
     bool includeMovesOwnership = false;
     bool includeMovesOwnershipStdev = false;
     bool includePVVisits = false;
+    bool includeNoResultValue = false;
     bool suc = search->getAnalysisJson(
       perspective, analysisPVLen, preventEncore,
       includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+      includeNoResultValue,
       json
     );
     testAssert(suc);
@@ -1393,7 +1408,7 @@ xxxxxxxxx
     cout << "Search results at 0, 1, 2 visits, and at terminal position" << endl;
     cout << "===================================================================" << endl;
 
-    auto printResults = [](Search* search, bool allowDirectPolicyMoves) {
+    auto printResults = [](const Search* search, bool allowDirectPolicyMoves) {
       ReportedSearchValues values;
       cout << "getRootVisits " << search->getRootVisits() << endl;
       bool suc = search->getRootValues(values);
@@ -1446,9 +1461,11 @@ xxxxxxxxx
       bool includeMovesOwnership = false;
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = true;
+      bool includeNoResultValue = false;
       suc = search->getAnalysisJson(
         perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+        includeNoResultValue,
         json
       );
       cout << "getAnalysisJson success: " << suc << endl;
@@ -1467,7 +1484,7 @@ xxxxxxxxx
 .......
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -1619,7 +1636,7 @@ ooooooo
 .o.oo.x
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     {
       //--------------------------------------
@@ -1715,7 +1732,7 @@ oo..o..oo
       avoidMoveUntilByLoc[Board::PASS_LOC] = 3;
 
       Player nextPla = P_WHITE;
-      BoardHistory hist(board,nextPla,rules,0);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       search->setPosition(nextPla,board,hist);
       search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
@@ -1736,9 +1753,11 @@ oo..o..oo
       bool includeMovesOwnership = false;
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = false;
+      bool includeNoResultValue = false;
       bool suc = search->getAnalysisJson(
         perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+        includeNoResultValue,
         json
       );
       testAssert(suc);
@@ -1781,7 +1800,7 @@ oo..o..oo
       avoidMoveUntilByLoc[Board::PASS_LOC] = 3;
 
       Player nextPla = P_WHITE;
-      BoardHistory hist(board,nextPla,rules,0);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       search->setPosition(nextPla,board,hist);
       search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
@@ -1802,9 +1821,11 @@ oo..o..oo
       bool includeMovesOwnership = false;
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = false;
+      bool includeNoResultValue = false;
       bool suc = search->getAnalysisJson(
         perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+        includeNoResultValue,
         json
       );
       testAssert(suc);
@@ -1827,7 +1848,7 @@ oo..o..oo
       avoidMoveUntilByLoc[Board::PASS_LOC] = 10;
 
       Player nextPla = P_WHITE;
-      BoardHistory hist(board,nextPla,rules,0);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
       search->setPosition(nextPla,board,hist);
       search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,vector<int>());
@@ -1848,9 +1869,11 @@ oo..o..oo
       bool includeMovesOwnership = false;
       bool includeMovesOwnershipStdev = false;
       bool includePVVisits = false;
+      bool includeNoResultValue = false;
       bool suc = search->getAnalysisJson(
         perspective, analysisPVLen, preventEncore,
         includePolicy, includeOwnership, includeOwnershipStdev, includeMovesOwnership, includeMovesOwnershipStdev, includePVVisits,
+        includeNoResultValue,
         json
       );
       testAssert(suc);
@@ -1884,7 +1907,7 @@ oo..o..oo
 .......
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -1951,7 +1974,7 @@ oo..o..oo
 .......
 )%%");
     Player nextPla = P_WHITE;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -2018,7 +2041,7 @@ oxooox.
 .ooox.x
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -2085,7 +2108,7 @@ oxooox.
 .ooox.x
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -2124,7 +2147,7 @@ oxooox.
 .ooox.x
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -2163,7 +2186,7 @@ oxooox.
 .ooox.x
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -2202,7 +2225,7 @@ oxooox.
 .ooox.x
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     PrintTreeOptions options;
     options = options.maxDepth(1);
@@ -2241,7 +2264,7 @@ xxoxx
 x.x.x
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     PrintTreeOptions options;
     options = options.maxDepth(1);
 
@@ -2311,7 +2334,7 @@ xxoxx
 x.x.x
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     PrintTreeOptions options;
     options = options.maxDepth(1);
 
@@ -2376,14 +2399,16 @@ x.x.x
 .............
 )%%");
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     PrintTreeOptions options;
     options = options.maxDepth(1);
 
     search->setPosition(nextPla,board,hist);
 
-    std::atomic<bool> shouldStopNow(true);
-    search->runWholeSearch(shouldStopNow);
+    std::function<bool()> shouldStopEarly = []() noexcept {
+      return true;
+    };
+    search->runWholeSearch(nextPla,&shouldStopEarly);
     cout << search->rootBoard << endl;
     search->printTree(cout, search->rootNode, options, P_WHITE);
     testAssert(search->rootNode->getNNOutput() == nullptr);
@@ -2518,6 +2543,274 @@ x.x.x
 
   {
     cout << "===================================================================" << endl;
+    cout << "Eval cache keys depend on search params" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"evalcacheparams",7,7,0,true,false,false,true,false);
+
+    SearchParams paramsA = SearchParams::forTestsV2(); //useGraphSearch = true
+    paramsA.useEvalCache = true;
+    paramsA.evalCacheMinVisits = 5;
+    paramsA.maxVisits = 60;
+
+    SearchParams paramsB = paramsA;
+    paramsB.cpuctExploration = paramsA.cpuctExploration + 0.5;
+
+    SearchParams paramsA2 = paramsA;
+
+    testAssert(paramsA.getHash() == paramsA2.getHash());
+    testAssert(paramsA.getHash() != paramsB.getHash());
+    cout << "Equal params hash equal: " << (paramsA.getHash() == paramsA2.getHash()) << endl;
+    cout << "Differing params hash differ: " << (paramsA.getHash() != paramsB.getHash()) << endl;
+
+    Search* search = new Search(paramsA, nnEval, &logger, "evalcacheseed");
+    Rules rules = Rules::parseRules("chinese");
+    Board board = Board::parseBoard(7,7,R"%%(
+.......
+..x.o..
+.......
+..o.x..
+.......
+.......
+.......
+)%%");
+    Player nextPla = P_BLACK;
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
+
+    // Search 1: params A.
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    testAssert(search->evalCache != nullptr);
+    const Hash128 rootGraphHash = search->rootGraphHash;
+    const Hash128 keyA = rootGraphHash ^ paramsA.getHash();
+    const Hash128 keyB = rootGraphHash ^ paramsB.getHash();
+    std::shared_ptr<EvalCacheEntry> entryA = search->evalCache->find(keyA);
+    testAssert(entryA != nullptr);
+    testAssert(search->evalCache->find(keyB) == nullptr);
+    cout << "After search A: A-slot populated, B-slot empty: "
+         << (entryA != nullptr && search->evalCache->find(keyB) == nullptr) << endl;
+
+    // Search 2: params B, same position. The eval cache persists across param changes.
+    search->setParams(paramsB);
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    testAssert(search->rootGraphHash == rootGraphHash);
+    testAssert(keyA != keyB);
+    testAssert(search->evalCache->find(keyB) != nullptr);
+    testAssert(search->evalCache->find(keyA) == entryA);
+    cout << "After search B: B-slot populated, A-slot unchanged, distinct slots: "
+         << (search->evalCache->find(keyB) != nullptr
+             && search->evalCache->find(keyA) == entryA
+             && keyA != keyB) << endl;
+
+    // Search 3: params identical to A. Must reuse the same key/slot as A.
+    search->setParams(paramsA2);
+    search->setPosition(nextPla,board,hist);
+    search->runWholeSearch(nextPla);
+    testAssert(search->rootGraphHash == rootGraphHash);
+    const Hash128 keyA2 = rootGraphHash ^ paramsA2.getHash();
+    testAssert(keyA2 == keyA);
+    testAssert(search->evalCache->find(keyA2) != nullptr);
+    cout << "After search A2 (identical to A): reuses A's slot: "
+         << (keyA2 == keyA && search->evalCache->find(keyA2) != nullptr) << endl;
+
+    delete search;
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
+    cout << "Visit cap contempt" << endl;
+    cout << "===================================================================" << endl;
+
+    NNEvaluator* nnEval = startNNEval(modelFile,logger,"",NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,0,true,false,false,true,false);
+    Rules rules = Rules::getTrompTaylorish();
+    Board board = Board::parseBoard(9,9,R"%%(
+.........
+.........
+..x..o...
+.........
+..x...o..
+...o.....
+..o.x.x..
+.........
+.........
+)%%");
+
+    //Check that exactly the capped nodes that reached the cap have a snapshot, and that their child weight distribution
+    //matches it. Relies on this test net giving every visit the same weight. Multithreading and virtual losses can
+    //make the distribution overshoot, so the tolerance is looser then.
+    //Returns the number of snapshot nodes well past the cap.
+    auto checkTree = [&](Search* search, Player cappedPla, int64_t visitCap, int numThreads) {
+      testAssert(search->getVisitCap(P_BLACK) == (cappedPla == P_BLACK ? visitCap : 0));
+      testAssert(search->getVisitCap(P_WHITE) == (cappedPla == P_WHITE ? visitCap : 0));
+      vector<SearchNode*> nodes = search->enumerateTreePostOrder();
+      int numNodesWellPastCap = 0;
+      for(SearchNode* node: nodes) {
+        int64_t visits = node->stats.visits.load(std::memory_order_acquire);
+        const VisitCapSnapshot* snapshot = node->visitCapSnapshot.load(std::memory_order_acquire);
+        if(cappedPla == C_EMPTY || node->nextPla != cappedPla || visits < visitCap) {
+          testAssert(snapshot == NULL);
+          continue;
+        }
+        testAssert(snapshot != NULL);
+        if(visits >= 3 * visitCap)
+          numNodesWellPastCap++;
+
+        ConstSearchNodeChildrenReference children = node->getChildren();
+        int childrenCapacity = children.getCapacity();
+        double totalWeight = 0.0;
+        double totalFrac = 0.0;
+        int numChildren = 0;
+        for(int i = 0; i<childrenCapacity; i++) {
+          const SearchNode* child = children[i].getIfAllocated();
+          if(child == NULL)
+            break;
+          numChildren++;
+          totalWeight += child->stats.getChildWeight(children[i].getEdgeVisits());
+          totalFrac += snapshot->getWeightFrac(search->getPos(children[i].getMoveLoc()));
+        }
+        testAssert(std::fabs(totalFrac - 1.0) < 1e-6);
+        double weightPerVisit = totalWeight / (double)std::max((int64_t)1, visits - 1);
+        double tolerance;
+        if(numThreads == 1)
+          tolerance = 1.0 * weightPerVisit + 1e-6;
+        else
+          tolerance = (numThreads * search->searchParams.numVirtualLossesPerThread + 2.0) * weightPerVisit;
+        for(int i = 0; i<numChildren; i++) {
+          const SearchNode* child = children[i].getIfAllocated();
+          int64_t edgeVisits = children[i].getEdgeVisits();
+          double childWeight = child->stats.getChildWeight(edgeVisits);
+          double frac = snapshot->getWeightFrac(search->getPos(children[i].getMoveLoc()));
+          //With one thread, the snapshot is taken at exactly cap-1 edge visits.
+          if(numThreads == 1) {
+            double edgeVisitsAtSnapshot = frac * (double)(visitCap - 1);
+            testAssert(std::fabs(edgeVisitsAtSnapshot - std::round(edgeVisitsAtSnapshot)) < 1e-6);
+          }
+          //A child with no share may only have visits that were in flight when the snapshot was taken.
+          if(frac <= 0.0)
+            testAssert(edgeVisits <= numThreads);
+          testAssert(std::fabs(childWeight - frac * totalWeight) <= tolerance);
+        }
+      }
+      return numNodesWellPastCap;
+    };
+
+    auto runTest = [&](int numThreads) {
+      cout << "Threads: " << numThreads << endl;
+      SearchParams params;
+      params.maxVisits = 1500;
+      params.maxVisitsPondering = 1500;
+      params.numThreads = numThreads;
+      params.visitCapContempt = 20;
+      Search* search = new Search(params, nnEval, &logger, "visitCapContemptSeed" + Global::intToString(numThreads));
+      Player nextPla = P_BLACK;
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
+      search->setPosition(nextPla,board,hist);
+
+      //Visits of the chosen root child just before the move was made.
+      int64_t chosenChildVisits = 0;
+      auto playChosenMove = [&](Player pla) {
+        Loc loc = search->getChosenMoveLoc();
+        testAssert(loc != Board::NULL_LOC);
+        const SearchNode* child = search->getChildForMove(search->getRootNode(), loc);
+        testAssert(child != NULL);
+        chosenChildVisits = child->stats.visits.load(std::memory_order_acquire);
+        testAssert(chosenChildVisits >= 2);
+        testAssert(search->makeMove(loc,pla));
+      };
+      //A kept tree starts with the chosen child's visits, so needs that many fewer playouts, up to one per thread.
+      auto treeWasKept = [&]() {
+        return search->lastSearchNumPlayouts <= params.maxVisits - chosenChildVisits + numThreads - 1;
+      };
+      auto treeWasCleared = [&]() {
+        return search->lastSearchNumPlayouts >= params.maxVisits;
+      };
+
+      int numNodesWellPastCap = 0;
+
+      //Search for black, so white is capped.
+      search->runWholeSearch(P_BLACK);
+      numNodesWellPastCap += checkTree(search, P_WHITE, 20, numThreads);
+
+      //Ponder on white's turn. The search is still for black, so white stays capped.
+      playChosenMove(P_BLACK);
+      search->runWholeSearch(P_WHITE,true);
+      cout << "Tree kept when pondering with the capped player to move: " << treeWasKept() << endl;
+      numNodesWellPastCap += checkTree(search, P_WHITE, 20, numThreads);
+
+      //Back to searching for black, same caps.
+      playChosenMove(P_WHITE);
+      search->runWholeSearch(P_BLACK);
+      cout << "Tree kept when searching for the uncapped player again: " << treeWasKept() << endl;
+      numNodesWellPastCap += checkTree(search, P_WHITE, 20, numThreads);
+
+      //Explicitly cap black instead.
+      params.visitCapContemptPla = P_BLACK;
+      search->setParamsNoClearing(params);
+      playChosenMove(P_BLACK);
+      search->runWholeSearch(P_WHITE);
+      cout << "Tree cleared when the capped player changes: " << treeWasCleared() << endl;
+      numNodesWellPastCap += checkTree(search, P_BLACK, 20, numThreads);
+
+      //Searching for black keeps black capped when set explicitly.
+      playChosenMove(P_WHITE);
+      search->runWholeSearch(P_BLACK);
+      cout << "Tree kept when searching for the capped player with visitCapContemptPla set: " << treeWasKept() << endl;
+      numNodesWellPastCap += checkTree(search, P_BLACK, 20, numThreads);
+
+      //Changing the cap clears the tree.
+      params.visitCapContempt = 40;
+      search->setParamsNoClearing(params);
+      playChosenMove(P_BLACK);
+      search->runWholeSearch(P_WHITE);
+      cout << "Tree cleared when the cap changes: " << treeWasCleared() << endl;
+      numNodesWellPastCap += checkTree(search, P_BLACK, 40, numThreads);
+
+      //Disabling the cap clears the tree.
+      params.visitCapContempt = 0;
+      search->setParamsNoClearing(params);
+      playChosenMove(P_WHITE);
+      search->runWholeSearch(P_BLACK);
+      cout << "Tree cleared when the cap is disabled: " << treeWasCleared() << endl;
+      checkTree(search, C_EMPTY, 0, numThreads);
+
+      //Enabling it again clears the tree.
+      params.visitCapContempt = 20;
+      params.visitCapContemptPla = C_EMPTY;
+      search->setParamsNoClearing(params);
+      playChosenMove(P_BLACK);
+      search->runWholeSearch(P_WHITE);
+      cout << "Tree cleared when the cap is enabled: " << treeWasCleared() << endl;
+      numNodesWellPastCap += checkTree(search, P_BLACK, 20, numThreads);
+
+      cout << "Found enough capped nodes well past the cap to exercise the snapshot matching: " << (numNodesWellPastCap >= 10) << endl;
+
+      //A cap of 1 is rejected.
+      params.visitCapContempt = 1;
+      search->setParamsNoClearing(params);
+      bool threw = false;
+      try {
+        search->runWholeSearch(P_WHITE);
+      }
+      catch(const StringError& e) {
+        (void)e;
+        threw = true;
+      }
+      cout << "Cap of 1 is rejected: " << threw << endl;
+
+      delete search;
+    };
+    runTest(1);
+    runTest(4);
+
+    delete nnEval;
+    cout << endl;
+  }
+
+  {
+    cout << "===================================================================" << endl;
     cout << "Board size distribution" << endl;
     cout << "===================================================================" << endl;
     ConfigParser cfg;
@@ -2539,7 +2832,7 @@ x.x.x
       BoardHistory hist;
       ExtraBlackAndKomi extraBlackAndKomi;
       OtherGameProperties otherGameProps;
-      gameInit.createGame(board,pla,hist,extraBlackAndKomi,NULL,PlaySettings(),otherGameProps,NULL);
+      gameInit.createGame(board,pla,hist,extraBlackAndKomi,NULL,PlaySettings(),otherGameProps,NULL,BoardHistoryModes());
       boardSizeDistribution[std::make_pair(board.x_size,board.y_size)] += 1;
     }
     for(int x = 2; x<=8; x += 2) {

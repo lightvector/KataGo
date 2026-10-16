@@ -413,7 +413,7 @@ x.xxo....
         Loc symLocComb = SymmetryHelpers::getSymLoc(loc,board,symmetryComposed);
         Loc symLocCombManual = SymmetryHelpers::getSymLoc(SymmetryHelpers::getSymLoc(loc,board,symmetry1),SymmetryHelpers::getSymBoard(board,symmetry1),symmetry2);
         out << "Symmetry " << symmetry1 << " + " << symmetry2 << " = " << symmetryComposed << endl;
-        testAssert(symBoardCombManual.isEqualForTesting(symBoardComb,true,true));
+        testAssert(symBoardCombManual.isEqualForTesting(symBoardComb));
         testAssert(symLocComb == symLocCombManual);
       }
     }
@@ -588,7 +588,7 @@ x.xxo....
       out << "SYMMETRY " << symmetry << endl;
       out << boardA << endl;
       out << boardB << endl;
-      testAssert(boardA.isEqualForTesting(boardB,true,true));
+      testAssert(boardA.isEqualForTesting(boardB));
     }
     string expected = R"%%(
 SYMMETRY 0
@@ -819,7 +819,7 @@ void Tests::runBoardSymmetryTests() {
   };
 
   auto computeAndPrintMarkedSymDupArea = [&out,&printMarkedSymDupArea](const Board& board, Player pla, const std::vector<int>* onlySymmetries) {
-    BoardHistory hist(board,pla,Rules::getTrompTaylorish(),0);
+    BoardHistory hist(board,pla,Rules::getTrompTaylorish(),0,BoardHistoryModes(false,false));
     bool isSymDupLoc[Board::MAX_ARR_SIZE];
     vector<int> validSymmetries;
     vector<int> avoidMoves;

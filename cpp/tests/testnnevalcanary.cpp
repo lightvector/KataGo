@@ -12,16 +12,45 @@
 using json = nlohmann::json;
 
 void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
+  // Be lenient on smaller models or special runs
+  double policyLenience = 0;
+  double winrateLenience = 0;
+  double leadLenience = 0;
+  double scoreLenience = 0;
+
+  const string& internalModelName = nnEval->getInternalModelName();
+  if(print) {
+    cout << "nnEval->getTrunkSpatialConvDepth() " << nnEval->getTrunkSpatialConvDepth() << endl;
+    cout << "internalModelName " << internalModelName << endl;
+  }
+
+  if(nnEval->getTrunkSpatialConvDepth() <= 21) {
+    policyLenience = 0.05;
+    winrateLenience = 0.12;
+    leadLenience = 2.0;
+    scoreLenience = 3.0;
+  }
+  else if(nnEval->getTrunkSpatialConvDepth() <= 31 ||
+          Global::isPrefix(internalModelName,"rect15") ||
+          Global::isPrefix(internalModelName,"special")
+  ) {
+    policyLenience = 0.15;
+    winrateLenience = 0.05;
+    leadLenience = 1.0;
+    scoreLenience = 1.5;
+  }
+
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[pd];W[pp];B[dd];W[dp];B[qn];W[nq];B[cq];W[dq];B[cp];W[do];B[bn];W[cc];B[cd];W[dc];B[ec];W[eb];B[fb];W[fc];B[ed];W[gb];B[db];W[fa];B[cb];W[qo];B[pn];W[nc];B[qj];W[qc];B[qd];W[pc];B[od];W[nd];B[ne];W[me];B[mf];W[nf])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 18;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -37,24 +66,27 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     }
 
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("E16",board),board)] >= 0.95);
-    testAssert(buf.result->whiteWinProb > 0.30);
-    testAssert(buf.result->whiteWinProb < 0.70);
-    testAssert(buf.result->whiteLead > -2.5);
-    testAssert(buf.result->whiteLead < 2.5);
-
-    delete sgf;
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Pass",board),board)] <= 0.005);
+    testAssert(buf.result->whiteWinProb > 0.30 - winrateLenience);
+    testAssert(buf.result->whiteWinProb < 0.70 + winrateLenience);
+    testAssert(buf.result->whiteNoResultProb < 0.03);
+    testAssert(buf.result->whiteLead > -2.5 - leadLenience);
+    testAssert(buf.result->whiteLead < 2.5 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
   }
 
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[pd];W[pp];B[dd];W[dp];B[qn];W[nq];B[cq];W[dq];B[cp];W[do];B[bn];W[cc];B[cd];W[dc];B[ec];W[eb];B[fb];W[fc];B[ed];W[gb];B[db];W[fa];B[cb];W[qo];B[pn];W[nc];B[qj];W[qc];B[qd];W[pc];B[od];W[nd];B[ne];W[me];B[mf];W[nf])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 36;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -69,24 +101,27 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
       buf.result->debugPrint(cout,board);
     }
 
-    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("P15",board),board)] >= 0.80);
-    testAssert(buf.result->whiteWinProb > 0.30);
-    testAssert(buf.result->whiteWinProb < 0.70);
-    testAssert(buf.result->whiteLead > -2.5);
-    testAssert(buf.result->whiteLead < 2.5);
-
-    delete sgf;
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("P15",board),board)] >= 0.85 - policyLenience);
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Pass",board),board)] <= 0.005);
+    testAssert(buf.result->whiteWinProb > 0.30 - winrateLenience);
+    testAssert(buf.result->whiteWinProb < 0.70 + winrateLenience);
+    testAssert(buf.result->whiteNoResultProb < 0.03);
+    testAssert(buf.result->whiteLead > -2.5 - leadLenience);
+    testAssert(buf.result->whiteLead < 2.5 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
   }
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[qd];W[dd];B[pp];W[dp];B[cf];W[fc];B[nd];W[nq];B[cq];W[dq];B[cp];W[cn];B[co];W[do];B[bn];W[cm];B[bm];W[cl];B[qn];W[pq];B[qq];W[qr];B[oq])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -102,24 +137,27 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
     }
 
     testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Q2",board),board)] >= 0.95);
-    testAssert(buf.result->whiteWinProb > 0.30);
-    testAssert(buf.result->whiteWinProb < 0.70);
-    testAssert(buf.result->whiteLead > -2.5);
-    testAssert(buf.result->whiteLead < 2.5);
-
-    delete sgf;
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("Pass",board),board)] <= 0.005);
+    testAssert(buf.result->whiteWinProb > 0.30 - winrateLenience);
+    testAssert(buf.result->whiteWinProb < 0.70 + winrateLenience);
+    testAssert(buf.result->whiteNoResultProb < 0.03);
+    testAssert(buf.result->whiteLead > -2.5 - leadLenience);
+    testAssert(buf.result->whiteLead < 2.5 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
   }
 
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[qd];W[dd];B[pp];W[dp];B[cf];W[fc];B[nd];W[nq];B[cq];W[dq];B[cp];W[cn];B[co];W[do];B[bn];W[cm];B[bm];W[cl];B[qn];W[pq];B[qq];W[qr];B[oq])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
     hist.setKomi(-7);
 
     MiscNNInputParams nnInputParams;
@@ -135,22 +173,24 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
       buf.result->debugPrint(cout,board);
     }
 
-    testAssert(buf.result->whiteWinProb < 0.1);
-    testAssert(buf.result->whiteLead < -5.0);
-
-    delete sgf;
+    testAssert(buf.result->whiteWinProb < 0.1 + winrateLenience);
+    testAssert(buf.result->whiteLead < -9.0 + leadLenience);
+    testAssert(buf.result->whiteLead > -19.0 - leadLenience);
+    testAssert(buf.result->whiteScoreMean < -8.0 + scoreLenience);
+    testAssert(buf.result->whiteScoreMean > -22.0 - scoreLenience);
   }
 
   {
     string sgfStr = "(;GM[1]FF[4]CA[UTF-8]AP[CGoban:3]ST[2]RU[Chinese]SZ[19]KM[7]PW[White]PB[Black];B[qd];W[dd];B[pp];W[dp];B[cf];W[fc];B[nd];W[nq];B[cq];W[dq];B[cp];W[cn];B[co];W[do];B[bn];W[cm];B[bm];W[cl];B[qn];W[pq];B[qq];W[qr];B[oq])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFail();
     int turnIdx = 23;
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
     hist.setKomi(21);
 
     MiscNNInputParams nnInputParams;
@@ -166,10 +206,49 @@ void Tests::runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print) {
       buf.result->debugPrint(cout,board);
     }
 
-    testAssert(buf.result->whiteWinProb > 0.9);
-    testAssert(buf.result->whiteLead > 5.0);
+    testAssert(buf.result->whiteWinProb > 0.9 - winrateLenience);
+    testAssert(buf.result->whiteLead > 9.0 - leadLenience);
+    testAssert(buf.result->whiteLead < 19.0 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > 8.0 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 22.0 + scoreLenience);
+  }
 
-    delete sgf;
+  // 16x11 rectangular board. Skip when the evaluator requires the exact (max) NN length, since it is
+  // locked to the configured max board size and would throw on a smaller board. This lets the canary
+  // be run under requireMaxBoardSize=true to exercise exact-NNLen-only behavior on the 19x19 positions.
+  if(!nnEval->getRequireExactNNLen()) {
+    string sgfStr = "(;FF[4]GM[1]CA[UTF-8]RU[Japanese]KM[6]SZ[16:11];B[md];W[nh];B[dh];W[cd];B[lh];W[li];B[ki])";
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
+
+    Board board;
+    Player nextPla;
+    BoardHistory hist;
+    Rules initialRules = sgf->getRulesOrFail();
+    int turnIdx = 7;
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx, BoardHistoryModes(nnEval->modelPreferPassAliveUnderSuicideRules(), nnEval->modelPreferExcludeTerritoryAdjacentToAtari()));
+
+    MiscNNInputParams nnInputParams;
+    NNResultBuf buf;
+    bool skipCache = true;
+    bool includeOwnerMap = true;
+    nnInputParams.symmetry = symmetry;
+    nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+
+    if(print) {
+      cout << board << endl;
+      cout << endl;
+      buf.result->debugPrint(cout,board);
+    }
+
+    testAssert(buf.result->policyProbs[buf.result->getPos(Location::ofString("N3",board),board)] >= 0.80 - policyLenience);
+    testAssert(buf.result->whiteWinProb > 0.20 - winrateLenience);
+    testAssert(buf.result->whiteWinProb < 0.80 + winrateLenience);
+    testAssert(buf.result->whiteNoResultProb < 0.06);
+    testAssert(buf.result->whiteLead > -2.5 - leadLenience);
+    testAssert(buf.result->whiteLead < 2.5 + leadLenience);
+    testAssert(buf.result->whiteScoreMean > -3.5 - scoreLenience);
+    testAssert(buf.result->whiteScoreMean < 3.5 + scoreLenience);
   }
 }
 
@@ -233,21 +312,21 @@ struct GpuErrorStats {
     }
   }
 
-  double getAverage(std::vector<double>& vec) {
+  double getAverage(const std::vector<double>& vec) {
     double sum = 0;
     for(const double& x: vec)
       sum += x;
     return sum / vec.size();
   }
 
-  double get90Percentile(std::vector<double>& sortedVec) {
+  double get90Percentile(const std::vector<double>& sortedVec) {
     return sortedVec[(sortedVec.size()-1) * 9 / 10];
   }
 
-  double get99Percentile(std::vector<double>& sortedVec) {
+  double get99Percentile(const std::vector<double>& sortedVec) {
     return sortedVec[(sortedVec.size()-1) * 99 / 100];
   }
-  double getMaxPercentile(std::vector<double>& sortedVec) {
+  double getMaxPercentile(const std::vector<double>& sortedVec) {
     return sortedVec[sortedVec.size()-1];
   }
 
@@ -290,6 +369,56 @@ struct GpuErrorStats {
       100*getMaxPercentile(shorttermWinlossErrorError) <= wr*1.8 &&
       getMaxPercentile(shorttermScoreErrorError) <= score*0.75 &&
       100*getMaxPercentile(ownershipError) <= wr*4.0 // more lenient since ownership maxes over more stuff
+    );
+  }
+
+  // The largest ratio of measured error to its allowed limit across all metrics, for the same
+  // limits and scalings as checkStats99 (useMax=false) or checkStatsMax (useMax=true).
+  // A ratio > 1 means that metric failed its check; the largest ratio is the "closest" margin.
+  double worstRatioVsLimits(bool useMax, double wr, double score, double tpd, double pkld, std::string& whichMetricOut) {
+    sortErrors();
+    auto pct = [&](const std::vector<double>& v) { return useMax ? getMaxPercentile(v) : get99Percentile(v); };
+    const double ownershipMult = useMax ? 4.0 : 1.75;
+    const std::pair<const char*, double> ratios[] = {
+      {"winrateError", 100*pct(winrateError) / wr},
+      {"leadError", pct(leadError) / score},
+      {"scoreMeanError", pct(scoreMeanError) / score},
+      {"scoreStdevError", pct(scoreStdevError) / (score*0.6)},
+      {"topPolicyDelta", 100*pct(topPolicyDiff) / tpd},
+      {"policyKLDiv", pct(policyKLDiv) / pkld},
+      {"stWLErrorError", 100*pct(shorttermWinlossErrorError) / (wr*1.8)},
+      {"stScErrorError", pct(shorttermScoreErrorError) / (score*0.75)},
+      {"ownershipError", 100*pct(ownershipError) / (wr*ownershipMult)},
+    };
+    double worst = -1;
+    whichMetricOut = "";
+    for(const auto& r: ratios) {
+      if(r.second > worst) {
+        worst = r.second;
+        whichMetricOut = r.first;
+      }
+    }
+    return worst;
+  }
+
+  void reportClosestMargin(
+    const string& name, Logger& logger,
+    double wr99, double score99, double tpd99, double pkld99,
+    double wrMax, double scoreMax, double tpdMax, double pkldMax
+  ) {
+    auto rpad = [](const string& s, int n) {
+      if(s.size() < n)
+        return s + std::string(n - s.size(),' ');
+      return s;
+    };
+    std::string which99, whichMax;
+    double r99 = worstRatioVsLimits(false, wr99, score99, tpd99, pkld99, which99);
+    double rMax = worstRatioVsLimits(true, wrMax, scoreMax, tpdMax, pkldMax, whichMax);
+    logger.write(
+      rpad(name + " closest margin: ", 60) +
+      Global::strprintf(
+        " %.3gx of limit (%s 99%%), %.3gx of limit (%s max)",
+        r99, which99.c_str(), rMax, whichMax.c_str())
     );
   }
 
@@ -445,16 +574,19 @@ bool Tests::runBackendErrorTest(
   NNEvaluator* nnEval,
   NNEvaluator* nnEval32,
   Logger& logger,
-  int boardSize,
+  const string& boardSizeDataset,
   int maxBatchSizeCap,
   bool verbose,
   bool quickTest,
+  double policyOptimismForTest,
+  double pdaForTest,
+  double nnPolicyTemperatureForTest,
   bool& fp32BatchSuccessBuf,
   const string& referenceFileName
 ) {
 
-  int maxBatchSize = nnEval->getCurrentBatchSize();
-  if(maxBatchSize != nnEval32->getCurrentBatchSize())
+  int maxBatchSize = nnEval->getMaxBatchSize();
+  if(maxBatchSize != nnEval32->getMaxBatchSize())
     throw StringError("Inconsistent max batch size for fp16 test");
   if(maxBatchSizeCap > 0)
     maxBatchSize = std::min(maxBatchSize,maxBatchSizeCap);
@@ -465,7 +597,7 @@ bool Tests::runBackendErrorTest(
   auto loadHists = [&](const std::vector<string>& sgfStrs) {
     std::vector<BoardHistory> hists;
     for(const string& sgfStr: sgfStrs) {
-      Sgf* sgf = Sgf::parse(sgfStr);
+      std::unique_ptr<Sgf> sgf = Sgf::parse(sgfStr);
       std::set<Hash128> uniqueHashes;
       const bool hashComments = false;
       const bool hashParent = false;
@@ -478,30 +610,60 @@ bool Tests::runBackendErrorTest(
         flipIfPassOrWFirst,
         allowGameOver,
         NULL,
-        [&](Sgf::PositionSample& sample, const BoardHistory& hist, const string& comments) {
+        [&](const Sgf::PositionSample& sample, const BoardHistory& hist, const string& comments) {
           (void)sample;
           (void)comments;
           if(!quickTest || filterRand.nextBool(0.3))
             hists.push_back(hist);
         }
       );
-      delete sgf;
     }
     return hists;
   };
 
   std::vector<BoardHistory> hists;
-  if(boardSize == 9)
+  if(boardSizeDataset == "9")
     hists = loadHists(TestCommon::getMultiGameSize9Data());
-  if(boardSize == 13)
+  else if(boardSizeDataset == "13")
     hists = loadHists(TestCommon::getMultiGameSize13Data());
-  if(boardSize == 19)
+  else if(boardSizeDataset == "19")
     hists = loadHists(TestCommon::getMultiGameSize19Data());
+  else if(boardSizeDataset == "10x14")
+    hists = loadHists(TestCommon::getMultiGameSize10x14Data());
+  else if(boardSizeDataset == "rectangle")
+    hists = loadHists(TestCommon::getMultiGameRectangleData());
+  else
+    throw StringError("Unknown dataset to test gpu error on: " + boardSizeDataset);
+
+  // DEBUG (kept commented out): KATAGO_TEST_ONLY_POS=<index> restricts the test to a single position and
+  // forces batch size 1 (no batched runs), so per-layer activation dumps (see the TRT backend's
+  // maybeDumpDebugActivations) come from exactly one fp32 and one fp16 eval. Used with KATAGO_TEST_PER_POS
+  // below to localize the trunk-tip RMSNorm FP16 overflow. Uncomment to re-enable (needs <cstdlib>).
+  // {
+  //   const char* onlyPosStr = std::getenv("KATAGO_TEST_ONLY_POS");
+  //   if(onlyPosStr != nullptr) {
+  //     size_t idx = (size_t)std::atoi(onlyPosStr);
+  //     if(idx >= hists.size())
+  //       throw StringError("KATAGO_TEST_ONLY_POS out of range");
+  //     BoardHistory only = hists[idx];
+  //     hists.clear();
+  //     hists.push_back(only);
+  //     maxBatchSize = 1;
+  //     logger.write("DEBUG: restricted to single position index " + Global::uint64ToString((uint64_t)idx));
+  //   }
+  // }
 
   auto evalBoard = [&](NNEvaluator* nnE, const BoardHistory& hist) {
-    Board board = hist.getRecentBoard(0);
+    const Board& board = hist.getRecentBoard(0);
     MiscNNInputParams nnInputParams;
     nnInputParams.symmetry = (int)(BoardHistory::getSituationRulesAndKoHash(board,hist,hist.presumedNextMovePla,0.5).hash0 & 7);
+    nnInputParams.policyOptimism = policyOptimismForTest;
+    nnInputParams.playoutDoublingAdvantage = pdaForTest;
+    nnInputParams.nnPolicyTemperature = (float)nnPolicyTemperatureForTest;
+    //Featurize per the model's own declared BoardHistoryModes preferences.
+    nnInputParams.passAliveSuicideRulesOverride = nnE->modelPreferPassAliveUnderSuicideRules() ? 1 : 0;
+    nnInputParams.excludeTerritoryAdjAtariOverride = nnE->modelPreferExcludeTerritoryAdjacentToAtari() ? 1 : 0;
+
     NNResultBuf buf;
     bool skipCache = true;
     bool includeOwnerMap = true;
@@ -530,6 +692,7 @@ bool Tests::runBackendErrorTest(
 
   if(verbose)
     logger.write("Running evaluations in fp32");
+  fp32.reserve(hists.size());
   for(const BoardHistory& hist: hists)
     fp32.push_back(evalBoard(nnEval32,hist));
 
@@ -548,8 +711,9 @@ bool Tests::runBackendErrorTest(
     std::vector<uint32_t> permutation(maxBatchSize);
     rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
     vector<std::thread> threads;
+    threads.reserve(maxBatchSize);
     for(int i = 0; i<maxBatchSize; i++)
-      threads.push_back(std::thread(runThread,permutation[i]));
+      threads.emplace_back(runThread,permutation[i]);
     for(int i = 0; i<maxBatchSize; i++)
       threads[i].join();
   }
@@ -572,8 +736,9 @@ bool Tests::runBackendErrorTest(
       std::vector<uint32_t> permutation(maxBatchSize);
       rand.fillShuffledUIntRange(maxBatchSize, permutation.data());
       vector<std::thread> threads;
+      threads.reserve(maxBatchSize);
       for(int i = 0; i<maxBatchSize; i++)
-        threads.push_back(std::thread(runThread,permutation[i]));
+        threads.emplace_back(runThread,permutation[i]);
       for(int i = 0; i<maxBatchSize; i++)
         threads[i].join();
     }
@@ -595,6 +760,16 @@ bool Tests::runBackendErrorTest(
     logger.write("Reporting the average, 90%, 99%, and max abs error between the following configurations: ");
   }
 
+  // DEBUG (kept commented out): KATAGO_TEST_PER_POS prints per-position fp16-vs-reference winrate error to
+  // find the worst position to isolate via KATAGO_TEST_ONLY_POS above. Uncomment to re-enable (needs <cmath>).
+  // if(std::getenv("KATAGO_TEST_PER_POS") != nullptr && nnEval32 != nnEval && current.size() == referenceValues.size()) {
+  //   for(size_t i = 0; i < referenceValues.size(); i++) {
+  //     double we = std::fabs((double)current[i]->whiteWinProb - (double)referenceValues[i]->whiteWinProb)
+  //               + std::fabs((double)current[i]->whiteLossProb - (double)referenceValues[i]->whiteLossProb);
+  //     logger.write("PERPOS " + Global::uint64ToString((uint64_t)i) + " winrateErr " + Global::doubleToString(we));
+  //   }
+  // }
+
   auto computeStats = [&](const string& name, const std::vector<std::shared_ptr<NNOutput>>& candidateValues, GpuErrorStats& stats) {
     for(size_t i = 0; i<referenceValues.size(); i++)
       stats.appendStats(referenceValues[i], candidateValues[i]);
@@ -608,15 +783,21 @@ bool Tests::runBackendErrorTest(
   {
     GpuErrorStats stats;
     computeStats("fp32 error vs reference", fp32, stats);
-    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.225, 0.45, 0.0006);
+    // 99% score limit is looser than max/4 would give: leadError/scoreMeanError run a touch noisier on
+    // some backends (notably TensorRT, whose "fp32" uses TF32/fused tensor-core GEMMs) on rectangle boards.
+    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.34, 0.45, 0.0006);
     fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStatsMax(1.35, 0.900, 1.35, 0.0012);
+    if(verbose)
+      stats.reportClosestMargin("fp32 error vs reference", logger, 0.45, 0.34, 0.45, 0.0006, 1.35, 0.900, 1.35, 0.0012);
   }
 
   {
     GpuErrorStats stats;
     computeStats("batched fp32 error vs reference", fp32Batched, stats);
-    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.225, 0.45, 0.0006);
+    fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.34, 0.45, 0.0006);
     fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStatsMax(1.35, 0.900, 1.35, 0.0012);
+    if(verbose)
+      stats.reportClosestMargin("batched fp32 error vs reference", logger, 0.45, 0.34, 0.45, 0.0006, 1.35, 0.900, 1.35, 0.0012);
   }
 
   if(nnEval32 != nnEval) {
@@ -625,12 +806,16 @@ bool Tests::runBackendErrorTest(
       computeStats("current cfg error vs reference", current, stats);
       success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
       success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
+      if(verbose)
+        stats.reportClosestMargin("current cfg error vs reference", logger, 2.0, 1.00, 2.50, 0.0020, 5.0, 3.00, 6.00, 0.0040);
     }
     {
       GpuErrorStats stats;
       computeStats("batched current cfg error vs reference", currentBatched, stats);
       success = success && stats.checkStats99( 2.0, 1.00, 2.50, 0.0020);
       success = success && stats.checkStatsMax(5.0, 3.00, 6.00, 0.0040);
+      if(verbose)
+        stats.reportClosestMargin("batched current cfg error vs reference", logger, 2.0, 1.00, 2.50, 0.0020, 5.0, 3.00, 6.00, 0.0040);
     }
   }
 

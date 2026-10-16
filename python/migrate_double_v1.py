@@ -5,6 +5,8 @@ import argparse
 import math
 import torch
 
+import katago.train.load_model
+
 description = """
 Hacky script to double number of v1 channels.
 Run on a torch checkpoint.ckpt file. Replace the old one with the new one after a backup.
@@ -18,7 +20,7 @@ args = vars(parser.parse_args())
 checkpoint_path = args["checkpoint"]
 output_path = args["output"]
 
-data = torch.load(checkpoint_path,map_location="cpu")
+data = katago.train.load_model.load_checkpoint(checkpoint_path)
 
 def noisify(tensor):
     scale = 0.02 * math.sqrt(torch.mean(torch.square(tensor)).item())

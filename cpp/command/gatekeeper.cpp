@@ -12,6 +12,7 @@
 #include "../program/setup.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include <sstream>
@@ -140,7 +141,7 @@ namespace {
         }
         else {
           BoardHistory hist(data->endHist);
-          Board endBoard = hist.getRecentBoard(0);
+          const Board& endBoard = hist.getRecentBoard(0);
           //Force game end just in caseif we crossed a move limit
           if(!hist.isGameFinished)
             hist.endAndScoreGameNow(endBoard);
@@ -169,7 +170,7 @@ namespace {
         numCandidateWinPoints += (data->bIdx == 1) ? blackPoints : whitePoints;
 
         if(sgfOut != NULL) {
-          assert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
+          testAssert(data->startHist.moveHistory.size() <= data->endHist.moveHistory.size());
           WriteSgf::writeSgf(*sgfOut,data->bName,data->wName,data->endHist,data,false,true);
           (*sgfOut) << endl;
         }
@@ -178,7 +179,7 @@ namespace {
         //Terminate games if one side has won enough to guarantee the victory.
         int64_t numTotalGames = matchPairer->getNumGamesTotalToGenerate();
         int64_t numGamesRemaining = numTotalGames - numGamesTallied;
-        assert(numGamesRemaining >= 0);
+        testAssert(numGamesRemaining >= 0);
         if(numGamesRemaining > 0) {
           if(numCandidateWinPoints >= numTotalGames * requiredCandidateWinProp) {
             logger.write("Candidate has already won enough games, terminating remaning games");
@@ -407,21 +408,20 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     }
 
     const int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
-    const int defaultMaxBatchSize = -1;
     const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
 
     NNEvaluator* testNNEval = Setup::initializeNNEvaluator(
       testModelName,testModelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-      maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      maxBoardXSizeUsed,maxBoardYSizeUsed,Setup::MaxBatchSizeRequest::requireFromConfig(),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded candidate neural net " + testModelName + " from: " + testModelFile);
 
     NNEvaluator* acceptedNNEval = Setup::initializeNNEvaluator(
       acceptedModelName,acceptedModelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-      maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      maxBoardXSizeUsed,maxBoardYSizeUsed,Setup::MaxBatchSizeRequest::requireFromConfig(),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded accepted neural net " + acceptedModelName + " from: " + acceptedModelFile);
@@ -469,7 +469,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     netAndStuff->registerGameThread();
     logger.write("Game loop thread " + Global::intToString(threadIdx) + " starting game testing candidate: " + netAndStuff->modelNameCandidate);
 
-    auto shouldStopFunc = [&netAndStuff]() {
+    auto shouldStopFunc = [&netAndStuff]() noexcept {
       return shouldStop.load() || netAndStuff->terminated.load();
     };
     WaitableFlag* shouldPause = nullptr;
@@ -517,7 +517,7 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     if(shouldStop.load())
       break;
 
-    assert(netAndStuff == NULL);
+    testAssert(netAndStuff == NULL);
     netAndStuff = loadLatestNeuralNet();
 
     if(netAndStuff == NULL) {
@@ -548,8 +548,9 @@ int MainCmds::gatekeeper(const vector<string>& args) {
     std::thread newThread(dataWriteLoopProtected);
     newThread.detach();
     vector<std::thread> threads;
+    threads.reserve(numGameThreads);
     for(int i = 0; i<numGameThreads; i++) {
-      threads.push_back(std::thread(gameLoopProtected,i));
+      threads.emplace_back(gameLoopProtected,i);
     }
 
     //Wait for all game threads to stop

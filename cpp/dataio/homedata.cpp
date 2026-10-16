@@ -18,6 +18,11 @@
 #include <codecvt>
 #endif
 
+#if __MINGW32__
+// `std::wstring_convert` needs explicit including in case of MINGW
+#include <locale>
+#endif
+
 #include "../core/makedir.h"
 
 using namespace std;

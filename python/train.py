@@ -2,6 +2,7 @@
 import sys
 import os
 import argparse
+import re
 import traceback
 import random
 import math
@@ -21,21 +22,35 @@ import atexit
 from collections import defaultdict
 from typing import Dict, List
 
+import threading
+from threading import BrokenBarrierError
+
 import torch
+import torch._dynamo
+torch._dynamo.config.recompile_limit = 32
 import torch.nn
 import torch.optim
 import torch.distributed
 import torch.multiprocessing
 from torch.nn.parallel import DistributedDataParallel
 from torch.optim.swa_utils import AveragedModel
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import autocast, GradScaler
 
-import modelconfigs
-from model_pytorch import Model, ExtraOutputs, MetadataEncoder
-from metrics_pytorch import Metrics
-import load_model
-import data_processing_pytorch
-from metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
+from muon.muon import MuonWithAuxAdam, SingleDeviceMuonWithAuxAdam
+
+from katago.train import modelconfigs
+from katago.train.model_pytorch import Model, ExtraOutputs, MetadataEncoder
+from katago.train.metrics_pytorch import Metrics
+from katago.utils.training_data_generator import TrainingDataGenerator
+from katago.train import load_model
+from katago.train import data_processing_pytorch
+from katago.train import trainloop_helpers
+from katago.train.metrics_logging import accumulate_metrics, log_metrics, clear_metric_nonfinite
+
+# Whether the validation pass may use flex attention, when the model is using it for training.
+# Set to 0 on platforms where the compiled eval-mode flex-attention graph crashes, see the
+# validation step below.
+FLEX_ATTENTION_VALIDATION = trainloop_helpers.env_flag("KATAGO_FLEX_ATTENTION_VALIDATION", default=True)
 
 # HANDLE COMMAND AND ARGS -------------------------------------------------------------------
 
@@ -57,10 +72,14 @@ if __name__ == "__main__":
     )
 
     required_args.add_argument('-traindir', help='Dir to write to for recording training results', required=True)
-    required_args.add_argument('-datadir', help='Directory with a train and val subdir of npz data, output by shuffle.py', required=True)
+    required_args.add_argument('-datadir', help='Directory with a train and val subdir of npz data, output by shuffle.py', required=False)
+    required_args.add_argument('-latestdatadir', help='Use the latest subdirectory within this dir as the datadir, periodically checking for most recent', required=False)
     optional_args.add_argument('-exportdir', help='Directory to export models periodically', required=False)
     optional_args.add_argument('-exportprefix', help='Prefix to append to names of models', required=False)
     optional_args.add_argument('-initial-checkpoint', help='If no training checkpoint exists, initialize from this checkpoint', required=False)
+
+    optional_args.add_argument('-always-initial-checkpoint', help='Always use even if ckpt exists already', required=False, action='store_true')
+    optional_args.add_argument('-required-initial-checkpoint-train-steps', help='Poll until it meets this', type=int, required=False)
 
     required_args.add_argument('-pos-len', help='Spatial edge length of expected training data, e.g. 19 for 19x19 Go', type=int, required=True)
     required_args.add_argument('-batch-size', help='Per-GPU batch size to use for training', type=int, required=True)
@@ -68,6 +87,19 @@ if __name__ == "__main__":
     optional_args.add_argument('-model-kind', help='String name for what model config to use', required=False)
     optional_args.add_argument('-lr-scale', help='LR multiplier on the hardcoded schedule', type=float, required=False)
     optional_args.add_argument('-lr-scale-auto', help='LR auto scaling', required=False, action='store_true')
+    optional_args.add_argument('-lr-scale-auto2', help='LR auto scaling 2', required=False, type=float)
+    optional_args.add_argument('-lr-schedule', help="Explicit piecewise-constant LR scale schedule as (global_step_samples,lr_scale) points, e.g. '(0,12.0),(20M,9.0),(40M,6.0)'. Must start at (0,...); each point sets the LR scale from that sample count onward. Counts accept K/M/B suffixes. Mutually exclusive with -lr-scale/-lr-scale-auto/-lr-scale-auto2.", required=False, type=str)
+    optional_args.add_argument('-lr-cycle-low', help="Cyclic LR scale keyed to the export cycle: LR scale at the bottom of the cycle. Requires all four -lr-cycle-* flags and -epochs-per-export. Within each export cycle of E=epochs-per-export epochs, epoch i (0-based, the export cycle counter mod E) uses f(x)=((1-x)*sqrt(low)+x*sqrt(high))^2, where x=(i+1)/up for the first `up` epochs, x=1.0 in the middle, and x=1-(k+1)/down for the last `down` epochs (k=0..down-1), so the first epoch of the cycle runs at f(1/up) and the final epoch before export runs at `low`. Interpolating in sqrt space rather than linearly makes the ramp start lower and the ramp-down spend more epochs near `low`. Changes in steps once per epoch. Mutually exclusive with -lr-scale/-lr-scale-auto/-lr-scale-auto2/-lr-schedule.", type=float, required=False)
+    optional_args.add_argument('-lr-cycle-high', help='Cyclic LR scale: LR scale at the top of the cycle. See -lr-cycle-low', type=float, required=False)
+    optional_args.add_argument('-lr-cycle-up-epochs', help='Cyclic LR scale: number of epochs at the start of each export cycle to ramp up. See -lr-cycle-low', type=int, required=False)
+    optional_args.add_argument('-lr-cycle-down-epochs', help='Cyclic LR scale: number of epochs at the end of each export cycle to ramp down. See -lr-cycle-low', type=int, required=False)
+    optional_args.add_argument('-head-lr-factor', help='LR factor for output head weights', type=float, required=False, default=0.5)
+    optional_args.add_argument('-noreg-lr-factor', help='LR factor for noreg params (biases, norms)', type=float, required=False, default=1.0)
+    optional_args.add_argument('-muon-adam-lr-factor', help='LR factor for muon-ineligible (adam) params when using muon', type=float, required=False, default=1.0)
+    optional_args.add_argument('-input-wd-factor', help='Extra scaling factor for input weight decay', type=float, required=False, default=1.0)
+    optional_args.add_argument('-normal-wd-factor', help='Extra scaling factor for normal weight decay', type=float, required=False, default=1.0)
+    optional_args.add_argument('-normal-attn-wd-factor', help='Extra scaling factor for normal_attn weight decay', type=float, required=False, default=1.0)
+    optional_args.add_argument('-wd-floor-frac', help='Exempt from weight decay the part of each output channel of each weight matrix whose RMS is below this fraction of the tensor\'s RMS at initialization, so that unused channels never decay to exactly zero, a state Muon cannot recover from. Can be changed between runs. Requires muon.', type=float, required=False)
     optional_args.add_argument('-gnorm-clip-scale', help='Multiplier on gradient clipping threshold', type=float, required=False)
     optional_args.add_argument('-sub-epochs', help='Reload training data up to this many times per epoch', type=int, default=1, required=False)
     optional_args.add_argument('-swa-period-samples', help='How frequently to average an SWA sample, in samples', type=float, required=False)
@@ -76,8 +108,20 @@ if __name__ == "__main__":
     optional_args.add_argument('-lookahead-alpha', help='Use lookahead optimizer', type=float, default=0.5, required=False)
     optional_args.add_argument('-lookahead-print', help='Only print on lookahead syncs', required=False, action='store_true')
 
+    optional_args.add_argument('-use-adamw', help='Use adamw optimizer', required=False, action='store_true')
+    optional_args.add_argument('-use-muon', help='Use muon optimizer', required=False, action='store_true')
+    optional_args.add_argument('-use-normuon', help='Use normuon optimizer (muon with neuron-wise normalization)', required=False, action='store_true')
+    optional_args.add_argument('-use-aurora', help='Use aurora optimizer (leverage-aware muon variant)', required=False, action='store_true')
+    optional_args.add_argument('-aurora-pp-iterations', help='Number of preconditioning-polar iterations for aurora', type=int, required=False, default=2)
+    optional_args.add_argument('-aurora-pp-beta', help='Damping parameter for aurora diagonal preconditioner', type=float, required=False, default=0.5)
+    optional_args.add_argument('-ns-steps', help='Number of Newton-Schulz iterations for muon/normuon/aurora', type=int, required=False, default=5)
+    optional_args.add_argument('-use-polar-express', help='Use Polar Express iteration instead of standard NS5 for muon/normuon/aurora', required=False, action='store_true')
+
     optional_args.add_argument('-multi-gpus', help='Use multiple gpus, comma-separated device ids', required=False)
-    optional_args.add_argument('-use-fp16', help='Use fp16 training', required=False, action='store_true')
+    optional_args.add_argument('-use-fp16', help='Use fp16 AMP training (with gradient scaler)', required=False, action='store_true')
+    optional_args.add_argument('-use-bf16', help='Use bf16 AMP training (no gradient scaler). Mutually exclusive with -use-fp16', required=False, action='store_true')
+    optional_args.add_argument('-no-compile', help='Do not torch.compile', required=False, action='store_true')
+    optional_args.add_argument('-use-tf32-matmul', help='Reduce float32 precision for speed on some gpus', required=False, action='store_true')
 
     optional_args.add_argument('-epochs-per-export', help='Export model once every this many epochs', type=int, required=False)
     optional_args.add_argument('-export-prob', help='Export model with this probablity', type=float, required=False)
@@ -86,14 +130,18 @@ if __name__ == "__main__":
     optional_args.add_argument('-sleep-seconds-per-epoch', help='Sleep this long between epochs', type=int, required=False)
     optional_args.add_argument('-max-train-bucket-per-new-data', help='When data added, add this many train rows per data row to bucket', type=float, required=False)
     optional_args.add_argument('-max-train-bucket-size', help='Approx total number of train rows allowed if data stops', type=float, required=False)
+    optional_args.add_argument('-initial-train-bucket-level', help='Train rows initially in the bucket when the checkpoint has no bucket state yet, default samples-per-epoch. No effect once the checkpoint has a bucket.', type=float, required=False)
     optional_args.add_argument('-max-train-steps-since-last-reload', help='Approx total of training allowed if shuffling stops', type=float, required=False)
     optional_args.add_argument('-stop-when-train-bucket-limited', help='Terminate due to train bucket rather than waiting for more', required=False, action='store_true')
     optional_args.add_argument('-max-val-samples', help='Approx max of validation samples per epoch', type=int, required=False)
+    optional_args.add_argument('-data-prefetch-depth', help='Number of training data files to prefetch ahead of the one being consumed, to hide disk+decompress latency at file boundaries. Memory scales linearly with this (each in-flight file holds its full expanded arrays in RAM, per rank).', type=int, default=1, required=False)
     optional_args.add_argument('-randomize-val', help='Randomize order of validation files', required=False, action='store_true')
     optional_args.add_argument('-no-export', help='Do not export models', required=False, action='store_true')
+    optional_args.add_argument('-no-longterm-checkpoints', help='Do not save the periodic archival checkpoints in longterm_checkpoints/', required=False, action='store_true')
     optional_args.add_argument('-no-repeat-files', help='Track what shuffled data was used and do not repeat, even when killed and resumed', required=False, action='store_true')
     optional_args.add_argument('-quit-if-no-data', help='If no data, quit instead of waiting for data', required=False, action='store_true')
 
+    optional_args.add_argument('-no-lr-warmup', help='Disable LR warmup schedule', required=False, action='store_true')
     optional_args.add_argument('-gnorm-stats-debug', required=False, action='store_true')
 
     optional_args.add_argument('-brenorm-avg-momentum', type=float, help='Set brenorm running avg rate to this value', required=False)
@@ -101,6 +149,9 @@ if __name__ == "__main__":
     optional_args.add_argument('-brenorm-target-dmax', type=float, help='Gradually adjust brenorm dmax to this value', required=False)
     optional_args.add_argument('-brenorm-adjustment-scale', type=float, help='How many samples to adjust brenorm params all but 1/e of the way to target', required=False)
 
+    optional_args.add_argument('-attn-logit-penalty-cap', type=float, help='Penalize attention layers whose per-head logit upper bound (scale * max||q|| * max||k||, incl off-board positions) exceeds this. None = disabled.', required=False)
+    optional_args.add_argument('-attn-logit-penalty-coeff', type=float, default=1e-3, help='Loss coeff for the attention logit bound penalty (linear hinge, mean over heads, sum over layers, per sample)', required=False)
+    optional_args.add_argument('-attn-logit-penalty-batch-frac', type=float, default=1.0, help='Compute the attention logit penalty on only this fraction of each batch (cuts its cost proportionally, adds gradient variance)', required=False)
     optional_args.add_argument('-soft-policy-weight-scale', type=float, default=8.0, help='Soft policy loss coeff', required=False)
     optional_args.add_argument('-disable-optimistic-policy', help='Disable optimistic policy', required=False, action='store_true')
     optional_args.add_argument('-meta-kata-only-soft-policy', help='Mask soft policy on non-kata rows using sgfmeta', required=False, action='store_true')
@@ -115,8 +166,87 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
 
 
+def parse_sample_count(s):
+    """Parse a sample-count token like '0', '20M', '1.5B', '250K' into an int."""
+    s = s.strip()
+    mult = 1.0
+    if s and s[-1] in "kK":
+        mult = 1e3; s = s[:-1]
+    elif s and s[-1] in "mM":
+        mult = 1e6; s = s[:-1]
+    elif s and s[-1] in "bBgG":
+        mult = 1e9; s = s[:-1]
+    return int(round(float(s) * mult))
+
+def parse_lr_schedule(schedule_str):
+    """Parse an explicit LR schedule string into a sorted list of (samples, lr_scale) points.
+
+    Format: a sequence of '(samples,lr_scale)' points separated by ',' or ';', e.g.
+    '(0,12.0),(20M,9.0),(40M,6.0)'. Sample counts accept K/M/B suffixes. The schedule is
+    piecewise-constant: at global_step_samples >= a point's sample count, the LR scale becomes
+    that point's value, until the next point. Must start at samples == 0 and have strictly
+    increasing sample thresholds.
+    """
+    points = []
+    for m in re.finditer(r"\(\s*([0-9.eE+\-kKmMbBgG]+)\s*,\s*([0-9.eE+\-]+)\s*\)", schedule_str):
+        points.append((parse_sample_count(m.group(1)), float(m.group(2))))
+    if not points:
+        raise ValueError(f"Could not parse any (samples,lr_scale) points from -lr-schedule: {schedule_str!r}")
+    if points[0][0] != 0:
+        raise ValueError(f"-lr-schedule must start at samples 0, got first point at {points[0][0]}")
+    for i in range(1, len(points)):
+        if points[i][0] <= points[i-1][0]:
+            raise ValueError(f"-lr-schedule sample thresholds must be strictly increasing: {points}")
+    return points
+
 def get_longterm_checkpoints_dir(traindir):
     return os.path.join(traindir,"longterm_checkpoints")
+
+def load_npz_dir_num_rows_index(npz_dir):
+    """
+    Look for a consolidated "index.json" in npz_dir listing the row counts of the .npz files in that directory,
+    so the row count can be read without a per-file .json next to every .npz.
+    Expected format (tolerant of additional top-level or per-file fields):
+
+        {
+          "files": [
+            {"name": "data0.npz", "num_rows": 262144},
+            {"name": "data1.npz", "num_rows": 262144},
+            ...
+          ]
+        }
+
+    Returns a dict mapping npz basename -> num_rows if an index.json exists, or None if there is no index.json
+    in the directory (in which case callers fall back to the per-file <basename>.json convention).
+    """
+    indexpath = os.path.join(npz_dir, "index.json")
+    if not os.path.exists(indexpath):
+        return None
+    with open(indexpath) as f:
+        indexinfo = json.load(f)
+    num_rows_by_name = {}
+    for fileinfo in indexinfo["files"]:
+        num_rows_by_name[fileinfo["name"]] = fileinfo["num_rows"]
+    return num_rows_by_name
+
+def get_npz_num_rows(npz_path, index_cache):
+    """
+    Return the number of rows in the .npz file at npz_path.
+
+    Prefers a consolidated index.json in the same directory (see load_npz_dir_num_rows_index).
+    Falls back to a per-file <basename>.json containing {"num_rows": n} when no index.json is present.
+    index_cache is a dict mapping npz_dir -> index dict or None.
+    """
+    npz_dir = os.path.dirname(npz_path)
+    if npz_dir not in index_cache:
+        index_cache[npz_dir] = load_npz_dir_num_rows_index(npz_dir)
+    num_rows_by_name = index_cache[npz_dir]
+    if num_rows_by_name is not None:
+        return num_rows_by_name[os.path.basename(npz_path)]
+    jsonpath = os.path.splitext(npz_path)[0] + ".json"
+    with open(jsonpath) as f:
+        fileinfo = json.load(f)
+    return fileinfo["num_rows"]
 
 def make_dirs(args):
     traindir = args["traindir"]
@@ -133,21 +263,95 @@ def make_dirs(args):
 
 def multiprocessing_setup(rank: int, world_size: int):
     os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '23456'
+    if 'MASTER_PORT' not in os.environ or not os.environ['MASTER_PORT']:
+        os.environ['MASTER_PORT'] = '23456'
     logging.info("Running torch.distributed.init_process_group")
-    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size)
+    # Ranks can reach their first collective many minutes apart, for example when one rank hits a
+    # warm torch.compile cache and another does not, or when data loading is slowed by other work
+    # on the machine. The default NCCL watchdog of about ten minutes then kills the run, so allow
+    # a much longer wait. A truly hung collective is still detected, just later.
+    torch.distributed.init_process_group("nccl", rank=rank, world_size=world_size, timeout=datetime.timedelta(hours=1))
     logging.info(f"Returned from torch.distributed.init_process_group, my rank = {rank}, world_size={world_size}")
 
 def multiprocessing_cleanup():
-    torch.distributed.destroy_process_group()
+    logging.info("Multiprocessing cleanup")
+    # destroy_process_group() does an NCCL barrier internally and can block forever
+    # if a peer has already died. Run it in a daemon thread and give it a short grace period
+    # If it doesn't return, we abandon it rather than hang the interpreter.
+    if not torch.distributed.is_initialized():
+        return
+    cleanup_thread = threading.Thread(target=torch.distributed.destroy_process_group, daemon=True)
+    cleanup_thread.start()
+    cleanup_thread.join(timeout=10.0)
+    if cleanup_thread.is_alive():
+        logging.warning("destroy_process_group did not return within 10s, abandoning it")
+
+def safe_barrier(barrier, rank):
+    if barrier is not None:
+        try:
+            barrier.wait()
+        except BrokenBarrierError:
+            # A broken barrier means a peer aborted it, typically because that peer
+            # died (cleanly via safe_exit, or abnormally via the uncaught-exception
+            # handler in main). Either way this process should stop now. Hard-exit
+            # to avoid blocking in the NCCL destroy_process_group atexit handler,
+            # whose peer may already be gone.
+            logging.info(f"Barrier was broken, so we are exiting {rank=}")
+            for handler in logging.getLogger().handlers:
+                try:
+                    handler.flush()
+                except BaseException:
+                    pass
+            os._exit(0)
+
+def safe_exit(barrier, exit_code):
+    if barrier is not None:
+        logging.info("Aborting barrier for ddp processes to also exit")
+        barrier.abort()
+    logging.info(f"Exiting with code {exit_code=}")
+    sys.exit(exit_code)
 
 
 def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
+    try:
+        _main_impl(rank, world_size, args, multi_gpu_device_ids, readpipes, writepipes, barrier)
+    except SystemExit:
+        # safe_exit() and normal clean shutdown raise SystemExit. Let it propagate.
+        raise
+    except BaseException as e:
+        # An uncaught exception in one rank must not silently hang the whole job.
+        # torch.multiprocessing.spawn's parent-side traceback re-raise is unreliable
+        # here because the NCCL destroy_process_group atexit handler can block
+        # forever waiting on the (now-stuck) peer. So we: (1) log the traceback
+        # ourselves, (2) abort the barrier to wake the other rank(s), and
+        # (3) os._exit() to bypass atexit (the hanging destroy_process_group).
+        logging.error(f"Uncaught exception in rank {rank}, aborting all processes:")
+        logging.error("".join(traceback.format_exception(type(e), e, e.__traceback__)))
+        try:
+            if barrier is not None:
+                logging.error("Aborting barrier so other ddp processes also exit")
+                barrier.abort()
+        except BaseException:
+            logging.error("Failed to abort barrier:\n" + traceback.format_exc())
+        # Flush logs before the hard exit, since os._exit skips normal flushing.
+        for handler in logging.getLogger().handlers:
+            try:
+                handler.flush()
+            except BaseException:
+                pass
+        sys.stderr.flush()
+        os._exit(1)
+
+
+def _main_impl(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writepipes, barrier):
     traindir = args["traindir"]
     datadir = args["datadir"]
+    latestdatadir = args["latestdatadir"]
     exportdir = args["exportdir"]
     exportprefix = args["exportprefix"]
     initial_checkpoint = args["initial_checkpoint"]
+    always_initial_checkpoint = args["always_initial_checkpoint"]
+    required_initial_checkpoint_train_steps = args["required_initial_checkpoint_train_steps"]
 
     pos_len = args["pos_len"]
     batch_size = args["batch_size"]
@@ -155,6 +359,21 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     model_kind = args["model_kind"]
     lr_scale = args["lr_scale"]
     lr_scale_auto = args["lr_scale_auto"]
+    lr_scale_auto2 = args["lr_scale_auto2"]
+    lr_schedule = parse_lr_schedule(args["lr_schedule"]) if args["lr_schedule"] is not None else None
+    lr_cycle_low = args["lr_cycle_low"]
+    lr_cycle_high = args["lr_cycle_high"]
+    lr_cycle_up_epochs = args["lr_cycle_up_epochs"]
+    lr_cycle_down_epochs = args["lr_cycle_down_epochs"]
+    lr_cycle_args = (lr_cycle_low, lr_cycle_high, lr_cycle_up_epochs, lr_cycle_down_epochs)
+    use_lr_cycle = any(a is not None for a in lr_cycle_args)
+    head_lr_factor = args["head_lr_factor"]
+    noreg_lr_factor = args["noreg_lr_factor"]
+    muon_adam_lr_factor = args["muon_adam_lr_factor"]
+    input_wd_factor = args["input_wd_factor"]
+    normal_wd_factor = args["normal_wd_factor"]
+    normal_attn_wd_factor = args["normal_attn_wd_factor"]
+    wd_floor_frac = args["wd_floor_frac"]
     gnorm_clip_scale = args["gnorm_clip_scale"]
     sub_epochs = args["sub_epochs"]
     swa_period_samples = args["swa_period_samples"]
@@ -162,8 +381,33 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     lookahead_k = args["lookahead_k"]
     lookahead_alpha = args["lookahead_alpha"]
     lookahead_print = args["lookahead_print"]
-
+    use_adamw = args["use_adamw"]
+    use_normuon = args["use_normuon"]
+    use_aurora = args["use_aurora"]
+    aurora_pp_iterations = args["aurora_pp_iterations"]
+    aurora_pp_beta = args["aurora_pp_beta"]
+    use_muon = args["use_muon"] or use_normuon or use_aurora
+    ns_steps = args["ns_steps"]
+    use_polar_express = args["use_polar_express"]
+    if not use_muon:
+        if ns_steps != 5:
+            raise ValueError("-ns-steps can only be used with muon or normuon or aurora optimizer")
+        if use_polar_express:
+            raise ValueError("-use-polar-express can only be used with muon or normuon or aurora optimizer")
+    if wd_floor_frac is not None:
+        if not use_muon:
+            raise ValueError("-wd-floor-frac can only be used with muon or normuon or aurora optimizer")
+        if wd_floor_frac < 0.0:
+            raise ValueError("-wd-floor-frac must be nonnegative")
+    optimizer_name = "Aurora" if use_aurora else "NorMuon" if use_normuon else "Muon" if use_muon else "AdamW" if use_adamw else "SGD"
     use_fp16 = args["use_fp16"]
+    use_bf16 = args["use_bf16"]
+    if use_fp16 and use_bf16:
+        raise ValueError("-use-fp16 and -use-bf16 are mutually exclusive")
+    use_amp = use_fp16 or use_bf16
+    amp_dtype = torch.bfloat16 if use_bf16 else torch.float16
+    no_compile = args["no_compile"]
+    use_tf32_matmul = args["use_tf32_matmul"]
 
     epochs_per_export = args["epochs_per_export"]
     export_prob = args["export_prob"]
@@ -172,21 +416,28 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     sleep_seconds_per_epoch = args["sleep_seconds_per_epoch"]
     max_train_bucket_per_new_data = args["max_train_bucket_per_new_data"]
     max_train_bucket_size = args["max_train_bucket_size"]
+    initial_train_bucket_level = args["initial_train_bucket_level"]
     max_train_steps_since_last_reload = args["max_train_steps_since_last_reload"]
     stop_when_train_bucket_limited = args["stop_when_train_bucket_limited"]
     max_val_samples = args["max_val_samples"]
     randomize_val = args["randomize_val"]
+    data_prefetch_depth = args["data_prefetch_depth"]
     no_export = args["no_export"]
+    no_longterm_checkpoints = args["no_longterm_checkpoints"]
     no_repeat_files = args["no_repeat_files"]
     quit_if_no_data = args["quit_if_no_data"]
 
     gnorm_stats_debug = args["gnorm_stats_debug"]
+    no_lr_warmup = args["no_lr_warmup"]
 
     brenorm_target_rmax = args["brenorm_target_rmax"]
     brenorm_target_dmax = args["brenorm_target_dmax"]
     brenorm_avg_momentum = args["brenorm_avg_momentum"]
     brenorm_adjustment_scale = args["brenorm_adjustment_scale"]
 
+    attn_logit_penalty_cap = args["attn_logit_penalty_cap"]
+    attn_logit_penalty_coeff = args["attn_logit_penalty_coeff"]
+    attn_logit_penalty_batch_frac = args["attn_logit_penalty_batch_frac"]
     soft_policy_weight_scale = args["soft_policy_weight_scale"]
     disable_optimistic_policy = args["disable_optimistic_policy"]
     meta_kata_only_soft_policy = args["meta_kata_only_soft_policy"]
@@ -200,8 +451,23 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     if lr_scale is None:
         lr_scale = 1.0
-    if lr_scale_auto:
+    if lr_scale_auto or lr_scale_auto2 is not None:
         assert lr_scale == 1.0, "Cannot specify both lr_scale and lr_scale_auto"
+    if lr_schedule is not None:
+        assert lr_scale == 1.0, "Cannot specify both -lr-scale and -lr-schedule"
+        assert not lr_scale_auto and lr_scale_auto2 is None, "Cannot specify -lr-schedule together with -lr-scale-auto/-lr-scale-auto2"
+        logging.info("Using explicit -lr-schedule: " + ", ".join(f"(samples>={s}: scale {v})" for s, v in lr_schedule))
+    if use_lr_cycle:
+        assert all(a is not None for a in lr_cycle_args), "Must specify all of -lr-cycle-low, -lr-cycle-high, -lr-cycle-up-epochs, -lr-cycle-down-epochs together"
+        assert lr_scale == 1.0, "Cannot specify both -lr-scale and -lr-cycle-*"
+        assert not lr_scale_auto and lr_scale_auto2 is None and lr_schedule is None, "Cannot specify -lr-cycle-* together with -lr-scale-auto/-lr-scale-auto2/-lr-schedule"
+        assert epochs_per_export is not None, "-lr-cycle-* requires -epochs-per-export"
+        assert lr_cycle_low >= 0.0 and lr_cycle_high >= 0.0
+        assert lr_cycle_up_epochs >= 0 and lr_cycle_down_epochs >= 0
+        assert lr_cycle_up_epochs + lr_cycle_down_epochs <= epochs_per_export, "-lr-cycle-up-epochs + -lr-cycle-down-epochs must be <= -epochs-per-export"
+
+    assert not (not datadir and not latestdatadir), "Must specify one of -datadir and -latestdatadir"
+    assert not (datadir and latestdatadir), "Must specify only one of -datadir and -latestdatadir"
 
     if samples_per_epoch is None:
         samples_per_epoch = 1000000
@@ -209,6 +475,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         max_train_bucket_size = 1.0e30
     if epochs_per_export is None:
         epochs_per_export = 1
+    assert epochs_per_export >= 1, "epochs_per_export must be at least 1"
     if swa_period_samples is None:
         swa_period_samples = max(1, samples_per_epoch // 2)
     if swa_scale is None:
@@ -254,11 +521,15 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         atexit.register(multiprocessing_cleanup)
         assert torch.cuda.is_available()
 
-    if True or torch.cuda.is_available():
+    if torch.cuda.is_available():
         my_gpu_id = multi_gpu_device_ids[rank]
         torch.cuda.set_device(my_gpu_id)
         logging.info("Using GPU device: " + torch.cuda.get_device_name())
         device = torch.device("cuda", my_gpu_id)
+    elif torch.backends.mps.is_available(): # Check for Apple Metal Performance Shaders
+        my_gpu_id = multi_gpu_device_ids[rank]
+        logging.info("Using MPS device")
+        device = torch.device("mps", my_gpu_id)
     else:
         logging.warning("WARNING: No GPU, using CPU")
         device = torch.device("cpu")
@@ -267,25 +538,103 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"Seeding torch with {seed}")
     torch.manual_seed(seed)
 
-    # LOAD MODEL ---------------------------------------------------------------------
+    # LR SCHEDULES ---------------------------------------------------------------------
 
     def lr_scale_auto_factor(train_state):
-        if not lr_scale_auto:
+        if lr_scale_auto:
+            if train_state["global_step_samples"] < 550000000:
+                return 8.0
+            if train_state["global_step_samples"] < 1400000000:
+                return 6.0
+            if train_state["global_step_samples"] < 2500000000:
+                return 4.0
+            if train_state["global_step_samples"] < 3400000000:
+                return 3.0
+            if train_state["global_step_samples"] < 4200000000:
+                return 2.0
+            if train_state["global_step_samples"] < 4900000000:
+                return 1.5
+            if train_state["global_step_samples"] < 5500000000:
+                return 1.0
+            if train_state["global_step_samples"] < 6400000000:
+                return 0.7
+            return 0.5
+        elif lr_scale_auto2 is not None:
+            if train_state["global_step_samples"] < 20000000:
+                return 12.0 * lr_scale_auto2
+            if train_state["global_step_samples"] < 40000000:
+                return 9.0 * lr_scale_auto2
+            if train_state["global_step_samples"] < 70000000:
+                return 6.0 * lr_scale_auto2
+            if train_state["global_step_samples"] < 100000000:
+                return 4.0 * lr_scale_auto2
+            if train_state["global_step_samples"] < 140000000:
+                return 3.0 * lr_scale_auto2
+            if train_state["global_step_samples"] < 180000000:
+                return 2.0 * lr_scale_auto2
+            if train_state["global_step_samples"] < 220000000:
+                return 1.5 * lr_scale_auto2
+            if train_state["global_step_samples"] < 260000000:
+                return 1.0 * lr_scale_auto2
+            if train_state["global_step_samples"] < 300000000:
+                return 0.7 * lr_scale_auto2
+            if train_state["global_step_samples"] < 350000000:
+                return 0.5 * lr_scale_auto2
+            if train_state["global_step_samples"] < 400000000:
+                return 0.35 * lr_scale_auto2
+            if train_state["global_step_samples"] < 450000000:
+                return 0.25 * lr_scale_auto2
+            if train_state["global_step_samples"] < 500000000:
+                return 0.18 * lr_scale_auto2
+            if train_state["global_step_samples"] < 550000000:
+                return 0.12 * lr_scale_auto2
+            if train_state["global_step_samples"] < 600000000:
+                return 0.08 * lr_scale_auto2
+            return 0.05 * lr_scale_auto2
+        elif use_lr_cycle:
+            # Use .get because this can be called during fresh-model init, before train_state is fully populated.
+            return lr_cycle_factor(train_state.get("export_cycle_counter", 0) % epochs_per_export)
+        elif lr_schedule is not None:
+            # Piecewise-constant: use the value of the last point whose threshold <= current samples.
+            samples = train_state["global_step_samples"]
+            scale = lr_schedule[0][1]
+            for (thresh, val) in lr_schedule:
+                if samples >= thresh:
+                    scale = val
+                else:
+                    break
+            return scale
+        else:
             return 1.0
 
-        if train_state["global_step_samples"] < 200_000_000:
-            return 8.00
-        if train_state["global_step_samples"] < 400_000_000:
-            return 4.00
-        if train_state["global_step_samples"] < 500_000_000:
-            return 2.00
-        if train_state["global_step_samples"] < 550_000_000:
-            return 1.00
-        if train_state["global_step_samples"] < 600_000_000:
-            return 0.50
-        if train_state["global_step_samples"] < 650_000_000:
-            return 0.25
-        return 0.25
+    def lr_cycle_factor(epoch_in_cycle):
+        # See the help text of -lr-cycle-low for the schedule definition. Callers pass the export
+        # cycle counter mod epochs_per_export, so the clamp is only a safety net.
+        i = max(0, min(epoch_in_cycle, epochs_per_export - 1))
+        if i < lr_cycle_up_epochs:
+            x = (i + 1) / lr_cycle_up_epochs
+        elif i >= epochs_per_export - lr_cycle_down_epochs:
+            k = i - (epochs_per_export - lr_cycle_down_epochs)
+            x = 1.0 - (k + 1) / lr_cycle_down_epochs
+        else:
+            x = 1.0
+        return ((1.0 - x) * math.sqrt(lr_cycle_low) + x * math.sqrt(lr_cycle_high)) ** 2.0
+
+    if use_lr_cycle:
+        # A run meant to hold at lr_cycle_high indefinitely can use a huge -epochs-per-export so
+        # that the cycle never wraps. Cap how many epochs of the table get logged in that case.
+        num_cycle_epochs_to_log = min(epochs_per_export, 100)
+        logging.info(
+            f"Using cyclic LR scale keyed to export cycle: low {lr_cycle_low} high {lr_cycle_high} "
+            f"up {lr_cycle_up_epochs} epochs, down {lr_cycle_down_epochs} epochs, cycle {epochs_per_export} epochs: "
+            + ", ".join(f"epoch{i}: {lr_cycle_factor(i):.4f}" for i in range(num_cycle_epochs_to_log))
+            + (", ..." if epochs_per_export > num_cycle_epochs_to_log else "")
+        )
+
+    def get_effective_lr_scale(train_state):
+        return lr_scale * lr_scale_auto_factor(train_state)
+
+    # LOAD MODEL ---------------------------------------------------------------------
 
     def get_checkpoint_path():
         return os.path.join(traindir,"checkpoint.ckpt")
@@ -293,16 +642,29 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         return os.path.join(traindir,f"checkpoint_prev{i}.ckpt")
 
     NUM_SHORTTERM_CHECKPOINTS_TO_KEEP = 4
-    def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=None):
+    def save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=None, skip_optimizer=False):
         if gnorm_stats_debug:
             logging.warning("Skipping save since debugging gnorm stats")
             return
+        optimizer_state_dict = None
+        if not skip_optimizer:
+            if hasattr(optimizer, "state_dict_for_checkpoint"):
+                # Collective: gathers the Muon states sharded across DDP ranks,
+                # so when skip_optimizer is False, every rank must call save()
+                # at the same point. Returns None on nonzero ranks.
+                optimizer_state_dict = optimizer.state_dict_for_checkpoint()
+            elif rank == 0:
+                optimizer_state_dict = optimizer.state_dict()
         if rank == 0:
             state_dict = {}
             state_dict["model"] = ddp_model.state_dict()
-            state_dict["optimizer"] = optimizer.state_dict()
+            if optimizer_state_dict is not None:
+                state_dict["optimizer"] = optimizer_state_dict
             state_dict["metrics"] = metrics_obj.state_dict()
-            state_dict["running_metrics"] = running_metrics
+            state_dict["running_metrics"] = {
+                k: dict(v) if isinstance(v, defaultdict) else v
+                for k, v in running_metrics.items()
+            }
             state_dict["train_state"] = train_state
             state_dict["last_val_metrics"] = last_val_metrics
             state_dict["config"] = model_config
@@ -321,19 +683,57 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     if os.path.exists(get_checkpoint_prev_path(i)):
                         os.replace(get_checkpoint_prev_path(i), get_checkpoint_prev_path(i+1))
                 if os.path.exists(get_checkpoint_path()):
-                    shutil.copy(get_checkpoint_path(), get_checkpoint_prev_path(0))
+                    # Copy under a temporary name and rename so that a reader such as a backup
+                    # rsync never sees a partially written checkpoint_prev0.ckpt.
+                    shutil.copy(get_checkpoint_path(), get_checkpoint_prev_path(0) + ".tmp")
+                    os.replace(get_checkpoint_prev_path(0) + ".tmp", get_checkpoint_prev_path(0))
                 torch.save(state_dict, get_checkpoint_path() + ".tmp")
                 os.replace(get_checkpoint_path() + ".tmp", get_checkpoint_path())
 
-    def get_weight_decay(raw_model, lr_scale, warmup_scale, train_state, running_metrics, group_name):
-        lr_scale_with_auto = lr_scale * lr_scale_auto_factor(train_state)
+    def get_is_muon_suitable(group_name: str):
+        if group_name == "normal" or group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "tab_module":
+            return True
+        elif group_name in ["normal_gamma", "noreg", "output", "output_noreg", "input", "input_noreg"]:
+            return False
+        else:
+            assert False
+
+    def get_weight_decay(raw_model, warmup_scale, train_state, running_metrics, group_name):
+        effective_lr_scale = get_effective_lr_scale(train_state)
+        is_muon_suitable = get_is_muon_suitable(group_name)
+
+        if use_adamw or use_muon:
+            batch_scaling = math.sqrt(world_size * batch_size / 256.0)
+        else:
+            batch_scaling = world_size * batch_size / 256.0
+
+        if group_name == "input":
+            cmdline_wd_factor = input_wd_factor
+        elif group_name == "normal":
+            cmdline_wd_factor = normal_wd_factor
+        elif group_name == "normal_attn":
+            cmdline_wd_factor = normal_attn_wd_factor
+        else:
+            cmdline_wd_factor = 1.0
+
+        wd_scaling = batch_scaling * cmdline_wd_factor
+
         if raw_model.get_norm_kind() == "fixup" or raw_model.get_norm_kind() == "fixscale":
-            if group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
-                return 0.000001 * world_size * batch_size / 256.0
-            elif group_name == "noreg":
-                return 0.00000001 * world_size * batch_size / 256.0
+            if group_name == "input" or group_name == "normal" or group_name == "normal_gamma" or group_name == "output":
+                if use_adamw or use_muon:
+                    # Total guess, this configuration was never tested
+                    return 0.005000 * wd_scaling
+                else:
+                    return 0.000001 * wd_scaling
+            elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "tab_module":
+                if use_adamw or use_muon:
+                    return 0.005000 * 0.5 * wd_scaling
+                else:
+                    return 0.000001 * 0.5 * wd_scaling
+            elif group_name == "input_noreg" or group_name == "noreg":
+                return 0.00000001 * wd_scaling
             elif group_name == "output_noreg":
-                return 0.00000001 * world_size * batch_size / 256.0
+                return 0.00000001 * wd_scaling
             else:
                 assert False
         elif (
@@ -342,18 +742,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             raw_model.get_norm_kind() == "fixbrenorm" or
             raw_model.get_norm_kind() == "fixscaleonenorm"
         ):
-            if group_name == "normal" or group_name == "normal_gamma":
+            if group_name == "input" or group_name == "normal" or group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "tab_module" or group_name == "normal_gamma":
                 adaptive_scale = 1.0
-                if "sums" in running_metrics and "norm_normal_batch" in running_metrics["sums"]:
-                    norm_normal_batch = running_metrics["sums"]["norm_normal_batch"] / running_metrics["weights"]["norm_normal_batch"]
-                    baseline = train_state["modelnorm_normal_baseline"]
-                    ratio = norm_normal_batch / (baseline + 1e-30)
-                    # Adaptive weight decay keeping model norm around the baseline level so that batchnorm effective lr is held constant
-                    # throughout training, covering a range of 16x from bottom to top.
-                    adaptive_scale = math.pow(2.0, 2.0 * math.tanh(math.log(ratio+1e-30) * 1.5))
+                if "sums" in running_metrics:
+                    metrics_key = "norm_normal_batch" if group_name != "input" else "norm_input_batch"
+                    if metrics_key in running_metrics["sums"]:
+                        norm_batch = running_metrics["sums"][metrics_key] / running_metrics["weights"][metrics_key]
+                        baseline = train_state["modelnorm_normal_baseline"] if group_name != "input" else train_state["modelnorm_input_baseline"]
 
-                # Batch norm gammas can be regularized a bit less, doing them just as much empirically seemed to be a bit more unstable
-                gamma_scale = 0.125 if group_name == "normal_gamma" else 1.0
+                        ratio = norm_batch / (baseline + 1e-30)
+                        # Adaptive weight decay keeping model norm around the baseline level so that batchnorm effective lr is held constant
+                        # throughout training, covering a range of 16x from bottom to top.
+                        adaptive_scale = math.pow(2.0, 2.0 * math.tanh(math.log(ratio+1e-30) * 3.0))
 
                 # The theoretical scaling for keeping us confined to a surface of equal model norm should go proportionally with lr_scale.
                 # because the strength of drift away from that surface goes as lr^2 and weight decay itself is scaled by lr, so we need
@@ -363,13 +763,60 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 # than expected.
                 # So we scale sublinearly with lr_scale so as to slightly preadjust to this effect.
                 # Adaptive scale should then help keep us there thereafter.
-                return 0.00125 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75) * adaptive_scale * gamma_scale
+                if use_muon:
+                    wd_with_lr_scale = math.pow(effective_lr_scale * warmup_scale,0.70) * adaptive_scale
+                else:
+                    wd_with_lr_scale = math.pow(effective_lr_scale * warmup_scale,0.75) * adaptive_scale
+
+                if group_name == "input":
+                    # Branch here is mostly preserving inconsistent historical behavior, there's not
+                    # a great reason these should be different.
+                    if use_adamw or use_muon:
+                        wd_group_factor = 2.0/3.0
+                    else:
+                        wd_group_factor = 1.0
+                elif group_name == "normal":
+                    wd_group_factor = 1.0
+                elif group_name == "normal_attn":
+                    wd_group_factor = 0.5
+                elif group_name == "normal_gab":
+                    wd_group_factor = 0.3
+                elif group_name == "gab_mlp":
+                    wd_group_factor = 0.1
+                elif group_name == "tab_module":
+                    wd_group_factor = 0.1
+                elif group_name == "normal_gamma":
+                    # Batch norm gammas can be regularized a bit less, doing them just as much empirically seemed to be a bit more unstable
+                    if use_adamw or use_muon:
+                        wd_group_factor = 0.25
+                    else:
+                        wd_group_factor = 0.125
+                else:
+                    assert False
+
+                if use_adamw or (use_muon and not is_muon_suitable):
+                    return 0.00900 * wd_scaling * wd_with_lr_scale * wd_group_factor
+                elif use_muon:
+                    return 0.02000 * wd_scaling * wd_with_lr_scale * wd_group_factor
+                else:
+                    return 0.00125 * wd_scaling * wd_with_lr_scale * wd_group_factor
+
             elif group_name == "output":
-                return 0.000001 * world_size * batch_size / 256.0
-            elif group_name == "noreg":
-                return 0.000001 * world_size * batch_size / 256.0 * math.pow(lr_scale_with_auto * warmup_scale,0.75)
+                if use_adamw or (use_muon and not is_muon_suitable):
+                    return 0.00400 * wd_scaling
+                elif use_muon:
+                    assert False
+                else:
+                    return 0.000001 * wd_scaling
+            elif group_name == "input_noreg" or group_name == "noreg":
+                return 0.000001 * wd_scaling * math.pow(effective_lr_scale * warmup_scale,0.75)
             elif group_name == "output_noreg":
-                return 0.00000001 * world_size * batch_size / 256.0
+                if use_adamw or (use_muon and not is_muon_suitable):
+                    return 0.000001 * wd_scaling
+                elif use_muon:
+                    assert False
+                else:
+                    return 0.00000001 * wd_scaling
             else:
                 assert False
         else:
@@ -379,50 +826,80 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         reg_dict : Dict[str,List] = {}
         raw_model.add_reg_dict(reg_dict)
         param_groups = []
-        param_groups.append({
-            "params": reg_dict["normal"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal"),
-            "group_name": "normal",
-        })
-        if len(reg_dict["normal_gamma"]) > 0:
-            param_groups.append({
-                "params": reg_dict["normal_gamma"],
-                "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="normal_gamma"),
-                "group_name": "normal_gamma",
-            })
-        param_groups.append({
-            "params": reg_dict["output"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output"),
-            "group_name": "output",
-        })
-        param_groups.append({
-            "params": reg_dict["noreg"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="noreg"),
-            "group_name": "noreg",
-        })
-        param_groups.append({
-            "params": reg_dict["output_noreg"],
-            "weight_decay": get_weight_decay(raw_model, lr_scale, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name="output_noreg"),
-            "group_name": "output_noreg",
-        })
+        num_reg_dict_params = 0
+        for group_name in reg_dict:
+            if len(reg_dict[group_name]) > 0:
+                param_groups.append({
+                    "params": reg_dict[group_name],
+                    "group_name": group_name,
+                })
+            num_reg_dict_params += len(reg_dict[group_name])
+
+        for group in param_groups:
+            group["weight_decay"] = get_weight_decay(
+                raw_model, warmup_scale=1.0, train_state=train_state, running_metrics=running_metrics, group_name=group["group_name"]
+            )
+            group["use_muon"] = get_is_muon_suitable(group_name=group["group_name"])
+
         num_params = len(list(raw_model.parameters()))
-        num_reg_dict_params = len(reg_dict["normal"]) + len(reg_dict["normal_gamma"]) + len(reg_dict["output"]) + len(reg_dict["noreg"]) + len(reg_dict["output_noreg"])
         assert num_params == num_reg_dict_params, "Reg dict does not have entries for all params in model"
         return param_groups
 
-    def load():
-        if not os.path.exists(get_checkpoint_path()):
-            logging.info("No preexisting checkpoint found at: " + get_checkpoint_path())
-            for i in range(NUM_SHORTTERM_CHECKPOINTS_TO_KEEP):
-                if os.path.exists(get_checkpoint_prev_path(i)):
-                    raise Exception(f"No preexisting checkpoint found, but {get_checkpoint_prev_path(i)} exists, something is wrong with the training dir")
+    def compute_param_init_rms(raw_model):
+        """RMS of every parameter tensor, keyed by parameter name. Meant to be called on a freshly
+        initialized model, before any checkpoint weights are loaded into it. Stored in the train
+        state so that the weight decay floors (-wd-floor-frac) can be recomputed at every startup."""
+        with torch.no_grad():
+            return {
+                name: math.sqrt(torch.mean(param.float() * param.float()).item())
+                for name, param in raw_model.named_parameters()
+            }
 
-            if initial_checkpoint is not None:
+    def set_optimizer_wd_floors(optimizer, raw_model, train_state):
+        """Register the per-output-channel weight decay floors with the optimizer when
+        -wd-floor-frac is set. See floored_weight_decay_ in muon/muon.py."""
+        if wd_floor_frac is None:
+            return
+        assert "param_init_rms" in train_state
+        param_init_rms = train_state["param_init_rms"]
+        floors = {}
+        num_zero_init = 0
+        for name, param in raw_model.named_parameters():
+            if not Metrics.is_output_channel_tensor(param):
+                continue
+            if name not in param_init_rms:
+                raise Exception(
+                    f"Parameter {name} has no initialization RMS in the train state, so its weight decay floor cannot be computed. "
+                    "The stored values do not match this model. Delete train_state.param_init_rms from the checkpoint "
+                    "(see edit_checkpoint.py) to have it recomputed."
+                )
+            floor_norm = wd_floor_frac * param_init_rms[name] * math.sqrt(param[0].numel())
+            if floor_norm > 0.0:
+                floors[param] = floor_norm
+            else:
+                num_zero_init += 1
+        optimizer.set_weight_decay_floor_norms(floors)
+        logging.info(
+            f"Weight decay floor frac {wd_floor_frac}: floors set for {len(floors)} weight tensors. "
+            f"{num_zero_init} zero-initialized tensors and all non-matrix parameters use plain decay."
+        )
+
+    def load():
+        loading_initial_checkpoint = False
+        if not os.path.exists(get_checkpoint_path()) or always_initial_checkpoint:
+            if not always_initial_checkpoint:
+                logging.info("No preexisting checkpoint found at: " + get_checkpoint_path())
+                for i in range(NUM_SHORTTERM_CHECKPOINTS_TO_KEEP):
+                    if os.path.exists(get_checkpoint_prev_path(i)):
+                        raise Exception(f"No preexisting checkpoint found, but {get_checkpoint_prev_path(i)} exists, something is wrong with the training dir")
+
+            if initial_checkpoint is not None or always_initial_checkpoint:
                 if os.path.exists(initial_checkpoint):
-                    logging.info("Using initial checkpoint: {initial_checkpoint}")
+                    logging.info(f"Using initial checkpoint: {initial_checkpoint}")
                     path_to_load_from = initial_checkpoint
+                    loading_initial_checkpoint = True
                 else:
-                    raise Exception("No preexisting checkpoint found, initial checkpoint provided is invalid: {initial_checkpoint}")
+                    raise Exception(f"No preexisting checkpoint found, initial checkpoint provided is invalid: {initial_checkpoint}")
             else:
                 path_to_load_from = None
         else:
@@ -437,10 +914,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             raw_model.initialize()
 
             raw_model.to(device)
-            if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(raw_model, device_ids=[device])
-            else:
-                ddp_model = raw_model
+            if attn_logit_penalty_cap is not None:
+                raw_model.attn_logit_penalty_cap = attn_logit_penalty_cap
+                raw_model.attn_logit_penalty_batch_frac = attn_logit_penalty_batch_frac
+            # Applies torch.compile and DDP options.
+            # Must run before the optimizer is constructed since it may replace Parameter objects.
+            ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -448,24 +927,38 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 ema_avg = lambda avg_param, cur_param, num_averaged: avg_param + new_factor * (cur_param - avg_param)
                 swa_model = AveragedModel(raw_model, avg_fn=ema_avg)
 
-            metrics_obj = Metrics(batch_size,world_size,raw_model)
+            metrics_obj = Metrics(world_size,raw_model)
             running_metrics = {}
             train_state = {}
             last_val_metrics = {}
 
             train_state["global_step_samples"] = 0
+            train_state["optimizer_name"] = optimizer_name
 
-            with torch.no_grad():
-                (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = Metrics.get_model_norms(raw_model)
-                modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
-                train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
-                logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
+            norms = Metrics.get_model_norms(raw_model)
+            modelnorm_normal_baseline = norms["normal"]
+            modelnorm_input_baseline = norms["input"]
+            train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
+            train_state["modelnorm_input_baseline"] = modelnorm_input_baseline
+            logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
+            logging.info(f"Model norm input baseline computed: {modelnorm_input_baseline}")
+            train_state["param_init_rms"] = compute_param_init_rms(raw_model)
 
-            optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            if use_adamw:
+                optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
+            elif use_muon:
+                if world_size > 1:
+                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                else:
+                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),adjust_lr_fn="match_rms_adamw",use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
+            else:
+                optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            set_optimizer_wd_floors(optimizer, raw_model, train_state)
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
         else:
-            state_dict = torch.load(path_to_load_from, map_location=device)
+            state_dict = load_model.load_checkpoint(path_to_load_from, map_location=device)
+
             model_config = state_dict["config"] if "config" in state_dict else modelconfigs.config_of_name[model_kind]
             logging.info(str(model_config))
             raw_model = Model(model_config,pos_len)
@@ -477,24 +970,68 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 logging.info("WARNING: Train state not found in state dict, using fresh train state")
 
-            # Do this before loading the state dict, while the model is initialized to fresh values, to get a good baseline
-            if "modelnorm_normal_baseline" not in train_state:
-                logging.info("Computing modelnorm_normal_baseline since not in train state")
-                with torch.no_grad():
-                    (modelnorm_normal, modelnorm_normal_gamma, modelnorm_output, modelnorm_noreg, modelnorm_output_noreg) = Metrics.get_model_norms(raw_model)
-                    modelnorm_normal_baseline = modelnorm_normal.detach().cpu().item()
-                    train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
-                    logging.info(f"Model norm normal baseline computed: {modelnorm_normal_baseline}")
+            if loading_initial_checkpoint:
+                if required_initial_checkpoint_train_steps is not None and (
+                    "global_step_samples" not in train_state or
+                    train_state["global_step_samples"] < required_initial_checkpoint_train_steps
+                ):
+                    # Sleep 15 minutes and try again
+                    logging.info(
+                        f"Requiring {required_initial_checkpoint_train_steps} but initial checkpoint "
+                        f"has {train_state.get('global_step_samples')}"
+                    )
+                    time.sleep(900)
+                    return None
+                # Adopting an initial checkpoint starts a new run, so its export cycle starts
+                # fresh regardless of the counter stored in that checkpoint.
+                train_state["export_cycle_counter"] = 0
+
+            # Do this before loading the state dict, while the model is initialized to fresh values, to get a good baseline.
+            # Each rank initializes with its own seed, so rank 0's values are broadcast to keep the
+            # baselines, and the weight decay derived from them, identical on every rank.
+            if "modelnorm_normal_baseline" not in train_state or "modelnorm_input_baseline" not in train_state:
+                logging.info("Computing baseline since not in train state")
+
+                norms_holder = [Metrics.get_model_norms(raw_model)]
+                if world_size > 1:
+                    torch.distributed.broadcast_object_list(norms_holder, src=0)
+                norms = norms_holder[0]
+                modelnorm_normal_baseline = norms["normal"]
+                modelnorm_input_baseline = norms["input"]
+                old_modelnorm_normal_baseline = train_state.get("modelnorm_normal_baseline",None)
+                old_modelnorm_input_baseline = train_state.get("modelnorm_input_baseline",None)
+                print(f"Model norm normal baseline updating: {old_modelnorm_normal_baseline} -> {modelnorm_normal_baseline}")
+                print(f"Model norm input baseline updating: {old_modelnorm_input_baseline} -> {modelnorm_input_baseline}")
+                train_state["modelnorm_normal_baseline"] = modelnorm_normal_baseline
+                train_state["modelnorm_input_baseline"] = modelnorm_input_baseline
+
+                # To ensure no blending of differently computed baseline as we changed to the actual proper definition
+                # of norm as we introduced modelnorm_input_baseline
+                print("Clearing running metrics")
+                if "running_metrics" in state_dict:
+                    del state_dict["running_metrics"]
+
+            # Also computed before loading the state dict, from the fresh initialization. Each rank
+            # initializes with its own seed, so rank 0's values are broadcast to keep the weight
+            # decay floors identical on every rank.
+            if "param_init_rms" not in train_state:
+                logging.info("Parameter initialization RMS values not in train state, computing them from the freshly initialized model")
+                param_init_rms_holder = [compute_param_init_rms(raw_model)]
+                if world_size > 1:
+                    torch.distributed.broadcast_object_list(param_init_rms_holder, src=0)
+                train_state["param_init_rms"] = param_init_rms_holder[0]
 
             # Strip off any "module." from when the model was saved with DDP or other things
             model_state_dict = load_model.load_model_state_dict(state_dict)
             raw_model.load_state_dict(model_state_dict)
 
             raw_model.to(device)
-            if world_size > 1:
-                ddp_model = torch.nn.parallel.DistributedDataParallel(raw_model, device_ids=[device])
-            else:
-                ddp_model = raw_model
+            if attn_logit_penalty_cap is not None:
+                raw_model.attn_logit_penalty_cap = attn_logit_penalty_cap
+                raw_model.attn_logit_penalty_batch_frac = attn_logit_penalty_batch_frac
+            # Applies torch.compile and DDP options.
+            # Must run before the optimizer is constructed since it may replace Parameter objects.
+            ddp_model = trainloop_helpers.wrap_model_for_training(raw_model, device, world_size, no_compile)
 
             swa_model = None
             if rank == 0 and swa_scale is not None:
@@ -505,7 +1042,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 if swa_model_state_dict is not None:
                     swa_model.load_state_dict(swa_model_state_dict)
 
-            metrics_obj = Metrics(batch_size,world_size,raw_model)
+            metrics_obj = Metrics(world_size,raw_model)
             if "metrics" in state_dict:
                 metrics_obj.load_state_dict(state_dict["metrics"])
             else:
@@ -523,31 +1060,78 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 logging.info("WARNING: Running metrics not found in state dict, using fresh last val metrics")
 
-            optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
-            if "optimizer" in state_dict:
-                optimizer.load_state_dict(state_dict["optimizer"])
+            # optimizer_name already computed at top level
+
+            if use_adamw:
+                optimizer = torch.optim.AdamW(get_param_groups(raw_model,train_state,running_metrics), lr=1.0)
+            elif use_muon:
+                if world_size > 1:
+                    optimizer = MuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
+                else:
+                    optimizer = SingleDeviceMuonWithAuxAdam(get_param_groups(raw_model,train_state,running_metrics),use_normuon=use_normuon,use_aurora=use_aurora,aurora_pp_iterations=aurora_pp_iterations,aurora_pp_beta=aurora_pp_beta,ns_steps=ns_steps,use_polar_express=use_polar_express)
             else:
-                logging.info("WARNING: Optimizer not found in state dict, using fresh optimizer")
+                optimizer = torch.optim.SGD(get_param_groups(raw_model,train_state,running_metrics), lr=1.0, momentum=0.9)
+            if "optimizer" in state_dict:
+                old_optimizer_name = train_state.get("optimizer_name","SGD")
+                if old_optimizer_name == optimizer_name:
+                    try:
+                        if hasattr(optimizer, "load_state_dict_for_checkpoint"):
+                            optimizer.load_state_dict_for_checkpoint(state_dict["optimizer"])
+                        else:
+                            optimizer.load_state_dict(state_dict["optimizer"])
+                    except ValueError as e:
+                        logging.info(f"WARNING: Failed to load optimizer state dict: {e}, dropping old optimizer state")
+                    train_state["optimizer_name"] = optimizer_name
+                else:
+                    train_state["optimizer_name"] = optimizer_name
+                    logging.info(f"WARNING: Optimizer name {old_optimizer_name} in checkpoint but we are set to use {optimizer_name} now, dropping old optimizer state")
+            else:
+                logging.info("WARNING: Optimizer not found in state dict (e.g. a skip_optimizer save), using fresh optimizer")
+                train_state["optimizer_name"] = optimizer_name
+            set_optimizer_wd_floors(optimizer, raw_model, train_state)
 
             return (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
-    (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics) = load()
+    loaded = None
+    while loaded is None:
+        loaded = load()
+    (model_config, ddp_model, raw_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics) = loaded
 
 
     if "global_step_samples" not in train_state:
         train_state["global_step_samples"] = 0
     if max_train_bucket_per_new_data is not None and "train_bucket_level" not in train_state:
-        train_state["train_bucket_level"] = samples_per_epoch
+        if initial_train_bucket_level is not None:
+            train_state["train_bucket_level"] = initial_train_bucket_level
+        else:
+            train_state["train_bucket_level"] = samples_per_epoch
+        logging.info("Checkpoint has no train bucket state, initial bucket level %.0f" % train_state["train_bucket_level"])
     if "train_steps_since_last_reload" not in train_state:
         train_state["train_steps_since_last_reload"] = 0
     if "export_cycle_counter" not in train_state:
         train_state["export_cycle_counter"] = 0
+    # The checkpoint records the epochs_per_export it was trained with. Since the export cycle
+    # counter is not reset at export time and the cycle position is counter mod epochs_per_export,
+    # resuming with a different -epochs-per-export would otherwise land at an arbitrary point in
+    # the new cycle. Instead, rebase the counter to the position within the latest cycle under the
+    # old length, capped to just before the end of the new cycle. A run that was already past that
+    # point in its old cycle then exports after one more epoch rather than starting a whole new
+    # cycle. Checkpoints without the field adopt the current setting.
+    if "epochs_per_export" not in train_state:
+        train_state["epochs_per_export"] = epochs_per_export
+    elif train_state["epochs_per_export"] != epochs_per_export:
+        old_epochs_per_export = train_state["epochs_per_export"]
+        rebased = min(train_state["export_cycle_counter"] % old_epochs_per_export, epochs_per_export - 1)
+        logging.info(
+            f"epochs_per_export changed {old_epochs_per_export} -> {epochs_per_export}, rebasing "
+            f"export cycle counter {train_state['export_cycle_counter']} -> {rebased}"
+        )
+        train_state["export_cycle_counter"] = rebased
+        train_state["epochs_per_export"] = epochs_per_export
+    if "window_start_data_row_idx" not in train_state:
+        train_state["window_start_data_row_idx"] = 0
     if "total_num_data_rows" not in train_state:
         train_state["total_num_data_rows"] = 0
-    if "old_train_data_dirs" not in train_state:
-        train_state["old_train_data_dirs"] = []
-    if "data_files_used" not in train_state:
-        train_state["data_files_used"] = set()
     if "swa_sample_accum" not in train_state:
         train_state["swa_sample_accum"] = 0.0
 
@@ -570,6 +1154,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         elif intermediate_loss_scale is None:
             assert False, "Please specify both of main_loss_scale and intermediate_loss_scale or neither when using an architecture with an intermediate head."
 
+    logging.info(f"epochs_per_export {epochs_per_export}")
     logging.info(f"swa_period_samples {swa_period_samples}")
     logging.info(f"swa_scale {swa_scale}")
     logging.info(f"lookahead_alpha {lookahead_alpha}")
@@ -583,6 +1168,18 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"variance_time_loss_scale {variance_time_loss_scale}")
     logging.info(f"main_loss_scale {main_loss_scale}")
     logging.info(f"intermediate_loss_scale {intermediate_loss_scale}")
+    logging.info(f"head_lr_factor {head_lr_factor}")
+    logging.info(f"noreg_lr_factor {noreg_lr_factor}")
+    logging.info(f"muon_adam_lr_factor {muon_adam_lr_factor}")
+    if use_muon:
+        logging.info(f"ns_steps {ns_steps}")
+        logging.info(f"use_polar_express {use_polar_express}")
+    if use_aurora:
+        logging.info(f"aurora_pp_iterations {aurora_pp_iterations}")
+        logging.info(f"aurora_pp_beta {aurora_pp_beta}")
+
+    logging.info(f"Model norm normal baseline: " + str(train_state["modelnorm_normal_baseline"]))
+    logging.info(f"Model norm input baseline: " + str(train_state["modelnorm_input_baseline"]))
 
     # Print all model parameters just to get a summary
     total_num_params = 0
@@ -599,6 +1196,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     logging.info(f"Total num params: {total_num_params}")
     logging.info(f"Total trainable params: {total_trainable_params}")
 
+    logging.info(f"Optimizer: " + train_state.get("optimizer_name","SGD"))
+
     lookahead_cache = {}
     if lookahead_k is not None:
         for param_group in optimizer.param_groups:
@@ -609,58 +1208,77 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
     # EPOCHS AND LR ---------------------------------------------------------------------
 
-    def update_and_return_lr_and_wd():
-        per_sample_lr = 0.00003 * lr_scale * lr_scale_auto_factor(train_state)
-
+    def update_and_return_lr_and_wd(log_if="changed"):
+        assert log_if in ("always", "changed", "never")
         # Warmup for initial training
         warmup_scale = 1.0
-        if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
-            if train_state["global_step_samples"] < 1000000:
-                warmup_scale = 1.0 / 5.0
-            elif train_state["global_step_samples"] < 2000000:
-                warmup_scale = 1.0 / 3.0
-            elif train_state["global_step_samples"] < 4000000:
-                warmup_scale = 1.0 / 2.0
-            elif train_state["global_step_samples"] < 6000000:
-                warmup_scale = 1.0 / 1.4
-        elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-            if train_state["global_step_samples"] < 250000:
-                warmup_scale = 1.0 / 20.0
-            elif train_state["global_step_samples"] < 500000:
-                warmup_scale = 1.0 / 14.0
-            elif train_state["global_step_samples"] < 750000:
-                warmup_scale = 1.0 / 10.0
-            elif train_state["global_step_samples"] < 1000000:
-                warmup_scale = 1.0 / 7.0
-            elif train_state["global_step_samples"] < 1250000:
-                warmup_scale = 1.0 / 5.0
-            elif train_state["global_step_samples"] < 1500000:
-                warmup_scale = 1.0 / 3.0
-            elif train_state["global_step_samples"] < 1750000:
-                warmup_scale = 1.0 / 2.0
-            elif train_state["global_step_samples"] < 2000000:
-                warmup_scale = 1.0 / 1.4
-            else:
-                warmup_scale = 1.0 / 1.0
+        if no_lr_warmup:
+            warmup_scale = 1.0
+        elif train_state["global_step_samples"] < 250000:
+            warmup_scale = 1.0 / 20.0
+        elif train_state["global_step_samples"] < 500000:
+            warmup_scale = 1.0 / 14.0
+        elif train_state["global_step_samples"] < 750000:
+            warmup_scale = 1.0 / 10.0
+        elif train_state["global_step_samples"] < 1000000:
+            warmup_scale = 1.0 / 7.0
+        elif train_state["global_step_samples"] < 1250000:
+            warmup_scale = 1.0 / 5.0
+        elif train_state["global_step_samples"] < 1500000:
+            warmup_scale = 1.0 / 3.0
+        elif train_state["global_step_samples"] < 1750000:
+            warmup_scale = 1.0 / 2.0
+        elif train_state["global_step_samples"] < 2000000:
+            warmup_scale = 1.0 / 1.4
         else:
-            assert False
+            warmup_scale = 1.0 / 1.0
 
         normal_weight_decay = 0.0
 
         for param_group in optimizer.param_groups:
+            if use_adamw:
+                # 1.33 is empirical scaling factor meant to try to match the step size scales between SGD and AdamW
+                # for a mature net, as learning rate means something different.
+                per_sample_lr = 1.33 * 0.00003 * get_effective_lr_scale(train_state)
+            elif use_muon:
+                # 1.33 is empirical scaling factor meant to try to match the step size scales between SGD and Muon
+                # for a mature net, as learning rate means something different.
+                # FIXME
+                per_sample_lr = 1.33 * 0.00003 * get_effective_lr_scale(train_state)
+            else:
+                per_sample_lr = 0.00003 * get_effective_lr_scale(train_state)
+
+
             group_name = param_group["group_name"]
-            if group_name == "normal":
+            is_muon_group = use_muon and get_is_muon_suitable(group_name)
+            if group_name == "input":
                 group_scale = 1.0
+            elif group_name == "input_noreg":
+                group_scale = noreg_lr_factor
+            elif group_name == "normal":
+                if use_muon:
+                    group_scale = 2.0
+                else:
+                    group_scale = 1.0
+            elif group_name == "normal_attn" or group_name == "normal_gab" or group_name == "gab_mlp" or group_name == "tab_module":
+                if use_muon:
+                    group_scale = 2.0
+                else:
+                    group_scale = 1.0
             elif group_name == "normal_gamma":
                 group_scale = 1.0
-            elif group_name == "output":
-                group_scale = 0.5
             elif group_name == "noreg":
-                group_scale = 1.0
+                group_scale = noreg_lr_factor
+            elif group_name == "output":
+                group_scale = head_lr_factor
             elif group_name == "output_noreg":
-                group_scale = 0.5
+                group_scale = head_lr_factor * noreg_lr_factor
             else:
                 assert False
+
+            # When using muon, scale all muon-ineligible (adam) param groups
+            if use_muon and not is_muon_group:
+                group_scale *= muon_adam_lr_factor
 
             changed = False
 
@@ -672,13 +1290,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             else:
                 new_lr_this_group = per_sample_lr * warmup_scale * group_scale
 
+            # When using adamw, the actual scale of the grads doesn't matter and we instead need to scale
+            # by sqrt(batch_size)
+            if use_adamw or use_muon:
+                new_lr_this_group *= math.sqrt(batch_size * world_size / 256.0)
+
             if param_group["lr"] != new_lr_this_group:
                 param_group["lr"] = new_lr_this_group
                 changed = True
 
             new_weight_decay_this_group = get_weight_decay(
                 raw_model,
-                lr_scale,
                 warmup_scale=warmup_scale,
                 train_state=train_state,
                 running_metrics=running_metrics,
@@ -691,7 +1313,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if group_name == "normal":
                 normal_weight_decay = param_group["weight_decay"]
 
-            if changed:
+            if log_if == "always" or (log_if == "changed" and changed):
                 logging.info(f"Param group {param_group['group_name']} lr {param_group['lr']} weight_decay {param_group['weight_decay']}")
 
         return per_sample_lr * warmup_scale, normal_weight_decay
@@ -717,26 +1339,42 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # DATA RELOADING GENERATOR ------------------------------------------------------------
 
     # Some globals
+    # Note: last_curdatadir is a plain local, NOT part of train_state, so it is reset to None on every
+    # process start and is not checkpointed. Consequently the first maybe_reload_training_data() call after
+    # a restart always sees curdatadir != last_curdatadir and re-enters the "new shuffle" block below, even
+    # when resuming on the same data dir, which is what lets a resumed run finish the remainder of an
+    # in-progress epoch before repeating files.
     last_curdatadir = None
-    trainfilegenerator = None
     vdatadir = None
+    # Owns all "which training files have been used" logic.
+    trainingdatagenerator = TrainingDataGenerator(train_state, no_repeat_files)
 
     def maybe_reload_training_data():
         nonlocal last_curdatadir
-        nonlocal trainfilegenerator
         nonlocal vdatadir
 
         assert rank == 0, "Helper ddp training processes should not call maybe_reload_training_data"
 
         while True:
-            curdatadir = os.path.realpath(datadir)
+            if datadir:
+                curdatadir = os.path.realpath(datadir)
+            elif latestdatadir:
+                curdatadir = max(
+                    (
+                        os.path.realpath(os.path.join(latestdatadir,item)) for item in os.listdir(latestdatadir)
+                        if os.path.isdir(os.path.join(latestdatadir,item)) and not item.endswith('.tmp')
+                    ),
+                    key=os.path.getmtime,
+                    default=os.path.join(os.path.realpath(latestdatadir),"*")
+                )
+
 
             # Different directory - new shuffle
             if curdatadir != last_curdatadir:
                 if not os.path.exists(curdatadir):
                     if quit_if_no_data:
-                        logging.info("Shuffled data path does not exist, there seems to be no data or not enough data yet, qutting: %s" % curdatadir)
-                        sys.exit(0)
+                        logging.info("Shuffled data path does not exist, there seems to be no data or not enough data yet, quitting: %s" % curdatadir)
+                        safe_exit(barrier,0)
                     logging.info("Shuffled data path does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % curdatadir)
                     time.sleep(30)
                     continue
@@ -744,8 +1382,8 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 trainjsonpath = os.path.join(curdatadir,"train.json")
                 if not os.path.exists(trainjsonpath):
                     if quit_if_no_data:
-                        logging.info("Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, qutting: %s" % trainjsonpath)
-                        sys.exit(0)
+                        logging.info("Shuffled data train.json file does not exist, there seems to be no data or not enough data yet, quitting: %s" % trainjsonpath)
+                        safe_exit(barrier,0)
                     logging.info("Shuffled data train.json file does not exist, there seems to be no shuffled data yet, waiting and trying again later: %s" % trainjsonpath)
                     time.sleep(30)
                     continue
@@ -755,6 +1393,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
                 with open(trainjsonpath) as f:
                     datainfo = json.load(f)
+                    train_state["window_start_data_row_idx"] = datainfo["range"][0]
                     train_state["total_num_data_rows"] = datainfo["range"][1]
 
                 # Fill the buckets
@@ -785,49 +1424,17 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 logging.info("Train steps since last reload: %.0f -> 0" % train_state["train_steps_since_last_reload"])
                 train_state["train_steps_since_last_reload"] = 0
 
-                # Load training data files
+                # Load training data files. The generator handles all "which files have been used" and no_repeat_files semantics.
                 tdatadir = os.path.join(curdatadir,"train")
-                train_files = [os.path.join(tdatadir,fname) for fname in os.listdir(tdatadir) if fname.endswith(".npz")]
-                epoch0_train_files = [path for path in train_files if path not in train_state["data_files_used"]]
-                if no_repeat_files:
-                    logging.info(f"Dropping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used")
-                else:
-                    logging.info(f"Skipping {len(train_files)-len(epoch0_train_files)}/{len(train_files)} files in: {tdatadir} as already used first pass")
-
-                if len(train_files) <= 0 or (no_repeat_files and len(epoch0_train_files) <= 0):
+                loaded_any_data = trainingdatagenerator.set_data_dir_if_has_remaining_files(tdatadir)
+                if not loaded_any_data:
                     if quit_if_no_data:
                         logging.info(f"No new training files found in: {tdatadir}, quitting")
-                        sys.exit(0)
+                        safe_exit(barrier,0)
                     logging.info(f"No new training files found in: {tdatadir}, waiting 30s and trying again")
                     time.sleep(30)
                     continue
 
-                # Update history of what training data we used
-                if tdatadir not in train_state["old_train_data_dirs"]:
-                    train_state["old_train_data_dirs"].append(tdatadir)
-                # Clear out tracking of sufficiently old files
-                while len(train_state["old_train_data_dirs"]) > 20:
-                    old_dir = train_state["old_train_data_dirs"][0]
-                    train_state["old_train_data_dirs"] = train_state["old_train_data_dirs"][1:]
-                    for filename in list(train_state["data_files_used"]):
-                        if filename.startswith(old_dir):
-                            train_state["data_files_used"].remove(filename)
-
-                def train_files_gen():
-                    train_files_shuffled = epoch0_train_files.copy()
-                    while True:
-                        random.shuffle(train_files_shuffled)
-                        for filename in train_files_shuffled:
-                            logging.info("Yielding training file for dataset: " + filename)
-                            train_state["data_files_used"].add(filename)
-                            yield filename
-                        if no_repeat_files:
-                            break
-                        else:
-                            train_files_shuffled = train_files.copy()
-                            train_state["data_files_used"] = set()
-
-                trainfilegenerator = train_files_gen()
                 vdatadir = os.path.join(curdatadir,"val")
 
             # Same directory as before, no new shuffle
@@ -843,10 +1450,12 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
 
             break
 
+    # Holds per-directory index.json lookups (npz_dir -> {name: num_rows} or None)
+    # So a consolidated index.json is parsed at most once per directory rather than once per subepoch.
+    npz_num_rows_index_cache = {}
+
     # Load all the files we should train on during a subepoch
     def get_files_for_subepoch():
-        nonlocal trainfilegenerator
-
         assert rank == 0, "Helper ddp training processes should not call get_files_for_subepoch"
 
         num_batches_per_epoch = int(round(samples_per_epoch / batch_size))
@@ -856,26 +1465,33 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         train_files_to_use = []
         batches_to_use_so_far = 0
         found_enough = False
-        for filename in trainfilegenerator:
-            jsonfilename = os.path.splitext(filename)[0] + ".json"
-            with open(jsonfilename) as f:
-                trainfileinfo = json.load(f)
+        while True:
+            # peek (rather than pop) so that a file we decide not to take this subepoch is left in the generator
+            # un-consumed and unmarked, to be served at the start of the next subepoch.
+            filename = trainingdatagenerator.peek()
+            if filename is None:
+                break
+            num_rows_this_file = get_npz_num_rows(filename, npz_num_rows_index_cache)
 
-            num_batches_this_file = trainfileinfo["num_rows"] // batch_size
+            num_batches_this_file = num_rows_this_file // batch_size
             if num_batches_this_file <= 0:
+                # Useless file: consume and discard it (it counts as used), then look at the next one.
+                trainingdatagenerator.pop()
                 continue
 
             if batches_to_use_so_far + num_batches_this_file > num_batches_per_subepoch:
                 # If we're going over the desired amount, randomly skip the file with probability equal to the
                 # proportion of batches over - this makes it so that in expectation, we have the desired number of batches
-                if batches_to_use_so_far > 0 and random.random() >= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
+                if batches_to_use_so_far > 0 and random.random() <= (batches_to_use_so_far + num_batches_this_file - num_batches_per_subepoch) / num_batches_this_file:
+                    # Leave it un-popped for the next subepoch (do not mark it used).
                     found_enough = True
                     break
 
+            trainingdatagenerator.pop()
             train_files_to_use.append(filename)
             batches_to_use_so_far += num_batches_this_file
 
-            #Sanity check - load a max of 100000 files.
+            # Sanity check - load a max of 100000 files.
             if batches_to_use_so_far >= num_batches_per_subepoch or len(train_files_to_use) > 100000:
                 found_enough = True
                 break
@@ -885,15 +1501,6 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         return None
 
     # METRICS -----------------------------------------------------------------------------------
-    def detensorify_metrics(metrics):
-        ret = {}
-        for key in metrics:
-            if isinstance(metrics[key], torch.Tensor):
-                ret[key] = metrics[key].detach().cpu().item()
-            else:
-                ret[key] = metrics[key]
-        return ret
-
     if rank == 0:
         train_metrics_out = open(os.path.join(traindir,"metrics_train.json"),"a")
         val_metrics_out = open(os.path.join(traindir,"metrics_val.json"),"a")
@@ -904,6 +1511,25 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     # TRAIN! -----------------------------------------------------------------------------------
 
     last_longterm_checkpoint_save_time = datetime.datetime.now()
+    try:
+        longterm_checkpoint_files = glob.glob(os.path.join(longterm_checkpoints_dir, "*.ckpt"))
+        if longterm_checkpoint_files:
+            checkpoint_mtimes = []
+            for checkpoint_file in longterm_checkpoint_files:
+                try:
+                    mtime = datetime.datetime.fromtimestamp(os.path.getmtime(checkpoint_file))
+                    checkpoint_mtimes.append(mtime)
+                except:
+                    # If there's any error getting the modification time for a file, ignore it
+                    pass
+
+            if checkpoint_mtimes:
+                most_recent_checkpoint_time = max(checkpoint_mtimes)
+                last_longterm_checkpoint_save_time = min(last_longterm_checkpoint_save_time, most_recent_checkpoint_time)
+                logging.info(f"Found existing longterm checkpoints. Setting last_longterm_checkpoint_save_time to: {last_longterm_checkpoint_save_time}")
+    except Exception as e:
+        logging.warning(f"Error checking longterm checkpoints: {str(e)}. Using current time as default.")
+
     num_epochs_this_instance = 0
     print_train_loss_every_batches = 100 if not gnorm_stats_debug else 1000
 
@@ -916,17 +1542,46 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
     else:
         running_metrics["weights"] = defaultdict(float,running_metrics["weights"])
 
-    torch.backends.cudnn.benchmark = True
+    # If nsamp isn't in the running metrics (e.g. loading from an initial checkpoint that
+    # doesn't include running metrics), seed it from the train state so it continues from
+    # the right sample count rather than restarting at 0.
+    if "nsamp" not in running_metrics["sums"] and "global_step_samples" in train_state:
+        global_step_samples_initial = train_state["global_step_samples"]
+        running_metrics["sums"]["nsamp"] = global_step_samples_initial
+        running_metrics["weights"]["nsamp"] = global_step_samples_initial
+        logging.info(f"Seeded running_metrics nsamp from train_state global_step_samples: {global_step_samples_initial}")
 
+    torch.backends.cudnn.benchmark = True
+    trainloop_helpers.maybe_enable_compiled_autograd()
+
+    model_norms_only_at_print = trainloop_helpers.get_model_norms_only_at_print()
+    logging.info(f"model_norms_only_at_print {model_norms_only_at_print}")
+    training_metrics_fn = trainloop_helpers.make_training_metrics_fn(metrics_obj, no_compile, model_norms_only_at_print)
+    step_norm_tracker = trainloop_helpers.StepNormTracker(optimizer)
+    gnorm_watcher = trainloop_helpers.GnormWatcher()
+
+    scaler = None
     if use_fp16:
         logging.info("Training in FP16! Creating scaler")
-        scaler = GradScaler()
+        scaler = GradScaler("cuda")
+    elif use_bf16:
+        logging.info("Training in BF16 AMP without gradient scaling.")
     else:
         logging.info("Training in FP32.")
 
+    if no_compile:
+        logging.info("torch.compile disabled by -no-compile flag")
+    else:
+        logging.info("Using torch.compile mode=default")
+
+    if use_tf32_matmul:
+        torch.set_float32_matmul_precision('high')
+        logging.info("float32 matmul precision set to high (TF32)")
+    else:
+        logging.info("float32 matmul precision: default")
+
     # All ddp threads should be lined up at this point before continuing
-    if barrier is not None:
-        barrier.wait()
+    safe_barrier(barrier,rank)
 
     while True:
         if max_epochs_this_instance is not None and max_epochs_this_instance >= 0 and num_epochs_this_instance >= max_epochs_this_instance:
@@ -961,8 +1616,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         continue
 
         # DDP need to wait on the main process after reloading data and/or training bucket waiting
-        if barrier is not None:
-            barrier.wait()
+        safe_barrier(barrier,rank)
 
         logging.info("GC collect")
         gc.collect()
@@ -977,10 +1631,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
         logging.info("Currently up to data row " + str(train_state["total_num_data_rows"]))
         logging.info(f"Training dir: {traindir}")
         logging.info(f"Export dir: {exportdir}")
-        if use_fp16:
+        logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
+        if scaler is not None:
             logging.info(f"Current grad scale: {scaler.get_scale()}")
 
-        lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+        lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="always")
         maybe_update_brenorm_params()
 
         # SUB EPOCH LOOP -----------
@@ -995,26 +1650,23 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 while train_files_to_use is None or len(train_files_to_use) <= 0:
                     if quit_if_no_data:
                         logging.info("Not enough data files to fill a subepoch! Quitting.")
-                        sys.exit(0)
+                        safe_exit(barrier,0)
                     logging.info("Not enough data files to fill a subepoch! Waiting 5m before retrying.")
                     time.sleep(300)
                     maybe_reload_training_data()
                     train_files_to_use = get_files_for_subepoch()
 
-                if barrier is not None:
-                    barrier.wait()
+                safe_barrier(barrier,rank)
                 for wpipe in writepipes:
                     wpipe.send(train_files_to_use)
                 # Wait briefly just in case to reduce chance of races with filesystem or anything else
                 time.sleep(5)
             else:
-                if barrier is not None:
-                    barrier.wait()
+                safe_barrier(barrier,rank)
                 train_files_to_use = readpipes[rank-1].recv()
 
             # DDP need to wait on the main process after reloading data and sending files to train with
-            if barrier is not None:
-                barrier.wait()
+            safe_barrier(barrier,rank)
 
             logging.info("Beginning training subepoch!")
             logging.info("This subepoch, using files: " + str(train_files_to_use))
@@ -1029,22 +1681,23 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 device=device,
                 randomize_symmetries=True,
                 include_meta=raw_model.get_has_metadata_encoder(),
-                model_config=model_config
+                model_config=model_config,
+                prefetch_depth=data_prefetch_depth,
             ):
                 optimizer.zero_grad(set_to_none=True)
                 extra_outputs = None
                 # if raw_model.get_has_metadata_encoder():
                 #     extra_outputs = ExtraOutputs([MetadataEncoder.OUTMEAN_KEY,MetadataEncoder.OUTLOGVAR_KEY])
 
-                if use_fp16:
-                    with autocast():
+                if use_amp:
+                    with autocast("cuda", dtype=amp_dtype):
+                        # Note: output heads are already in fp32 despite autocast
                         model_outputs = ddp_model(
                             batch["binaryInputNCHW"],
                             batch["globalInputNC"],
                             input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
                             extra_outputs=extra_outputs,
                         )
-                    model_outputs = raw_model.float32ify_output(model_outputs)
                 else:
                     model_outputs = ddp_model(
                         batch["binaryInputNCHW"],
@@ -1053,8 +1706,11 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         extra_outputs=extra_outputs,
                     )
 
+                # The print-batch extras below run when the post-increment batch count hits the print interval.
+                is_print_batch = (batch_count_this_epoch + 1) % print_train_loss_every_batches == 0
+
                 postprocessed = raw_model.postprocess_output(model_outputs)
-                metrics = metrics_obj.metrics_dict_batchwise(
+                metrics = training_metrics_fn(
                     raw_model,
                     postprocessed,
                     extra_outputs,
@@ -1069,24 +1725,42 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     variance_time_loss_scale=variance_time_loss_scale,
                     main_loss_scale=main_loss_scale,
                     intermediate_loss_scale=intermediate_loss_scale,
+                    include_model_norms=not model_norms_only_at_print,
                 )
+                if model_norms_only_at_print and is_print_batch:
+                    metrics.update(metrics_obj.get_model_norm_metrics(raw_model))
 
                 # DDP averages loss across instances, so to preserve LR as per-sample lr, we scale by world size.
                 loss = metrics["loss_sum"] * world_size
 
+                # Attention logit bound penalty (kept out of loss_sum so the main loss stays comparable
+                # across runs; logged as its own metrics). mean * batch_size rather than sum: with
+                # attn-logit-penalty-batch-frac < 1 the penalty is computed on a slice of the batch,
+                # and this keeps it an unbiased estimate of the full-batch sum (coeff meaning unchanged).
+                if attn_logit_penalty_cap is not None:
+                    attn_pen_sum = raw_model.attn_logit_penalty_per_sample.mean() * batch_size
+                    metrics["alogitpen_sum"] = attn_pen_sum.detach()
+                    metrics["alogitubmax_batch"] = raw_model.attn_logit_ub_batch_max
+                    loss = loss + attn_logit_penalty_coeff * attn_pen_sum * world_size
+
                 # Reduce gradients across DDP
-                if use_fp16:
+                if scaler is not None:
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
                 else:
                     loss.backward()
 
-                if model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
-                    gnorm_cap = 2500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+                if use_adamw or use_muon:
+                    gnorm_cap = 11000.0
+                elif model_config["norm_kind"] == "fixup" or model_config["norm_kind"] == "fixscale" or model_config["norm_kind"] == "fixscaleonenorm":
+                    gnorm_cap = 2500.0
                 elif model_config["norm_kind"] == "bnorm" or model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
-                    gnorm_cap = 5500.0 * (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+                    gnorm_cap = 5500.0
                 else:
                     assert False
+
+                gnorm_cap *= (1.0 if gnorm_clip_scale is None else gnorm_clip_scale)
+                gnorm_cap *= math.sqrt((batch_size * world_size) / 256.0)
 
                 if gnorm_stats_debug:
                     stats = metrics_obj.get_specific_norms_and_gradient_stats(raw_model)
@@ -1100,42 +1774,80 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             param.grad *= gradscale_constant
 
                 # Loosen gradient clipping as we shift to smaller learning rates
-                gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,lr_scale * lr_scale_auto_factor(train_state)))
+                gnorm_cap = gnorm_cap / math.sqrt(max(0.0000001,get_effective_lr_scale(train_state)))
 
-                gnorm = torch.nn.utils.clip_grad_norm_(ddp_model.parameters(), gnorm_cap).detach().cpu().item()
-
-                if math.isfinite(gnorm) and abs(gnorm < 1e30):
-                    metrics["gnorm_batch"] = gnorm
-                    exgnorm = max(0.0, gnorm - gnorm_cap)
-                    metrics["exgnorm_sum"] = exgnorm * batch_size
+                trainloop_helpers.clip_gradients_and_record(ddp_model, gnorm_cap, metrics, batch_size)
 
                 metrics["pslr_batch"] = lr_right_now
                 metrics["wdnormal_batch"] = normal_weight_decay_right_now
+                if normal_weight_decay_right_now > 0 and lr_right_now > 0:
+                    # Time constant in samples for normal group weight decay (samples for params to decay by factor e)
+                    # lr_group = lr_right_now * group_scale * sqrt(B*W/256), and optimizer applies p *= (1 - lr_group * wd) per step
+                    # Each step = B*W samples, so tau_samples = (B*W) / (lr_group * wd) = sqrt(256*B*W) / (2.0 * lr_right_now * wd)
+                    normal_group_scale = 2.0 if use_muon else 1.0
+                    effective_lr_group = lr_right_now * normal_group_scale * math.sqrt(batch_size * world_size / 256.0)
+                    metrics["wdtime_batch"] = (batch_size * world_size) / (effective_lr_group * normal_weight_decay_right_now)
                 metrics["gnorm_cap_batch"] = gnorm_cap
+                metrics["window_start_batch"] = train_state["window_start_data_row_idx"]
+                metrics["window_end_batch"] = train_state["total_num_data_rows"]
 
-                if use_fp16:
+                # Store parameters to later calculate empirical step vector length
+                step_norm_tracker.capture(ddp_model, is_print_batch=is_print_batch)
+
+                if scaler is not None:
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     optimizer.step()
 
+                # Empirical step vector length (overall and per parameter group)
+                step_norm_tracker.record(ddp_model, metrics)
+
+                del model_outputs, postprocessed, loss
+
                 batch_count_this_epoch += 1
                 train_state["train_steps_since_last_reload"] += batch_size * world_size
                 train_state["global_step_samples"] += batch_size * world_size
 
-                metrics = detensorify_metrics(metrics)
+                metrics = trainloop_helpers.detensorify_metrics(metrics)
+                gnorm_watcher.observe(metrics, gnorm_cap=gnorm_cap)
 
                 if lookahead_k is not None and lookahead_print:
                     # Only accumulate metrics when lookahead is synced if lookahead_print is True
                     if lookahead_counter == 0:
-                        accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=math.exp(-0.001 * lookahead_k), new_weight=1.0)
+                        accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=math.exp(-0.005 * lookahead_k), new_weight=1.0)
                     else:
                         accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=1.0, new_weight=0.0)
                 else:
-                    accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.999, new_weight=1.0)
+                    accumulate_metrics(running_metrics["sums"], running_metrics["weights"], metrics, batch_size, decay=0.995, new_weight=1.0)
 
 
                 if batch_count_this_epoch % print_train_loss_every_batches == 0:
+
+                    # Norms computed only on this print batch are snapshots;
+                    # store them with weight 1 so logging cannot divide 0 by 0
+                    # (e.g. when lookahead_print gives surrounding batches zero
+                    # accumulation weight).
+                    if model_norms_only_at_print:
+                        trainloop_helpers.set_snapshot_metrics(
+                            running_metrics["sums"], running_metrics["weights"], metrics,
+                            [key for key in metrics if key.startswith("norm_") and key.endswith("_batch")],
+                        )
+                    if step_norm_tracker.only_at_print:
+                        trainloop_helpers.set_snapshot_metrics(
+                            running_metrics["sums"], running_metrics["weights"], metrics,
+                            [key for key in metrics if key.startswith("step_norm_") and key.endswith("_batch")],
+                        )
+
+                    # Fraction of output channels that are dead or held at the weight decay floor
+                    floor_norms_by_param = optimizer.weight_decay_floor_norms if use_muon else {}
+                    output_channel_metrics = Metrics.get_output_channel_metrics(
+                        raw_model, floor_norms_by_param if len(floor_norms_by_param) > 0 else None
+                    )
+                    metrics.update(output_channel_metrics)
+                    trainloop_helpers.set_snapshot_metrics(
+                        running_metrics["sums"], running_metrics["weights"], metrics, list(output_channel_metrics.keys())
+                    )
 
                     if model_config["norm_kind"] == "brenorm" or model_config["norm_kind"] == "fixbrenorm":
                         metrics["brn_rmax"] = train_state["brenorm_rmax"]
@@ -1156,8 +1868,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     log_metrics(running_metrics["sums"], running_metrics["weights"], metrics, train_metrics_out)
 
                 # Update LR more frequently at the start for smoother warmup ramp and wd adjustment
-                if train_state["global_step_samples"] <= 50000000 and batch_count_this_epoch % 50 == 0:
-                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd()
+                if train_state["global_step_samples"] <= 200000000 and batch_count_this_epoch % 5 == 0:
+                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if=("changed" if batch_count_this_epoch % 50 == 0 else "never"))
+                elif batch_count_this_epoch % 50 == 0:
+                    lr_right_now, normal_weight_decay_right_now = update_and_return_lr_and_wd(log_if="never")
 
                 # Update batch renorm parameters
                 if batch_count_this_epoch % 500 == 0:
@@ -1199,10 +1913,10 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                     slow_param_data = lookahead_cache[param]
                     param.data.copy_(slow_param_data)
 
-        if rank == 0:
-            train_state["export_cycle_counter"] += 1
-
-        save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
+        # Incremented on every rank, not just rank 0, so that the counter stays in sync across DDP
+        # processes. Under -lr-cycle-* the counter determines the LR, and all ranks must apply the
+        # same LR. See the export check below for why the counter is not reset at export time.
+        train_state["export_cycle_counter"] += 1
 
         num_epochs_this_instance += 1
 
@@ -1220,8 +1934,19 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
             if len(val_files) == 0:
                 logging.info("No validation files, skipping validation step")
             else:
+                validation_model = trainloop_helpers.get_local_validation_model(ddp_model, raw_model, world_size)
+                # With KATAGO_FLEX_ATTENTION_VALIDATION=0, validation runs attention through SDPA
+                # masking instead of flex attention. The flex-attention inference kernel that
+                # inductor generates for the eval-mode graph crashes with an illegal memory access
+                # on some platforms (seen on sm_120 with torch 2.11 and triton 3.6), while the
+                # training-mode graph is fine. The two paths are equivalent. Dynamo guards on the
+                # flag, so this compiles a separate eval-mode graph once and the training graph is
+                # reused unchanged after the flag is restored.
+                saved_use_flex_attention = raw_model.use_flex_attention
+                if not FLEX_ATTENTION_VALIDATION:
+                    raw_model.use_flex_attention = False
                 with torch.no_grad():
-                    ddp_model.eval()
+                    validation_model.eval()
                     val_metric_sums = defaultdict(float)
                     val_metric_weights = defaultdict(float)
                     val_samples = 0
@@ -1237,11 +1962,20 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         include_meta=raw_model.get_has_metadata_encoder(),
                         model_config=model_config
                     ):
-                        model_outputs = ddp_model(
-                            batch["binaryInputNCHW"],
-                            batch["globalInputNC"],
-                            input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
-                        )
+                        if use_amp:
+                            with autocast("cuda", dtype=amp_dtype):
+                                # Note: output heads are already in fp32 despite autocast
+                                model_outputs = validation_model(
+                                    batch["binaryInputNCHW"],
+                                    batch["globalInputNC"],
+                                    input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
+                                )
+                        else:
+                            model_outputs = validation_model(
+                                batch["binaryInputNCHW"],
+                                batch["globalInputNC"],
+                                input_meta=(batch["metadataInputNC"] if raw_model.get_has_metadata_encoder() else None),
+                            )
                         postprocessed = raw_model.postprocess_output(model_outputs)
                         extra_outputs = None
                         metrics = metrics_obj.metrics_dict_batchwise(
@@ -1260,7 +1994,7 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                             main_loss_scale=main_loss_scale,
                             intermediate_loss_scale=intermediate_loss_scale,
                         )
-                        metrics = detensorify_metrics(metrics)
+                        metrics = trainloop_helpers.detensorify_metrics(metrics)
                         accumulate_metrics(val_metric_sums, val_metric_weights, metrics, batch_size, decay=1.0, new_weight=1.0)
                         val_samples += batch_size
                         if max_val_samples is not None and val_samples > max_val_samples:
@@ -1269,23 +2003,24 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                         val_metric_weights["nsamp_train"] = running_metrics["weights"]["nsamp"]
                         val_metric_sums["wsum_train"] = running_metrics["sums"]["wsum"]
                         val_metric_weights["wsum_train"] = running_metrics["weights"]["wsum"]
-                    last_val_metrics["sums"] = val_metric_sums
-                    last_val_metrics["weights"] = val_metric_weights
+                    last_val_metrics["sums"] = dict(val_metric_sums)
+                    last_val_metrics["weights"] = dict(val_metric_weights)
                     log_metrics(val_metric_sums, val_metric_weights, metrics, val_metrics_out)
                     t1 = time.perf_counter()
                     logging.info(f"Validation took {t1-t0} seconds")
-                    ddp_model.train()
+                    validation_model.train()
+                raw_model.use_flex_attention = saved_use_flex_attention
+
+        # The export cycle counter is not reset at export time. It keeps counting epochs so that
+        # outside tooling can track a run's epoch count from its checkpoints, and anything that
+        # cares about the position within an export cycle, such as this check and the -lr-cycle-*
+        # schedule, takes it mod epochs_per_export. One consequence is that a run switched from
+        # -no-export to exporting waits for its next cycle boundary rather than exporting
+        # immediately.
+        is_time_to_export = (train_state["export_cycle_counter"] % epochs_per_export == 0)
 
         if rank == 0:
             logging.info("Export cycle counter = " + str(train_state["export_cycle_counter"]))
-
-            is_time_to_export = False
-            if train_state["export_cycle_counter"] >= epochs_per_export:
-                if no_export:
-                    train_state["export_cycle_counter"] = epochs_per_export
-                else:
-                    train_state["export_cycle_counter"] = 0
-                    is_time_to_export = True
 
             skip_export_this_time = False
             if export_prob is not None:
@@ -1307,25 +2042,43 @@ def main(rank: int, world_size: int, args, multi_gpu_device_ids, readpipes, writ
                 else:
                     os.mkdir(savepathtmp)
                     logging.info("SAVING MODEL FOR EXPORT TO: " + savepath)
-                    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"))
+                    # skip_optimizer: export only needs weights, and this save runs on
+                    # rank 0 only so it must not trigger the optimizer-state collective.
+                    save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(savepathtmp,"model.ckpt"), skip_optimizer=True)
                     time.sleep(2)
                     os.rename(savepathtmp,savepath)
 
+        # Rejoin all ranks before the final save. The save below is called by every rank and,
+        # with a sharded optimizer like Muon, performs a collective (state_dict_for_checkpoint's
+        # gather) that every rank must enter together. Validation and export above run on rank 0
+        # only, so without this barrier the non-zero ranks would reach the collective immediately
+        # and sit inside an NCCL op waiting for rank 0, hitting the ~600s NCCL watchdog timeout and
+        # aborting the job on any epoch where rank 0's validation/export takes that long. This is a
+        # CPU-side multiprocessing.Barrier (no NCCL timeout), so the non-zero ranks idle here
+        # harmlessly instead. No-op when barrier is None (single-GPU / non-DDP training).
+        safe_barrier(barrier,rank)
+
+        # Finally save, now after validation and exports are done
+        save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics)
 
         if sleep_seconds_per_epoch is None:
             time.sleep(1)
         else:
             time.sleep(sleep_seconds_per_epoch)
 
-        if rank == 0:
+        if rank == 0 and not no_longterm_checkpoints:
             now = datetime.datetime.now()
             if now - last_longterm_checkpoint_save_time >= datetime.timedelta(hours=12):
                 last_longterm_checkpoint_save_time = now
                 dated_name = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-                save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"))
+                # skip_optimizer: archival checkpoint, and this save runs on rank 0
+                # only so it must not trigger the optimizer-state collective.
+                save(ddp_model, swa_model, optimizer, metrics_obj, running_metrics, train_state, last_val_metrics, path=os.path.join(longterm_checkpoints_dir,f"{dated_name}.ckpt"), skip_optimizer=True)
 
     train_metrics_out.close()
     val_metrics_out.close()
+
+    safe_exit(barrier,0)
 
 
 if __name__ == "__main__":

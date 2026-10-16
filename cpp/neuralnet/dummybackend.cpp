@@ -18,23 +18,19 @@ ComputeContext* NeuralNet::createComputeContext(
   Logger* logger,
   int nnXLen,
   int nnYLen,
-  const string& openCLTunerFile,
   const string& homeDataDirOverride,
-  bool openCLReTunePerBoardSize,
   enabled_t useFP16Mode,
-  enabled_t useNHWCMode,
-  const LoadedModel* loadedModel
+  const LoadedModel* loadedModel,
+  ConfigParser& cfg
 ) {
   (void)gpuIdxs;
   (void)logger;
   (void)nnXLen;
   (void)nnYLen;
-  (void)openCLTunerFile;
   (void)homeDataDirOverride;
-  (void)openCLReTunePerBoardSize;
   (void)useFP16Mode;
-  (void)useNHWCMode;
   (void)loadedModel;
+  (void)cfg;
   throw StringError("Dummy neural net backend: NeuralNet::createComputeContext unimplemented");
 }
 void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
@@ -53,26 +49,9 @@ void NeuralNet::freeLoadedModel(LoadedModel* loadedModel) {
   throw StringError("Dummy neural net backend: NeuralNet::freeLoadedModel unimplemented");
 }
 
-string NeuralNet::getModelName(const LoadedModel* loadedModel) {
+const ModelDesc& NeuralNet::getModelDesc(const LoadedModel* loadedModel) {
   (void)loadedModel;
-  throw StringError("Dummy neural net backend: NeuralNet::getModelName unimplemented");
-}
-
-int NeuralNet::getModelVersion(const LoadedModel* loadedModel) {
-  (void)loadedModel;
-  throw StringError("Dummy neural net backend: NeuralNet::getModelVersion unimplemented");
-}
-
-Rules NeuralNet::getSupportedRules(const LoadedModel* loadedModel, const Rules& desiredRules, bool& supported) {
-  (void)loadedModel;
-  (void)desiredRules;
-  (void)supported;
-  throw StringError("Dummy neural net backend: NeuralNet::getSupportedRules unimplemented");
-}
-
-ModelPostProcessParams NeuralNet::getPostProcessParams(const LoadedModel* loadedModel) {
-  (void)loadedModel;
-  return ModelPostProcessParams();
+  throw StringError("Dummy neural net backend: NeuralNet::getModelDesc unimplemented");
 }
 
 ComputeHandle* NeuralNet::createComputeHandle(
@@ -106,7 +85,29 @@ bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
   return false;
 }
 
+bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
+  (void)handle;
+  (void)isWarmup;
+  return false;
+}
+
 void NeuralNet::printDevices() {
+}
+
+std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
+  (void)cfg;
+  return std::string();
+}
+
+NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
+  (void)cfg;
+  return NeuralNet::BatchPolicy::Dynamic;
+}
+
+int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
+  (void)cfg;
+  std::set<int> distinctDevices(gpuIdxByServerThread.begin(), gpuIdxByServerThread.end());
+  return std::max(1, (int)distinctDevices.size());
 }
 
 InputBuffers* NeuralNet::createInputBuffers(const LoadedModel* loadedModel, int maxBatchSize, int nnXLen, int nnYLen) {

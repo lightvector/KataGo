@@ -7,11 +7,22 @@
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../book/book.h"
+#include "../search/mutexpool.h"
 #include "../tests/testsearchcommon.h"
 
 using namespace std;
 using namespace TestCommon;
 using namespace TestSearchCommon;
+
+static void corruptNodes(Book* book, std::vector<SymBookNode>& newAndChangedNodes, Rand& rand) {
+  for(SymBookNode node: newAndChangedNodes) {
+    node.getNodeForTesting()->corruptRecursiveValuesOnlyForTesting(rand);
+  }
+  for(SymBookNode node: book->getAllNodes()) {
+    node.getNodeForTesting()->corruptNodeCostsOnlyForTesting(rand);
+  }
+}
+
 
 void Tests::runBookTests() {
   cout << "Running book tests" << endl;
@@ -59,11 +70,16 @@ void Tests::runBookTests() {
     rules,
     initialPla,
     repBound,
+    BoardHistoryModes(),
     params
   );
 
   Rand rand("runBookTests");
+  Rand corruptionRand("runBookTestsNoise");
   std::vector<Loc> legalMovesBuf;
+
+  MutexPool mutexPool(4096);
+  int numThreads = 4;
 
   for(int waveIdx = 0; waveIdx<35; waveIdx++) {
     cout << "Book size " << book->size() << endl;
@@ -72,11 +88,11 @@ void Tests::runBookTests() {
     for(int branchIdx = 0; branchIdx<10; branchIdx++) {
       SymBookNode node = book->getRoot();
       Board board(initialBoard);
-      BoardHistory hist(board,initialPla,rules,0);
+      BoardHistory hist(board,initialPla,rules,0,book->historyModes);
       int branchLen = rand.nextUInt(10);
 
       for(int turnIdx = 0; turnIdx<branchLen; turnIdx++) {
-        assert(!node.isNull());
+        testAssert(!node.isNull());
         if(hist.isGameFinished || hist.encorePhase != 0)
           break;
 
@@ -103,6 +119,7 @@ void Tests::runBookTests() {
           if(!child.isNull() && !childIsTransposing)
             nodesHashesToUpdate.insert(child.hash());
           nodesHashesToUpdate.insert(node.hash());
+          node = child;
         }
         else {
           node = node.playMove(board,hist,moveLoc);
@@ -130,25 +147,103 @@ void Tests::runBookTests() {
       newAndChangedNodes.push_back(node);
     }
 
-    book->recompute(newAndChangedNodes);
-    std::map<BookHash,double> costByHash;
-    for(SymBookNode node: book->getAllNodes())
-      costByHash[node.hash()] = node.totalExpansionCost();
+    std::map<BookHash,double> costsAfterFirst;
+    std::map<BookHash,double> costsAfterSecond;
+
+
+
+    if(waveIdx % 2 == 0) {
+      //Even waves: recompute then recomputeMultiThreaded
+
+      if(waveIdx % 3 == 0)
+        corruptNodes(book, newAndChangedNodes, corruptionRand);
+
+      book->recompute(newAndChangedNodes);
+      for(SymBookNode node: book->getAllNodes())
+        costsAfterFirst[node.hash()] = node.totalExpansionCost();
+
+      if(waveIdx % 3 == 0)
+        corruptNodes(book, newAndChangedNodes, corruptionRand);
+
+      book->recomputeMultiThreaded(newAndChangedNodes, mutexPool, numThreads);
+      for(SymBookNode node: book->getAllNodes())
+        costsAfterSecond[node.hash()] = node.totalExpansionCost();
+    }
+    else {
+      //Odd waves: recomputeMultiThreaded then recompute
+
+      if(waveIdx % 3 == 0)
+        corruptNodes(book, newAndChangedNodes, corruptionRand);
+
+      book->recomputeMultiThreaded(newAndChangedNodes, mutexPool, numThreads);
+      for(SymBookNode node: book->getAllNodes())
+        costsAfterFirst[node.hash()] = node.totalExpansionCost();
+
+      if(waveIdx % 3 == 0)
+        corruptNodes(book, newAndChangedNodes, corruptionRand);
+
+      book->recompute(newAndChangedNodes);
+      for(SymBookNode node: book->getAllNodes())
+        costsAfterSecond[node.hash()] = node.totalExpansionCost();
+    }
+
+    //Should give identical costs
+    for(SymBookNode node: book->getAllNodes()) {
+      BookHash hash = node.hash();
+      testAssert(abs(costsAfterFirst[hash] - costsAfterSecond[hash]) < 1e-5);
+    }
+
+    std::map<BookHash,double> costsAfterEverything;
+    std::vector<SymBookNode> allSymNodes = book->getAllNodes();
+    if(waveIdx % 2 == 0) {
+
+      if(waveIdx % 3 == 0)
+        corruptNodes(book, allSymNodes, corruptionRand);
+
+      book->recomputeEverything();
+      for(SymBookNode node: book->getAllNodes())
+        costsAfterEverything[node.hash()] = node.totalExpansionCost();
+
+      if(waveIdx % 3 == 0)
+        corruptNodes(book, allSymNodes, corruptionRand);
+
+      book->recomputeEverythingMultiThreaded(mutexPool, numThreads);
+
+      // Also idempotent here
+      for(SymBookNode node: book->getAllNodes()) {
+        BookHash hash = node.hash();
+        testAssert(abs(costsAfterEverything[hash] - node.totalExpansionCost()) < 1e-5);
+        testAssert(abs(costsAfterSecond[hash] - node.totalExpansionCost()) < 1e-5);
+      }
+    }
+    else {
+
+      if(waveIdx % 3 == 0)
+        corruptNodes(book, allSymNodes, corruptionRand);
+
+      book->recomputeEverythingMultiThreaded(mutexPool, numThreads);
+      for(SymBookNode node: book->getAllNodes())
+        costsAfterEverything[node.hash()] = node.totalExpansionCost();
+
+      if(waveIdx % 3 == 0)
+        corruptNodes(book, allSymNodes, corruptionRand);
+
+      book->recomputeEverything();
+
+      for(SymBookNode node: book->getAllNodes()) {
+        BookHash hash = node.hash();
+        testAssert(abs(costsAfterEverything[hash] - node.totalExpansionCost()) < 1e-3);
+        testAssert(abs(costsAfterSecond[hash] - node.totalExpansionCost()) < 1e-3);
+      }
+    }
 
     Book* loaded = NULL;
     if(waveIdx % 20 == 0) {
       book->saveToFile(testFileName);
       loaded = Book::loadFromFile(testFileName);
-    }
-
-    book->recomputeEverything();
-    for(SymBookNode node: book->getAllNodes()) {
-      testAssert(abs(costByHash[node.hash()] - node.totalExpansionCost()) < 1e-3);
-    }
-
-    if(loaded != NULL) {
       for(SymBookNode node: loaded->getAllNodes()) {
-        testAssert(abs(costByHash[node.hash()] - node.totalExpansionCost()) < 1e-3);
+        BookHash hash = node.hash();
+        testAssert(abs(costsAfterSecond[hash] - node.totalExpansionCost()) < 1e-3);
       }
       delete loaded;
     }

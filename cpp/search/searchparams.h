@@ -2,6 +2,7 @@
 #define SEARCH_SEARCHPARAMS_H_
 
 #include "../core/global.h"
+#include "../core/commontypes.h"
 #include "../game/board.h"
 #include "../neuralnet/sgfmetadata.h"
 
@@ -90,9 +91,30 @@ struct SearchParams {
   Player avoidMYTDaggerHackPla; //Hacky hack to avoid a particular pattern that gives some KG nets some trouble. Should become unnecessary in the future.
   double wideRootNoise; //Explore at the root more widely
   bool enablePassingHacks; //Enable some hacks that mitigate rare instances when passing messes up deeper searches.
+  bool enableMorePassingHacks; //Always weightless search passing and non passing moves when a pass would end the phase after a few visits.
+  //Whether to compute pass-alive areas as if multi-stone suicide were always legal regardless of the actual suicide
+  //rule, for game end/scoring within the search tree and for nn input featurization.
+  //Auto = do so if and only if the neural net declares that it expects this. See BoardHistoryModes.
+  enabled_t alwaysComputePassAliveUnderSuicideRules;
+  //Whether territory scoring with TaxRule NONE excludes empty points adjacent to chains in atari (rules version 3),
+  //for game end/scoring within the search tree and for nn input featurization.
+  //Auto = do so if and only if the neural net declares that it expects this. See BoardHistoryModes.
+  enabled_t excludeTerritoryAdjacentToAtari;
 
   double playoutDoublingAdvantage; //Play as if we have this many doublings of playouts vs the opponent
   Player playoutDoublingAdvantagePla; //Negate playoutDoublingAdvantage when making a move for the opponent of this player. If empty, opponent of the root player.
+
+  //Opponent modeling. One player in the search is modeled as searching with only this many visits per node.
+  //Once a node where the capped player is to move reaches this many visits, we take a snapshot of the child weight distribution
+  //and all further visits at that node are allocated to keep the child weight distribution as close as possible to the snapshot
+  //rather than following PUCT.
+  //The snapshot fixes how visits are distributed, but not how the node's value is computed from its children.
+  //useNoisePruning and valueWeightExponent still reweight the children by their current values, so for strict modeling,
+  //disabling those features for the whole search may be preferred.
+  //Equals 0 when there is no cap. 1 is not allowed, since a node with 1 visit has no child visits to take a distribution from.
+  int64_t visitCapContempt;
+  //The player capped by visitCapContempt, or the opponent of Search::plaThatSearchIsFor if empty.
+  Player visitCapContemptPla;
 
   double avoidRepeatedPatternUtility; //Have the root player avoid repeating similar shapes, penalizing this much utility per instance.
 
@@ -110,6 +132,9 @@ struct SearchParams {
   int32_t subtreeValueBiasTableNumShards; //Number of shards for subtreeValueBiasFactor for initial hash lookup and mutexing
   double subtreeValueBiasFreeProp; //When a node is no longer part of the relevant search tree, only decay this proportion of the weight.
   double subtreeValueBiasWeightExponent; //When computing empiricial bias, weight subtree results by childvisits to this power.
+
+  bool useEvalCache;
+  int64_t evalCacheMinVisits;
 
   //Threading-related
   int nodeTableShardsPowerOfTwo; //Controls number of shards of node table for graph search transposition lookup
@@ -171,6 +196,9 @@ struct SearchParams {
 
   bool operator==(const SearchParams& other) const;
   bool operator!=(const SearchParams& other) const;
+
+  // Hash of all parameters, such that params that compare unequal hash differently (with high probability).
+  Hash128 getHash() const;
 
   nlohmann::json changeableParametersToJson() const;
   void printParams(std::ostream& out) const;

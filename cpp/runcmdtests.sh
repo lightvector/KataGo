@@ -9,6 +9,13 @@ do
     ./katago gtp -config configs/gtp_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -override-config "logFile=tests/results/gtp/$BASENAME.log, logDir=, logTimeStamp=false, maxVisits=100, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false" < $CMDFILE 1> tests/results/gtp/$BASENAME.stdout 2> tests/results/gtp/$BASENAME.stderr
 done
 
+# Territory scoring only reaches a real game end (rather than a search-estimated score) when the
+# cleanup phases are allowed, so this one needs preventCleanupPhase=false and cannot be a plain
+# tests/gtp/ file sharing the config above. Scores a seki whose ko mouth at F6 is a point for black
+# only under rules version 2, so flipping excludeTerritoryAdjacentToAtari moves the score by one.
+echo tests/results/gtp/excludeterritoryscore
+echo -e 'boardsize 7\nkata-set-rules {"ko":"SIMPLE","scoring":"TERRITORY","tax":"NONE","suicide":false,"hasButton":false,"friendlyPassOk":false,"whiteHandicapBonus":"0"}\nkomi 0\nset_position w d7 b e7 b f7 b g7 w a6 w b6 w c6 w d6 b e6 b g6 b a5 b b5 b c5 b d5 w e5 b f5 b g5 w a4 b c4 w d4 w e4 w f4 w g4 w a3 w b3 b c3 w d3 b e3 w g3 w a2 b b2 b c2 w d2 b f2 w g2 w a1 b c1 w d1 w e1 b f1 b g1\nplay b pass\nplay w pass\nplay b pass\nplay w pass\nplay b pass\nplay w pass\nfinal_score\nprintsgf -\nkata-set-param excludeTerritoryAdjacentToAtari true\nfinal_score\nprintsgf -\nkata-set-param excludeTerritoryAdjacentToAtari false\nfinal_score' | ./katago gtp -config configs/gtp_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -override-config "logFile=tests/results/gtp/excludeterritoryscore.log, logDir=, logTimeStamp=false, maxVisits=100, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, preventCleanupPhase=false, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false" 1> tests/results/gtp/excludeterritoryscore.stdout 2> tests/results/gtp/excludeterritoryscore.stderr
+
 echo tests/results/gtp/defaultkomitt
 echo 'genmove_debug b' | ./katago gtp -config configs/gtp_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -override-config "logFile=tests/results/gtp/defaultkomitt.log, logDir=, logTimeStamp=false, maxVisits=100, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, rules=, scoringRule=AREA,koRule=POSITIONAL,multiStoneSuicideLegal=false,taxRule=NONE,hasButton=false" 1> tests/results/gtp/defaultkomitt.stdout 2> tests/results/gtp/defaultkomitt.stderr
 echo tests/results/gtp/defaultkomiterr
@@ -24,7 +31,7 @@ echo -e 'genmove_debug b\ngenmove_debug w\ngenmove_debug b' | ./katago gtp -conf
 echo tests/results/gtp/nologconfig
 echo -e 'genmove_debug b\ngenmove_debug w\ngenmove_debug b' | ./katago gtp -config configs/gtp_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -override-config "logFile=tests/results/gtp/nologconfig.log, logConfigContents=false, logDir=, logTimeStamp=false, maxVisits=100, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false" 1> tests/results/gtp/nologconfig.stdout 2> tests/results/gtp/nologconfig.stderr
 echo tests/results/gtp/genmoveanalyze
-echo -e 'kata-genmove_analyze b\nkomi 5\nkata-genmove_analyze w rootInfo true\nkata-genmove_analyze b rootInfo true' | ./katago gtp -config configs/gtp_example.cfg -model models/b18c384nbt-uec.bin.gz -override-config "logFile=tests/results/gtp/genmoveanalyze.log, logConfigContents=false, logDir=, logTimeStamp=false, maxVisits=30, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, defaultBoardSize = 9" 1> tests/results/gtp/genmoveanalyze.stdout 2> tests/results/gtp/genmoveanalyze.stderr
+echo -e 'kata-genmove_analyze b\nkomi 5\nkata-genmove_analyze w rootInfo true\nkata-genmove_analyze b rootInfo true noResultValue true' | ./katago gtp -config configs/gtp_example.cfg -model models/b18c384nbt-uec.bin.gz -override-config "logFile=tests/results/gtp/genmoveanalyze.log, logConfigContents=false, logDir=, logTimeStamp=false, maxVisits=30, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, defaultBoardSize = 9" 1> tests/results/gtp/genmoveanalyze.stdout 2> tests/results/gtp/genmoveanalyze.stderr
 echo tests/results/gtp/searchcancellable
 echo -e 'kata-search_analyze b\nkata-genmove_analyze b\nkomi 5\nkata-search_analyze_cancellable w rootInfo true\nkata-search_cancellable w' | ./katago gtp -config configs/gtp_example.cfg -model models/b18c384nbt-uec.bin.gz -override-config "logFile=tests/results/gtp/searchcancellable.log, logConfigContents=false, logDir=, logTimeStamp=false, maxVisits=500, maxPlayouts=10000, numSearchThreads=1, nnRandomize=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, defaultBoardSize = 9" 1> tests/results/gtp/searchcancellable.stdout 2> tests/results/gtp/searchcancellable.stderr
 echo tests/results/gtp/humansl
@@ -63,6 +70,15 @@ cat tests/analysis/pvvisits.txt | ./katago analysis -config configs/analysis_exa
 
 cat tests/analysis/humansl.txt.noauto | ./katago analysis -config configs/analysis_example.cfg -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz -human-model models/b18c384nbt-humanv0.bin.gz -override-config "logFile=tests/results/analysis/humansl_sidetomove.txt.log, logDir=, logTimeStamp=false, logAllRequests=true, logAllResponses=true, logSearchInfo=true, maxVisits=100, maxPlayouts=10000, numAnalysisThreads=1, numSearchThreadsPerAnalysisThread=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=analysisTest, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, reportAnalysisWinratesAs=SIDETOMOVE, humanSLProfile = preaz_18k" 1> tests/results/analysis/humansl_sidetomove.stdout 2> tests/results/analysis/humansl_sidetomove.stderr
 
+(
+    rm -rf tmp/evalcachecmdtest/
+    mkdir -p tmp/evalcachecmdtest/
+    mkfifo tmp/evalcachecmdtest/input
+    mkfifo tmp/evalcachecmdtest/feedback
+    ./katago analysis -config configs/analysis_example.cfg -model tests/models/g170e-b10c128-s1141046784-d204142634.bin.gz -override-config "logFile=tests/results/analysis/eval_cache.txt.log, logDir=, logTimeStamp=false, logAllRequests=true, logAllResponses=true, logSearchInfo=true, numAnalysisThreads=1, numSearchThreadsPerAnalysisThread=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=analysisTest, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, useGraphSearch=true, useEvalCache=true, evalCacheMinVisits=10" < tmp/evalcachecmdtest/input > tmp/evalcachecmdtest/feedback &
+    { head -1 tests/analysis/evalcache.txt; tail -n +2 tests/analysis/evalcache.txt | while read -r L; do read -r _ < tmp/evalcachecmdtest/feedback; echo "$L"; done; } > tmp/evalcachecmdtest/input
+    rm -r tmp/evalcachecmdtest/
+) > /dev/null 2> /dev/null
 
 echo "checkbook"
 ./katago checkbook -book-file tests/data/test.katabook > tests/results/checkbook.txt
@@ -108,6 +124,7 @@ countSides tests/results/matchsgfs/games.sgfs
 countSides tests/results/matchsgfs2/games.sgfs
 
 rm -f tests/results/sampletest-vf/*.log
+rm -f tests/results/sampletest-vf/*.txt
 ./katago samplesgfs \
          -sgfdir tests/data/sampletest/ \
          -outdir tests/results/sampletest-vf/ \
@@ -123,6 +140,7 @@ rm -f tests/results/sampletest-vf/*.log
          -for-testing
 
 rm -f tests/results/sampletest-basic/*.log
+rm -f tests/results/sampletest-basic/*.txt
 ./katago samplesgfs \
          -sgfdir tests/data/sampletest/ \
          -outdir tests/results/sampletest-basic/ \
@@ -135,7 +153,22 @@ rm -f tests/results/sampletest-basic/*.log
          -turn-weight-lambda 0.01 \
          -for-testing
 
+rm -f tests/results/sampletest2-basic/*.log
+rm -f tests/results/sampletest2-basic/*.txt
+./katago samplesgfs \
+         -sgfdir tests/data/sampletest2/ \
+         -outdir tests/results/sampletest2-basic/ \
+         -sample-prob 1 \
+         -force-sample-weight 10.0 \
+         -hash-comments \
+         -training-weight 0.36 \
+         -min-weight 0.01 \
+         -turn-weight-lambda 0.01 \
+         -flip-if-pass \
+         -for-testing
+
 rm -f tests/results/sampletest-hint/*.log
+rm -f tests/results/sampletest-hint/*.txt
 ./katago dataminesgfs \
          -config configs/gtp_example.cfg \
          -override-config "logTimeStamp=false, maxVisits=50, numSearchThreads=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, koRules=SIMPLE, scoringRules=AREA, taxRules=NONE, hasButtons=false, multiStoneSuicideLegals=false, bSizes=9, bSizeRelProbs=1, komiAuto=true" \
@@ -146,6 +179,21 @@ rm -f tests/results/sampletest-hint/*.log
          -min-hint-weight 0.25 \
          -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz \
          -auto-komi \
+         -for-testing
+
+rm -f tests/results/sampletest2-hint/*.log
+rm -f tests/results/sampletest2-hint/*.txt
+./katago dataminesgfs \
+         -config configs/gtp_example.cfg \
+         -override-config "logTimeStamp=false, maxVisits=50, numSearchThreads=1, nnRandomize=false, rootSymmetryPruning=false, nnRandSeed=forTesting, searchRandSeed=forTesting, forDeterministicTesting=true, cudaUseFP16 = false, trtUseFP16 = false, openclUseFP16 = false, cudaUseNHWC = false, koRules=SIMPLE, scoringRules=AREA, taxRules=NONE, hasButtons=false, multiStoneSuicideLegals=false, bSizes=9, bSizeRelProbs=1, komiAuto=true" \
+         -sgfdir tests/data/sampletest2/ \
+         -outdir tests/results/sampletest2-hint/ \
+         -threads 1 \
+         -tree-mode \
+         -min-hint-weight 0.25 \
+         -model tests/models/g170-b6c96-s175395328-d26788732.bin.gz \
+         -auto-komi \
+         -flip-if-pass \
          -for-testing
 
 echo "Done"

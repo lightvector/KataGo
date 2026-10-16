@@ -26,22 +26,21 @@ void Tests::runOwnershipTests(const string& configFile, const string& modelFile)
   {
     Setup::initializeSession(cfg);
     const int expectedConcurrentEvals = params.numThreads;
-    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
     const bool requireExactNNLen = false;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      nnXLen,nnYLen,defaultMaxBatchSize,requireExactNNLen,disableFP16,
+      nnXLen,nnYLen,Setup::MaxBatchSizeRequest::fromConcurrency(),requireExactNNLen,disableFP16,
       Setup::SETUP_FOR_GTP
     );
   }
 
   Search* bot = new Search(params, nnEval, &logger, Global::uint64ToString(seedRand.nextUInt64()));
 
-  auto runOnBoard = [&](const Board& board, Rules rules) {
+  auto runOnBoard = [&](const Board& board, const Rules& rules) {
     Player nextPla = P_BLACK;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     int64_t numVisits = 100;
     vector<double> ownership = PlayUtils::computeOwnership(bot,board,hist,nextPla,numVisits);
     cout << "=================================================================================" << endl;
