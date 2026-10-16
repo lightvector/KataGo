@@ -14,7 +14,7 @@ app = Flask(__name__)
 
 # Store the process globally
 cli_process = None
-lock = threading.Lock()
+lock = threading.RLock()
 
 def start_cli():
     global cli_process
