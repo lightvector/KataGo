@@ -1,5 +1,7 @@
 #include "../search/searchnode.h"
 
+#include <algorithm>
+
 #include "../search/search.h"
 #include "../core/test.h"
 
@@ -89,62 +91,27 @@ void SearchChildPointer::storeAll(const SearchChildPointer& other) {
   data.store(d,std::memory_order_release);
 }
 
-SearchNode* SearchChildPointer::getIfAllocated() {
-  return data.load(std::memory_order_acquire);
-}
-
-const SearchNode* SearchChildPointer::getIfAllocated() const {
-  return data.load(std::memory_order_acquire);
-}
-
-SearchNode* SearchChildPointer::getIfAllocatedRelaxed() {
-  return data.load(std::memory_order_relaxed);
-}
-
-void SearchChildPointer::store(SearchNode* node) {
-  data.store(node, std::memory_order_release);
-}
-
-void SearchChildPointer::storeRelaxed(SearchNode* node) {
-  data.store(node, std::memory_order_relaxed);
-}
-
 bool SearchChildPointer::storeIfNull(SearchNode* node) {
   SearchNode* expected = NULL;
   return data.compare_exchange_strong(expected, node, std::memory_order_acq_rel);
-}
-
-int64_t SearchChildPointer::getEdgeVisits() const {
-  return edgeVisits.load(std::memory_order_acquire);
-}
-int64_t SearchChildPointer::getEdgeVisitsRelaxed() const {
-  return edgeVisits.load(std::memory_order_relaxed);
-}
-void SearchChildPointer::setEdgeVisits(int64_t x) {
-  edgeVisits.store(x, std::memory_order_release);
-}
-void SearchChildPointer::setEdgeVisitsRelaxed(int64_t x) {
-  edgeVisits.store(x, std::memory_order_relaxed);
-}
-void SearchChildPointer::addEdgeVisits(int64_t delta) {
-  edgeVisits.fetch_add(delta, std::memory_order_acq_rel);
 }
 bool SearchChildPointer::compexweakEdgeVisits(int64_t& expected, int64_t desired) {
   return edgeVisits.compare_exchange_weak(expected, desired, std::memory_order_acq_rel);
 }
 
 
-Loc SearchChildPointer::getMoveLoc() const {
-  return moveLoc.load(std::memory_order_acquire);
+//-----------------------------------------------------------------------------------------
+
+
+void VisitCapSnapshot::finalize() {
+  std::sort(entries.begin(), entries.end(), [](const Entry& a, const Entry& b) { return a.pos < b.pos; });
 }
-Loc SearchChildPointer::getMoveLocRelaxed() const {
-  return moveLoc.load(std::memory_order_relaxed);
-}
-void SearchChildPointer::setMoveLoc(Loc loc) {
-  moveLoc.store(loc, std::memory_order_release);
-}
-void SearchChildPointer::setMoveLocRelaxed(Loc loc) {
-  moveLoc.store(loc, std::memory_order_relaxed);
+
+double VisitCapSnapshot::getWeightFrac(int pos) const {
+  auto it = std::lower_bound(entries.begin(), entries.end(), pos, [](const Entry& e, int p) { return e.pos < p; });
+  if(it == entries.end() || it->pos != pos)
+    return 0.0;
+  return it->weightFrac;
 }
 
 
@@ -152,7 +119,7 @@ void SearchChildPointer::setMoveLocRelaxed(Loc loc) {
 
 
 //Makes a search node resulting from prevPla playing prevLoc
-SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx)
+SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx, Hash128 gh)
   :nextPla(pla),
    forceNonTerminal(fnt),
    patternBonusHash(),
@@ -166,9 +133,12 @@ SearchNode::SearchNode(Player pla, bool fnt, uint32_t mIdx)
    children2(NULL),
    stats(),
    virtualLosses(0),
+   visitCapSnapshot(NULL),
    lastSubtreeValueBiasDeltaSum(0.0),
    lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
+   graphHash(gh),
+   evalCacheEntry(nullptr),
    dirtyCounter(0)
 {
 }
@@ -187,9 +157,12 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
    children2(NULL),
    stats(other.stats),
    virtualLosses(other.virtualLosses.load(std::memory_order_acquire)),
+   visitCapSnapshot(NULL),
    lastSubtreeValueBiasDeltaSum(0.0),
    lastSubtreeValueBiasWeight(0.0),
    subtreeValueBiasTableEntry(),
+   graphHash(other.graphHash),
+   evalCacheEntry(other.evalCacheEntry),
    dirtyCounter(other.dirtyCounter.load(std::memory_order_acquire))
 {
   {
@@ -201,6 +174,11 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
     std::shared_ptr<NNOutput>* otherVal = other.humanOutput.load(std::memory_order_acquire);
     if(otherVal != NULL)
       humanOutput.store(new std::shared_ptr<NNOutput>(*otherVal), std::memory_order_release);
+  }
+  {
+    const VisitCapSnapshot* otherVal = other.visitCapSnapshot.load(std::memory_order_acquire);
+    if(otherVal != NULL)
+      visitCapSnapshot.store(new VisitCapSnapshot(*otherVal), std::memory_order_release);
   }
   if(other.children0 != NULL) {
     children0 = new SearchChildPointer[SearchChildrenSizes::SIZE0OVERFLOW];
@@ -220,7 +198,7 @@ SearchNode::SearchNode(const SearchNode& other, bool fnt, bool copySubtreeValueB
   if(copySubtreeValueBias) {
     //Currently NOT implemented. If we ever want this, think very carefully about copying subtree value bias since
     //if we later delete this node we risk double-counting removal of the subtree value bias!
-    assert(false);
+    ASSERT_UNREACHABLE;
     //lastSubtreeValueBiasDeltaSum = other.lastSubtreeValueBiasDeltaSum;
     //lastSubtreeValueBiasWeight = other.lastSubtreeValueBiasWeight;
     //subtreeValueBiasTableEntry = other.subtreeValueBiasTableEntry;
@@ -452,4 +430,6 @@ SearchNode::~SearchNode() {
     delete nnOutput;
   if(humanOutput != NULL)
     delete humanOutput;
+  if(visitCapSnapshot != NULL)
+    delete visitCapSnapshot;
 }

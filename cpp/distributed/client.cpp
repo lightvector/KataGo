@@ -35,6 +35,7 @@ static constexpr int MAX_NETWORK_NAME_LEN = 128;
 static constexpr int MAX_URL_LEN = 4096;
 static constexpr int MAX_TIME_LEN = 128;
 static constexpr int MAX_CONFIG_NAME_LEN = 32768;
+static constexpr int MAX_OVERRIDES_LEN = 1024;
 
 static void debugPrintResponse(ostream& out, const httplib::Result& response) {
   out << "---RESPONSE---------------------" << endl;
@@ -206,11 +207,15 @@ static httplib::Result oneShotDownload(
   const Url& proxyUrl,
   size_t startByte, //inclusive
   size_t endByte, //inclusive
-  std::function<bool(const char *data, size_t data_length)> f
+  httplib::ResponseHandler responseHandler,
+  httplib::ContentReceiver contentReceiver
 ) {
   httplib::Headers headers;
   if(startByte > 0) {
-    headers.insert(std::make_pair("Range", Global::uint64ToString(startByte) + "-" + Global::uint64ToString(endByte)));
+    //Per RFC 7233 the Range header requires an explicit byte-range unit. Servers that
+    //receive a Range header without one treat it as malformed and ignore it, replying
+    //with 200 and the full content, which corrupts resumed downloads.
+    headers.insert(std::make_pair("Range", "bytes=" + Global::uint64ToString(startByte) + "-" + Global::uint64ToString(endByte)));
   }
 
   if(!url.isSSL) {
@@ -223,7 +228,7 @@ static httplib::Result oneShotDownload(
     }
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
     httpClient->set_decompress(false);
-    return httpClient->Get(url.path.c_str(),headers,f);
+    return httpClient->Get(url.path.c_str(),headers,responseHandler,contentReceiver);
   }
   else {
     std::unique_ptr<httplib::SSLClient> httpsClient = std::make_unique<httplib::SSLClient>(url.host, url.port);
@@ -237,7 +242,7 @@ static httplib::Result oneShotDownload(
     httpsClient->enable_server_certificate_verification(true);
     //Avoid automatically decompressing .bin.gz files that get sent to us with "content-encoding: gzip"
     httpsClient->set_decompress(false);
-    httplib::Result response = httpsClient->Get(url.path.c_str(),headers,f);
+    httplib::Result response = httpsClient->Get(url.path.c_str(),headers,responseHandler,contentReceiver);
     if(response == nullptr) {
       auto result = httpsClient->get_openssl_verify_result();
       if(result) {
@@ -257,6 +262,7 @@ Connection::Connection(
   const Url& pUrl,
   const string& mdmbu,
   const bool mup,
+  const string& runtimeBackendDetail,
   Logger* lg
 )
   :httpClient(),
@@ -270,6 +276,10 @@ Connection::Connection(
    proxyUrl(pUrl),
    modelDownloadMirrorBaseUrl(mdmbu),
    mirrorUseProxy(mup),
+   gitRevisionWithBackendForServer(
+     Version::getGitRevisionWithBackend() +
+     (runtimeBackendDetail.empty() ? "" : ("-" + runtimeBackendDetail))
+   ),
    clientInstanceId(),
    logger(lg),
    rand(),
@@ -366,7 +376,7 @@ void Connection::testConnection() {
       throw StringError("Server did not give status 200 for initial query, response was:\n" + out.str());
     }
   };
-  std::function<bool()> shouldStop = []() { return false; };
+  std::function<bool()> shouldStop = []() noexcept { return false; };
   const int maxTries = 5;
   retryLoop("Initial connection", maxTries, shouldStop, f);
 }
@@ -521,6 +531,20 @@ static string parseString(const json& response, const char* field, size_t maxLen
   throw StringError("BUG, should not reach here");
 }
 
+static string parseStringElt(const json& responseElt, const char* field, size_t maxLen) {
+  try {
+    string x = responseElt.get<string>();
+    if(x.size() > maxLen)
+      throw StringError(string("Field ") + " had Invalid response, length too long: " + Global::uint64ToString(x.size()));
+    return x;
+  }
+  catch(nlohmann::detail::exception& e) {
+    (void)e;
+    throwInvalidValue(responseElt,field);
+  }
+  throw StringError("BUG, should not reach here");
+}
+
 static string parseStringOrNull(const json& response, const char* field, size_t maxLen) {
   if(response.find(field) == response.end())
     throwFieldNotFound(response,field);
@@ -600,7 +624,7 @@ RunParameters Connection::getRunParameters() {
       throw StringError(string("Error when requesting initial run parameters from server: ") + e.what());
     }
   };
-  std::function<bool()> shouldStop = []() { return false; };
+  std::function<bool()> shouldStop = []() noexcept { return false; };
   const int maxTries = 5;
   retryLoop("Getting run parameters", maxTries, shouldStop, f);
   if(!gotRunParams)
@@ -622,6 +646,7 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::function<b
   const double initialFailureInterval = 5.0;
 
   double failureInterval = initialFailureInterval;
+  bool anyFailure = false;
   for(int i = 0; i<maxTries; i++) {
     int loopFailMode = LOOP_RETRYABLE_FAIL;
     try {
@@ -630,10 +655,12 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::function<b
     catch(const StringError& e) {
       if(shouldStop())
         return false;
+      anyFailure = true;
 
-      //Reset everything on partial success
+      //Reset everything on partial success. The continue below runs the loop increment, so
+      //set -1 here for the next try to be counted as try 0 again.
       if(loopFailMode == LOOP_PARTIAL_SUCCESS || loopFailMode == LOOP_PARTIAL_SUCCESS_NO_LOG) {
-        i = 0;
+        i = -1;
         failureInterval = initialFailureInterval;
       }
       else {
@@ -646,7 +673,7 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::function<b
         throw;
 
       if(loopFailMode != LOOP_PARTIAL_SUCCESS_NO_LOG) {
-        logger->write(string(errorLabel) + ": Error connecting to server, possibly an internet blip, or possibly the server is down or temporarily misconfigured, waiting about " + Global::doubleToString(failureInterval) + " seconds and trying again.");
+        logger->write(string(errorLabel) + ": Attempt failed, waiting about " + Global::doubleToString(failureInterval) + " seconds and trying again. If this keeps happening, it may be an internet blip, or the server may be down or temporarily misconfigured.");
         logger->write(string("Error was:\n") + e.what());
       }
 
@@ -668,7 +695,7 @@ bool Connection::retryLoop(const char* errorLabel, int maxTries, std::function<b
         failureInterval = 7200;
       continue;
     }
-    if(i > 0)
+    if(anyFailure)
       logger->write(string(errorLabel) + ": Connection to server is back!");
     break;
   }
@@ -683,7 +710,108 @@ static Client::ModelInfo parseModelInfo(const json& networkProperties) {
   model.bytes = parse<size_t>(networkProperties,"model_file_bytes");
   model.sha256 = parseString(networkProperties,"model_file_sha256",64);
   model.isRandom = parse<bool>(networkProperties,"is_random");
+  //Optional. Ignore bad values rather than failing, so that server-side experimentation with
+  //this field can never break clients.
+  model.backendRefTestLenienceFactor = 1.0;
+  if(networkProperties.find("backend_ref_test_lenience_factor") != networkProperties.end() &&
+     networkProperties["backend_ref_test_lenience_factor"].is_number()) {
+    double x = networkProperties["backend_ref_test_lenience_factor"].get<double>();
+    if(isfinite(x) && x >= 0.01 && x <= 10000.0)
+      model.backendRefTestLenienceFactor = x;
+  }
   return model;
+}
+
+void Connection::parseTask(
+  Task& task,
+  const json& response
+) {
+  std::vector<Sgf::PositionSample> startPosesList;
+  if(response.find("start_poses") != response.end()) {
+    json startPoses = parse<json>(response,"start_poses");
+    if(!startPoses.is_array())
+      throw StringError("start_poses was not array in response: " + response.dump());
+    for(auto& elt : startPoses) {
+      startPosesList.push_back(Sgf::PositionSample::ofJsonLine(elt.dump()));
+    }
+  }
+
+  std::vector<std::string> overridesList;
+  if(response.find("overrides") != response.end()) {
+    json overrides = parse<json>(response,"overrides");
+    if(!overrides.is_array())
+      throw StringError("overrides was not array in response: " + response.dump());
+    for(auto& elt : overrides) {
+      overridesList.push_back(parseStringElt(elt,"overrides",MAX_OVERRIDES_LEN));
+    }
+  }
+
+  string kind = parseString(response,"kind",32);
+  if(kind == "selfplay") {
+    json networkProperties = parse<json>(response,"network");
+    json runProperties = parse<json>(response,"run");
+
+    task.taskId = ""; //Not currently used by server
+    task.taskGroup = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
+    task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
+    task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
+    task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
+    task.modelBlack = parseModelInfo(networkProperties);
+    task.modelWhite = task.modelBlack;
+    task.startPoses = startPosesList;
+    task.overrides = overridesList;
+    task.doWriteTrainingData = true;
+    task.isRatingGame = false;
+  }
+  else if(kind == "rating") {
+    json blackNetworkProperties = parse<json>(response,"black_network");
+    json whiteNetworkProperties = parse<json>(response,"white_network");
+    json runProperties = parse<json>(response,"run");
+
+    string blackCreatedAt = parseString(blackNetworkProperties,"created_at",MAX_TIME_LEN);
+    string whiteCreatedAt = parseString(whiteNetworkProperties,"created_at",MAX_TIME_LEN);
+    //A bit hacky - we rely on the fact that the server reports these in ISO 8601 and therefore
+    //lexicographic compare is correct to determine recency
+    string mostRecentName;
+    if(std::lexicographical_compare(blackCreatedAt.begin(),blackCreatedAt.end(),whiteCreatedAt.begin(),whiteCreatedAt.end()))
+      mostRecentName = parseString(whiteNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
+    else
+      mostRecentName = parseString(blackNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
+
+    task.taskId = ""; //Not currently used by server
+
+    task.taskGroup = "rating_" + mostRecentName;
+    task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
+    task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
+    task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
+    task.modelBlack = parseModelInfo(blackNetworkProperties);
+    task.modelWhite = parseModelInfo(whiteNetworkProperties);
+    task.startPoses = startPosesList;
+    task.overrides = overridesList;
+    task.doWriteTrainingData = false;
+    task.isRatingGame = true;
+  }
+  else {
+    throw StringError("kind was neither 'selfplay' or 'rating' in json response: " + response.dump());
+  }
+
+  //Go ahead and try to parse most of the normal fields out of the task config, so as to catch errors early
+  try {
+    istringstream taskCfgIn(task.config);
+    ConfigParser taskCfg(taskCfgIn);
+    SearchParams baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
+    PlaySettings playSettings;
+    const bool isDistributed = true;
+    if(task.isRatingGame)
+      playSettings = PlaySettings::loadForGatekeeper(taskCfg);
+    else
+      playSettings = PlaySettings::loadForSelfplay(taskCfg, isDistributed);
+    (void)baseParams;
+    (void)playSettings;
+  }
+  catch(StringError& e) {
+    throw StringError(string("Error parsing task config from server: ") + e.what() + "\nConfig was:\n" + task.config);
+  }
 }
 
 bool Connection::getNextTask(
@@ -703,7 +831,7 @@ bool Connection::getNextTask(
 
     while(true) {
       httplib::MultipartFormDataItems items = {
-        { "git_revision", Version::getGitRevisionWithBackend(), "", "" },
+        { "git_revision", gitRevisionWithBackendForServer, "", "" },
         { "client_instance_id", clientInstanceId, "", "" },
         { "task_rep_factor", Global::intToString(taskRepFactor), "", ""},
         { "allow_selfplay_task", (allowSelfplayTask ? "true" : "false"), "", ""},
@@ -724,81 +852,7 @@ bool Connection::getNextTask(
       }
       break;
     }
-
-    std::vector<Sgf::PositionSample> startPosesList;
-    if(response.find("start_poses") != response.end()) {
-      json startPoses = parse<json>(response,"start_poses");
-      if(!startPoses.is_array())
-        throw StringError("start_poses was not array in response: " + response.dump());
-      for(auto& elt : startPoses) {
-        startPosesList.push_back(Sgf::PositionSample::ofJsonLine(elt.dump()));
-      }
-    }
-
-    string kind = parseString(response,"kind",32);
-    if(kind == "selfplay") {
-      json networkProperties = parse<json>(response,"network");
-      json runProperties = parse<json>(response,"run");
-
-      task.taskId = ""; //Not currently used by server
-      task.taskGroup = parseString(networkProperties,"name",MAX_NETWORK_NAME_LEN);
-      task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
-      task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
-      task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
-      task.modelBlack = parseModelInfo(networkProperties);
-      task.modelWhite = task.modelBlack;
-      task.startPoses = startPosesList;
-      task.doWriteTrainingData = true;
-      task.isRatingGame = false;
-    }
-    else if(kind == "rating") {
-      json blackNetworkProperties = parse<json>(response,"black_network");
-      json whiteNetworkProperties = parse<json>(response,"white_network");
-      json runProperties = parse<json>(response,"run");
-
-      string blackCreatedAt = parseString(blackNetworkProperties,"created_at",MAX_TIME_LEN);
-      string whiteCreatedAt = parseString(whiteNetworkProperties,"created_at",MAX_TIME_LEN);
-      //A bit hacky - we rely on the fact that the server reports these in ISO 8601 and therefore
-      //lexicographic compare is correct to determine recency
-      string mostRecentName;
-      if(std::lexicographical_compare(blackCreatedAt.begin(),blackCreatedAt.end(),whiteCreatedAt.begin(),whiteCreatedAt.end()))
-        mostRecentName = parseString(whiteNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
-      else
-        mostRecentName = parseString(blackNetworkProperties,"name",MAX_NETWORK_NAME_LEN);
-
-      task.taskId = ""; //Not currently used by server
-
-      task.taskGroup = "rating_" + mostRecentName;
-      task.runName = parseString(runProperties,"name",MAX_RUN_NAME_LEN);
-      task.runInfoUrl = parseString(runProperties,"url",MAX_URL_LEN);
-      task.config = parseString(response,"config",MAX_CONFIG_NAME_LEN);
-      task.modelBlack = parseModelInfo(blackNetworkProperties);
-      task.modelWhite = parseModelInfo(whiteNetworkProperties);
-      task.startPoses = startPosesList;
-      task.doWriteTrainingData = false;
-      task.isRatingGame = true;
-    }
-    else {
-      throw StringError("kind was neither 'selfplay' or 'rating' in json response: " + response.dump());
-    }
-
-    //Go ahead and try to parse most of the normal fields out of the task config, so as to catch errors early
-    try {
-      istringstream taskCfgIn(task.config);
-      ConfigParser taskCfg(taskCfgIn);
-      SearchParams baseParams = Setup::loadSingleParams(taskCfg,Setup::SETUP_FOR_DISTRIBUTED);
-      PlaySettings playSettings;
-      const bool isDistributed = true;
-      if(task.isRatingGame)
-        playSettings = PlaySettings::loadForGatekeeper(taskCfg);
-      else
-        playSettings = PlaySettings::loadForSelfplay(taskCfg, isDistributed);
-      (void)baseParams;
-      (void)playSettings;
-    }
-    catch(StringError& e) {
-      throw StringError(string("Error parsing task config from server: ") + e.what() + "\nConfig was:\n" + task.config);
-    }
+    parseTask(task,response);
   };
   return retryLoop("getNextTask",(retryOnFailure ? DEFAULT_MAX_TRIES : 1),shouldStop,f);
 }
@@ -882,8 +936,10 @@ bool Connection::downloadModelIfNotPresent(
 
   const string path = getModelPath(modelInfo,modelDir);
 
-  std::unique_lock<std::mutex> lock(downloadStateMutex);
   while(true) {
+    //Acquired fresh on every iteration. The cleanup guard below releases it at the end of an
+    //iteration in which we downloaded, so the lock must not outlive the iteration.
+    std::unique_lock<std::mutex> lock(downloadStateMutex);
     //Model already exists
     if(FileUtils::exists(path))
       return true;
@@ -902,6 +958,8 @@ bool Connection::downloadModelIfNotPresent(
         }
         logger->write("Woke up, other thread finished downloading model");
         //Sleep a little while and then try again to see if we still need to download the model.
+        //Release the lock first so that other threads are not blocked during the sleep.
+        lock.unlock();
         std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
         continue;
       }
@@ -961,20 +1019,112 @@ bool Connection::actuallyDownloadModel(
     ofstream out;
     FileUtils::open(out,tmpPath,ios::binary);
 
+    //Remove the partial or unverified file on any exit other than a successful rename, so that
+    //failed attempts do not leave files behind in the model directory.
+    bool tmpFileRenamed = false;
+    auto removeTmpFile = [&]() {
+      if(!tmpFileRenamed) {
+        out.close();
+        FileUtils::tryRemoveFile(tmpPath);
+      }
+    };
+    Global::CustomScopeGuard<decltype(removeTmpFile)> tmpFileGuard(std::move(removeTmpFile));
+
     ClockTimer timer;
     double lastTime = timer.getSeconds();
 
     size_t totalDataSize = 0;
+    bool serverIgnoresRange = false;
+
+    //Throw away all partial data so far and begin again from byte 0. Used whenever we cannot
+    //trust that the bytes we have so far are a prefix of the true file, e.g. when a retry got
+    //a response that was not a valid continuation of the ranged request we made.
+    auto restartFromBeginning = [&]() {
+      out.close();
+      FileUtils::open(out,tmpPath,ios::binary);
+      totalDataSize = 0;
+    };
 
     auto fInner = [&](int& innerLoopFailMode) {
-      if(totalDataSize >= modelInfo.bytes)
+      if(totalDataSize > modelInfo.bytes) {
+        restartFromBeginning();
+        throw StringError(
+          "Model download received more bytes than the model contains, discarding partial download and restarting from the beginning"
+        );
+      }
+      if(totalDataSize == modelInfo.bytes)
         return;
+      //If we already learned that the server will not honor Range headers, resuming is not
+      //possible at all, so any partial data must be thrown away and downloaded in one piece.
+      if(serverIgnoresRange && totalDataSize > 0)
+        restartFromBeginning();
       const size_t oldTotalDataSize = totalDataSize;
       const size_t startByte = oldTotalDataSize;
       const size_t endByte = modelInfo.bytes-1;
+      const bool requestResume = startByte > 0;
+      if(requestResume)
+        logger->write("Resuming download of model at byte " + Global::uint64ToString(startByte) + " of " + Global::uint64ToString(modelInfo.bytes) + ": " + urlToActuallyUse.originalString);
       const Url proxyToUse = mirrorUseProxy ? proxyUrl : Url();
+
+      //Validate response headers before the content receiver appends any bytes. In particular,
+      //cpp-httplib returns a null Result if the content receiver cancels after an overshoot, so
+      //waiting until after the body has been streamed would lose the 200 status that tells us
+      //the server ignored Range.
+      string responseHeaderError;
+      bool disableRangeResume = false;
+      bool sizeMismatchFatal = false;
+      httplib::ResponseHandler responseHandler = [&](const httplib::Response& headerResponse) {
+        if(requestResume && headerResponse.status == 416) {
+          //We only ever ask for bytes below the size the server told us the file has, so a
+          //416 means the file on the server is smaller than that. Resuming again cannot fix
+          //this, so stop the inner loop and leave it to the outer loop whether to start over.
+          sizeMismatchFatal = true;
+          responseHeaderError =
+            "Server gave response status code 416 Range Not Satisfiable when resuming at byte " +
+            Global::uint64ToString(startByte) + ", the model file on the server is smaller than the expected " +
+            Global::uint64ToString(modelInfo.bytes) + " bytes";
+          return false;
+        }
+        if(headerResponse.status != 200 && headerResponse.status != 206) {
+          ostringstream outs;
+          outs << "Server gave response status code " << headerResponse.status << " instead of 200 OK or 206 Partial Content";
+          for(const auto& header : headerResponse.headers)
+            outs << "\nHeader: " << header.first << ": " << header.second;
+          responseHeaderError = outs.str();
+          return false;
+        }
+
+        if(requestResume && headerResponse.status == 200) {
+          disableRangeResume = true;
+          responseHeaderError =
+            "Server ignored the Range header on a resumed download and sent the full file, "
+            "discarding partial download and restarting from the beginning";
+          return false;
+        }
+
+        //A 206 must say which bytes it carries, and they must start where we are. This is checked
+        //even when we did not ask for a range, in case a broken server or cache sends one anyway.
+        if(headerResponse.status == 206) {
+          string contentRange;
+          for(const auto& header : headerResponse.headers) {
+            if(Global::toLower(header.first) == "content-range")
+              contentRange = header.second;
+          }
+          const string expectedPrefix = string("bytes ") + Global::uint64ToString(startByte) + "-";
+          if(contentRange == "" || Global::toLower(contentRange).rfind(expectedPrefix,0) != 0) {
+            disableRangeResume = requestResume;
+            responseHeaderError =
+              "Server returned 206 Partial Content with " +
+              (contentRange == "" ? string("no Content-Range header") : string("unexpected Content-Range \"") + contentRange + "\"") +
+              ", discarding any partial download and restarting from the beginning";
+            return false;
+          }
+        }
+        return true;
+      };
+
       httplib::Result response = oneShotDownload(
-        logger, urlToActuallyUse, caCertsFile, proxyToUse, startByte, endByte,
+        logger, urlToActuallyUse, caCertsFile, proxyToUse, startByte, endByte, responseHandler,
         [&out,&totalDataSize,&shouldStop,this,&timer,&lastTime,&urlToActuallyUse,&modelInfo](const char* data, size_t data_length) {
           out.write(data, data_length);
           totalDataSize += data_length;
@@ -996,8 +1146,37 @@ bool Connection::actuallyDownloadModel(
       if(shouldStop())
         throw StringError("Stopping because shouldStop is true");
 
-      if(totalDataSize > oldTotalDataSize)
-        innerLoopFailMode = LOOP_PARTIAL_SUCCESS;
+      if(responseHeaderError != "") {
+        if(sizeMismatchFatal)
+          innerLoopFailMode = LOOP_FATAL_FAIL;
+        if(disableRangeResume) {
+          serverIgnoresRange = true;
+          restartFromBeginning();
+        }
+        throw StringError(responseHeaderError);
+      }
+
+      if(totalDataSize > modelInfo.bytes) {
+        if(!requestResume) {
+          //A full response with more bytes than the server said the file has means the server's
+          //metadata does not match its file. Requesting again within this attempt cannot fix
+          //this, so stop the inner loop and leave it to the outer loop whether to start over.
+          innerLoopFailMode = LOOP_FATAL_FAIL;
+          throw StringError(
+            "Model file was larger than expected, got more than " + Global::uint64ToString(modelInfo.bytes) + " bytes"
+          );
+        }
+        restartFromBeginning();
+        throw StringError(
+          "Model download received more bytes than the model contains, discarding partial download and restarting from the beginning"
+        );
+      }
+
+      if(totalDataSize > oldTotalDataSize) {
+        //Only retained bytes count as partial success. If Range is unavailable, the next retry
+        //must discard this incomplete full response, so it must consume the normal retry budget.
+        innerLoopFailMode = serverIgnoresRange ? LOOP_RETRYABLE_FAIL : LOOP_PARTIAL_SUCCESS;
+      }
 
       if(response == nullptr)
         throw StringError("No response from server");
@@ -1012,13 +1191,6 @@ bool Connection::actuallyDownloadModel(
           "Model file was incompletely downloaded, only got " + Global::int64ToString(totalDataSize) +
           " bytes out of " + Global::uint64ToString(modelInfo.bytes)
         );
-      if(totalDataSize > modelInfo.bytes) {
-        innerLoopFailMode = LOOP_FATAL_FAIL;
-        throw StringError(
-          "Model file was larger than expected, got " + Global::int64ToString(totalDataSize) +
-          " bytes out of " + Global::uint64ToString(modelInfo.bytes)
-        );
-      }
     };
     retryLoop("downloadModel",DEFAULT_MAX_TRIES,shouldStop,fInner);
     out.close();
@@ -1039,7 +1211,17 @@ bool Connection::actuallyDownloadModel(
     }
 
     //Done! Rename the file into the right place
-    std::rename(tmpPath.c_str(),path.c_str());
+    try {
+      FileUtils::rename(tmpPath,path);
+      tmpFileRenamed = true;
+    }
+    catch(const IOError& e) {
+      //If the file is already there, some other process downloaded it meanwhile, which is as good
+      //as our own copy. Our tmp file is removed by the guard above.
+      if(!FileUtils::exists(path))
+        throw;
+      logger->write(string("Model file already exists, keeping the existing file. Rename error was: ") + e.what());
+    }
 
     logger->write(string("Done downloading ") + Global::uint64ToString(totalDataSize) + " bytes for model: " + urlToActuallyUse.originalString);
   };

@@ -3,6 +3,7 @@
 #include "../core/fileutils.h"
 #include "../core/makedir.h"
 #include "../core/config_parser.h"
+#include "../core/timer.h"
 #include "../dataio/sgf.h"
 #include "../dataio/trainingwrite.h"
 #include "../dataio/loadmodel.h"
@@ -12,6 +13,7 @@
 #include "../program/play.h"
 #include "../program/selfplaymanager.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include <chrono>
@@ -92,7 +94,7 @@ int MainCmds::selfplay(const vector<string>& args) {
   const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
 
   //Width and height of the board to use when writing data, typically 19
-  const int dataBoardLen = cfg.getInt("dataBoardLen",3,37);
+  const int dataBoardLen = cfg.getInt("dataBoardLen",3,Board::MAX_LEN);
   const int inputsVersion =
     cfg.contains("inputsVersion") ?
     cfg.getInt("inputsVersion",0,10000) :
@@ -127,6 +129,9 @@ int MainCmds::selfplay(const vector<string>& args) {
   if(!logger.isLoggingToStdout())
     cout << "Loaded all config stuff, starting self play" << endl;
 
+  //Time the whole self-play run for reporting overall computational throughput.
+  ClockTimer selfplayTimer;
+
   if(!std::atomic_is_lock_free(&shouldStop))
     throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
   std::signal(SIGINT, signalHandler);
@@ -157,14 +162,13 @@ int MainCmds::selfplay(const vector<string>& args) {
 
     const int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
     const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
-    const int defaultMaxBatchSize = -1;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
 
     Rand rand;
      NNEvaluator* nnEval = Setup::initializeNNEvaluator(
       modelName,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-      maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      maxBoardXSizeUsed,maxBoardYSizeUsed,Setup::MaxBatchSizeRequest::requireFromConfig(),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_OTHER
     );
     logger.write("Loaded latest neural net " + modelName + " from: " + modelFile);
@@ -249,7 +253,7 @@ int MainCmds::selfplay(const vector<string>& args) {
     &baseParams,
     &gameSeedBase
   ](int threadIdx) {
-    auto shouldStopFunc = []() {
+    auto shouldStopFunc = []() noexcept {
       return shouldStop.load();
     };
     WaitableFlag* shouldPause = nullptr;
@@ -260,7 +264,7 @@ int MainCmds::selfplay(const vector<string>& args) {
       if(shouldStop.load())
         break;
       NNEvaluator* nnEval = manager->acquireLatest();
-      assert(nnEval != NULL);
+      testAssert(nnEval != NULL);
 
       if(prevModelName != nnEval->getModelName()) {
         prevModelName = nnEval->getModelName();
@@ -270,7 +274,7 @@ int MainCmds::selfplay(const vector<string>& args) {
       //Callback that runGame will call periodically to ask us if we have a new neural net
       std::function<NNEvaluator*()> checkForNewNNEval = [&manager,&nnEval,&prevModelName,&logger,&threadIdx]() -> NNEvaluator* {
         NNEvaluator* newNNEval = manager->acquireLatest();
-        assert(newNNEval != NULL);
+        testAssert(newNNEval != NULL);
         if(newNNEval == nnEval) {
           manager->release(newNNEval);
           return NULL;
@@ -353,8 +357,9 @@ int MainCmds::selfplay(const vector<string>& args) {
   };
 
   vector<std::thread> threads;
+  threads.reserve(numGameThreads);
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(gameLoopProtected,i));
+    threads.emplace_back(gameLoopProtected,i);
   }
   std::thread modelLoadLoopThread(modelLoadLoopProtected);
 
@@ -377,6 +382,10 @@ int MainCmds::selfplay(const vector<string>& args) {
 
   //At this point, nothing else except possibly data write loops are running, within the selfplay manager.
   delete manager;
+
+  //Overall self-play totals (per-model NN/data/moves breakdowns are logged above by the manager).
+  logger.write("Total games: " + Global::int64ToString(numGamesStarted.load(std::memory_order_relaxed)));
+  logger.write("Total selfplay runtime (seconds): " + Global::doubleToString(selfplayTimer.getSeconds()));
 
   //Delete and clean up everything else
   NeuralNet::globalCleanup();

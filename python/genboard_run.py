@@ -15,8 +15,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from copy import deepcopy
 
-import data
-from board import Board, IllegalMoveError
+from katago.game.board import Board, IllegalMoveError
 from genboard_common import Model
 
 if __name__ == '__main__':

@@ -6,7 +6,15 @@
 #ifdef NO_GIT_REVISION
 #define GIT_REVISION "<omitted>"
 #else
-#include "program/gitinfo.h"
+// Angle-bracket (not quoted) include so this resolves ONLY via the -I search
+// paths, where the build dir's freshly-generated program/gitinfo.h lives. A
+// quoted include would search main.cpp's own directory first and pick up a
+// stale in-source cpp/program/gitinfo.h left over from an in-source build.
+#include <program/gitinfo.h>
+#endif
+
+#ifdef USE_ROCM_BACKEND
+#include <hip/hip_version.h>
 #endif
 
 #include <sstream>
@@ -45,11 +53,17 @@ gatekeeper : Poll directory for new nets and match them against the latest net s
 
 ---Testing/debugging subcommands-------------
 evalsgf : Utility/debug tool, analyze a single position of a game from an SGF file.
+searchentropyanalysis : Analyze search entropy across test datasets.
+selfplaysurprisedump : Run selfplay games with a fixed model and dump per-position policy/value surprise stats to csv.
 
+benchmarknn : Benchmark raw neural net forward throughput, without search.
 testgpuerror : Print the average error of the neural net between current config and fp32 config.
+testbackendreference : Test backend absolute outputs against compiled-in blended reference data.
+dumponnx : (TensorRT/ONNX only) Write out the ONNX graph KataGo builds for a model.
 
 runtests : Test important board algorithms and datastructures
 runnnlayertests : Test a few subcomponents of the current neural net backend
+runonnxmodelfiletests : (TensorRT/ONNX only) Test the .onnx model file reader
 
 runnnontinyboardtest : Run neural net on a tiny board and dump result to stdout
 runnnsymmetriestest : Run neural net on a hardcoded rectangle board and dump symmetries result
@@ -70,11 +84,13 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
   vector<string> subArgs(args.begin()+1,args.end());
   if(subcommand == "analysis")
     return MainCmds::analysis(subArgs);
-  if(subcommand == "benchmark")
+  else if(subcommand == "benchmark")
     return MainCmds::benchmark(subArgs);
-  if(subcommand == "contribute")
+  else if(subcommand == "benchmarknn")
+    return MainCmds::benchmarknn(subArgs);
+  else if(subcommand == "contribute")
     return MainCmds::contribute(subArgs);
-  if(subcommand == "evalsgf")
+  else if(subcommand == "evalsgf")
     return MainCmds::evalsgf(subArgs);
   else if(subcommand == "gatekeeper")
     return MainCmds::gatekeeper(subArgs);
@@ -90,6 +106,10 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::selfplay(subArgs);
   else if(subcommand == "testgpuerror")
     return MainCmds::testgpuerror(subArgs);
+  else if(subcommand == "testbackendreference")
+    return MainCmds::testbackendreference(subArgs);
+  else if(subcommand == "dumponnx")
+    return MainCmds::dumponnx(subArgs);
   else if(subcommand == "runtests")
     return MainCmds::runtests(subArgs);
   else if(subcommand == "runnnlayertests")
@@ -124,6 +144,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::runtinynntests(subArgs);
   else if(subcommand == "runnnevalcanarytests")
     return MainCmds::runnnevalcanarytests(subArgs);
+  else if(subcommand == "runonnxmodelfiletests")
+    return MainCmds::runonnxmodelfiletests(subArgs);
   else if(subcommand == "runconfigtests")
     return MainCmds::runconfigtests(subArgs);
   else if(subcommand == "samplesgfs")
@@ -138,16 +160,28 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::checkbook(subArgs);
   else if(subcommand == "booktoposes")
     return MainCmds::booktoposes(subArgs);
+  else if(subcommand == "comparebooks")
+    return MainCmds::comparebooks(subArgs);
+  else if(subcommand == "findbookbottlenecks")
+    return MainCmds::findbookbottlenecks(subArgs);
   else if(subcommand == "trystartposes")
     return MainCmds::trystartposes(subArgs);
   else if(subcommand == "viewstartposes")
     return MainCmds::viewstartposes(subArgs);
-  else if(subcommand == "demoplay")
-    return MainCmds::demoplay(subArgs);
+  else if(subcommand == "checksgfhintpolicy")
+    return MainCmds::checksgfhintpolicy(subArgs);
+  else if(subcommand == "genposesfromselfplayinit")
+    return MainCmds::genposesfromselfplayinit(subArgs);
   else if(subcommand == "writetrainingdata")
     return MainCmds::writetrainingdata(subArgs);
   else if(subcommand == "sampleinitializations")
     return MainCmds::sampleinitializations(subArgs);
+  else if(subcommand == "evalrandominits")
+    return MainCmds::evalrandominits(subArgs);
+  else if(subcommand == "searchentropyanalysis")
+    return MainCmds::searchentropyanalysis(subArgs);
+  else if(subcommand == "selfplaysurprisedump")
+    return MainCmds::selfplaysurprisedump(subArgs);
   else if(subcommand == "runbeginsearchspeedtest")
     return MainCmds::runbeginsearchspeedtest(subArgs);
   else if(subcommand == "runownershipspeedtest")
@@ -208,11 +242,11 @@ int main(int argc, const char* const* argv) {
 
 
 string Version::getKataGoVersion() {
-  return string("1.15.3");
+  return string("1.18.2");
 }
 
 string Version::getKataGoVersionForHelp() {
-  return string("KataGo v1.15.3");
+  return string("KataGo v1.18.2");
 }
 
 string Version::getKataGoVersionFullInfo() {
@@ -229,10 +263,19 @@ string Version::getKataGoVersionFullInfo() {
 #endif
 #elif defined(USE_TENSORRT_BACKEND)
   out << "Using TensorRT backend" << endl;
+#elif defined(USE_METAL_BACKEND)
+  out << "Using Metal backend" << endl;
 #elif defined(USE_OPENCL_BACKEND)
   out << "Using OpenCL backend" << endl;
+#elif defined(USE_ROCM_BACKEND)
+  out << "Using ROCm backend" << endl;
+#if defined(HIP_VERSION_MAJOR) && defined(HIP_VERSION_MINOR) && defined(HIP_VERSION_PATCH)
+  out << "Compiled with HIP version " << HIP_VERSION_MAJOR << "." << HIP_VERSION_MINOR << "." << HIP_VERSION_PATCH << endl;
+#endif
 #elif defined(USE_EIGEN_BACKEND)
   out << "Using Eigen(CPU) backend" << endl;
+#elif defined(USE_ONNX_BACKEND)
+  out << "Using ONNX Runtime backend" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
@@ -263,10 +306,16 @@ string Version::getGitRevisionWithBackend() {
   s += "-cuda";
 #elif defined(USE_TENSORRT_BACKEND)
   s += "-trt";
+#elif defined(USE_ROCM_BACKEND)
+  s += "-rocm";
+#elif defined(USE_METAL_BACKEND)
+  s += "-metal";
 #elif defined(USE_OPENCL_BACKEND)
   s += "-opencl";
 #elif defined(USE_EIGEN_BACKEND)
   s += "-eigen";
+#elif defined(USE_ONNX_BACKEND)
+  s += "-onnx";
 #else
   s += "-dummy";
 #endif

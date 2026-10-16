@@ -38,8 +38,8 @@ struct Rules {
 
   float komi;
   //Min and max acceptable komi in various places involving user input validation
-  static constexpr float MIN_USER_KOMI = -150.0f;
-  static constexpr float MAX_USER_KOMI = 150.0f;
+  static constexpr float MIN_USER_KOMI = -400.0f;
+  static constexpr float MAX_USER_KOMI = 400.0f;
 
   Rules();
   Rules(
@@ -83,7 +83,7 @@ struct Rules {
   static bool tryParseRules(const std::string& str, Rules& buf);
   static bool tryParseRulesWithoutKomi(const std::string& str, Rules& buf, float komi);
 
-  static Rules updateRules(const std::string& key, const std::string& value, Rules priorRules);
+  static Rules updateRules(const std::string& key, const std::string& value, const Rules& priorRules);
 
   friend std::ostream& operator<<(std::ostream& out, const Rules& rules);
   std::string toString() const;
@@ -101,6 +101,9 @@ struct Rules {
   static const Hash128 ZOBRIST_TAX_RULE_HASH[3];
   static const Hash128 ZOBRIST_MULTI_STONE_SUICIDE_HASH;
   static const Hash128 ZOBRIST_BUTTON_HASH;
+  static const Hash128 ZOBRIST_FRIENDLY_PASS_OK_HASH;
+  static const Hash128 ZOBRIST_PASS_ALIVE_UNDER_SUICIDE_HASH;
+  static const Hash128 ZOBRIST_EXCLUDE_TERRITORY_ADJ_ATARI_HASH;
 
 private:
   nlohmann::json toJsonHelper(bool omitKomi, bool omitDefaults) const;

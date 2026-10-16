@@ -1,0 +1,13 @@
+boardsize 7
+kata-set-rules {"ko":"SIMPLE","scoring":"TERRITORY","tax":"NONE","suicide":false,"hasButton":false,"friendlyPassOk":false,"whiteHandicapBonus":"0"}
+komi 0
+set_position w d7 b e7 b f7 b g7 w a6 w b6 w c6 w d6 b e6 b g6 b a5 b b5 b c5 b d5 w e5 b f5 b g5 w a4 b c4 w d4 w e4 w f4 w g4 w a3 w b3 b c3 w d3 b e3 w g3 w a2 b b2 b c2 w d2 b f2 w g2 w a1 b c1 w d1 w e1 b f1 b g1
+showboard
+kata-get-param excludeTerritoryAdjacentToAtari
+kata-set-param excludeTerritoryAdjacentToAtari true
+kata-get-param excludeTerritoryAdjacentToAtari
+kata-set-param excludeTerritoryAdjacentToAtari false
+kata-get-param excludeTerritoryAdjacentToAtari
+kata-set-param excludeTerritoryAdjacentToAtari auto
+kata-get-param excludeTerritoryAdjacentToAtari
+showboard

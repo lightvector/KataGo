@@ -56,13 +56,13 @@ namespace PlayUtils {
   );
 
   Loc getGameInitializationMove(
-    Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
+    Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
     Rand& gameRand, double temperature
   );
   void initializeGameUsingPolicy(
     Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
     Rand& gameRand, bool doEndGameIfAllPassAlive,
-    double proportionOfBoardArea, double temperature
+    double proportionOfBoardArea, double policyInitGammaShape, double temperature
   );
 
   float roundAndClipKomi(double unrounded, const Board& board);
@@ -150,7 +150,7 @@ namespace PlayUtils {
   //Run benchmark on sgf positions. ALSO prints to stdout the ongoing result as it benchmarks.
   BenchmarkResults benchmarkSearchOnPositionsAndPrint(
     const SearchParams& params,
-    const CompactSgf* sgf,
+    const CompactSgf& sgf,
     int numPositionsToUse,
     NNEvaluator* nnEval,
     const BenchmarkResults* baseline,
@@ -165,7 +165,8 @@ namespace PlayUtils {
     Loc moveLoc,
     double timeTaken,
     Player perspective,
-    bool logSearchInfoForChosenMove
+    bool logSearchInfoForChosenMove,
+    const PrintTreeOptions& treeOptions
   );
 
   Rules genRandomRules(Rand& rand);
@@ -187,7 +188,9 @@ namespace PlayUtils {
     int64_t numVisits
   );
 
-  std::shared_ptr<NNOutput> getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, NNEvaluator* nnEval);
+  std::shared_ptr<NNOutput> getFullSymmetryNNOutput(
+    const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, const SGFMetadata* sgfMeta, NNEvaluator* nnEval
+  );
 
 }
 

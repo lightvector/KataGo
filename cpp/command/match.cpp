@@ -9,6 +9,7 @@
 #include "../program/setup.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include <csignal>
@@ -92,7 +93,8 @@ int MainCmds::match(const vector<string>& args) {
     if(cfg.contains("secondaryBots"))
       secondaryBotIdxs = cfg.getInts("secondaryBots",0,Setup::MAX_BOT_PARAMS_FROM_CFG);
     for(int i = 0; i<secondaryBotIdxs.size(); i++)
-      assert(secondaryBotIdxs[i] >= 0 && secondaryBotIdxs[i] < numBots);
+      if(secondaryBotIdxs[i] < 0 || secondaryBotIdxs[i] >= numBots)
+        throw StringError("secondaryBots value " + Global::intToString(secondaryBotIdxs[i]) + " is out of range, numBots is " + Global::intToString(numBots));
 
     for(int i = 0; i<numBots; i++) {
       if(!includeBot[i])
@@ -101,8 +103,8 @@ int MainCmds::match(const vector<string>& args) {
         if(!includeBot[j])
           continue;
         if(i < j && !(contains(secondaryBotIdxs,i) && contains(secondaryBotIdxs,j))) {
-          matchupsPerRound.push_back(make_pair(i,j));
-          matchupsPerRound.push_back(make_pair(j,i));
+          matchupsPerRound.emplace_back(i,j);
+          matchupsPerRound.emplace_back(j,i);
         }
       }
     }
@@ -113,11 +115,11 @@ int MainCmds::match(const vector<string>& args) {
         int p0 = pair.first;
         int p1 = pair.second;
         if(cfg.contains("extraPairsAreOneSidedBW") && cfg.getBool("extraPairsAreOneSidedBW")) {
-          matchupsPerRound.push_back(std::make_pair(p0,p1));
+          matchupsPerRound.emplace_back(p0,p1);
         }
         else {
-          matchupsPerRound.push_back(std::make_pair(p0,p1));
-          matchupsPerRound.push_back(std::make_pair(p1,p0));
+          matchupsPerRound.emplace_back(p0,p1);
+          matchupsPerRound.emplace_back(p1,p0);
         }
       }
     }
@@ -198,13 +200,12 @@ int MainCmds::match(const vector<string>& args) {
   //Initialize neural net inference engine globals, and load models
   Setup::initializeSession(cfg);
   const vector<string>& nnModelNames = nnModelFiles;
-  const int defaultMaxBatchSize = -1;
   const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
   const bool disableFP16 = false;
   const vector<string> expectedSha256s;
   vector<NNEvaluator*> nnEvals = Setup::initializeNNEvaluators(
     nnModelNames,nnModelFiles,expectedSha256s,cfg,logger,seedRand,expectedConcurrentEvals,
-    maxBoardXSizeUsed,maxBoardYSizeUsed,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+    maxBoardXSizeUsed,maxBoardYSizeUsed,Setup::MaxBatchSizeRequest::requireFromConfig(),defaultRequireExactNNLen,disableFP16,
     Setup::SETUP_FOR_MATCH
   );
   logger.write("Loaded neural net");
@@ -217,7 +218,7 @@ int MainCmds::match(const vector<string>& args) {
   }
 
   std::vector<std::unique_ptr<PatternBonusTable>> patternBonusTables = Setup::loadAvoidSgfPatternBonusTables(cfg,logger);
-  assert(patternBonusTables.size() == numBots);
+  testAssert(patternBonusTables.size() == numBots);
 
   //Initialize object for randomly pairing bots
   int64_t numGamesTotal = cfg.getInt64("numGamesTotal",1,((int64_t)1) << 62);
@@ -262,7 +263,7 @@ int MainCmds::match(const vector<string>& args) {
       sgfOut = new ofstream();
       FileUtils::open(*sgfOut, sgfOutputDir + "/" + Global::uint64ToHexString(threadHash) + ".sgfs");
     }
-    auto shouldStopFunc = []() {
+    auto shouldStopFunc = []() noexcept {
       return shouldStop.load();
     };
     WaitableFlag* shouldPause = nullptr;
@@ -337,8 +338,9 @@ int MainCmds::match(const vector<string>& args) {
 
   Rand hashRand;
   vector<std::thread> threads;
+  threads.reserve(numGameThreads);
   for(int i = 0; i<numGameThreads; i++) {
-    threads.push_back(std::thread(runMatchLoopProtected, hashRand.nextUInt64()));
+    threads.emplace_back(runMatchLoopProtected, hashRand.nextUInt64());
   }
   for(int i = 0; i<threads.size(); i++)
     threads[i].join();

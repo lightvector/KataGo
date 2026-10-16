@@ -5,6 +5,8 @@ import argparse
 import math
 import torch
 
+import katago.train.load_model
+
 description = """
 Hacky script to migrate v11 model to v12 with optimistic policy.
 Run on a torch checkpoint.ckpt file. Replace the old one with the new one after a backup.
@@ -19,7 +21,7 @@ args = vars(parser.parse_args())
 checkpoint_path = args["checkpoint"]
 output_path = args["output"]
 
-data = torch.load(checkpoint_path,map_location="cpu")
+data = katago.train.load_model.load_checkpoint(checkpoint_path)
 assert data["config"]["version"] == 11
 
 def noisify(tensor):

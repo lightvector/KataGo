@@ -22,13 +22,13 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     cout << "(A simple opening to test neural net outputs including ownership map)" << endl;
 
     string sgfStr = "(;FF[4]CA[UTF-8]KM[7.5];B[pp];W[pc];B[cd];W[dq];B[ed];W[pe];B[co];W[cp];B[do];W[fq];B[ck];W[qn];B[qo];W[pn];B[np];W[qj];B[jc];W[lc];B[je];W[lq];B[mq];W[lp];B[ek];W[qq];B[pq];W[ro];B[rp];W[qp];B[po];W[rq];B[rn];W[sp];B[rm];W[ql];B[on];W[om];B[nn];W[nm];B[mn];W[ip];B[mm])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 40);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 40,BoardHistoryModes(false,false));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -59,8 +59,6 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     opts.printOwnership = true;
     runBotOnSgf(bot, sgfStr, initialRules, 40, 7.5, opts);
     cout << endl << endl;
-
-    delete sgf;
   }
 
   {
@@ -68,13 +66,13 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     cout << "(A simple smaller game, also testing invariance under nnlen)" << endl;
 
     string sgfStr = "(;FF[4]CA[UTF-8]SZ[11]KM[7.5];B[ci];W[ic];B[ih];W[hi];B[ii];W[ij];B[jj];W[gj];B[ik];W[di];B[hh];W[ch];B[dc];W[cc];B[cb];W[cd];B[eb];W[dd];B[ed];W[ee];B[fd];W[bb];B[ba];W[ab];B[gb];W[je];B[ib];W[jb];B[jc];W[jd];B[hc];W[id];B[dh];W[cg];B[dj];W[ei];B[bi];W[ia];B[hb];W[fg];B[hj];W[eh];B[ej])";
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
     Board board;
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules::getTrompTaylorish());
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 43);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, 43,BoardHistoryModes(false,false));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -94,7 +92,6 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
     nnEval->clearStats();
     nnEval11->clearCache();
     nnEval11->clearStats();
-    delete sgf;
     cout << endl << endl;
   }
 
@@ -258,7 +255,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
 ....o..
 .......
 )%%");
-    BoardHistory histA(boardA,nextPla,rules,0);
+    BoardHistory histA(boardA,nextPla,rules,0,BoardHistoryModes(false,false));
 
     Board boardB = Board::parseBoard(11,7,R"%%(
 ...........
@@ -269,7 +266,7 @@ static void runOwnershipAndMisc(NNEvaluator* nnEval, NNEvaluator* nnEval11, NNEv
 ...........
 ...........
 )%%");
-    BoardHistory histB(boardB,nextPla,rules,0);
+    BoardHistory histB(boardB,nextPla,rules,0,BoardHistoryModes(false,false));
 
     SearchParams params;
     params.maxVisits = 200;
@@ -322,7 +319,7 @@ o..o..oxo
 ....x.oox
 ......ox.
 )%%");
-      BoardHistory hist(board,nextPla,rules,0);
+      BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
       hist.makeBoardMoveAssumeLegal(board,Location::ofString("H8",board),nextPla,NULL);
       nextPla = P_BLACK;
 
@@ -358,7 +355,7 @@ xx.o.o.o.
 .xxo.o.o.
 ..xo.o.o.
 )%%");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
     hist.makeBoardMoveAssumeLegal(board,Board::PASS_LOC,nextPla,NULL);
     nextPla = P_WHITE;
 
@@ -415,7 +412,7 @@ xx.o.o.o.
 .........
 .........
 )%%");
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     SearchParams params;
     params.maxVisits = 200;
@@ -458,7 +455,7 @@ xx..xoooo
 ..x...ox.
 )%%");
     board.numWhiteCaptures = 3;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;
@@ -498,7 +495,7 @@ xx..xoooo
 ..x...ox.
 )%%");
     board.numWhiteCaptures = 3;
-    BoardHistory hist(board,nextPla,rules,0);
+    BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
     MiscNNInputParams nnInputParams;
     NNResultBuf buf;

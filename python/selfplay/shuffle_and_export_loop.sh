@@ -32,19 +32,23 @@ tmpdir="$(realpath "$TMPDIRRAW")"
 
 mkdir -p "$basedir"/scripts
 mkdir -p "$basedir"/logs
-cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$basedir"/scripts
+cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.py "$GITROOTDIR"/python/selfplay/*.sh "$basedir"/scripts
+cp -r "$GITROOTDIR"/python/katago "$basedir"/scripts
+cp -r "$GITROOTDIR"/python/muon "$basedir"/scripts
 
 # For archival and logging purposes - you can look back and see exactly the python code on a particular date
 DATE_FOR_FILENAME=$(date "+%Y%m%d-%H%M%S")
 DATED_ARCHIVE="$basedir"/scripts/dated/"$DATE_FOR_FILENAME"
 mkdir -p "$DATED_ARCHIVE"
-cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.sh "$DATED_ARCHIVE"
+cp "$GITROOTDIR"/python/*.py "$GITROOTDIR"/python/selfplay/*.py "$GITROOTDIR"/python/selfplay/*.sh "$DATED_ARCHIVE"
+cp -r "$GITROOTDIR"/python/katago "$DATED_ARCHIVE"
+cp -r "$GITROOTDIR"/python/muon "$DATED_ARCHIVE"
 
 (
     cd "$basedir"/scripts
     while true
     do
-        ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$BATCHSIZE" "$@"
+        ./shuffle.sh "$basedir" "$tmpdir" "$NTHREADS" "$@"
         sleep 20
     done
 ) >> "$basedir"/logs/outshuffle.txt 2>&1 & disown

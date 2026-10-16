@@ -14,553 +14,23 @@
 #include "../program/playutils.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
+#include "../tests/tests.h"
 #include "../main.h"
 
+#include <atomic>
 #include <chrono>
 #include <csignal>
+#include <cmath>
+#include <mutex>
+#include <thread>
 
 using namespace std;
 
 static std::atomic<bool> sigReceived(false);
-static std::atomic<bool> shouldStop(false);
 static void signalHandler(int signal)
 {
-  if(signal == SIGINT || signal == SIGTERM) {
+  if(signal == SIGINT || signal == SIGTERM)
     sigReceived.store(true);
-    shouldStop.store(true);
-  }
-}
-
-static void writeLine(
-  const Search* search, const BoardHistory& baseHist,
-  const vector<double>& winLossHistory, const vector<double>& scoreHistory, const vector<double>& scoreStdevHistory
-) {
-  const Board board = search->getRootBoard();
-  int nnXLen = search->nnXLen;
-  int nnYLen = search->nnYLen;
-
-  cout << board.x_size << " ";
-  cout << board.y_size << " ";
-  cout << nnXLen << " ";
-  cout << nnYLen << " ";
-  cout << baseHist.rules.komi << " ";
-  if(baseHist.isGameFinished) {
-    cout << PlayerIO::playerToString(baseHist.winner) << " ";
-    cout << baseHist.isResignation << " ";
-    cout << baseHist.finalWhiteMinusBlackScore << " ";
-  }
-  else {
-    cout << "-" << " ";
-    cout << "false" << " ";
-    cout << "0" << " ";
-  }
-
-  //Last move
-  Loc moveLoc = Board::NULL_LOC;
-  if(baseHist.moveHistory.size() > 0)
-    moveLoc = baseHist.moveHistory[baseHist.moveHistory.size()-1].loc;
-  cout << NNPos::locToPos(moveLoc,board.x_size,nnXLen,nnYLen) << " ";
-
-  cout << baseHist.moveHistory.size() << " ";
-  cout << board.numBlackCaptures << " ";
-  cout << board.numWhiteCaptures << " ";
-
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      Loc loc = Location::getLoc(x,y,board.x_size);
-      if(board.colors[loc] == C_BLACK)
-        cout << "x";
-      else if(board.colors[loc] == C_WHITE)
-        cout << "o";
-      else
-        cout << ".";
-    }
-  }
-  cout << " ";
-
-  vector<AnalysisData> buf;
-  if(!baseHist.isGameFinished) {
-    int minMovesToTryToGet = 0; //just get the default number
-    bool duplicateForSymmetries = true;
-    search->getAnalysisData(buf,minMovesToTryToGet,false,9,duplicateForSymmetries);
-  }
-  cout << buf.size() << " ";
-  for(int i = 0; i<buf.size(); i++) {
-    const AnalysisData& data = buf[i];
-    cout << NNPos::locToPos(data.move,board.x_size,nnXLen,nnYLen) << " ";
-    cout << data.numVisits << " ";
-    cout << data.winLossValue << " ";
-    cout << data.scoreMean << " ";
-    cout << data.scoreStdev << " ";
-    cout << data.policyPrior << " ";
-  }
-
-  vector<double> ownership = search->getAverageTreeOwnership();
-  for(int y = 0; y<board.y_size; y++) {
-    for(int x = 0; x<board.x_size; x++) {
-      int pos = NNPos::xyToPos(x,y,nnXLen);
-      cout << ownership[pos] << " ";
-    }
-  }
-
-  cout << winLossHistory.size() << " ";
-  for(int i = 0; i<winLossHistory.size(); i++)
-    cout << winLossHistory[i] << " ";
-  cout << scoreHistory.size() << " ";
-  assert(scoreStdevHistory.size() == scoreHistory.size());
-  for(int i = 0; i<scoreHistory.size(); i++)
-    cout << scoreHistory[i] << " " << scoreStdevHistory[i] << " ";
-
-  cout << endl;
-}
-
-static void initializeDemoGame(Board& board, BoardHistory& hist, Player& pla, Rand& rand, AsyncBot* bot) {
-  static const int numSizes = 9;
-  int sizes[numSizes] = {19,13,9,15,11,10,12,14,16};
-  int sizeFreqs[numSizes] = {240,18,12,6,2,1,1,1,1};
-
-  const int size = sizes[rand.nextUInt(sizeFreqs,numSizes)];
-
-  board = Board(size,size);
-  pla = P_BLACK;
-  hist.clear(board,pla,Rules::getTrompTaylorish(),0);
-  bot->setPosition(pla,board,hist);
-
-  if(size == 19) {
-    //Many games use a special opening
-    if(rand.nextBool(0.6)) {
-      auto g = [size](int x, int y) { return Location::getLoc(x,y,size); };
-      const Move nb = Move(Board::NULL_LOC, P_BLACK);
-      const Move nw = Move(Board::NULL_LOC, P_WHITE);
-      Player b = P_BLACK;
-      Player w = P_WHITE;
-      vector<vector<Move>> specialOpenings = {
-        //Sanrensei
-        { Move(g(3,3), b), nw, Move(g(15,3), b), nw, Move(g(9,3), b) },
-        //Low Chinese
-        { Move(g(3,3), b), nw, Move(g(16,3), b), nw, Move(g(10,2), b) },
-        //Low Chinese
-        { Move(g(3,3), b), nw, Move(g(16,3), b), nw, Move(g(10,2), b) },
-        //High chinese
-        { Move(g(3,3), b), nw, Move(g(16,3), b), nw, Move(g(10,3), b) },
-        //Low small chinese
-        { Move(g(3,3), b), nw, Move(g(16,3), b), nw, Move(g(11,2), b) },
-        //Kobayashi
-        { Move(g(3,3), b), Move(g(15,15), w), Move(g(16,3), b), nw, Move(g(16,13), b), Move(g(13,16), w), Move(g(15,9), b) },
-        //Kobayashi
-        { Move(g(3,3), b), Move(g(15,15), w), Move(g(16,3), b), nw, Move(g(16,13), b), Move(g(13,16), w), Move(g(15,9), b) },
-        //Mini chinese
-        { Move(g(3,3), b), Move(g(15,15), w), Move(g(15,2), b), nw, Move(g(16,13), b), Move(g(13,16), w), Move(g(16,8), b) },
-        //Mini chinese
-        { Move(g(3,3), b), Move(g(15,15), w), Move(g(15,2), b), nw, Move(g(16,13), b), Move(g(13,16), w), Move(g(16,8), b) },
-        //Micro chinese
-        { Move(g(3,3), b), Move(g(15,15), w), Move(g(15,2), b), nw, Move(g(16,13), b), Move(g(13,16), w), Move(g(16,7), b) },
-        //Micro chinese with variable other corner
-        { Move(g(15,2), b), Move(g(15,15), w), nb, nw, Move(g(16,13), b), Move(g(13,16), w), Move(g(16,7), b) },
-        //Boring star points
-        { Move(g(15,3), b), Move(g(15,15), w), nb, nw, Move(g(16,13), b), Move(g(13,16), w), Move(g(15,9), b) },
-        //High 3-4 counter approaches
-        { Move(g(3,3), b), Move(g(15,16), w), Move(g(16,3), b), nw, Move(g(15,14), b), Move(g(14,3), w) },
-        //Double 3-3
-        { Move(g(2,2), b), nw, Move(g(16,2), b) },
-        //Low enclosure
-        { Move(g(2,3), b), nw, Move(g(4,2), b) },
-        //High enclosure
-        { Move(g(2,3), b), nw, Move(g(4,3), b) },
-        //5-5 point
-        { Move(g(4,4), b) },
-        //5-3 point
-        { Move(g(2,4), b) },
-        //5-4 point
-        { Move(g(3,4), b) },
-        //3-3 point
-        { Move(g(2,2), b) },
-        //3-4 point far approach
-        { Move(g(3,2), b), Move(g(2,5), w) },
-        //Tengen
-        { Move(g(9,9), b) },
-        //2-2 point
-        { Move(g(1,1), b) },
-        //Shusaku fuseki
-        { Move(g(16,15), b), Move(g(3,16), w), Move(g(15,2), b), Move(g(14,16), w), nb, Move(g(16,4), w), Move(g(15,14), b) },
-        //Miyamoto fuseki
-        { Move(g(16,13), b), Move(g(3,15), w), Move(g(13,2), b), nw, Move(g(9,16), b) },
-        //4-4 1-space low pincer - shared side
-        { Move(g(15,15), b), Move(g(3,15), w), nb, nw, Move(g(5,16), b), Move(g(7,16), w) },
-        //4-4 2-space high pincer - shared side
-        { Move(g(15,15), b), Move(g(3,15), w), nb, nw, Move(g(5,16), b), Move(g(8,15), w) },
-        //4-4 1-space low pincer - opponent side
-        { Move(g(15,15), b), Move(g(3,15), w), nb, nw, Move(g(2,13), b), Move(g(2,11), w) },
-        //4-4 2-space high pincer - opponent side
-        { Move(g(15,15), b), Move(g(3,15), w), nb, nw, Move(g(2,13), b), Move(g(3,10), w) },
-        //3-4 1-space low approach - shusaku kosumi and long extend
-        { Move(g(15,15), b), Move(g(3,16), w), nb, nw, Move(g(2,14), b), Move(g(4,15), w), Move(g(2,10), b) },
-        //3-4 1-space low approach low pincer - opponent side
-        { Move(g(15,15), b), Move(g(3,16), w), nb, nw, Move(g(2,14), b), Move(g(2,12), w) },
-        //3-4 2-space low approach high pincer - opponent side
-        { Move(g(15,15), b), Move(g(3,16), w), nb, nw, Move(g(2,14), b), Move(g(3,11), w) },
-        //3-4 1-space high approach - opponent side
-        { Move(g(15,15), b), Move(g(3,16), w), nb, nw, Move(g(3,14), b) },
-        //3-4 1-space high approach low pincer - opponent side
-        { Move(g(15,15), b), Move(g(3,16), w), nb, nw, Move(g(3,14), b), Move(g(2,12), w) },
-        //3-4 2-space high approach high pincer - opponent side
-        { Move(g(15,15), b), Move(g(3,16), w), nb, nw, Move(g(3,14), b), Move(g(3,11), w) },
-        //Orthodox
-        { Move(g(3,3), b), nw, Move(g(15,2), b), nw, Move(g(16,4), b), Move(g(9,2), w) },
-        //Manchurian
-        { Move(g(4,3), b), nw, Move(g(16,3), b), nw, Move(g(10,3), b) },
-        //Upper Manchurian
-        { Move(g(4,4), b), nw, Move(g(16,4), b), nw, Move(g(10,4), b) },
-        //Great wall
-        { Move(g(9,9), b), nw, Move(g(9,15), b), nw, Move(g(9,3), b), nw, Move(g(8,12), b), nw, Move(g(10,6), b) },
-        //Small wall
-        { Move(g(9,8), b), nw, Move(g(8,11), b), nw, Move(g(10,5), b) },
-        //High approaches
-        { Move(g(3,2), b), Move(g(3,4), w), Move(g(16,3), b), Move(g(14,3), w), Move(g(15,16), b), Move(g(15,14), w) },
-        //Black hole
-        { Move(g(12,14), b), nw, Move(g(14,6), b), nw, Move(g(4,12), b), nw, Move(g(6,4), b) },
-        //Crosscut
-        { Move(g(9,9), b), Move(g(9,10), w), Move(g(10,10), b), Move(g(10,9), w) },
-        //One-point jump center
-        { Move(g(9,8), b), nw, Move(g(9,10), b) },
-      };
-
-      vector<Move> chosenOpening = specialOpenings[rand.nextUInt((int)specialOpenings.size())];
-      vector<vector<Move>> chosenOpenings;
-
-      for(int j = 0; j<8; j++) {
-        vector<Move> symmetric;
-        for(int k = 0; k<chosenOpening.size(); k++) {
-          Loc loc = chosenOpening[k].loc;
-          Player movePla = chosenOpening[k].pla;
-          if(loc == Board::NULL_LOC || loc == Board::PASS_LOC)
-            symmetric.push_back(Move(loc,movePla));
-          else {
-            int x = Location::getX(loc,size);
-            int y = Location::getY(loc,size);
-            if(j & 1) x = size-1-x;
-            if(j & 2) y = size-1-y;
-            if(j & 4) std::swap(x,y);
-            symmetric.push_back(Move(Location::getLoc(x,y,size),movePla));
-          }
-        }
-        chosenOpenings.push_back(symmetric);
-      }
-      for(int j = (int)chosenOpenings.size()-1; j>=1; j--) {
-        int r = rand.nextUInt(j+1);
-        vector<Move> tmp = chosenOpenings[j];
-        chosenOpenings[j] = chosenOpenings[r];
-        chosenOpenings[r] = tmp;
-      }
-
-      vector<Move> movesPlayed;
-      vector<Move> freeMovesPlayed;
-      vector<Move> specifiedMovesPlayed;
-      while(true) {
-        auto withinRadius1 = [size](Loc l0, Loc l1) {
-          if(l0 == Board::NULL_LOC || l1 == Board::NULL_LOC || l0 == Board::PASS_LOC || l1 == Board::PASS_LOC)
-            return false;
-          int x0 = Location::getX(l0,size);
-          int y0 = Location::getY(l0,size);
-          int x1 = Location::getX(l1,size);
-          int y1 = Location::getY(l1,size);
-          return std::abs(x0-x1) <= 1 && std::abs(y0-y1) <= 1;
-        };
-        auto symmetryIsGood = [&movesPlayed,&specifiedMovesPlayed,&freeMovesPlayed,&withinRadius1](const vector<Move>& moves) {
-          assert(movesPlayed.size() <= moves.size());
-          //Make sure the symmetry matches up to the desired point,
-          //and that free moves are not within radius 1 of any specified move
-          for(int j = 0; j<movesPlayed.size(); j++) {
-            if(moves[j].loc == Board::NULL_LOC) {
-              Loc actualLoc = movesPlayed[j].loc;
-              for(int k = 0; k<specifiedMovesPlayed.size(); k++) {
-                if(withinRadius1(specifiedMovesPlayed[k].loc,actualLoc))
-                  return false;
-              }
-            }
-            else if(movesPlayed[j].loc != moves[j].loc)
-              return false;
-          }
-
-          //Make sure the next move will also not be within radius 1 of any free move.
-          if(movesPlayed.size() < moves.size()) {
-            Loc nextLoc = moves[movesPlayed.size()].loc;
-            for(int k = 0; k<freeMovesPlayed.size(); k++) {
-              if(withinRadius1(freeMovesPlayed[k].loc,nextLoc))
-                return false;
-            }
-          }
-
-          return true;
-        };
-
-        //Take the first good symmetry
-        vector<Move> goodSymmetry;
-        for(int i = 0; i<chosenOpenings.size(); i++) {
-          if(symmetryIsGood(chosenOpenings[i])) {
-            goodSymmetry = chosenOpenings[i];
-            break;
-          }
-        }
-
-        //If we have no further moves on that symmetry, we're done
-        if(movesPlayed.size() >= goodSymmetry.size())
-          break;
-
-        Move nextMove = goodSymmetry[movesPlayed.size()];
-        bool wasSpecified = true;
-
-        if(nextMove.loc == Board::NULL_LOC) {
-          wasSpecified = false;
-          Search* search = bot->getSearchStopAndWait();
-          NNResultBuf buf;
-          MiscNNInputParams nnInputParams;
-          nnInputParams.drawEquivalentWinsForWhite = search->searchParams.drawEquivalentWinsForWhite;
-          search->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
-          std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
-
-          double temperature = 0.8;
-          bool allowPass = false;
-          Loc banMove = Board::NULL_LOC;
-          Loc loc = PlayUtils::chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, rand, temperature, allowPass, banMove);
-          nextMove.loc = loc;
-        }
-
-        //Make sure the next move is legal
-        if(!hist.isLegal(board,nextMove.loc,nextMove.pla))
-          break;
-
-        //Make the move!
-        hist.makeBoardMoveAssumeLegal(board,nextMove.loc,nextMove.pla,NULL);
-        pla = getOpp(pla);
-
-        hist.clear(board,pla,hist.rules,0);
-        bot->setPosition(pla,board,hist);
-
-        movesPlayed.push_back(nextMove);
-        if(wasSpecified)
-          specifiedMovesPlayed.push_back(nextMove);
-        else
-          freeMovesPlayed.push_back(nextMove);
-
-        bot->clearSearch();
-        writeLine(bot->getSearch(),hist,vector<double>(),vector<double>(),vector<double>());
-        std::this_thread::sleep_for(std::chrono::duration<double>(1.0));
-
-      } //Close while(true)
-
-      int numVisits = 20;
-      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,OtherGameProperties(),rand);
-      double komi = hist.rules.komi + 0.3 * rand.nextGaussian();
-      komi = 0.5 * round(2.0 * komi);
-      hist.setKomi((float)komi);
-      bot->setPosition(pla,board,hist);
-    }
-  }
-
-  bot->clearSearch();
-  writeLine(bot->getSearch(),hist,vector<double>(),vector<double>(),vector<double>());
-  std::this_thread::sleep_for(std::chrono::duration<double>(2.0));
-
-}
-
-
-int MainCmds::demoplay(const vector<string>& args) {
-  Board::initHash();
-  ScoreValue::initTables();
-  Rand seedRand;
-
-  ConfigParser cfg;
-  string logFile;
-  string modelFile;
-  try {
-    KataGoCommandLine cmd("Self-play demo dumping status to stdout");
-    cmd.addConfigFileArg("","");
-    cmd.addModelFileArg();
-    cmd.addOverrideConfigArg();
-
-    TCLAP::ValueArg<string> logFileArg("","log-file","Log file to output to",false,string(),"FILE");
-    cmd.add(logFileArg);
-    cmd.parseArgs(args);
-
-    modelFile = cmd.getModelFile();
-    logFile = logFileArg.getValue();
-
-    cmd.getConfig(cfg);
-  }
-  catch (TCLAP::ArgException &e) {
-    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
-    return 1;
-  }
-
-  Logger logger(&cfg);
-  logger.addFile(logFile);
-
-  logger.write("Engine starting...");
-
-  string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-
-  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
-
-  NNEvaluator* nnEval;
-  {
-    Setup::initializeSession(cfg);
-    const int expectedConcurrentEvals = params.numThreads;
-    const int defaultMaxBatchSize = -1;
-    const bool defaultRequireExactNNLen = false;
-    const bool disableFP16 = false;
-    const string expectedSha256 = "";
-    nnEval = Setup::initializeNNEvaluator(
-      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-      Setup::SETUP_FOR_OTHER
-    );
-  }
-  logger.write("Loaded neural net");
-
-  const bool allowResignation = cfg.contains("allowResignation") ? cfg.getBool("allowResignation") : false;
-  const double resignThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignThreshold",-1.0,0.0) : -1.0; //Threshold on [-1,1], regardless of winLossUtilityFactor
-  const double resignScoreThreshold = cfg.contains("allowResignation") ? cfg.getDouble("resignScoreThreshold",-10000.0,0.0) : -10000.0;
-
-  const double searchFactorWhenWinning = cfg.contains("searchFactorWhenWinning") ? cfg.getDouble("searchFactorWhenWinning",0.01,1.0) : 1.0;
-  const double searchFactorWhenWinningThreshold = cfg.contains("searchFactorWhenWinningThreshold") ? cfg.getDouble("searchFactorWhenWinningThreshold",0.0,1.0) : 1.0;
-
-  //Check for unused config keys
-  cfg.warnUnusedKeys(cerr,&logger);
-  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,&logger);
-
-  AsyncBot* bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-  bot->setAlwaysIncludeOwnerMap(true);
-  Rand gameRand;
-
-  //Done loading!
-  //------------------------------------------------------------------------------------
-  logger.write("Loaded all config stuff, starting demo");
-
-  //Game loop
-  while(true) {
-
-    Player pla = P_BLACK;
-    Board baseBoard;
-    BoardHistory baseHist(baseBoard,pla,Rules::getTrompTaylorish(),0);
-    TimeControls tc;
-
-    initializeDemoGame(baseBoard, baseHist, pla, gameRand, bot);
-
-    bot->setPosition(pla,baseBoard,baseHist);
-
-    vector<double> recentWinLossValues;
-    vector<double> recentScores;
-    vector<double> recentScoreStdevs;
-
-    double callbackPeriod = 0.05;
-
-    std::function<void(const Search*)> callback = [&baseHist,&recentWinLossValues,&recentScores,&recentScoreStdevs](const Search* search) {
-      writeLine(search,baseHist,recentWinLossValues,recentScores,recentScoreStdevs);
-    };
-
-    //Move loop
-    int maxMovesPerGame = 1600;
-    for(int i = 0; i<maxMovesPerGame; i++) {
-      baseHist.endGameIfAllPassAlive(baseBoard);
-      if(baseHist.isGameFinished)
-        break;
-
-      callback(bot->getSearch());
-
-      double searchFactor =
-        //Speed up when either player is winning confidently, not just the winner only
-        std::min(
-          PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,P_BLACK),
-          PlayUtils::getSearchFactor(searchFactorWhenWinningThreshold,searchFactorWhenWinning,params,recentWinLossValues,P_WHITE)
-        );
-      Loc moveLoc = bot->genMoveSynchronousAnalyze(pla,tc,searchFactor,callbackPeriod,callbackPeriod,callback);
-
-      bool isLegal = bot->isLegalStrict(moveLoc,pla);
-      if(moveLoc == Board::NULL_LOC || !isLegal) {
-        ostringstream sout;
-        sout << "genmove null location or illegal move!?!" << "\n";
-        sout << bot->getRootBoard() << "\n";
-        sout << "Pla: " << PlayerIO::playerToString(pla) << "\n";
-        sout << "MoveLoc: " << Location::toString(moveLoc,bot->getRootBoard()) << "\n";
-        logger.write(sout.str());
-        cerr << sout.str() << endl;
-        throw StringError("illegal move");
-      }
-
-      double winLossValue;
-      double expectedScore;
-      double expectedScoreStdev;
-      {
-        ReportedSearchValues values = bot->getSearch()->getRootValuesRequireSuccess();
-        winLossValue = values.winLossValue;
-        expectedScore = values.expectedScore;
-        expectedScoreStdev = values.expectedScoreStdev;
-      }
-
-      recentWinLossValues.push_back(winLossValue);
-      recentScores.push_back(expectedScore);
-      recentScoreStdevs.push_back(expectedScoreStdev);
-
-      bool resigned = false;
-      if(allowResignation) {
-        const BoardHistory hist = bot->getRootHist();
-        const Board initialBoard = hist.initialBoard;
-
-        //Play at least some moves no matter what
-        int minTurnForResignation = 1 + initialBoard.x_size * initialBoard.y_size / 6;
-
-        Player resignPlayerThisTurn = C_EMPTY;
-        if(winLossValue < resignThreshold && expectedScore < resignScoreThreshold)
-          resignPlayerThisTurn = P_WHITE;
-        else if(winLossValue > -resignThreshold && expectedScore > -resignScoreThreshold)
-          resignPlayerThisTurn = P_BLACK;
-
-        if(resignPlayerThisTurn == pla &&
-           bot->getRootHist().moveHistory.size() >= minTurnForResignation)
-          resigned = true;
-      }
-
-      if(resigned) {
-        baseHist.setWinnerByResignation(getOpp(pla));
-        break;
-      }
-      else {
-        //And make the move on our copy of the board
-        assert(baseHist.isLegal(baseBoard,moveLoc,pla));
-        baseHist.makeBoardMoveAssumeLegal(baseBoard,moveLoc,pla,NULL);
-
-        //If the game is over, skip making the move on the bot, to preserve
-        //the last known value of the search tree for display purposes
-        //Just immediately terminate the game loop
-        if(baseHist.isGameFinished)
-          break;
-
-        bool suc = bot->makeMove(moveLoc,pla);
-        assert(suc);
-        (void)suc; //Avoid warning when asserts are off
-
-        pla = getOpp(pla);
-      }
-
-    }
-
-    //End of game display line
-    writeLine(bot->getSearch(),baseHist,recentWinLossValues,recentScores,recentScoreStdevs);
-    //Wait a bit before diving into the next game
-    std::this_thread::sleep_for(std::chrono::seconds(10));
-
-    bot->clearSearch();
-  }
-
-  delete bot;
-  delete nnEval;
-  NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
-
-  logger.write("All cleaned up, quitting");
-  return 0;
-
 }
 
 int MainCmds::printclockinfo(const vector<string>& args) {
@@ -574,2122 +44,6 @@ int MainCmds::printclockinfo(const vector<string>& args) {
 #endif
   return 0;
 }
-
-static void handleStartAnnotations(Sgf* rootSgf) {
-  std::function<bool(Sgf*)> hasStartNode = [&hasStartNode](Sgf* sgf) {
-    for(SgfNode* node : sgf->nodes) {
-      if(node->hasProperty("C")) {
-        std::string comment = node->getSingleProperty("C");
-        if(comment.find("%START%") != std::string::npos) {
-          return true;
-        }
-      }
-    }
-    for(Sgf* child : sgf->children) {
-      if(hasStartNode(child)) {
-        return true;
-      }
-    }
-    return false;
-  };
-
-  std::function<void(Sgf*)> markNodes = [&markNodes](Sgf* sgf) {
-    bool isInStartSubtree = false;
-    for(SgfNode* node : sgf->nodes) {
-      if(node->hasProperty("C")) {
-        std::string comment = node->getSingleProperty("C");
-        if(comment.find("%START%") != std::string::npos) {
-          isInStartSubtree = true;
-          break;
-        }
-      }
-      node->appendComment("%NOSAMPLE%");
-      node->appendComment("%NOHINT%");
-    }
-    if(!isInStartSubtree) {
-      for(Sgf* child : sgf->children)
-        markNodes(child);
-    }
-  };
-
-  if(hasStartNode(rootSgf)) {
-    markNodes(rootSgf);
-  }
-}
-
-int MainCmds::samplesgfs(const vector<string>& args) {
-  Board::initHash();
-  ScoreValue::initTables();
-  Rand seedRand;
-
-  vector<string> sgfFilesFromCmdline;
-  vector<string> sgfDirs;
-  vector<string> sgfsDirs;
-  string outDir;
-  vector<string> excludeHashesFiles;
-  double sampleProb;
-  double sampleWeight;
-  double forceSampleWeight;
-  double turnWeightLambda;
-  double minWeight;
-  int64_t maxDepth;
-  int64_t maxNodeCount;
-  int64_t maxBranchCount;
-  double minTurnNumberBoardAreaProp;
-  double maxTurnNumberBoardAreaProp;
-  bool flipIfPassOrWFirst;
-  double afterPassFactor;
-  bool allowGameOver;
-  bool hashComments;
-  double trainingWeight;
-  int verbosity;
-
-  string valueFluctuationModelFile;
-  double valueFluctuationTurnScale;
-  double valueFluctuationMaxWeight;
-  bool valueFluctuationMakeKomiFair;
-  double valueFluctuationWeightBySurprise;
-  double valueFluctuationWeightByCount;
-  double valueFluctuationWeightByUncertainty;
-  bool debugValueFluctuation;
-
-  int minMinRank;
-  int minMinRating;
-  string requiredPlayerName;
-  int maxHandicap;
-  double maxKomi;
-
-  int numThreads;
-
-  bool forTesting;
-
-  try {
-    KataGoCommandLine cmd("Search for suprising good moves in sgfs");
-
-    TCLAP::MultiArg<string> sgfArg("","sgf","Sgf file",false,"SGF");
-    TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",false,"DIR");
-    TCLAP::MultiArg<string> sgfsDirArg("","sgfsdir","Directory of sgfs files",false,"DIR");
-    TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
-    TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
-    TCLAP::ValueArg<double> sampleProbArg("","sample-prob","Probability to sample each position",true,0.0,"PROB");
-    TCLAP::ValueArg<double> sampleWeightArg("","sample-weight","",false,1.0,"Weight");
-    TCLAP::ValueArg<double> forceSampleWeightArg("","force-sample-weight","",false,5.0,"Weight");
-    TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",true,0.0,"LAMBDA");
-    TCLAP::ValueArg<double> minWeightArg("","min-weight","",false,0.0,"Weight");
-    TCLAP::ValueArg<string> maxDepthArg("","max-depth","Max depth allowed for sgf",false,"100000000","INT");
-    TCLAP::ValueArg<string> maxNodeCountArg("","max-node-count","Max node count allowed for sgf",false,"100000000","INT");
-    TCLAP::ValueArg<string> maxBranchCountArg("","max-branch-count","Max branch count allowed for sgf",false,"100000000","INT");
-    TCLAP::ValueArg<double> minTurnNumberBoardAreaPropArg("","min-turn-number-board-area-prop","Only use turn number >= this board area",false,-1.0,"PROP");
-    TCLAP::ValueArg<double> maxTurnNumberBoardAreaPropArg("","max-turn-number-board-area-prop","Only use turn number <= this board area",false,10000.0,"PROP");
-    TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
-    TCLAP::ValueArg<double> afterPassFactorArg("","after-pass-factor","Scale down weight of positions following a pass",false, 1.0, "FACTOR");
-    TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
-    TCLAP::SwitchArg hashCommentsArg("","hash-comments","Hash comments in sgf");
-    TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
-    TCLAP::ValueArg<int> verbosityArg("","verbosity","Print more stuff",false,0,"INT");
-
-    TCLAP::ValueArg<string> valueFluctuationModelFileArg("","value-fluctuation-model","Upweight positions prior to value fluctuations",false,string(),"MODELFILE");
-    TCLAP::ValueArg<double> valueFluctuationTurnScaleArg("","value-fluctuation-turn-scale","How much prior on average",false,1.0,"AVGTURNS");
-    TCLAP::ValueArg<double> valueFluctuationMaxWeightArg("","value-fluctuation-max-weight","",false,10.0,"MAXWEIGHT");
-    TCLAP::SwitchArg valueFluctuationMakeKomiFairArg("","value-fluctuation-make-komi-fair","");
-    TCLAP::ValueArg<double> valueFluctuationWeightBySurpriseArg("","value-fluctuation-weight-by-surprise","",false,0.0,"SCALE");
-    TCLAP::ValueArg<double> valueFluctuationWeightByCountArg("","value-fluctuation-weight-by-count","",false,1.0,"SCALE");
-    TCLAP::ValueArg<double> valueFluctuationWeightByUncertaintyArg("","value-fluctuation-weight-by-uncertainty","",false,0.0,"SCALE");
-    TCLAP::SwitchArg debugValueFluctuationArg("","debug-value-fluctuation","");
-    TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
-    TCLAP::ValueArg<int> minMinRatingArg("","min-min-rating","Require both players in a game to have rating at least this",false,-1000000000,"INT");
-    TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
-    TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
-    TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
-
-    TCLAP::ValueArg<int> numThreadsArg("","num-threads","Number of threads to process",false,1,"INT");
-
-    TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
-
-    cmd.add(sgfArg);
-    cmd.add(sgfDirArg);
-    cmd.add(sgfsDirArg);
-    cmd.add(outDirArg);
-    cmd.add(excludeHashesArg);
-    cmd.add(sampleProbArg);
-    cmd.add(sampleWeightArg);
-    cmd.add(forceSampleWeightArg);
-    cmd.add(turnWeightLambdaArg);
-    cmd.add(minWeightArg);
-    cmd.add(maxDepthArg);
-    cmd.add(maxNodeCountArg);
-    cmd.add(maxBranchCountArg);
-    cmd.add(minTurnNumberBoardAreaPropArg);
-    cmd.add(maxTurnNumberBoardAreaPropArg);
-    cmd.add(flipIfPassOrWFirstArg);
-    cmd.add(afterPassFactorArg);
-    cmd.add(allowGameOverArg);
-    cmd.add(hashCommentsArg);
-    cmd.add(trainingWeightArg);
-    cmd.add(verbosityArg);
-    cmd.add(valueFluctuationModelFileArg);
-    cmd.add(valueFluctuationTurnScaleArg);
-    cmd.add(valueFluctuationMaxWeightArg);
-    cmd.add(valueFluctuationMakeKomiFairArg);
-    cmd.add(valueFluctuationWeightBySurpriseArg);
-    cmd.add(valueFluctuationWeightByCountArg);
-    cmd.add(valueFluctuationWeightByUncertaintyArg);
-    cmd.add(debugValueFluctuationArg);
-    cmd.add(minMinRankArg);
-    cmd.add(minMinRatingArg);
-    cmd.add(requiredPlayerNameArg);
-    cmd.add(maxHandicapArg);
-    cmd.add(maxKomiArg);
-    cmd.add(numThreadsArg);
-    cmd.add(forTestingArg);
-    cmd.parseArgs(args);
-    sgfFilesFromCmdline = sgfArg.getValue();
-    sgfDirs = sgfDirArg.getValue();
-    sgfsDirs = sgfsDirArg.getValue();
-    outDir = outDirArg.getValue();
-    excludeHashesFiles = excludeHashesArg.getValue();
-    sampleProb = sampleProbArg.getValue();
-    sampleWeight = sampleWeightArg.getValue();
-    minWeight = minWeightArg.getValue();
-    forceSampleWeight = forceSampleWeightArg.getValue();
-    turnWeightLambda = turnWeightLambdaArg.getValue();
-    maxDepth = Global::stringToInt64(maxDepthArg.getValue());
-    maxNodeCount = Global::stringToInt64(maxNodeCountArg.getValue());
-    maxBranchCount = Global::stringToInt64(maxBranchCountArg.getValue());
-    minTurnNumberBoardAreaProp = minTurnNumberBoardAreaPropArg.getValue();
-    maxTurnNumberBoardAreaProp = maxTurnNumberBoardAreaPropArg.getValue();
-    flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
-    afterPassFactor = afterPassFactorArg.getValue();
-    allowGameOver = allowGameOverArg.getValue();
-    hashComments = hashCommentsArg.getValue();
-    trainingWeight = trainingWeightArg.getValue();
-    verbosity = verbosityArg.getValue();
-    valueFluctuationModelFile = valueFluctuationModelFileArg.getValue();
-    valueFluctuationTurnScale = valueFluctuationTurnScaleArg.getValue();
-    valueFluctuationMaxWeight = valueFluctuationMaxWeightArg.getValue();
-    valueFluctuationMakeKomiFair = valueFluctuationMakeKomiFairArg.getValue();
-    valueFluctuationWeightBySurprise = valueFluctuationWeightBySurpriseArg.getValue();
-    valueFluctuationWeightByCount = valueFluctuationWeightByCountArg.getValue();
-    valueFluctuationWeightByUncertainty = valueFluctuationWeightByUncertaintyArg.getValue();
-    debugValueFluctuation = debugValueFluctuationArg.getValue();
-    minMinRank = minMinRankArg.getValue();
-    minMinRating = minMinRatingArg.getValue();
-    requiredPlayerName = requiredPlayerNameArg.getValue();
-    maxHandicap = maxHandicapArg.getValue();
-    maxKomi = maxKomiArg.getValue();
-    numThreads = numThreadsArg.getValue();
-    forTesting = forTestingArg.getValue();
-  }
-  catch (TCLAP::ArgException &e) {
-    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
-    return 1;
-  }
-
-  MakeDir::make(outDir);
-
-  const bool logToStdout = true;
-  const bool logToStderr = false;
-  const bool logTimeStamp = !forTesting;
-  Logger logger(nullptr, logToStdout, logToStderr, logTimeStamp);
-  logger.addFile(outDir + "/" + "log.log");
-  for(const string& arg: args)
-    logger.write(string("Command: ") + arg);
-
-  vector<string> sgfFiles;
-  FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
-  for(const string& s: sgfFilesFromCmdline)
-    sgfFiles.push_back(s);
-
-  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf files!");
-
-  vector<string> sgfsFiles;
-  FileHelpers::collectMultiSgfsFromDirsOrFiles(sgfsDirs,sgfsFiles);
-  logger.write("Found " + Global::int64ToString((int64_t)sgfsFiles.size()) + " sgfs files!");
-
-  if(forTesting) {
-    std::sort(sgfFiles.begin(),sgfFiles.end());
-    std::sort(sgfsFiles.begin(),sgfsFiles.end());
-  }
-
-  set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
-  logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
-
-  NNEvaluator* valueFluctuationNNEval = NULL;
-  if(valueFluctuationModelFile != "") {
-    if(valueFluctuationTurnScale <= 0.0 || valueFluctuationTurnScale > 100000000.0)
-      throw StringError("Invalid valueFluctuationTurnScale");
-    if(valueFluctuationMaxWeight <= 0.0 || valueFluctuationMaxWeight > 100000000.0)
-      throw StringError("Invalid valueFluctuationMaxWeight");
-    ConfigParser cfg;
-    if(forTesting)
-      cfg.overrideKey("nnRandSeed","forTesting");
-
-    Setup::initializeSession(cfg);
-    const int expectedConcurrentEvals = numThreads;
-    const int defaultMaxBatchSize = std::max(8,((numThreads+3)/4)*4);
-    const bool defaultRequireExactNNLen = false;
-    const bool disableFP16 = false;
-    const string expectedSha256 = "";
-    valueFluctuationNNEval = Setup::initializeNNEvaluator(
-      valueFluctuationModelFile,valueFluctuationModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-      Setup::SETUP_FOR_ANALYSIS
-    );
-    logger.write("Loaded neural net");
-  }
-
-  // ---------------------------------------------------------------------------------------------------
-
-  auto isPlayerOkay = [&](const Sgf* sgf, Player pla) {
-    if(requiredPlayerName != "") {
-      if(sgf->getPlayerName(pla) != requiredPlayerName)
-        return false;
-    }
-    return true;
-  };
-
-  auto isSgfOkay = [&](const Sgf* sgf) {
-    if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
-      return false;
-    if(sgf->depth() > maxDepth)
-      return false;
-    if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
-      return false;
-    if(minMinRank != Sgf::RANK_UNKNOWN) {
-      if(sgf->getRank(P_BLACK) < minMinRank || sgf->getRank(P_WHITE) < minMinRank)
-        return false;
-    }
-    if(minMinRating > -10000000) {
-      if(sgf->getRating(P_BLACK) < minMinRating || sgf->getRating(P_WHITE) < minMinRating)
-        return false;
-    }
-    if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
-      return false;
-    return true;
-  };
-
-  // ---------------------------------------------------------------------------------------------------
-  std::mutex mutex;
-
-  PosWriter posWriter("startposes.txt", outDir, 1, 0, 100000);
-  posWriter.start();
-
-  // ---------------------------------------------------------------------------------------------------
-
-  int64_t numKept = 0;
-  double weightKept = 0;
-  std::set<Hash128> uniqueHashes;
-  std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler =
-    [sampleProb,sampleWeight,forceSampleWeight,&posWriter,turnWeightLambda,&numKept,&weightKept,&seedRand,minTurnNumberBoardAreaProp,maxTurnNumberBoardAreaProp,afterPassFactor,trainingWeight,minWeight](
-      Sgf::PositionSample& posSample, const BoardHistory& hist, const string& comments
-    ) {
-      assert(posSample.getCurrentTurnNumber() == hist.getCurrentTurnNumber());
-      double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
-      double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
-      if(posSample.getCurrentTurnNumber() < minTurnNumber || posSample.getCurrentTurnNumber() > maxTurnNumber)
-        return;
-      if(comments.size() > 0 && comments.find("%NOSAMPLE%") != string::npos)
-        return;
-
-      if(seedRand.nextBool(sampleProb)) {
-        Sgf::PositionSample posSampleToWrite = posSample;
-        int64_t startTurn = posSampleToWrite.getCurrentTurnNumber();
-        posSampleToWrite.weight = sampleWeight * exp(-startTurn * turnWeightLambda) * posSampleToWrite.weight;
-        if(posSampleToWrite.moves.size() > 0 && posSampleToWrite.moves[posSampleToWrite.moves.size()-1].loc == Board::PASS_LOC)
-          posSampleToWrite.weight *= afterPassFactor;
-        if(comments.size() > 0 && comments.find("%SAMPLE%") != string::npos)
-          posSampleToWrite.weight = std::max(posSampleToWrite.weight,forceSampleWeight);
-        if(comments.size() > 0 && comments.find("%SAMPLELIGHT%") != string::npos)
-          posSampleToWrite.weight = std::max(posSampleToWrite.weight,0.5*forceSampleWeight);
-        if(posSampleToWrite.weight < minWeight)
-          return;
-        posSampleToWrite.trainingWeight = trainingWeight;
-        posWriter.writePos(posSampleToWrite);
-        numKept += 1;
-        weightKept += posSampleToWrite.weight;
-      }
-    };
-
-  std::map<string,int64_t> sgfCountUsedByPlayerName;
-  std::map<string,int64_t> sgfCountUsedByResult;
-
-  double totalWeightFromCount = 0.0;
-  double totalWeightFromSurprise = 0.0;
-  double totalWeightFromUncertainty = 0.0;
-  int64_t numExcluded = 0;
-  int64_t numSgfsFilteredTopLevel = 0;
-  auto trySgf = [&](Sgf* sgf) {
-    std::unique_lock<std::mutex> lock(mutex);
-
-    if(contains(excludeHashes,sgf->hash)) {
-      numExcluded += 1;
-      return;
-    }
-
-    int64_t depth = sgf->depth();
-    int64_t nodeCount = sgf->nodeCount();
-    int64_t branchCount = sgf->branchCount();
-    if(depth > maxDepth || nodeCount > maxNodeCount || branchCount > maxBranchCount) {
-      logger.write(
-        "Skipping due to violating limits depth " + Global::int64ToString(depth) +
-        " nodes " + Global::int64ToString(nodeCount) +
-        " branches " + Global::int64ToString(branchCount) +
-        " " + sgf->fileName
-      );
-      numSgfsFilteredTopLevel += 1;
-      return;
-    }
-
-    try {
-      if(!isSgfOkay(sgf)) {
-        if(verbosity >= 2)
-          logger.write("Filtering due to not okay: " + sgf->fileName);
-        numSgfsFilteredTopLevel += 1;
-        return;
-      }
-    }
-    catch(const StringError& e) {
-      logger.write("Filtering due to error checking okay: " + sgf->fileName + ": " + e.what());
-      numSgfsFilteredTopLevel += 1;
-      return;
-    }
-
-    handleStartAnnotations(sgf);
-
-    if(valueFluctuationNNEval == NULL) {
-      bool hashParent = false;
-      Rand iterRand;
-      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &iterRand, posHandler);
-      if(verbosity >= 2)
-        logger.write("Handled " + sgf->fileName + " kept weight " + Global::doubleToString(weightKept));
-      sgfCountUsedByPlayerName[sgf->getPlayerName(P_BLACK)] += 1;
-      sgfCountUsedByPlayerName[sgf->getPlayerName(P_WHITE)] += 1;
-      sgfCountUsedByResult[sgf->getRootPropertyWithDefault("RE","")] += 1;
-    }
-    else {
-      string fileName = sgf->fileName;
-      CompactSgf compactSgf(sgf);
-      Board board;
-      Player nextPla;
-      BoardHistory hist;
-      Rules rules = compactSgf.getRulesOrFailAllowUnspecified(Rules::getSimpleTerritory());
-      compactSgf.setupInitialBoardAndHist(rules, board, nextPla, hist);
-
-      if(valueFluctuationMakeKomiFair) {
-        Rand rand;
-        string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
-        SearchParams params = SearchParams::basicDecentParams();
-        Search* search = new Search(params,valueFluctuationNNEval,&logger,searchRandSeed);
-        OtherGameProperties otherGameProps;
-        int64_t numVisits = 30;
-        lock.unlock();
-        PlayUtils::adjustKomiToEven(search, search, board, hist, nextPla, numVisits, otherGameProps, rand);
-        lock.lock();
-      }
-
-      const bool preventEncore = false;
-      const vector<Move>& sgfMoves = compactSgf.moves;
-
-      vector<Board> boards;
-      vector<BoardHistory> hists;
-      vector<Player> nextPlas;
-      vector<shared_ptr<NNOutput>> nnOutputs;
-      vector<double> winLossValues;
-      vector<Move> moves;
-
-      for(size_t m = 0; m<sgfMoves.size()+1; m++) {
-        MiscNNInputParams nnInputParams;
-        nnInputParams.conservativePassAndIsRoot = true;
-        if(forTesting)
-          nnInputParams.symmetry = 0;
-        NNResultBuf buf;
-        bool skipCache = true;
-        bool includeOwnerMap = false;
-        lock.unlock();
-        valueFluctuationNNEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
-        lock.lock();
-
-        boards.push_back(board);
-        hists.push_back(hist);
-        nextPlas.push_back(nextPla);
-        nnOutputs.push_back(std::move(buf.result));
-        shared_ptr<NNOutput>& nnOutput = nnOutputs[nnOutputs.size()-1];
-        winLossValues.push_back(nnOutput->whiteWinProb - nnOutput->whiteLossProb);
-
-        if(m >= sgfMoves.size())
-          break;
-
-        moves.push_back(sgfMoves[m]);
-
-        //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
-        if(hist.isGameFinished || hist.encorePhase > 0)
-          break;
-        //Quit out if consecutive moves by the same player, to keep the history clean and "normal"
-        if(sgfMoves[m].pla != nextPla && m > 0) {
-          logger.write("Ending SGF " + fileName + " early due to non-alternating players on turn " + Global::intToString(m));
-          break;
-        }
-
-        bool suc = hist.isLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
-        if(!suc) {
-          //Only log on errors that aren't simply due to ko rules, but quit out regardless
-          suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
-          if(!suc)
-            logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
-          break;
-        }
-        hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
-        nextPla = getOpp(sgfMoves[m].pla);
-      }
-      boards.push_back(board);
-      hists.push_back(hist);
-      nextPlas.push_back(nextPla);
-
-      if(winLossValues.size() <= 1)
-        return;
-
-      double minTurnNumber = minTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
-      double maxTurnNumber = maxTurnNumberBoardAreaProp * (hist.initialBoard.x_size * hist.initialBoard.y_size);
-      //At this point we transition from indexing by move index alone to indexing by turn number in case the board
-      //started in the middle of a nonempty position.
-      double totalSurprise = 0.0;
-      double totalUncertainty = 0.0;
-      vector<double> winrateVariance;
-      for(size_t i = 0; i<winLossValues.size()-1; i++) {
-        int64_t turnNumber = hists[i].getCurrentTurnNumber();
-        if(winrateVariance.size() <= turnNumber)
-          winrateVariance.resize(turnNumber+1);
-        if(turnNumber >= minTurnNumber && turnNumber <= maxTurnNumber) {
-          winrateVariance[turnNumber] = (winLossValues[i+1]-winLossValues[i]) * (winLossValues[i+1]-winLossValues[i]);
-          totalSurprise += FancyMath::binaryCrossEntropy(0.5 + 0.5 * winLossValues[i], 0.5 + 0.5 * winLossValues[winLossValues.size()-1], 0.001);
-          totalUncertainty += std::max(0.0, 1.0 - winLossValues[i] * winLossValues[i]);
-        }
-        else
-          winrateVariance[turnNumber] = 0.0;
-      }
-
-      //Apply exponential blur
-      vector<double> winrateVarianceBlurred(winrateVariance.size());
-      double blurSum = 0.0;
-      double totalWeight = 0.0;
-      int totalCount = 0;
-      for(size_t i = winrateVariance.size(); i--;) {
-        blurSum *= 1.0 - 1.0 / valueFluctuationTurnScale;
-        blurSum += winrateVariance[i];
-        if(i >= minTurnNumber && i <= maxTurnNumber) {
-          winrateVarianceBlurred[i] = blurSum;
-          totalWeight += winrateVarianceBlurred[i];
-          totalCount += 1;
-        }
-      }
-      if(totalCount <= 0 || totalWeight <= 0)
-        return;
-
-      //Normalize
-      double desiredTotalWeight = (
-        valueFluctuationWeightByCount * totalCount +
-        valueFluctuationWeightBySurprise * totalSurprise +
-        valueFluctuationWeightByUncertainty * totalUncertainty
-      );
-      totalWeightFromCount += valueFluctuationWeightByCount * totalCount;
-      totalWeightFromSurprise += valueFluctuationWeightBySurprise * totalSurprise;
-      totalWeightFromUncertainty += valueFluctuationWeightByUncertainty * totalUncertainty;
-      vector<double> desiredWeight(winrateVariance.size());
-      for(size_t i = 0; i<desiredWeight.size(); i++) {
-        desiredWeight[i] = std::min(valueFluctuationMaxWeight, winrateVarianceBlurred[i] / totalWeight * desiredTotalWeight);
-      }
-
-      if(debugValueFluctuation) {
-        ostringstream out;
-        std::vector<string> extraComments;
-        for(size_t i = 0; i<winLossValues.size(); i++) {
-          int64_t turnIdx = std::min((int64_t)(desiredWeight.size()-1), hists[i].getCurrentTurnNumber());
-          turnIdx = std::max(turnIdx,(int64_t)0);
-          extraComments.push_back(Global::strprintf("%.3f %.3f",winLossValues[i],desiredWeight[turnIdx]));
-        }
-        WriteSgf::writeSgf(
-          out, "B", "W",
-          hists[hists.size()-1],
-          extraComments
-        );
-        logger.write(out.str());
-      }
-
-      for(int64_t m = 0; m<(int64_t)moves.size(); m++) {
-        Sgf::PositionSample sample;
-        const int numMovesToRecord = 8;
-        int64_t startIdx = std::max((int64_t)0,m-numMovesToRecord);
-        sample.board = boards[startIdx];
-        sample.nextPla = nextPlas[startIdx];
-        for(int64_t j = startIdx; j<m; j++)
-          sample.moves.push_back(moves[j]);
-        sample.initialTurnNumber = hist.initialTurnNumber + startIdx;
-        sample.hintLoc = Board::NULL_LOC;
-
-        assert(desiredWeight.size() > 0);
-        int64_t turnIdx = std::min((int64_t)(desiredWeight.size()-1), hists[m].getCurrentTurnNumber());
-        turnIdx = std::max(turnIdx,(int64_t)0);
-        sample.weight = desiredWeight[turnIdx];
-
-        sample.trainingWeight = trainingWeight;
-
-        if(sample.weight < 0.1)
-          continue;
-
-        posHandler(sample, hists[m], "");
-        // cout << fileName << " " << m << " " << desiredWeight[m] << endl;
-      }
-
-      // Block all the main line hashes and then iterate through the whole SGF to catch side variations, weight them
-      // the same way as the same turn in the main line.
-      std::set<Hash128> blockedSituationHashes;
-      for(size_t m = 0; m<hists.size(); m++) {
-        blockedSituationHashes.insert(
-          BoardHistory::getSituationAndSimpleKoAndPrevPosHash(hists[m].getRecentBoard(0),hists[m],hists[m].presumedNextMovePla)
-        );
-      }
-
-      std::function<void(Sgf::PositionSample&, const BoardHistory&, const string&)> posHandler2 =
-        [&blockedSituationHashes, &desiredWeight, &posHandler, trainingWeight](
-          Sgf::PositionSample& posSample, const BoardHistory& posHist, const string& comments
-        ) {
-          assert(posSample.getCurrentTurnNumber() == posHist.getCurrentTurnNumber());
-          // cout << "AAAA " << (posHist.initialTurnNumber + (int)posHist.moveHistory.size()) << endl;
-          if(contains(
-               blockedSituationHashes,
-               BoardHistory::getSituationAndSimpleKoAndPrevPosHash(posHist.getRecentBoard(0),posHist,posHist.presumedNextMovePla)
-             ))
-            return;
-          // cout << "BBBB" << endl;
-          Sgf::PositionSample posSampleWeighted = posSample;
-          if(desiredWeight.size() > 0) {
-            int64_t turnIdx = std::min((int64_t)(desiredWeight.size()-1), posHist.getCurrentTurnNumber());
-            turnIdx = std::max(turnIdx,(int64_t)0);
-            posSampleWeighted.weight = desiredWeight[turnIdx];
-          }
-          posSampleWeighted.trainingWeight = trainingWeight;
-          posHandler(posSampleWeighted, posHist, comments);
-        };
-
-      bool hashParent = false;
-      Rand iterRand;
-      sgf->iterAllUniquePositions(uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &iterRand, posHandler2);
-
-      if(verbosity >= 2)
-        cout << "Handled " << fileName << " kept weight " << weightKept << endl;
-      sgfCountUsedByPlayerName[sgf->getPlayerName(P_BLACK)] += 1;
-      sgfCountUsedByPlayerName[sgf->getPlayerName(P_WHITE)] += 1;
-      sgfCountUsedByResult[sgf->getRootPropertyWithDefault("RE","")] += 1;
-    }
-  };
-
-  {
-    auto processSgfFile = [&](int threadIdx, size_t index) {
-      (void)threadIdx;
-      Sgf* sgf = NULL;
-      try {
-        sgf = Sgf::loadFile(sgfFiles[index]);
-        trySgf(sgf);
-      }
-      catch(const StringError& e) {
-        logger.write("Invalid SGF " + sgfFiles[index] + ": " + e.what());
-      }
-      if(sgf != NULL) {
-        delete sgf;
-      }
-    };
-    Parallel::iterRange(
-      numThreads,
-      sgfFiles.size(),
-      logger,
-      std::function<void(int,size_t)>(processSgfFile)
-    );
-  };
-
-  for(size_t i = 0; i<sgfsFiles.size(); i++) {
-    std::vector<Sgf*> sgfs;
-    try {
-      sgfs = Sgf::loadSgfsFile(sgfsFiles[i]);
-    }
-    catch(const StringError& e) {
-      logger.write("Invalid SGFS " + sgfsFiles[i] + ": " + e.what());
-      continue;
-    }
-
-    auto processSgf = [&](int threadIdx, size_t index) {
-      (void)threadIdx;
-      try {
-        trySgf(sgfs[index]);
-      }
-      catch(const StringError& e) {
-        logger.write("Bad sgf in SGFS" + sgfsFiles[index] + ": " + e.what());
-      }
-    };
-    Parallel::iterRange(
-      numThreads,
-      sgfs.size(),
-      logger,
-      std::function<void(int,size_t)>(processSgf)
-    );
-    for(size_t j = 0; j<sgfs.size(); j++) {
-      delete sgfs[j];
-    }
-  }
-
-  logger.write("Kept " + Global::int64ToString(numKept) + " start positions");
-  logger.write("Excluded " + Global::int64ToString(numExcluded) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
-  logger.write("Filtered " + Global::int64ToString(numSgfsFilteredTopLevel) + "/" + Global::uint64ToString(sgfFiles.size()) + " sgf files");
-  if(valueFluctuationNNEval != NULL) {
-    logger.write("totalWeightFromCount " + Global::doubleToString(totalWeightFromCount));
-    logger.write("totalWeightFromSurprise " + Global::doubleToString(totalWeightFromSurprise));
-    logger.write("totalWeightFromUncertainty " + Global::doubleToString(totalWeightFromUncertainty));
-  }
-
-  if(verbosity >= 1) {
-    logger.write("SGF count used by player name:");
-    for(const auto &elt: sgfCountUsedByPlayerName) {
-      logger.write(elt.first + " " + Global::int64ToString(elt.second));
-    }
-    logger.write("SGF count used by result:");
-    for(const auto &elt: sgfCountUsedByResult) {
-      logger.write(elt.first + " " + Global::int64ToString(elt.second));
-    }
-  }
-
-  // ---------------------------------------------------------------------------------------------------
-
-  posWriter.flushAndStop();
-
-  if(valueFluctuationNNEval != NULL)
-    delete valueFluctuationNNEval;
-
-  logger.write("All done");
-
-  ScoreValue::freeTables();
-  return 0;
-}
-
-static bool maybeGetValuesAfterMove(
-  Search* search, Loc moveLoc,
-  Player nextPla, const Board& board, const BoardHistory& hist,
-  double quickSearchFactor,
-  ReportedSearchValues& values
-) {
-  Board newBoard = board;
-  BoardHistory newHist = hist;
-  Player newNextPla = nextPla;
-
-  if(moveLoc != Board::NULL_LOC) {
-    if(!hist.isLegal(newBoard,moveLoc,newNextPla))
-      return false;
-    newHist.makeBoardMoveAssumeLegal(newBoard,moveLoc,newNextPla,NULL);
-    newNextPla = getOpp(newNextPla);
-  }
-
-  search->setPosition(newNextPla,newBoard,newHist);
-
-  if(quickSearchFactor != 1.0) {
-    SearchParams oldSearchParams = search->searchParams;
-    SearchParams newSearchParams = oldSearchParams;
-    newSearchParams.maxVisits = 1 + (int64_t)(oldSearchParams.maxVisits * quickSearchFactor);
-    newSearchParams.maxPlayouts = 1 + (int64_t)(oldSearchParams.maxPlayouts * quickSearchFactor);
-    search->setParamsNoClearing(newSearchParams);
-    search->runWholeSearch(newNextPla,shouldStop);
-    search->setParamsNoClearing(oldSearchParams);
-  }
-  else {
-    search->runWholeSearch(newNextPla,shouldStop);
-  }
-
-  if(shouldStop.load(std::memory_order_acquire))
-    return false;
-  values = search->getRootValuesRequireSuccess();
-  return true;
-}
-
-
-
-//We want surprising moves that turned out not poorly
-//The more surprising, the more we will weight it
-static double surpriseWeight(double policyProb, Rand& rand, bool alwaysAddWeight) {
-  if(policyProb < 0)
-    return 0;
-  double weight = 0.12 / (policyProb + 0.02) - 0.5;
-  if(alwaysAddWeight && weight < 1.0)
-    weight = 1.0;
-
-  if(weight <= 0)
-    return 0;
-  if(weight < 0.2) {
-    if(rand.nextDouble() * 0.2 >= weight)
-      return 0;
-    return 0.2;
-  }
-  return weight;
-}
-
-struct PosQueueEntry {
-  BoardHistory* hist;
-  bool markedAsHintPos;
-};
-
-int MainCmds::dataminesgfs(const vector<string>& args) {
-  Board::initHash();
-  ScoreValue::initTables();
-  Rand seedRand;
-
-  ConfigParser cfg;
-  string nnModelFile;
-  vector<string> sgfDirs;
-  vector<string> sgfsDirs;
-  string outDir;
-  int numProcessThreads;
-  vector<string> excludeHashesFiles;
-  bool gameMode;
-  bool treeMode;
-  bool surpriseMode;
-  bool autoKomi;
-  bool tolerateIllegalMoves;
-  int sgfSplitCount;
-  int sgfSplitIdx;
-  int64_t maxDepth;
-  double turnWeightLambda;
-  int maxPosesPerOutFile;
-  double gameModeFastThreshold;
-  bool flipIfPassOrWFirst;
-  bool allowGameOver;
-  double trainingWeight;
-
-  int minRank;
-  int minMinRank;
-  string requiredPlayerName;
-  int maxHandicap;
-  double maxKomi;
-  double maxAutoKomi;
-  double maxPolicy;
-  double minHintWeight;
-  double hintScale;
-
-  bool forTesting;
-
-  try {
-    KataGoCommandLine cmd("Search for suprising good moves in sgfs");
-    cmd.addConfigFileArg("","");
-    cmd.addModelFileArg();
-    cmd.addOverrideConfigArg();
-
-    TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",false,"DIR");
-    TCLAP::MultiArg<string> sgfsDirArg("","sgfsdir","Directory of sgfs files",false,"DIR");
-    TCLAP::ValueArg<string> outDirArg("","outdir","Directory to write results",true,string(),"DIR");
-    TCLAP::ValueArg<int> numProcessThreadsArg("","threads","Number of threads",true,1,"THREADS");
-    TCLAP::MultiArg<string> excludeHashesArg("","exclude-hashes","Specify a list of hashes to filter out, one per line in a txt file",false,"FILEOF(HASH,HASH)");
-    TCLAP::SwitchArg gameModeArg("","game-mode","Game mode");
-    TCLAP::SwitchArg treeModeArg("","tree-mode","Tree mode");
-    TCLAP::SwitchArg surpriseModeArg("","surprise-mode","Surprise mode");
-    TCLAP::SwitchArg autoKomiArg("","auto-komi","Auto komi");
-    TCLAP::SwitchArg tolerateIllegalMovesArg("","tolerate-illegal-moves","Tolerate illegal moves");
-    TCLAP::ValueArg<int> sgfSplitCountArg("","sgf-split-count","Number of splits",false,1,"N");
-    TCLAP::ValueArg<int> sgfSplitIdxArg("","sgf-split-idx","Which split",false,0,"IDX");
-    TCLAP::ValueArg<int> maxDepthArg("","max-depth","Max depth allowed for sgf",false,1000000,"INT");
-    TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",false,0.0,"LAMBDA");
-    TCLAP::ValueArg<int> maxPosesPerOutFileArg("","max-poses-per-out-file","Number of hintposes per output file",false,100000,"INT");
-    TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
-    TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
-    TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
-    TCLAP::ValueArg<double> trainingWeightArg("","training-weight","Scale the loss function weight from data from games that originate from this position",false,1.0,"WEIGHT");
-    TCLAP::ValueArg<int> minRankArg("","min-rank","Require player making the move to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
-    TCLAP::ValueArg<int> minMinRankArg("","min-min-rank","Require both players in a game to have rank at least this",false,Sgf::RANK_UNKNOWN,"INT");
-    TCLAP::ValueArg<string> requiredPlayerNameArg("","required-player-name","Require player making the move to have this name",false,string(),"NAME");
-    TCLAP::ValueArg<int> maxHandicapArg("","max-handicap","Require no more than this big handicap in stones",false,100,"INT");
-    TCLAP::ValueArg<double> maxKomiArg("","max-komi","Require absolute value of game komi to be at most this",false,1000,"KOMI");
-    TCLAP::ValueArg<double> maxAutoKomiArg("","max-auto-komi","If absolute value of auto komi would exceed this, skip position",false,1000,"KOMI");
-    TCLAP::ValueArg<double> maxPolicyArg("","max-policy","Chop off moves with raw policy more than this",false,1000,"POLICY");
-    TCLAP::ValueArg<double> minHintWeightArg("","min-hint-weight","Hinted moves get at least this weight",false,0.0,"WEIGHT");
-    TCLAP::ValueArg<double> hintScaleArg("","hint-scale","Manually hinted moves get weight scaled by this",false,1.0,"FACTOR");
-
-    TCLAP::SwitchArg forTestingArg("","for-testing","For testing");
-
-    cmd.add(sgfDirArg);
-    cmd.add(sgfsDirArg);
-    cmd.add(outDirArg);
-    cmd.add(numProcessThreadsArg);
-    cmd.add(excludeHashesArg);
-    cmd.add(gameModeArg);
-    cmd.add(treeModeArg);
-    cmd.add(surpriseModeArg);
-    cmd.add(autoKomiArg);
-    cmd.add(tolerateIllegalMovesArg);
-    cmd.add(sgfSplitCountArg);
-    cmd.add(sgfSplitIdxArg);
-    cmd.add(maxDepthArg);
-    cmd.add(turnWeightLambdaArg);
-    cmd.add(maxPosesPerOutFileArg);
-    cmd.add(gameModeFastThresholdArg);
-    cmd.add(flipIfPassOrWFirstArg);
-    cmd.add(allowGameOverArg);
-    cmd.add(trainingWeightArg);
-    cmd.add(minRankArg);
-    cmd.add(minMinRankArg);
-    cmd.add(requiredPlayerNameArg);
-    cmd.add(maxHandicapArg);
-    cmd.add(maxKomiArg);
-    cmd.add(maxAutoKomiArg);
-    cmd.add(maxPolicyArg);
-    cmd.add(minHintWeightArg);
-    cmd.add(hintScaleArg);
-    cmd.add(forTestingArg);
-    cmd.parseArgs(args);
-
-    nnModelFile = cmd.getModelFile();
-    sgfDirs = sgfDirArg.getValue();
-    sgfsDirs = sgfsDirArg.getValue();
-    outDir = outDirArg.getValue();
-    numProcessThreads = numProcessThreadsArg.getValue();
-    excludeHashesFiles = excludeHashesArg.getValue();
-    gameMode = gameModeArg.getValue();
-    treeMode = treeModeArg.getValue();
-    surpriseMode = surpriseModeArg.getValue();
-    autoKomi = autoKomiArg.getValue();
-    tolerateIllegalMoves = tolerateIllegalMovesArg.getValue();
-    sgfSplitCount = sgfSplitCountArg.getValue();
-    sgfSplitIdx = sgfSplitIdxArg.getValue();
-    maxDepth = maxDepthArg.getValue();
-    turnWeightLambda = turnWeightLambdaArg.getValue();
-    maxPosesPerOutFile = maxPosesPerOutFileArg.getValue();
-    gameModeFastThreshold = gameModeFastThresholdArg.getValue();
-    flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
-    allowGameOver = allowGameOverArg.getValue();
-    trainingWeight = trainingWeightArg.getValue();
-    minRank = minRankArg.getValue();
-    minMinRank = minMinRankArg.getValue();
-    requiredPlayerName = requiredPlayerNameArg.getValue();
-    maxHandicap = maxHandicapArg.getValue();
-    maxKomi = maxKomiArg.getValue();
-    maxAutoKomi = maxAutoKomiArg.getValue();
-    maxPolicy = maxPolicyArg.getValue();
-    minHintWeight = minHintWeightArg.getValue();
-    hintScale = hintScaleArg.getValue();
-    forTesting = forTestingArg.getValue();
-
-    if((int)gameMode + (int)treeMode + (int)surpriseMode != 1)
-      throw StringError("Must specify either -game-mode or -tree-mode or -surprise-mode");
-
-    cmd.getConfig(cfg);
-  }
-  catch (TCLAP::ArgException &e) {
-    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
-    return 1;
-  }
-
-  MakeDir::make(outDir);
-
-  const bool logToStdoutDefault = true;
-  Logger logger(&cfg, logToStdoutDefault);
-  logger.addFile(outDir + "/" + "log.log");
-  for(const string& arg: args)
-    logger.write(string("Command: ") + arg);
-  if(!forTesting)
-    logger.write("Git revision " + Version::getGitRevision());
-
-  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
-  //Ignore temperature, noise
-  params.chosenMoveTemperature = 0;
-  params.chosenMoveTemperatureEarly = 0;
-  params.rootNoiseEnabled = false;
-  params.rootDesiredPerChildVisitsCoeff = 0;
-  params.rootPolicyTemperature = 1.0;
-  params.rootPolicyTemperatureEarly = 1.0;
-  params.rootFpuReductionMax = params.fpuReductionMax * 0.5;
-
-  //Disable dynamic utility so that utilities are always comparable
-  params.staticScoreUtilityFactor += params.dynamicScoreUtilityFactor;
-  params.dynamicScoreUtilityFactor = 0;
-
-  NNEvaluator* nnEval;
-  {
-    Setup::initializeSession(cfg);
-    const int expectedConcurrentEvals = params.numThreads;
-    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-    const bool defaultRequireExactNNLen = false;
-    const bool disableFP16 = false;
-    const string expectedSha256 = "";
-    nnEval = Setup::initializeNNEvaluator(
-      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-      Setup::SETUP_FOR_ANALYSIS
-    );
-  }
-  logger.write("Loaded neural net");
-
-  GameInitializer* gameInit = new GameInitializer(cfg,logger);
-  cfg.warnUnusedKeys(cerr,&logger);
-  Setup::maybeWarnHumanSLParams(params,nnEval,NULL,cerr,&logger);
-
-  vector<string> sgfFiles;
-  FileHelpers::collectSgfsFromDirsOrFiles(sgfDirs,sgfFiles);
-  FileHelpers::collectMultiSgfsFromDirsOrFiles(sgfsDirs,sgfFiles);
-  logger.write("Found " + Global::int64ToString((int64_t)sgfFiles.size()) + " sgf(s) files!");
-
-  if(forTesting)
-    std::sort(sgfFiles.begin(),sgfFiles.end());
-  else {
-    seedRand.shuffle(sgfFiles);
-  }
-
-  set<Hash128> excludeHashes = Sgf::readExcludes(excludeHashesFiles);
-  logger.write("Loaded " + Global::uint64ToString(excludeHashes.size()) + " excludes");
-
-
-  if(!std::atomic_is_lock_free(&shouldStop))
-    throw StringError("shouldStop is not lock free, signal-quitting mechanism for terminating matches will NOT work!");
-  std::signal(SIGINT, signalHandler);
-  std::signal(SIGTERM, signalHandler);
-
-  // ---------------------------------------------------------------------------------------------------
-  PosWriter posWriter("hintposes.txt", outDir, sgfSplitCount, sgfSplitIdx, maxPosesPerOutFile);
-
-  //COMMON ---------------------------------------------------------------------------------------------------
-  std::atomic<int64_t> numSgfsDone(0);
-  std::atomic<int64_t> numFilteredIndivdualPoses(0);
-  std::atomic<int64_t> numFilteredSgfs(0);
-
-  auto isPlayerOkay = [&](const Sgf* sgf, Player pla) {
-    if(minRank != Sgf::RANK_UNKNOWN) {
-      if(sgf->getRank(pla) < minRank)
-        return false;
-    }
-    if(requiredPlayerName != "") {
-      if(sgf->getPlayerName(pla) != requiredPlayerName)
-        return false;
-    }
-    return true;
-  };
-
-  auto isSgfOkay = [&](const Sgf* sgf) {
-    if(maxHandicap < 100 && sgf->getHandicapValue() > maxHandicap)
-      return false;
-    if(sgf->depth() > maxDepth)
-      return false;
-    if(std::fabs(sgf->getKomiOrDefault(7.5f)) > maxKomi)
-      return false;
-    if(minMinRank != Sgf::RANK_UNKNOWN) {
-      if(sgf->getRank(P_BLACK) < minMinRank && sgf->getRank(P_WHITE) < minMinRank)
-        return false;
-    }
-    if(!isPlayerOkay(sgf,P_BLACK) && !isPlayerOkay(sgf,P_WHITE))
-      return false;
-    return true;
-  };
-
-  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight](
-    Search* search, Loc missedLoc,
-    Player nextPla, const Board& board, const BoardHistory& hist,
-    const Sgf::PositionSample& sample, bool markedAsHintPos
-  ) {
-    if(shouldStop.load(std::memory_order_acquire))
-      return;
-
-    if(std::fabs(hist.rules.komi) > maxAutoKomi) {
-      numFilteredIndivdualPoses.fetch_add(1);
-      return;
-    }
-    if(hist.computeNumHandicapStones() > maxHandicap) {
-      numFilteredIndivdualPoses.fetch_add(1);
-      return;
-    }
-
-    {
-      int numStonesOnBoard = 0;
-      for(int y = 0; y<board.y_size; y++) {
-        for(int x = 0; x<board.x_size; x++) {
-          Loc loc = Location::getLoc(x,y,board.x_size);
-          if(board.colors[loc] != C_EMPTY)
-            numStonesOnBoard += 1;
-        }
-      }
-      if(numStonesOnBoard < 6)
-        return;
-    }
-
-    if(surpriseMode) {
-      // TODO Very simple logic - If a full search gives a different move than a quick search and
-      // judges the move to be way better than the quick search's move, then record as a hintpos.
-      // If a full search gives a very worse value than a quick search, then record as a sample position.
-
-      ReportedSearchValues veryQuickValues;
-      {
-        bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/50.0,veryQuickValues);
-        if(!suc)
-          return;
-      }
-      Loc veryQuickMoveLoc = search->getChosenMoveLoc();
-      ReportedSearchValues baseValues;
-      {
-        bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0,baseValues);
-        if(!suc)
-          return;
-      }
-      Loc moveLoc = search->getChosenMoveLoc();
-
-      if(moveLoc != veryQuickMoveLoc) {
-        ReportedSearchValues veryQuickAfterMoveValues;
-        {
-          bool suc = maybeGetValuesAfterMove(search,veryQuickMoveLoc,nextPla,board,hist,1.0/2.0,veryQuickAfterMoveValues);
-          if(!suc)
-            return;
-        }
-        ReportedSearchValues baseAfterMoveValues;
-        {
-          bool suc = maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,1.0/2.0,baseAfterMoveValues);
-          if(!suc)
-            return;
-        }
-        if(
-          (nextPla == P_WHITE && baseAfterMoveValues.utility - veryQuickAfterMoveValues.utility > 0.2) ||
-          (nextPla == P_BLACK && baseAfterMoveValues.utility - veryQuickAfterMoveValues.utility < -0.2)
-        ) {
-          Sgf::PositionSample sampleToWrite = sample;
-          sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
-          sampleToWrite.hintLoc = moveLoc;
-          sampleToWrite.trainingWeight = trainingWeight;
-          posWriter.writePos(sampleToWrite);
-          if(sampleToWrite.hasPreviousPositions(1))
-            posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
-          if(sampleToWrite.hasPreviousPositions(2))
-            posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
-          logger.write("Surprising good " + Global::doubleToString(sampleToWrite.weight));
-          return;
-        }
-      }
-
-      if(
-        (nextPla == P_WHITE && baseValues.utility - veryQuickValues.utility < -0.2) ||
-        (nextPla == P_BLACK && baseValues.utility - veryQuickValues.utility > 0.2)
-      ) {
-        Sgf::PositionSample sampleToWrite = sample;
-        sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
-        sampleToWrite.hintLoc = Board::NULL_LOC;
-        sampleToWrite.trainingWeight = trainingWeight;
-        posWriter.writePos(sampleToWrite);
-        if(sampleToWrite.hasPreviousPositions(1))
-          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
-        if(sampleToWrite.hasPreviousPositions(2))
-          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
-        logger.write("Inevitable bad " + Global::doubleToString(sampleToWrite.weight));
-        return;
-      }
-      if(
-        (nextPla == P_WHITE && baseValues.utility - veryQuickValues.utility > 0.2) ||
-        (nextPla == P_BLACK && baseValues.utility - veryQuickValues.utility < -0.2)
-      ) {
-        Sgf::PositionSample sampleToWrite = sample;
-        sampleToWrite.weight = 1.0 + std::fabs(baseValues.utility - veryQuickValues.utility);
-        sampleToWrite.hintLoc = Board::NULL_LOC;
-        sampleToWrite.trainingWeight = trainingWeight;
-        posWriter.writePos(sampleToWrite);
-        if(sampleToWrite.hasPreviousPositions(1))
-          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.5));
-        if(sampleToWrite.hasPreviousPositions(2))
-          posWriter.writePos(sampleToWrite.previousPosition(sampleToWrite.weight * 0.25).previousPosition(sampleToWrite.weight * 0.25));
-        logger.write("Inevitable good " + Global::doubleToString(sampleToWrite.weight));
-        return;
-      }
-      return;
-    }
-
-    ReportedSearchValues veryQuickValues;
-    {
-      bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/25.0,veryQuickValues);
-      if(!suc)
-        return;
-    }
-    Loc veryQuickMoveLoc = search->getChosenMoveLoc();
-
-    ReportedSearchValues quickValues;
-    {
-      bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/5.0,quickValues);
-      if(!suc)
-        return;
-    }
-    Loc quickMoveLoc = search->getChosenMoveLoc();
-
-    ReportedSearchValues baseValues;
-    {
-      bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0,baseValues);
-      if(!suc)
-        return;
-    }
-    Loc moveLoc = search->getChosenMoveLoc();
-
-    // const Player perspective = P_WHITE;
-    // {
-    //   ostringstream preOut;
-    //   Board::printBoard(preOut, search->getRootBoard(), moveLoc, &(search->getRootHist().moveHistory));
-    //   search->printTree(preOut, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
-    //   cout << preOut.str() << endl;
-    //   cout << Location::toString(missedLoc,board) << endl;
-    // }
-
-    Sgf::PositionSample sampleToWrite = sample;
-    sampleToWrite.trainingWeight = trainingWeight;
-    sampleToWrite.weight += std::fabs(baseValues.utility - quickValues.utility);
-    sampleToWrite.weight += std::fabs(baseValues.utility - veryQuickValues.utility);
-
-    //Bot DOES see the move?
-    if(moveLoc == missedLoc) {
-      if(quickMoveLoc == moveLoc)
-        sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
-      if(veryQuickMoveLoc == moveLoc)
-        sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
-
-      sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
-
-      if(markedAsHintPos)
-        sampleToWrite.weight *= hintScale;
-      if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
-        sampleToWrite.weight = minHintWeight;
-      if(sampleToWrite.weight > 0.1) {
-        //Still good to learn from given that policy was really low
-        posWriter.writePos(sampleToWrite);
-      }
-    }
-
-    //Bot doesn't see the move?
-    else if(moveLoc != missedLoc) {
-
-      //If marked as a hint pos, always trust that it should be better and add it.
-      bool shouldWriteMove = markedAsHintPos;
-
-      if(!shouldWriteMove) {
-        ReportedSearchValues moveValues;
-        if(!maybeGetValuesAfterMove(search,moveLoc,nextPla,board,hist,1.0,moveValues))
-          return;
-        // ostringstream out0;
-        // out0 << "BOT MOVE " << Location::toString(moveLoc,board) << endl;
-        // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
-        // cout << out0.str() << endl;
-
-        ReportedSearchValues missedValues;
-        if(!maybeGetValuesAfterMove(search,missedLoc,nextPla,board,hist,1.0,missedValues))
-          return;
-        // ostringstream out0;
-        // out0 << "SGF MOVE " << Location::toString(missedLoc,board) << endl;
-        // search->printTree(out0, search->rootNode, PrintTreeOptions().maxDepth(0),perspective);
-        // cout << out0.str() << endl;
-
-        //If the move is this minimum amount better, then record this position as a hint
-        //Otherwise the bot actually thinks the move isn't better, so we reject it as an invalid hint.
-        const double utilityThreshold = 0.01;
-        ReportedSearchValues postValues = search->getRootValuesRequireSuccess();
-        if((nextPla == P_WHITE && missedValues.utility > moveValues.utility + utilityThreshold) ||
-           (nextPla == P_BLACK && missedValues.utility < moveValues.utility - utilityThreshold)) {
-          shouldWriteMove = true;
-        }
-      }
-
-      if(shouldWriteMove) {
-        //Moves that the bot didn't see get written out more
-        sampleToWrite.weight = sampleToWrite.weight * 1.5 + 1.0;
-        sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
-        if(markedAsHintPos)
-          sampleToWrite.weight *= hintScale;
-        if(sampleToWrite.weight < minHintWeight && markedAsHintPos)
-          sampleToWrite.weight = minHintWeight;
-        if(sampleToWrite.weight > 0.1) {
-          posWriter.writePos(sampleToWrite);
-        }
-      }
-    }
-  };
-
-  // ---------------------------------------------------------------------------------------------------
-  //SGF MODE
-
-  auto processSgfGame = [&logger,&gameInit,&nnEval,&expensiveEvaluateMove,autoKomi,&gameModeFastThreshold,&maxDepth,&numFilteredSgfs,&maxHandicap,&maxPolicy,allowGameOver,trainingWeight](
-    Search* search, Rand& rand, const string& fileName, CompactSgf* sgf, bool blackOkay, bool whiteOkay
-  ) {
-    //Don't use the SGF rules - randomize them for a bit more entropy
-    Rules rules = gameInit->createRules();
-
-    Board board;
-    Player nextPla;
-    BoardHistory hist;
-    sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
-    if(!gameInit->isAllowedBSize(board.x_size,board.y_size)) {
-      numFilteredSgfs.fetch_add(1);
-      return;
-    }
-    if(board.x_size != 19 || board.y_size != 19) {
-      numFilteredSgfs.fetch_add(1);
-      return;
-    }
-
-    const bool preventEncore = true;
-    const vector<Move>& sgfMoves = sgf->moves;
-
-    if((int64_t)sgfMoves.size() > maxDepth) {
-      numFilteredSgfs.fetch_add(1);
-      return;
-    }
-    if(hist.computeNumHandicapStones() > maxHandicap) {
-      numFilteredSgfs.fetch_add(1);
-      return;
-    }
-
-    vector<Board> boards;
-    vector<BoardHistory> hists;
-    vector<Player> nextPlas;
-    vector<shared_ptr<NNOutput>> nnOutputs;
-    vector<double> winLossValues;
-    vector<double> scoreLeads;
-
-    vector<Move> moves;
-    vector<double> policyPriors;
-
-    for(int m = 0; m<sgfMoves.size()+1; m++) {
-      MiscNNInputParams nnInputParams;
-      NNResultBuf buf;
-      bool skipCache = true; //Always ignore cache so that we get more entropy on repeated board positions due to symmetries
-      bool includeOwnerMap = false;
-      nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
-
-      ReportedSearchValues superQuickValues;
-      {
-        bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0/80.0,superQuickValues);
-        if(!suc)
-          break;
-      }
-
-      boards.push_back(board);
-      hists.push_back(hist);
-      nextPlas.push_back(nextPla);
-      nnOutputs.push_back(std::move(buf.result));
-
-      shared_ptr<NNOutput>& nnOutput = nnOutputs[nnOutputs.size()-1];
-
-      winLossValues.push_back(superQuickValues.winLossValue);
-      scoreLeads.push_back(superQuickValues.lead);
-
-      if(m < sgfMoves.size()) {
-        moves.push_back(sgfMoves[m]);
-        int pos = NNPos::locToPos(sgfMoves[m].loc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
-        policyPriors.push_back(nnOutput->policyProbs[pos]);
-      }
-
-      if(m >= sgfMoves.size())
-        break;
-
-      //Quit out if according to our rules, we already finished the game, or we're somehow in a cleanup phase
-      if(!allowGameOver && (hist.isGameFinished || hist.encorePhase > 0))
-        break;
-
-      //Quit out if consecutive moves by the same player, to keep the history clean and "normal"
-      if(sgfMoves[m].pla != nextPla && m > 0) {
-        logger.write("Ending SGF " + fileName + " early due to non-alternating players on turn " + Global::intToString(m));
-        break;
-      }
-
-      bool suc = hist.isLegal(board,sgfMoves[m].loc,sgfMoves[m].pla);
-      if(!suc) {
-        //Only log on errors that aren't simply due to ko rules, but quit out regardless
-        suc = hist.makeBoardMoveTolerant(board,sgfMoves[m].loc,sgfMoves[m].pla,preventEncore);
-        if(!suc)
-          logger.write("Illegal move in " + fileName + " turn " + Global::intToString(m) + " move " + Location::toString(sgfMoves[m].loc, board.x_size, board.y_size));
-        break;
-      }
-      hist.makeBoardMoveAssumeLegal(board,sgfMoves[m].loc,sgfMoves[m].pla,NULL,preventEncore);
-      nextPla = getOpp(sgfMoves[m].pla);
-    }
-    boards.push_back(board);
-    hists.push_back(hist);
-    nextPlas.push_back(nextPla);
-
-    if(winLossValues.size() <= 0)
-      return;
-    if(shouldStop.load(std::memory_order_acquire))
-      return;
-
-    vector<double> futureValue(winLossValues.size()+1);
-    vector<double> futureLead(winLossValues.size()+1);
-    vector<double> pastValue(winLossValues.size());
-    vector<double> pastLead(winLossValues.size());
-    futureValue[winLossValues.size()] = winLossValues[winLossValues.size()-1];
-    futureLead[winLossValues.size()] = scoreLeads[winLossValues.size()];
-    for(int i = (int)winLossValues.size()-1; i >= 0; i--) {
-      futureValue[i] = 0.10 * winLossValues[i] + 0.90 * futureValue[i+1];
-      futureLead[i] = 0.10 * scoreLeads[i] + 0.90 * futureLead[i+1];
-    }
-    pastValue[0] = winLossValues[0];
-    pastLead[0] = scoreLeads[0];
-    for(int i = 1; i<(int)winLossValues.size(); i++) {
-      pastValue[i] = 0.5 * winLossValues[i] + 0.5 * pastValue[i+1];
-      pastLead[i] = 0.5 * scoreLeads[i] + 0.5 * pastLead[i+1];
-    }
-
-    const double scoreLeadWeight = 0.01;
-    const double sumThreshold = gameModeFastThreshold;
-
-    //cout << fileName << endl;
-    for(int m = 0; m<moves.size(); m++) {
-
-      if(shouldStop.load(std::memory_order_acquire))
-        break;
-
-      if((nextPlas[m] == P_BLACK && !blackOkay) || (nextPlas[m] == P_WHITE && !whiteOkay))
-        continue;
-
-      //cout << m << endl;
-      //Look for surprising moves that turned out not poorly
-      //The more surprising, the more times we will write it out.
-      if(policyPriors[m] > maxPolicy)
-        continue;
-      double weight = surpriseWeight(policyPriors[m],rand,false);
-      if(weight <= 0)
-        continue;
-
-      double pastSum = pastValue[m] + pastLead[m]*scoreLeadWeight;
-      double futureSum = futureValue[m] + futureLead[m]*scoreLeadWeight;
-      if((nextPlas[m] == P_WHITE && futureSum > pastSum + sumThreshold) ||
-         (nextPlas[m] == P_BLACK && futureSum < pastSum - sumThreshold)) {
-        //Good
-      }
-      else
-        continue;
-
-      Sgf::PositionSample sample;
-      const int numMovesToRecord = 8;
-      int startIdx = std::max(0,m-numMovesToRecord);
-      sample.board = boards[startIdx];
-      sample.nextPla = nextPlas[startIdx];
-      for(int j = startIdx; j<m; j++)
-        sample.moves.push_back(moves[j]);
-      sample.initialTurnNumber = hists[m].initialTurnNumber + startIdx;
-      sample.hintLoc = moves[m].loc;
-      sample.weight = weight;
-      sample.trainingWeight = trainingWeight;
-
-      if(autoKomi) {
-        const int64_t numVisits = 10;
-        OtherGameProperties props;
-        PlayUtils::adjustKomiToEven(search,NULL,boards[m],hists[m],nextPlas[m],numVisits,props,rand);
-      }
-
-      expensiveEvaluateMove(
-        search, moves[m].loc, nextPlas[m], boards[m], hists[m],
-        sample, false
-      );
-    }
-  };
-
-  const int maxSgfQueueSize = 1024;
-  ThreadSafeQueue<Sgf*> sgfQueue(maxSgfQueueSize);
-  auto processSgfLoop = [&logger,&processSgfGame,&sgfQueue,&params,&nnEval,&numSgfsDone,&isPlayerOkay,&tolerateIllegalMoves]() {
-    Rand rand;
-    string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
-    Search* search = new Search(params,nnEval,&logger,searchRandSeed);
-
-    while(true) {
-      if(shouldStop.load(std::memory_order_acquire))
-        break;
-
-      Sgf* sgfRaw;
-      bool success = sgfQueue.waitPop(sgfRaw);
-      if(!success)
-        break;
-
-      bool blackOkay = isPlayerOkay(sgfRaw,P_BLACK);
-      bool whiteOkay = isPlayerOkay(sgfRaw,P_WHITE);
-
-      CompactSgf* sgf = NULL;
-      try {
-        sgf = new CompactSgf(sgfRaw);
-      }
-      catch(const StringError& e) {
-        if(!tolerateIllegalMoves)
-          throw;
-        else {
-          logger.write(e.what());
-        }
-      }
-      if(sgf != NULL)
-        processSgfGame(search,rand,sgf->fileName,sgf,blackOkay,whiteOkay);
-
-      numSgfsDone.fetch_add(1);
-      delete sgf;
-      delete sgfRaw;
-    }
-    delete search;
-  };
-
-
-
-  // ---------------------------------------------------------------------------------------------------
-  //TREE MODE
-
-  auto treePosHandler = [&gameInit,&nnEval,&expensiveEvaluateMove,&autoKomi,&maxPolicy,&flipIfPassOrWFirst,&surpriseMode,trainingWeight](
-    Search* search, Rand& rand, const BoardHistory& treeHist, bool markedAsHintPos
-  ) {
-    if(shouldStop.load(std::memory_order_acquire))
-      return;
-    if(treeHist.moveHistory.size() > 0x3FFFFFFF)
-      throw StringError("Too many moves in history");
-    int moveHistorySize = (int)treeHist.moveHistory.size();
-    if(moveHistorySize <= 0)
-      return;
-
-    //Snap the position 8 turns ago so as to include 8 moves of history.
-    int turnsAgoToSnap = 0;
-    while(turnsAgoToSnap < 8) {
-      if(turnsAgoToSnap >= moveHistorySize)
-        break;
-      //If a player played twice in a row, then instead snap so as not to have a move history
-      //with a double move by the same player.
-      if(turnsAgoToSnap > 0 && treeHist.moveHistory[moveHistorySize - turnsAgoToSnap - 1].pla == treeHist.moveHistory[moveHistorySize - turnsAgoToSnap].pla)
-        break;
-      turnsAgoToSnap++;
-    }
-    int startTurn = moveHistorySize - turnsAgoToSnap;
-    //If the start turn is past the end of the last move, we don't actually have a move we're judging if it's good, so we quit.
-    if(startTurn >= moveHistorySize)
-      return;
-
-    //Play moves out until we get back to where we need to be.
-    //This is hacky and makes everything quadratic, but whatever
-    Board board = treeHist.initialBoard;
-    for(int i = 0; i<startTurn; i++) {
-      bool multiStoneSuicideLegal = true;
-      //Just in case
-      if(!board.isLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla,multiStoneSuicideLegal))
-        return;
-      board.playMoveAssumeLegal(treeHist.moveHistory[i].loc,treeHist.moveHistory[i].pla);
-    }
-
-    Sgf::PositionSample sample;
-    sample.board = board;
-    sample.nextPla = treeHist.moveHistory[startTurn].pla;
-    for(int j = startTurn; j<moveHistorySize-1; j++)
-      sample.moves.push_back(treeHist.moveHistory[j]);
-    sample.initialTurnNumber = treeHist.initialTurnNumber + startTurn;
-    sample.hintLoc = treeHist.moveHistory[moveHistorySize-1].loc;
-    sample.weight = 0.0; //dummy, filled in below
-    sample.trainingWeight = trainingWeight;
-
-    //Don't use the SGF rules - randomize them for a bit more entropy
-    Rules rules = gameInit->createRules();
-
-    //Now play the rest of the moves out, except the last, which we keep as the potential hintloc
-    int encorePhase = 0;
-    Player pla = sample.nextPla;
-    BoardHistory hist(board,pla,rules,encorePhase);
-    int numSampleMoves = (int)sample.moves.size();
-    for(int i = 0; i<numSampleMoves; i++) {
-      if(!hist.isLegal(board,sample.moves[i].loc,sample.moves[i].pla))
-        return;
-      assert(sample.moves[i].pla == pla);
-      hist.makeBoardMoveAssumeLegal(board,sample.moves[i].loc,sample.moves[i].pla,NULL);
-      pla = getOpp(pla);
-    }
-
-    //Make sure the hinted move is legal too
-    int hintIdx = (int)treeHist.moveHistory.size()-1;
-    if(!treeHist.isLegal(board,treeHist.moveHistory[hintIdx].loc,treeHist.moveHistory[hintIdx].pla))
-      return;
-    assert(treeHist.moveHistory[hintIdx].pla == pla);
-    assert(treeHist.moveHistory[hintIdx].loc == sample.hintLoc);
-
-    //And make sure it's legal under our randomized rules.
-    if(!hist.isLegal(board,sample.hintLoc,pla))
-      return;
-
-    if(autoKomi) {
-      const int64_t numVisits = 10;
-      OtherGameProperties props;
-      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,props,rand);
-    }
-
-    MiscNNInputParams nnInputParams;
-    bool skipCache = true; //Always ignore cache so that we get more entropy on repeated board positions due to symmetries
-    bool includeOwnerMap = false;
-
-    double policyProb = 0.0;
-    {
-      // Take 1.1 * the geometric mean of a few samples, so as to greatly upweight the importance of anomalous low values.
-      double acc = 0.0;
-      int count = 0;
-      for(int samples = 0; samples < 4; samples++) {
-        NNResultBuf buf;
-        nnEval->evaluate(board,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
-        shared_ptr<NNOutput>& nnOutput = buf.result;
-        int pos = NNPos::locToPos(sample.hintLoc,board.x_size,nnOutput->nnXLen,nnOutput->nnYLen);
-        double prob = nnOutput->policyProbs[pos];
-        assert(prob >= 0.0);
-        acc += log(prob + 1e-30);
-        count += 1;
-      }
-      assert(count > 0);
-      policyProb = 1.1 * exp(acc / count);
-    }
-
-    if(policyProb > maxPolicy)
-      return;
-    bool alwaysAddWeight = markedAsHintPos || surpriseMode;
-    double weight = surpriseWeight(policyProb,rand,alwaysAddWeight);
-    if(weight <= 0)
-      return;
-    sample.weight = weight;
-
-    if(flipIfPassOrWFirst) {
-      if(treeHist.hasBlackPassOrWhiteFirst())
-        sample = sample.getColorFlipped();
-    }
-
-    expensiveEvaluateMove(
-      search, sample.hintLoc, pla, board, hist,
-      sample, markedAsHintPos
-    );
-  };
-
-
-  const int64_t maxPosQueueSize = 16384;
-  ThreadSafeQueue<PosQueueEntry> posQueue(maxPosQueueSize);
-  std::atomic<int64_t> numPosesBegun(0);
-  std::atomic<int64_t> numPosesDone(0);
-  std::atomic<int64_t> numPosesEnqueued(0);
-
-  auto processPosLoop = [&logger,&posQueue,&params,&numPosesBegun,&numPosesDone,&numPosesEnqueued,&nnEval,&treePosHandler,&seedRand,forTesting]() {
-    Rand rand(forTesting ? "testseed" : Global::uint64ToString(seedRand.nextUInt64()));
-    string searchRandSeed = Global::uint64ToString(rand.nextUInt64());
-    Search* search = new Search(params,nnEval,&logger,searchRandSeed);
-
-    while(true) {
-      if(shouldStop.load(std::memory_order_acquire))
-        break;
-
-      PosQueueEntry p;
-      bool success = posQueue.waitPop(p);
-      if(!success)
-        break;
-      BoardHistory* hist = p.hist;
-      bool markedAsHintPos = p.markedAsHintPos;
-
-      int64_t numEnqueued = numPosesEnqueued.load();
-      int64_t numBegun = 1+numPosesBegun.fetch_add(1);
-      if(numBegun % 20 == 0)
-        logger.write("Begun " + Global::int64ToString(numBegun) + "/" + Global::int64ToString(numEnqueued) + " poses");
-
-      treePosHandler(search, rand, *hist, markedAsHintPos);
-
-      int64_t numDone = 1+numPosesDone.fetch_add(1);
-      if(numDone % 20 == 0)
-        logger.write("Done " + Global::int64ToString(numDone) + "/" + Global::int64ToString(numEnqueued) + " poses");
-
-      delete hist;
-    }
-    delete search;
-    posQueue.setReadOnly();
-  };
-
-
-  // ---------------------------------------------------------------------------------------------------
-
-  //Begin writing
-  posWriter.start();
-
-  vector<std::thread> threads;
-  for(int i = 0; i<numProcessThreads; i++) {
-    if(gameMode)
-      threads.push_back(std::thread(processSgfLoop));
-    else if(treeMode)
-      threads.push_back(std::thread(processPosLoop));
-    else if(surpriseMode)
-      threads.push_back(std::thread(processPosLoop));
-  }
-
-  // ---------------------------------------------------------------------------------------------------
-
-  int64_t numSgfsBegun = 0;
-  int64_t numSgfsSkipped = 0;
-  int64_t numSgfsFilteredTopLevel = 0;
-
-  std::set<Hash128> uniqueHashes;
-
-  auto logSgfProgress = [&]() {
-    logger.write(
-      "Begun " + Global::int64ToString(numSgfsBegun) + " / " + Global::int64ToString(sgfFiles.size()) + " sgfs, " +
-      string("done ") + Global::int64ToString(numSgfsDone.load()) + " sgfs, " +
-      string("skipped ") + Global::int64ToString(numSgfsSkipped) + " sgfs, " +
-      string("filtered ") + Global::int64ToString(numSgfsFilteredTopLevel + numFilteredSgfs.load()) + " sgfs, " +
-      string("filtered ") + Global::int64ToString(numFilteredIndivdualPoses.load()) + " individual poses"
-    );
-  };
-
-  for(size_t i = 0; i<sgfFiles.size(); i++) {
-    numSgfsBegun += 1;
-    if(numSgfsBegun % std::min((size_t)20, 1 + sgfFiles.size() / 60) == 0)
-      logSgfProgress();
-
-    const string& fileName = sgfFiles[i];
-
-    std::vector<Sgf*> sgfs = Sgf::loadSgfOrSgfsLogAndIgnoreErrors(fileName,logger);
-    if(!forTesting)
-      seedRand.shuffle(sgfs);
-
-    for(size_t j = 0; j<sgfs.size(); j++) {
-      Sgf* sgf = sgfs[j];
-
-      if(contains(excludeHashes,sgf->hash)) {
-        logger.write("Filtering due to exclude: " + fileName);
-        numSgfsFilteredTopLevel += 1;
-        delete sgf;
-        continue;
-      }
-      try {
-        if(!isSgfOkay(sgf)) {
-          logger.write("Filtering due to not okay: " + fileName);
-          numSgfsFilteredTopLevel += 1;
-          delete sgf;
-          continue;
-        }
-      }
-      catch(const StringError& e) {
-        logger.write("Filtering due to error checking okay: " + fileName + ": " + e.what());
-        numSgfsFilteredTopLevel += 1;
-        delete sgf;
-        continue;
-      }
-      if(sgfSplitCount > 1 && ((int)(sgf->hash.hash0 & 0x7FFFFFFF) % sgfSplitCount) != sgfSplitIdx) {
-        numSgfsSkipped += 1;
-        delete sgf;
-        continue;
-      }
-
-      logger.write("Starting " + fileName);
-      handleStartAnnotations(sgf);
-
-      if(gameMode) {
-        sgfQueue.waitPush(sgf);
-      }
-      else {
-        bool hashComments = true; //Hash comments so that if we see a position without %HINT% and one with, we make sure to re-load it.
-        bool blackOkay = isPlayerOkay(sgf,P_BLACK);
-        bool whiteOkay = isPlayerOkay(sgf,P_WHITE);
-        try {
-          bool hashParent = true; //Hash parent so that we distinguish hint moves that reach the same position but were different moves from different starting states.
-          sgf->iterAllUniquePositions(
-            uniqueHashes, hashComments, hashParent, flipIfPassOrWFirst, allowGameOver, forTesting ? NULL : &seedRand,
-            [&](Sgf::PositionSample& unusedSample, const BoardHistory& hist, const string& comments) {
-              if(comments.size() > 0 && comments.find("%NOHINT%") != string::npos)
-                return;
-              if(hist.moveHistory.size() <= 0)
-                return;
-              int hintIdx = (int)hist.moveHistory.size()-1;
-              if((hist.moveHistory[hintIdx].pla == P_BLACK && !blackOkay) || (hist.moveHistory[hintIdx].pla == P_WHITE && !whiteOkay))
-                return;
-
-              //unusedSample doesn't have enough history, doesn't have hintloc the way we want it
-              int64_t numEnqueued = 1+numPosesEnqueued.fetch_add(1);
-              if(numEnqueued % 500 == 0)
-                logger.write("Enqueued " + Global::int64ToString(numEnqueued) + " poses");
-              PosQueueEntry entry;
-              entry.hist = new BoardHistory(hist);
-              assert(hist.getCurrentTurnNumber() == unusedSample.getCurrentTurnNumber());
-              entry.markedAsHintPos = (comments.size() > 0 && comments.find("%HINT%") != string::npos);
-              posQueue.waitPush(entry);
-            }
-          );
-        }
-        catch(const StringError& e) {
-          if(!tolerateIllegalMoves)
-            throw;
-          else
-            logger.write(e.what());
-        }
-        numSgfsDone.fetch_add(1);
-        delete sgf;
-      }
-    }
-  }
-  logSgfProgress();
-  logger.write("All sgfs loaded, waiting for finishing analysis");
-  logger.write(Global::uint64ToString(sgfQueue.size()) + " sgfs still enqueued");
-  logger.write(Global::uint64ToString(sgfQueue.size()) + " sgfs still enqueued");
-
-  sgfQueue.setReadOnly();
-  posQueue.setReadOnly();
-  for(size_t i = 0; i<threads.size(); i++)
-    threads[i].join();
-
-  logSgfProgress();
-  logger.write("Waiting for final writing and cleanup");
-
-  posWriter.flushAndStop();
-
-  logger.write(nnEval->getModelFileName());
-  logger.write("NN rows: " + Global::int64ToString(nnEval->numRowsProcessed()));
-  logger.write("NN batches: " + Global::int64ToString(nnEval->numBatchesProcessed()));
-  logger.write("NN avg batch size: " + Global::doubleToString(nnEval->averageProcessedBatchSize()));
-
-  logger.write("All done");
-
-  delete gameInit;
-  delete nnEval;
-  NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
-  return 0;
-}
-
-
-
-
-
-
-int MainCmds::trystartposes(const vector<string>& args) {
-  Board::initHash();
-  ScoreValue::initTables();
-  Rand seedRand;
-
-  ConfigParser cfg;
-  string nnModelFile;
-  vector<string> startPosesFiles;
-  double minWeight;
-  try {
-    KataGoCommandLine cmd("Try running searches starting from startposes");
-    cmd.addConfigFileArg("","");
-    cmd.addModelFileArg();
-    cmd.addOverrideConfigArg();
-
-    TCLAP::MultiArg<string> startPosesFileArg("","startposes","Startposes file",true,"DIR");
-    TCLAP::ValueArg<double> minWeightArg("","min-weight","Minimum weight of startpos to try",false,0.0,"WEIGHT");
-    cmd.add(startPosesFileArg);
-    cmd.add(minWeightArg);
-    cmd.parseArgs(args);
-    nnModelFile = cmd.getModelFile();
-    startPosesFiles = startPosesFileArg.getValue();
-    minWeight = minWeightArg.getValue();
-    cmd.getConfig(cfg);
-  }
-  catch (TCLAP::ArgException &e) {
-    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
-    return 1;
-  }
-
-  const bool logToStdoutDefault = true;
-  Logger logger(&cfg, logToStdoutDefault);
-
-  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_ANALYSIS);
-  //Ignore temperature, noise
-  params.chosenMoveTemperature = 0;
-  params.chosenMoveTemperatureEarly = 0;
-  params.rootNoiseEnabled = false;
-  params.rootDesiredPerChildVisitsCoeff = 0;
-  params.rootPolicyTemperature = 1.0;
-  params.rootPolicyTemperatureEarly = 1.0;
-  params.rootFpuReductionMax = params.fpuReductionMax * 0.5;
-
-  //Disable dynamic utility so that utilities are always comparable
-  params.staticScoreUtilityFactor += params.dynamicScoreUtilityFactor;
-  params.dynamicScoreUtilityFactor = 0;
-
-  NNEvaluator* nnEval;
-  {
-    Setup::initializeSession(cfg);
-    const int expectedConcurrentEvals = params.numThreads;
-    const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-    const bool defaultRequireExactNNLen = false;
-    const bool disableFP16 = false;
-    const string expectedSha256 = "";
-    nnEval = Setup::initializeNNEvaluator(
-      nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-      Setup::SETUP_FOR_ANALYSIS
-    );
-  }
-  logger.write("Loaded neural net");
-
-  vector<Sgf::PositionSample> startPoses;
-  for(size_t i = 0; i<startPosesFiles.size(); i++) {
-    const string& startPosesFile = startPosesFiles[i];
-    vector<string> lines = FileUtils::readFileLines(startPosesFile,'\n');
-    for(size_t j = 0; j<lines.size(); j++) {
-      string line = Global::trim(lines[j]);
-      if(line.size() > 0) {
-        try {
-          Sgf::PositionSample posSample = Sgf::PositionSample::ofJsonLine(line);
-          startPoses.push_back(posSample);
-        }
-        catch(const StringError& err) {
-          logger.write(string("ERROR parsing startpos:") + err.what());
-        }
-      }
-    }
-  }
-  string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
-  Search* search = new Search(params,nnEval,&logger,searchRandSeed);
-
-  // ---------------------------------------------------------------------------------------------------
-
-  for(size_t s = 0; s<startPoses.size(); s++) {
-    const Sgf::PositionSample& startPos = startPoses[s];
-    if(startPos.weight < minWeight)
-      continue;
-
-    Rules rules = PlayUtils::genRandomRules(seedRand);
-    Board board = startPos.board;
-    Player pla = startPos.nextPla;
-    BoardHistory hist;
-    hist.clear(board,pla,rules,0);
-    hist.setInitialTurnNumber(startPos.initialTurnNumber);
-    bool allLegal = true;
-    for(size_t i = 0; i<startPos.moves.size(); i++) {
-      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla,false);
-      if(!isLegal) {
-        allLegal = false;
-        break;
-      }
-      pla = getOpp(startPos.moves[i].pla);
-    }
-    if(!allLegal) {
-      throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
-    }
-
-    {
-      const int64_t numVisits = 10;
-      OtherGameProperties props;
-      PlayUtils::adjustKomiToEven(search,NULL,board,hist,pla,numVisits,props,seedRand);
-    }
-
-    Loc hintLoc = startPos.hintLoc;
-
-    {
-      ReportedSearchValues values;
-      bool suc = maybeGetValuesAfterMove(search,Board::NULL_LOC,pla,board,hist,1.0,values);
-      (void)suc;
-      assert(suc);
-      cout << "Searching startpos: " << "\n";
-      cout << "Weight: " << startPos.weight << "\n";
-      cout << "Training Weight: " << startPos.trainingWeight << "\n";
-      cout << search->getRootHist().rules.toString() << "\n";
-      Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
-      search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_WHITE);
-      cout << endl;
-    }
-
-    if(hintLoc != Board::NULL_LOC) {
-      if(search->getChosenMoveLoc() == hintLoc) {
-        cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", but it was the chosen move" << "\n";
-        cout << endl;
-      }
-      else {
-        ReportedSearchValues values;
-        cout << "There was a hintpos " << Location::toString(hintLoc,board) << ", re-searching after playing it: " << "\n";
-        bool suc = maybeGetValuesAfterMove(search,hintLoc,pla,board,hist,1.0,values);
-        (void)suc;
-        assert(suc);
-        Board::printBoard(cout, search->getRootBoard(), search->getChosenMoveLoc(), &(search->getRootHist().moveHistory));
-        search->printTree(cout, search->rootNode, PrintTreeOptions().maxDepth(1),P_WHITE);
-        cout << endl;
-      }
-    }
-  }
-
-  delete search;
-  delete nnEval;
-  NeuralNet::globalCleanup();
-  ScoreValue::freeTables();
-  return 0;
-}
-
-
-int MainCmds::viewstartposes(const vector<string>& args) {
-  Board::initHash();
-  ScoreValue::initTables();
-
-  ConfigParser cfg;
-  string modelFile;
-  vector<string> startPosesFiles;
-  double minWeight;
-  int idxToView;
-  bool checkLegality;
-  try {
-    KataGoCommandLine cmd("View startposes");
-    cmd.addConfigFileArg("","",false);
-    cmd.addModelFileArg();
-    cmd.addOverrideConfigArg();
-
-    TCLAP::MultiArg<string> startPosesFileArg("","start-poses-file","Startposes file",true,"DIR");
-    TCLAP::ValueArg<double> minWeightArg("","min-weight","Min weight of startpos to view",false,0.0,"WEIGHT");
-    TCLAP::ValueArg<int> idxArg("","idx","Index of startpos to view in file",false,-1,"IDX");
-    TCLAP::SwitchArg checkLegalityArg("","check-legality","Print startposes that are illegal or that have illegal hints");
-    cmd.add(startPosesFileArg);
-    cmd.add(minWeightArg);
-    cmd.add(idxArg);
-    cmd.add(checkLegalityArg);
-    cmd.parseArgs(args);
-    startPosesFiles = startPosesFileArg.getValue();
-    minWeight = minWeightArg.getValue();
-    idxToView = idxArg.getValue();
-    checkLegality = checkLegalityArg.getValue();
-
-    cmd.getConfigAllowEmpty(cfg);
-    if(cfg.getFileName() != "")
-      modelFile = cmd.getModelFile();
-  }
-  catch (TCLAP::ArgException &e) {
-    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
-    return 1;
-  }
-
-  Rand rand;
-
-  const bool logToStdoutDefault = true;
-  const bool logToStderrDefault = false;
-  const bool logTimeDefault = true;
-  const bool logConfigContents = cfg.getFileName() != "";
-  Logger logger(&cfg, logToStdoutDefault, logToStderrDefault, logTimeDefault, logConfigContents);
-
-  Rules rules;
-  AsyncBot* bot = NULL;
-  NNEvaluator* nnEval = NULL;
-  if(cfg.getFileName() != "") {
-    const bool loadKomiFromCfg = false;
-    rules = Setup::loadSingleRules(cfg,loadKomiFromCfg);
-    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
-    {
-      Setup::initializeSession(cfg);
-      const int expectedConcurrentEvals = params.numThreads;
-      const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
-      const bool defaultRequireExactNNLen = false;
-      const bool disableFP16 = false;
-      const string expectedSha256 = "";
-      nnEval = Setup::initializeNNEvaluator(
-        modelFile,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
-        Setup::SETUP_FOR_GTP
-      );
-    }
-    logger.write("Loaded neural net");
-
-    string searchRandSeed;
-    if(cfg.contains("searchRandSeed"))
-      searchRandSeed = cfg.getString("searchRandSeed");
-    else
-      searchRandSeed = Global::uint64ToString(rand.nextUInt64());
-
-    bot = new AsyncBot(params, nnEval, &logger, searchRandSeed);
-  }
-
-  vector<Sgf::PositionSample> startPoses;
-  for(size_t i = 0; i<startPosesFiles.size(); i++) {
-    const string& startPosesFile = startPosesFiles[i];
-    vector<string> lines = FileUtils::readFileLines(startPosesFile,'\n');
-    for(size_t j = 0; j<lines.size(); j++) {
-      string line = Global::trim(lines[j]);
-      if(line.size() > 0) {
-        try {
-          Sgf::PositionSample posSample = Sgf::PositionSample::ofJsonLine(line);
-          startPoses.push_back(posSample);
-        }
-        catch(const StringError& err) {
-          cout << (string("ERROR parsing startpos:") + err.what()) << endl;
-        }
-      }
-    }
-  }
-
-  for(size_t s = 0; s<startPoses.size(); s++) {
-    const Sgf::PositionSample& startPos = startPoses[s];
-    if(startPos.weight < minWeight)
-      continue;
-    if(idxToView >= 0 && s != idxToView)
-      continue;
-
-    Board board = startPos.board;
-    Player pla = startPos.nextPla;
-    BoardHistory hist;
-    hist.clear(board,pla,rules,0);
-    hist.setInitialTurnNumber(startPos.initialTurnNumber);
-
-    bool allLegal = true;
-    for(size_t i = 0; i<startPos.moves.size(); i++) {
-      bool isLegal = hist.makeBoardMoveTolerant(board,startPos.moves[i].loc,startPos.moves[i].pla,false);
-      if(!isLegal) {
-        allLegal = false;
-        break;
-      }
-      pla = getOpp(startPos.moves[i].pla);
-    }
-    if(!allLegal) {
-      if(checkLegality) {
-        cout << "Illegal move in startpos in " + Global::concat(startPosesFiles,",") + ": " + Sgf::PositionSample::toJsonLine(startPos) << endl;
-        continue;
-      }
-      else
-        throw StringError("Illegal move in startpos: " + Sgf::PositionSample::toJsonLine(startPos));
-    }
-
-    if(checkLegality) {
-      if(startPos.moves.size() > 0 && startPos.moves[0].pla != startPos.nextPla) {
-        cout << "Mismatching nextPla in startpos in " + Global::concat(startPosesFiles,",") + ": " + Sgf::PositionSample::toJsonLine(startPos) << endl;
-      }
-    }
-
-    bool autoKomi = true;
-    if(autoKomi && bot != NULL) {
-      const int64_t numVisits = 10;
-      OtherGameProperties props;
-      PlayUtils::adjustKomiToEven(bot->getSearchStopAndWait(),NULL,board,hist,pla,numVisits,props,rand);
-    }
-
-    Loc hintLoc = startPos.hintLoc;
-    if(checkLegality) {
-      if(hintLoc != Board::NULL_LOC) {
-        bool isLegal = hist.isLegal(board,hintLoc,pla);
-        if(!isLegal) {
-          cout << "Illegal hint in startpos in " + Global::concat(startPosesFiles,",") + ": " + Sgf::PositionSample::toJsonLine(startPos) << endl;
-          Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
-          continue;
-        }
-      }
-    }
-
-    if(bot != NULL || !checkLegality) {
-      cout << "StartPos: " << s << "/" << startPoses.size() << "\n";
-      cout << "Next pla: " << PlayerIO::playerToString(pla) << "\n";
-      cout << "Weight: " << startPos.weight << "\n";
-      cout << "TrainingWeight: " << startPos.trainingWeight << "\n";
-      cout << "StartPosInitialNextPla: " << PlayerIO::playerToString(startPos.nextPla) << "\n";
-      cout << "StartPosMoves: ";
-      for(int i = 0; i<(int)startPos.moves.size(); i++)
-        cout << (startPos.moves[i].pla == P_WHITE ? "w" : "b") << Location::toString(startPos.moves[i].loc,board) << " ";
-      cout << "\n";
-      cout << "Auto komi: " << hist.rules.komi << "\n";
-      Board::printBoard(cout, board, hintLoc, &(hist.moveHistory));
-      cout << endl;
-
-      if(bot != NULL) {
-        bot->setPosition(pla,board,hist);
-        if(hintLoc != Board::NULL_LOC)
-          bot->setRootHintLoc(hintLoc);
-        else
-          bot->setRootHintLoc(Board::NULL_LOC);
-        bot->genMoveSynchronous(bot->getSearch()->rootPla,TimeControls());
-        const Search* search = bot->getSearchStopAndWait();
-        PrintTreeOptions options;
-        Player perspective = P_WHITE;
-        search->printTree(cout, search->rootNode, options, perspective);
-      }
-    }
-  }
-
-  if(bot != NULL)
-    delete bot;
-  if(nnEval != NULL)
-    delete nnEval;
-
-  ScoreValue::freeTables();
-  return 0;
-}
-
 
 int MainCmds::sampleinitializations(const vector<string>& args) {
   Board::initHash();
@@ -2733,13 +87,12 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
     {
       Setup::initializeSession(cfg);
       const int expectedConcurrentEvals = params.numThreads;
-      const int defaultMaxBatchSize = std::max(8,((params.numThreads+3)/4)*4);
       const bool defaultRequireExactNNLen = false;
       const bool disableFP16 = false;
       const string expectedSha256 = "";
       nnEval = Setup::initializeNNEvaluator(
         modelFile,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
-        Board::MAX_LEN,Board::MAX_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+        Board::MAX_LEN,Board::MAX_LEN,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
         Setup::SETUP_FOR_GTP
       );
     }
@@ -2803,6 +156,498 @@ int MainCmds::sampleinitializations(const vector<string>& args) {
   if(nnEval != NULL)
     delete nnEval;
 
+  ScoreValue::freeTables();
+  return 0;
+}
+
+int MainCmds::evalrandominits(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  ConfigParser cfg;
+  string modelFile;
+  try {
+    KataGoCommandLine cmd("Eval random inits");
+    cmd.addConfigFileArg("","");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    cmd.parseArgs(args);
+
+    cmd.getConfigAllowEmpty(cfg);
+    if(cfg.getFileName() != "")
+      modelFile = cmd.getModelFile();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Rand rand;
+
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+
+  NNEvaluator* nnEval = NULL;
+  if(cfg.getFileName() != "") {
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+    {
+      Setup::initializeSession(cfg);
+      const int expectedConcurrentEvals = params.numThreads;
+      const bool defaultRequireExactNNLen = false;
+      const bool disableFP16 = false;
+      const string expectedSha256 = "";
+      nnEval = Setup::initializeNNEvaluator(
+        modelFile,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
+        Board::MAX_LEN,Board::MAX_LEN,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
+        Setup::SETUP_FOR_GTP
+      );
+    }
+    logger.write("Loaded neural net");
+  }
+
+  Search* evalBot;
+  {
+    SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_DISTRIBUTED);
+    params.maxVisits = 40;
+    params.numThreads = 1;
+    string seed = Global::uint64ToString(rand.nextUInt64());
+    evalBot = new Search(params, nnEval, &logger, seed);
+  }
+
+  Rand gameRand;
+  while(true) {
+    Board board(19,19);
+    Player pla = P_BLACK;
+    Rules rules = Rules::parseRules("japanese");
+    //Keep pass-alive computations (e.g. endGameIfAllPassAlive below) consistent with how the bot's
+    //own searches are performing them.
+    BoardHistory hist(board,pla,rules,0,evalBot->getRootHist().modes);
+    int numInitialMovesToPlay = (int)gameRand.nextUInt(200);
+    double temperature = 1.0;
+    for(int i = 0; i<numInitialMovesToPlay; i++) {
+      NNResultBuf buf;
+      Loc loc = PlayUtils::getGameInitializationMove(evalBot, evalBot, board, hist, pla, buf, gameRand, temperature);
+
+      assert(hist.isLegal(board,loc,pla));
+      hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+      pla = getOpp(pla);
+
+      hist.endGameIfAllPassAlive(board);
+      if(hist.isGameFinished)
+        break;
+    }
+
+    evalBot->setPosition(pla,board,hist);
+    evalBot->runWholeSearch(pla);
+    ReportedSearchValues values = evalBot->getRootValuesRequireSuccess();
+    cout << numInitialMovesToPlay << "," << values.winLossValue << "," << values.lead << endl;
+  }
+  delete evalBot;
+  if(nnEval != NULL)
+    delete nnEval;
+
+  ScoreValue::freeTables();
+  return 0;
+}
+
+int MainCmds::searchentropyanalysis(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  ConfigParser cfg;
+  string modelFile;
+  string boardSizeDataset;
+  try {
+    KataGoCommandLine cmd("Analyze search entropy across datasets");
+    cmd.addConfigFileArg(KataGoCommandLine::defaultGtpConfigFileName(),"gtp_example.cfg");
+    cmd.addModelFileArg();
+    TCLAP::ValueArg<string> boardSizeDatasetArg("","boardsizedataset", "Dataset to analyze (9,13,19,10x14,rectangle)", true, "", "SIZE");
+    cmd.add(boardSizeDatasetArg);
+    cmd.addOverrideConfigArg();
+
+    cmd.parseArgs(args);
+
+    modelFile = cmd.getModelFile();
+    boardSizeDataset = boardSizeDatasetArg.getValue();
+    cmd.getConfig(cfg);
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Rand rand;
+
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+  logger.write("Search Entropy Analysis");
+  logger.write("Model: " + modelFile);
+  logger.write("Dataset: " + boardSizeDataset);
+
+  SearchParams params = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+  NNEvaluator* nnEval = NULL;
+  {
+    Setup::initializeSession(cfg);
+    const int expectedConcurrentEvals = params.numThreads;
+    const bool defaultRequireExactNNLen = false;
+    const bool disableFP16 = false;
+    const string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,expectedSha256,cfg,logger,rand,expectedConcurrentEvals,
+      Board::MAX_LEN,Board::MAX_LEN,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
+      Setup::SETUP_FOR_GTP
+    );
+  }
+  logger.write("Loaded neural net");
+
+  Search* bot;
+  {
+    SearchParams searchParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_GTP);
+    string seed = Global::uint64ToString(rand.nextUInt64());
+    bot = new Search(searchParams, nnEval, &logger, seed);
+  }
+
+  vector<string> sgfData;
+  if(boardSizeDataset == "9")
+    sgfData = TestCommon::getMultiGameSize9Data();
+  else if(boardSizeDataset == "13")
+    sgfData = TestCommon::getMultiGameSize13Data();
+  else if(boardSizeDataset == "19")
+    sgfData = TestCommon::getMultiGameSize19Data();
+  else if(boardSizeDataset == "10x14")
+    sgfData = TestCommon::getMultiGameSize10x14Data();
+  else if(boardSizeDataset == "rectangle")
+    sgfData = TestCommon::getMultiGameRectangleData();
+  else {
+    throw StringError("Unknown dataset to test gpu error on: " + boardSizeDataset);
+  }
+
+  // Build list of all (sgfIdx, turnIdx) pairs, then deterministically shuffle
+  vector<std::pair<int,int>> positions;
+  {
+    vector<std::unique_ptr<CompactSgf>> sgfObjs;
+    for(const string& sgf : sgfData)
+      sgfObjs.push_back(CompactSgf::parse(sgf));
+    for(int sgfIdx = 0; sgfIdx < (int)sgfObjs.size(); sgfIdx++) {
+      for(int turnIdx = 0; turnIdx < (int)sgfObjs[sgfIdx]->moves.size(); turnIdx++) {
+        positions.push_back({sgfIdx, turnIdx});
+      }
+    }
+  }
+  {
+    Rand shuffleRand("searchentropyanalysis_shuffle_seed");
+    shuffleRand.shuffle(positions);
+  }
+  logger.write("Total positions to search: " + Global::intToString((int)positions.size()));
+
+  vector<double> searchEntropies;
+  vector<double> searchSurprises;
+  int numPositions = 0;
+
+  auto printRunningStats = [&]() {
+    cout << "Searched numPositions: " << numPositions << endl;
+    if(numPositions > 0) {
+      double entropyMean = 0.0;
+      for(double v : searchEntropies) entropyMean += v;
+      entropyMean /= numPositions;
+      double entropyVar = 0.0;
+      for(double v : searchEntropies) { double d = v - entropyMean; entropyVar += d * d; }
+      entropyVar /= numPositions;
+      cout << "Mean search entropy: " << entropyMean << " standard deviation: " << sqrt(entropyVar) << endl;
+
+      double surpriseMean = 0.0;
+      for(double v : searchSurprises) surpriseMean += v;
+      surpriseMean /= numPositions;
+      double surpriseVar = 0.0;
+      for(double v : searchSurprises) { double d = v - surpriseMean; surpriseVar += d * d; }
+      surpriseVar /= numPositions;
+      cout << "Mean search surprise: " << surpriseMean << " standard deviation: " << sqrt(surpriseVar) << endl;
+    }
+  };
+
+  for(const auto& pos : positions) {
+    int sgfIdx = pos.first;
+    int turnIdx = pos.second;
+
+    std::unique_ptr<CompactSgf> sgfObj = CompactSgf::parse(sgfData[sgfIdx]);
+
+    Board board;
+    Player pla;
+    BoardHistory hist;
+    Rules initialRules;
+    sgfObj->setupInitialBoardAndHist(initialRules, board, pla, hist, bot->getRootHist().modes);
+
+    for(int i = 0; i < turnIdx; i++) {
+      Loc moveLoc = sgfObj->moves[i].loc;
+      if(moveLoc != Board::NULL_LOC && hist.isLegal(board, moveLoc, pla)) {
+        hist.makeBoardMoveAssumeLegal(board, moveLoc, pla, NULL);
+        pla = getOpp(pla);
+      }
+    }
+
+    if(!hist.isGameFinished) {
+      bot->setPosition(pla, board, hist);
+      bot->runWholeSearch(pla);
+
+      double surprise, searchEntropy, policyEntropy;
+      if(bot->getPolicySurpriseAndEntropy(surprise, searchEntropy, policyEntropy)) {
+        searchEntropies.push_back(searchEntropy);
+        searchSurprises.push_back(surprise);
+        numPositions++;
+        if(numPositions % 10 == 0)
+          printRunningStats();
+      }
+    }
+  }
+
+  cout << modelFile << endl;
+  cout << "Dataset: " << boardSizeDataset << endl;
+  printRunningStats();
+
+  delete bot;
+  delete nnEval;
+  ScoreValue::freeTables();
+  return 0;
+}
+
+//One CSV row per recorded turn of the game, containing the stats that drive surprise-based selection of
+//positions (policy surprise, value surprise) along with the per-game and per-turn covariates needed to
+//analyze what they vary with.
+static void writeSurpriseStatsRows(ostream& out, int64_t gameIdx, const FinishedGameData& data) {
+  size_t numMoves = data.targetWeightByTurn.size();
+  testAssert(data.hasFullData);
+  testAssert(data.policySurpriseByTurn.size() == numMoves);
+  testAssert(data.policyEntropyByTurn.size() == numMoves);
+  testAssert(data.searchEntropyByTurn.size() == numMoves);
+  testAssert(data.valueSurpriseByTurn.size() == numMoves);
+  testAssert(data.wasCheapSearchByTurn.size() == numMoves);
+  testAssert(data.nnRawStatsByTurn.size() == numMoves);
+  testAssert(data.policyTargetsByTurn.size() == numMoves);
+  testAssert(data.reanalysisByTurn.size() == numMoves);
+  testAssert(data.whiteValueTargetsByTurn.size() == numMoves + 1);
+
+  //Last entry of the value targets is the actual game outcome.
+  const ValueTargets& outcome = data.whiteValueTargetsByTurn[numMoves];
+  double pdaWhite =
+    data.playoutDoublingAdvantagePla == P_WHITE ? data.playoutDoublingAdvantage :
+    data.playoutDoublingAdvantagePla == P_BLACK ? -data.playoutDoublingAdvantage : 0.0;
+  //Turn number of the first recorded turn, counting handicap/policy-init/fork setup moves and any initial
+  //turn number offset of positions begun from sgfs, so that turn number is comparable across game modes.
+  int64_t startTurnIdx = data.startHist.initialTurnNumber + (int64_t)data.startHist.moveHistory.size();
+
+  for(size_t t = 0; t<numMoves; t++) {
+    const ValueTargets& mcts = data.whiteValueTargetsByTurn[t];
+    const NNRawStats& raw = data.nnRawStatsByTurn[t];
+    const ReanalysisData& rean = data.reanalysisByTurn[t];
+    out << gameIdx
+        << "," << data.gameHash.toString()
+        << "," << data.startBoard.x_size
+        << "," << data.startBoard.y_size
+        << "," << data.startHist.rules.komi
+        << "," << pdaWhite
+        << "," << data.numExtraBlack
+        << "," << data.mode
+        << "," << (data.hitTurnLimit ? 1 : 0)
+        << "," << numMoves
+        << "," << outcome.win
+        << "," << outcome.loss
+        << "," << outcome.noResult
+        << "," << outcome.score
+        << "," << (startTurnIdx + (int64_t)t)
+        << "," << t
+        << "," << (data.wasCheapSearchByTurn[t] ? 1 : 0)
+        << "," << data.policyTargetsByTurn[t].unreducedNumVisits
+        << "," << data.targetWeightByTurn[t]
+        << "," << data.policySurpriseByTurn[t]
+        << "," << data.valueSurpriseByTurn[t]
+        << "," << data.policyEntropyByTurn[t]
+        << "," << data.searchEntropyByTurn[t]
+        << "," << raw.whiteWinLoss
+        << "," << raw.whiteScoreMean
+        << "," << mcts.win
+        << "," << mcts.loss
+        << "," << mcts.noResult
+        << "," << mcts.score
+        << "," << (rean.wasReanalyzed ? 1 : 0)
+        << "," << rean.selectionPolicySurprise
+        << "," << rean.selectionValueSurprise
+        << "," << rean.originalNumVisits
+        << "\n";
+  }
+}
+
+int MainCmds::selfplaysurprisedump(const vector<string>& args) {
+  Board::initHash();
+  ScoreValue::initTables();
+
+  ConfigParser cfg;
+  string modelFile;
+  string outputFile;
+  int64_t numGamesTotal;
+  bool reanalyzeAll;
+  try {
+    KataGoCommandLine cmd("Run selfplay games with a fixed model and dump per-position policy and value surprise stats to csv");
+    cmd.addConfigFileArg("","selfplay config file");
+    cmd.addModelFileArg();
+    cmd.addOverrideConfigArg();
+
+    TCLAP::ValueArg<string> outputArg("","output","Csv file to write one row per recorded turn to",true,string(),"FILE");
+    TCLAP::ValueArg<int> numGamesArg("","num-games","Number of games to run",true,0,"N");
+    TCLAP::SwitchArg reanalyzeAllArg("","reanalyze-all","Instead of disabling reanalysis, reanalyze every cheap-search position, so each such row records both the cheap search's (before) and the full search's (after) surprise stats");
+    cmd.add(outputArg);
+    cmd.add(numGamesArg);
+    cmd.add(reanalyzeAllArg);
+    cmd.parseArgs(args);
+    outputFile = outputArg.getValue();
+    numGamesTotal = numGamesArg.getValue();
+    reanalyzeAll = reanalyzeAllArg.getValue();
+    if(numGamesTotal <= 0)
+      throw StringError("-num-games must be positive");
+
+    cmd.getConfig(cfg);
+    modelFile = cmd.getModelFile();
+  }
+  catch (TCLAP::ArgException &e) {
+    cerr << "Error: " << e.error() << " for argument " << e.argId() << endl;
+    return 1;
+  }
+
+  Rand seedRand;
+
+  const bool logToStdoutDefault = true;
+  Logger logger(&cfg, logToStdoutDefault);
+  logger.write("Selfplay surprise stats dump");
+  logger.write("Model: " + modelFile);
+
+  const int numGameThreads = cfg.getInt("numGameThreads",1,16384);
+  const string gameSeedBase = Global::uint64ToHexString(seedRand.nextUInt64());
+
+  const SearchParams baseParams = Setup::loadSingleParams(cfg,Setup::SETUP_FOR_OTHER);
+  const bool isDistributed = false;
+  PlaySettings playSettings = PlaySettings::loadForSelfplay(cfg, isDistributed);
+  if(reanalyzeAll) {
+    //Reanalyze every cheap-search position, so that every cheap-search row records both the cheap search's
+    //surprise stats (the ones that would drive reanalysis selection, preserved as origPolicySurprise and
+    //origValueSurprise) and the full search's stats, without any selection bias in which positions get both.
+    //Note that the post-reanalysis value surprise of a turn also absorbs the value changes of other reanalyzed
+    //turns after it, via the smoothed forward-outcome track, so unlike policy surprise it is not a pure
+    //cheap-vs-full comparison of this turn's search alone.
+    logger.write("Reanalyzing all cheap-search positions to record before and after surprise stats");
+    playSettings.useReanalyze = true;
+    playSettings.reanalyzeProp = 1.0;
+  }
+  else {
+    //Force no reanalysis, so that every turn's recorded stats are those of the search the game actually played
+    //with - exactly the stats that would drive reanalysis selection - rather than partly overwritten by
+    //reanalysis searches.
+    if(playSettings.useReanalyze && playSettings.reanalyzeProp > 0.0)
+      logger.write("Config has reanalyzeProp > 0, forcing it to 0 so that recorded stats are the pre-reanalysis ones");
+    playSettings.reanalyzeProp = 0.0;
+  }
+
+  GameRunner* gameRunner = new GameRunner(cfg, playSettings, logger);
+
+  const int minBoardXSizeUsed = gameRunner->getGameInitializer()->getMinBoardXSize();
+  const int minBoardYSizeUsed = gameRunner->getGameInitializer()->getMinBoardYSize();
+  const int maxBoardXSizeUsed = gameRunner->getGameInitializer()->getMaxBoardXSize();
+  const int maxBoardYSizeUsed = gameRunner->getGameInitializer()->getMaxBoardYSize();
+
+  Setup::initializeSession(cfg);
+  NNEvaluator* nnEval;
+  {
+    const int expectedConcurrentEvals = cfg.getInt("numSearchThreads") * numGameThreads;
+    const bool defaultRequireExactNNLen = minBoardXSizeUsed == maxBoardXSizeUsed && minBoardYSizeUsed == maxBoardYSizeUsed;
+    const bool disableFP16 = false;
+    const string expectedSha256 = "";
+    nnEval = Setup::initializeNNEvaluator(
+      modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
+      maxBoardXSizeUsed,maxBoardYSizeUsed,Setup::MaxBatchSizeRequest::requireFromConfig(),defaultRequireExactNNLen,disableFP16,
+      Setup::SETUP_FOR_OTHER
+    );
+  }
+  logger.write("Loaded neural net");
+
+  cfg.warnUnusedKeys(cerr,&logger);
+
+  ofstream out;
+  FileUtils::open(out,outputFile);
+  out.precision(9);
+  out << "gameIdx,gameHash,xSize,ySize,komi,pdaWhite,numExtraBlack,mode,hitTurnLimit,gameNumMoves"
+      << ",outcomeWhiteWin,outcomeWhiteLoss,outcomeWhiteNoResult,outcomeWhiteScore"
+      << ",turnIdx,turnAfterStart,wasCheapSearch,unreducedNumVisits,targetWeight"
+      << ",policySurprise,valueSurprise,policyEntropy,searchEntropy"
+      << ",rawNNWhiteWinLoss,rawNNWhiteScoreMean,mctsWhiteWin,mctsWhiteLoss,mctsWhiteNoResult,mctsWhiteScore"
+      << ",wasReanalyzed,origPolicySurprise,origValueSurprise,origNumVisits"
+      << "\n";
+
+  if(!std::atomic_is_lock_free(&sigReceived))
+    throw StringError("sigReceived is not lock free, signal-quitting mechanism will NOT work!");
+  std::signal(SIGINT, signalHandler);
+  std::signal(SIGTERM, signalHandler);
+
+  std::mutex writeMutex;
+  std::atomic<int64_t> numGamesStarted(0);
+  int64_t numGamesWritten = 0;
+  ForkData* forkData = new ForkData();
+
+  auto gameLoop = [
+    &gameRunner,&logger,&numGamesStarted,&forkData,numGamesTotal,&baseParams,&gameSeedBase,
+    &nnEval,&writeMutex,&out,&numGamesWritten
+  ](int threadIdx) {
+    (void)threadIdx;
+    auto shouldStopFunc = []() noexcept {
+      return sigReceived.load();
+    };
+    Rand thisLoopSeedRand;
+    while(true) {
+      if(sigReceived.load())
+        break;
+      int64_t gameIdx = numGamesStarted.fetch_add(1,std::memory_order_acq_rel);
+      if(gameIdx >= numGamesTotal)
+        break;
+
+      MatchPairer::BotSpec botSpec;
+      botSpec.botIdx = 0;
+      botSpec.botName = nnEval->getModelName();
+      botSpec.nnEval = nnEval;
+      botSpec.baseParams = baseParams;
+
+      string seed = gameSeedBase + ":" + Global::uint64ToHexString(thisLoopSeedRand.nextUInt64());
+      FinishedGameData* gameData = gameRunner->runGame(
+        seed, botSpec, botSpec, forkData, NULL, logger,
+        shouldStopFunc, nullptr, nullptr, nullptr, nullptr
+      );
+      //Happens when interrupted by the signal handler mid-game
+      if(gameData == NULL)
+        break;
+
+      {
+        std::lock_guard<std::mutex> lock(writeMutex);
+        writeSurpriseStatsRows(out, gameIdx, *gameData);
+        out.flush();
+        numGamesWritten += 1;
+        logger.write(
+          "Finished game " + Global::int64ToString(gameIdx) + " (" +
+          Global::int64ToString(numGamesWritten) + "/" + Global::int64ToString(numGamesTotal) + " written)"
+        );
+      }
+      delete gameData;
+    }
+  };
+
+  vector<std::thread> threads;
+  for(int i = 0; i<numGameThreads; i++)
+    threads.push_back(std::thread(gameLoop,i));
+  for(int i = 0; i<numGameThreads; i++)
+    threads[i].join();
+
+  out.close();
+  logger.write("Wrote stats for " + Global::int64ToString(numGamesWritten) + " games to " + outputFile);
+
+  delete forkData;
+  delete gameRunner;
+  delete nnEval;
   ScoreValue::freeTables();
   return 0;
 }

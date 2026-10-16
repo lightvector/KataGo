@@ -29,7 +29,7 @@ void Tests::runNNOnTinyBoard(const string& modelFile, bool inputsNHWC, bool useN
 
   Player nextPla = P_WHITE;
   Rules rules = Rules::getTrompTaylorish();
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
   const bool logToStdout = true;
   const bool logToStderr = false;
@@ -73,7 +73,7 @@ void Tests::runNNSymmetries(const string& modelFile, bool inputsNHWC, bool useNH
 
   Player nextPla = P_BLACK;
   Rules rules = Rules::getTrompTaylorish();
-  BoardHistory hist(board,nextPla,rules,0);
+  BoardHistory hist(board,nextPla,rules,0,BoardHistoryModes(false,false));
 
   const bool logToStdout = true;
   const bool logToStderr = false;
@@ -108,7 +108,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool useN
 
   string sgfStr = "(;SZ[19]FF[3]PW[Go Seigen]WR[9d]PB[Takagawa Shukaku]BR[8d]DT[1957-09-26]KM[0]RE[W+R];B[qd];W[dc];B[pp];W[cp];B[eq];W[oc];B[ce];W[dh];B[fe];W[gc];B[do];W[co];B[dn];W[cm];B[jq];W[qn];B[pn];W[pm];B[on];W[qq];B[qo];W[or];B[mr];W[mq];B[nr];W[oq];B[lq];W[qm];B[rp];W[rq];B[qg];W[mp];B[lp];W[mo];B[om];W[pk];B[kn];W[mm];B[ok];W[pj];B[mk];W[op];B[dm];W[cl];B[dl];W[dk];B[ek];W[ll];B[cn];W[bn];B[bo];W[bm];B[cq];W[bp];B[oj];W[ph];B[qh];W[oi];B[qi];W[pi];B[mi];W[of];B[ki];W[qc];B[rc];W[qe];B[re];W[pd];B[rd];W[de];B[df];W[cd];B[ee];W[dd];B[fg];W[hd];B[jl];W[dj];B[bf];W[fj];B[hg];W[dp];B[ep];W[jk];B[il];W[fk];B[ie];W[he];B[hf];W[gm];B[ke];W[fo];B[eo];W[in];B[ho];W[hn];B[fn];W[gn];B[go];W[io];B[ip];W[jp];B[hq];W[qf];B[rf];W[qb];B[ik];W[lr];B[id];W[kr];B[jr];W[bq];B[ib];W[hb];B[cr];W[rj];B[rb];W[kk];B[ij];W[ic];B[jc];W[jb];B[hc];W[iq];B[ir];W[ic];B[kq];W[kc];B[hc];W[nj];B[nk];W[ic];B[oe];W[jd];B[pe];W[pf];B[od];W[pc];B[md];W[mc];B[me];W[ld];B[ng];W[ri];B[rh];W[pg];B[fl];W[je];B[kg];W[be];B[cf];W[bh];B[bd];W[bc];B[ae];W[kl];B[rn];W[mj];B[lj];W[ni];B[lk];W[mh];B[li];W[mg];B[mf];W[nh];B[jf];W[qj];B[sh];W[rm];B[km];W[if];B[ig];W[dq];B[dr];W[br];B[ci];W[gi];B[ei];W[ej];B[di];W[gl];B[bi];W[cj];B[sq];W[sr];B[so];W[sp];B[fc];W[fb];B[sq];W[lo];B[rr];W[sp];B[ec];W[eb];B[sq];W[ko];B[jn];W[sp];B[nc];W[nb];B[sq];W[nd];B[jo];W[sp];B[qr];W[pq];B[sq];W[ns];B[ks];W[sp];B[bk];W[bj];B[sq];W[ol];B[nl];W[sp];B[aj];W[ck];B[sq];W[nq];B[ls];W[sp];B[gk];W[qp];B[po];W[ro];B[gj];W[eh];B[rp];W[fi];B[sq];W[pl];B[nm];W[sp];B[ch];W[ro];B[dg];W[sn];B[ne];W[er];B[fr];W[cs];B[es];W[fh];B[bb];W[cb];B[ac];W[ba];B[cc];W[el];B[fm];W[bc])";
 
-  CompactSgf* sgf = CompactSgf::parse(sgfStr);
+  std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
 
   const bool logToStdout = false;
   const bool logToStderr = true;
@@ -132,7 +132,7 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool useN
     Player nextPla;
     BoardHistory hist;
     Rules initialRules = sgf->getRulesOrFailAllowUnspecified(Rules());
-    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
+    sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx,BoardHistoryModes(false,false));
     nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 
     winProbs.push_back(buf.result->whiteWinProb);
@@ -174,7 +174,6 @@ void Tests::runNNOnManyPoses(const string& modelFile, bool inputsNHWC, bool useN
   }
 
   delete nnEval;
-  delete sgf;
   NeuralNet::globalCleanup();
 
 }
@@ -201,9 +200,9 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
   constexpr int numThreads = 30;
   vector<NNBatchingTestItem> items;
 
-  auto appendSgfPoses = [&](string sgfStr) {
+  auto appendSgfPoses = [&](const string& sgfStr) {
     Rand rand("runNNBatchingTest");
-    CompactSgf* sgf = CompactSgf::parse(sgfStr);
+    std::unique_ptr<CompactSgf> sgf = CompactSgf::parse(sgfStr);
     for(int turnIdx = 0; turnIdx<sgf->moves.size(); turnIdx++) {
       Board board;
       Player nextPla;
@@ -216,10 +215,9 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
       initialRules.hasButton = initialRules.scoringRule == Rules::SCORING_AREA && rand.nextBool(0.5);
       initialRules.whiteHandicapBonusRule = rand.nextBool(0.5) ? Rules::WHB_ZERO : rand.nextBool(0.5) ? Rules::WHB_N : Rules::WHB_N_MINUS_ONE;
       initialRules.komi = 7.5f + rand.nextInt(-10,10) * 0.5f;
-      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx);
-      items.push_back(NNBatchingTestItem(board,hist,nextPla));
+      sgf->setupBoardAndHistAssumeLegal(initialRules, board, nextPla, hist, turnIdx,BoardHistoryModes(false,false));
+      items.emplace_back(board,hist,nextPla);
     }
-    delete sgf;
   };
   appendSgfPoses(sgf19x19);
   appendSgfPoses(sgf19x10);
@@ -291,8 +289,9 @@ void Tests::runNNBatchingTest(const string& modelFile, bool inputsNHWC, bool use
   std::fill(ownershipResults.begin(), ownershipResults.end(), 0.0);
 
   vector<std::thread> testThreads;
+  testThreads.reserve(numThreads);
   for(int threadIdx = 0; threadIdx<numThreads; threadIdx++)
-    testThreads.push_back(std::thread(runEvals,threadIdx));
+    testThreads.emplace_back(runEvals,threadIdx);
   for(int threadIdx = 0; threadIdx<numThreads; threadIdx++)
     testThreads[threadIdx].join();
 

@@ -1,15 +1,20 @@
 The code in this repository currently relies on several other libraries, parts of libraries,
-or external files: clblast, filesystem-1.5.8, half-2.1.0, httplib, mozilla-cacerts,
-nlohmann_json, sgfmill, and tclap-1.2.2. For the licenses for those libraries and/or files, see the
-individual readmes and/or license files for each one within their respective subdirectories within
-cpp/external. Additionally, cpp/core/sha2.cpp derives from another piece of external code
-and embeds its own license within that file.
+or external files: clblast, composable_kernel_fmha, cudnn-frontend, cutlass, filesystem-1.5.8, half-2.2.0,
+httplib, katagocoreml (which itself vendors components from Apple's coremltools and the FP16
+library), macos (Swift CMake modules), mozilla-cacerts, nlohmann_json, sgfmill, onnx, and
+tclap-1.2.5. For the licenses for those libraries and/or files, see the individual readmes and/or
+license files for each one within their respective subdirectories within cpp/external.
+Additionally, cpp/core/sha2.cpp derives from another piece of external code and embeds its own
+license within that file.
+
+Some parts of python/katago/model_pytorch.py and a few other files, where noted, are modifications
+of code from other open source authors.
 
 Aside from the above, the license for all OTHER content in this repo is as follows:
 
 ----------------------------------------
 
-Copyright 2019 David J Wu ("lightvector") and/or other authors of the content in this repository.
+Copyright 2025 David J Wu ("lightvector") and/or other authors of the content in this repository.
 (See 'CONTRIBUTORS' file for a list of authors as well as other indirect contributors).
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
@@ -32,4 +37,5 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 Additional disclaimer from David J Wu ("lightvector") regarding the above license and KataGo's
 repository (https://github.com/lightvector/KataGo):
 I am providing code in the repository to you under an open source license. Because this is my
-personal repository, the license you receive to my code is from me, and not my employer (Facebook).
+personal repository, the license you receive to my code is from me, and not from any of my employers,
+present or past (including Facebook, during part of 2020-2023).

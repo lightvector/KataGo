@@ -2,6 +2,11 @@
 
 #include "../core/os.h"
 
+#if __MINGW32__
+// `std::wstring_convert` needs explicit including in case of MINGW
+#include <locale>
+#endif
+
 #ifdef OS_IS_WINDOWS
 #include <codecvt>
 #include <windows.h>
@@ -27,7 +32,7 @@ std::vector<std::string> MainArgs::getCommandLineArgsUTF8(int argc, const char* 
   std::vector<std::string> args;
   args.reserve(argc);
   for(int i = 0; i<argc; i++)
-    args.push_back(std::string(argv[i]));
+    args.emplace_back(argv[i]);
   return args;
 #endif
 }

@@ -1,6 +1,6 @@
 import argparse
-import elo
-from elo import GameRecord
+from katago.utils import elo
+from katago.utils.elo import GameRecord
 import itertools
 import math
 import os

@@ -404,6 +404,7 @@ static void testBatchNormLayer(int64_t& numTestsRun) {
       desc.variance = vector<float>({3.9f,0.15f});
       desc.scale = vector<float>({0.1f,1.0f});
       desc.bias = vector<float>({10.0f,0.0f});
+      desc.computeMerged();
 
       vector<float> mask({
         1,1,1,1,1,
@@ -442,6 +443,7 @@ static void testBatchNormLayer(int64_t& numTestsRun) {
       desc.variance = vector<float>({3.9f,0.15f});
       desc.scale = vector<float>({1.0f,1.0f});
       desc.bias = vector<float>({10.0f,0.0f});
+      desc.computeMerged();
 
       vector<float> mask({
         1,1,1,0,0,
@@ -547,6 +549,7 @@ static void testResidualBlock(int64_t& numTestsRun) {
     desc.preBN.variance = vector<float>({0.9f});
     desc.preBN.scale = vector<float>({2});
     desc.preBN.bias = vector<float>({0});
+    desc.preBN.computeMerged();
 
     //ReLU gets applied, smooshing negatives
     //2,0,0,3,
@@ -600,6 +603,7 @@ static void testResidualBlock(int64_t& numTestsRun) {
     desc.midBN.variance = vector<float>({0.9f,0.9f});
     desc.midBN.scale = vector<float>({1,1});
     desc.midBN.bias = vector<float>({0,0});
+    desc.midBN.computeMerged();
 
     //ReLU gets applied, smooshing negatives
     //0,0,0,0,
@@ -749,6 +753,7 @@ static void testGlobalPoolingResidualBlock(int64_t& numTestsRun) {
     desc.preBN.variance = vector<float>({0.9f});
     desc.preBN.scale = vector<float>({1});
     desc.preBN.bias = vector<float>({0});
+    desc.preBN.computeMerged();
 
     //ReLU gets applied, smooshing negatives
     //1,2,0,0,
@@ -821,6 +826,7 @@ static void testGlobalPoolingResidualBlock(int64_t& numTestsRun) {
     desc.gpoolBN.variance = vector<float>({0.9f,0.9f});
     desc.gpoolBN.scale = vector<float>({1,1});
     desc.gpoolBN.bias = vector<float>({0,-2});
+    desc.gpoolBN.computeMerged();
 
     //And apply RELU
 
@@ -869,6 +875,7 @@ static void testGlobalPoolingResidualBlock(int64_t& numTestsRun) {
     desc.midBN.variance = vector<float>({0.9f});
     desc.midBN.scale = vector<float>({1});
     desc.midBN.bias = vector<float>({0});
+    desc.midBN.computeMerged();
 
     //Relu gets applied, should hit nothing in this case
 

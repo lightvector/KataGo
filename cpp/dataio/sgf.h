@@ -12,7 +12,7 @@ STRUCT_NAMED_TRIPLE(uint8_t,x,uint8_t,y,Player,pla,MoveNoBSize);
 STRUCT_NAMED_PAIR(int,x,int,y,XYSize);
 
 struct SgfNode {
-  std::map<std::string,std::vector<std::string>>* props;
+  std::unique_ptr<std::map<std::string,std::vector<std::string>>> props;
   MoveNoBSize move;
 
   SgfNode();
@@ -43,14 +43,16 @@ struct SgfNode {
   Player getSgfWinner() const;
   float getKomiOrFail() const;
   float getKomiOrDefault(float defaultKomi) const;
+
+  std::string getPlayerName(Player pla) const;
 };
 
 struct Sgf {
   static constexpr int RANK_UNKNOWN = -100000;
 
   std::string fileName;
-  std::vector<SgfNode*> nodes;
-  std::vector<Sgf*> children;
+  std::vector<std::unique_ptr<SgfNode>> nodes;
+  std::vector<std::unique_ptr<Sgf>> children;
   Hash128 hash;
 
   Sgf();
@@ -59,13 +61,13 @@ struct Sgf {
   Sgf(const Sgf&) = delete;
   Sgf& operator=(const Sgf&) = delete;
 
-  static Sgf* parse(const std::string& str);
-  static Sgf* loadFile(const std::string& file);
-  static std::vector<Sgf*> loadFiles(const std::vector<std::string>& files);
-  static std::vector<Sgf*> loadSgfsFile(const std::string& file);
-  static std::vector<Sgf*> loadSgfsFiles(const std::vector<std::string>& files);
+  static std::unique_ptr<Sgf> parse(const std::string& str);
+  static std::unique_ptr<Sgf> loadFile(const std::string& file);
+  static std::vector<std::unique_ptr<Sgf>> loadFiles(const std::vector<std::string>& files);
+  static std::vector<std::unique_ptr<Sgf>> loadSgfsFile(const std::string& file);
+  static std::vector<std::unique_ptr<Sgf>> loadSgfsFiles(const std::vector<std::string>& files);
 
-  static std::vector<Sgf*> loadSgfOrSgfsLogAndIgnoreErrors(const std::string& file, Logger& logger);
+  static std::vector<std::unique_ptr<Sgf>> loadSgfOrSgfsLogAndIgnoreErrors(const std::string& file, Logger& logger);
 
   XYSize getXYSize() const;
   float getKomiOrFail() const;
@@ -88,6 +90,13 @@ struct Sgf {
 
   void getPlacements(std::vector<Move>& moves, int xSize, int ySize) const;
   void getMoves(std::vector<Move>& moves, int xSize, int ySize) const;
+
+  template<typename T>
+  T traverse(
+    T initialValue,
+    const std::function<T(T, T)>& reduce,
+    const std::function<T(const Sgf*, T)>& transform
+  ) const;
 
   //Maximum depth of sgf tree in nodes
   int64_t depth() const;
@@ -123,17 +132,23 @@ struct Sgf {
     Sgf::PositionSample previousPosition(double newWeight) const;
     bool hasPreviousPositions(int numPrevious) const;
 
+    bool tryGetCurrentBoardHistory(const Rules& rules, Player& nextPlaToMove, BoardHistory& hist, const BoardHistoryModes& modes) const;
+
     int64_t getCurrentTurnNumber() const;
 
     //For the moment, only used in testing since it does extra consistency checks.
     //If we need a version to be used in "prod", we could make an efficient version maybe as operator==.
     bool isEqualForTesting(const PositionSample& other, bool checkNumCaptures, bool checkSimpleKo) const;
+
+    static void writePosOfHist(PositionSample& sampleBuf, const BoardHistory& hist, Player nextPla);
   };
 
   //Loads SGF all unique positions in ALL branches of that SGF.
   //Hashes are used to filter out "identical" positions when loading many files from different SGFs that may have overlapping openings, etc.
   //The hashes are not guaranteed to correspond to position hashes, or anything else external to this function itself.
-  //May raise an exception on illegal moves or other SGF issues, only partially appending things on to the boards and hists.
+  //If tolerateIllegalMoves is false, may raise an exception on illegal moves or other SGF issues, only partially appending
+  //things on to the boards and hists. If tolerateIllegalMoves is true, illegal moves are instead warned about (to stderr)
+  //and tolerated - see iterAllPositionsHelper in sgf.cpp for the precise handling.
   //If rand is provided, will randomize order of iteration through the SGF.
   //If hashParent is true, will determine uniqueness by the combination of parent hash and own hash.
   void loadAllUniquePositions(
@@ -143,7 +158,8 @@ struct Sgf {
     bool flipIfPassOrWFirst,
     bool allowGameOver,
     Rand* rand,
-    std::vector<PositionSample>& samples
+    std::vector<PositionSample>& samples,
+    bool tolerateIllegalMoves = false
   ) const;
   //f is allowed to mutate and consume sample.
   void iterAllUniquePositions(
@@ -153,7 +169,8 @@ struct Sgf {
     bool flipIfPassOrWFirst,
     bool allowGameOver,
     Rand* rand,
-    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+    const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f,
+    bool tolerateIllegalMoves = false
   ) const;
 
   //Same as iterAllUniquePositions, but without the uniqueness. Will re-traverse same positions if they
@@ -163,7 +180,8 @@ struct Sgf {
     bool flipIfPassOrWFirst,
     bool allowGameOver,
     Rand* rand,
-    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+    const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f,
+    bool tolerateIllegalMoves = false
   ) const;
 
   static std::set<Hash128> readExcludes(const std::vector<std::string>& files);
@@ -182,13 +200,14 @@ struct Sgf {
     bool hashParent,
     bool flipIfPassOrWFirst,
     bool allowGameOver,
+    bool tolerateIllegalMoves,
     bool isRoot,
     Rand* rand,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
-    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+    const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
   ) const;
   void samplePositionHelper(
-    Board& board, BoardHistory& hist, Player nextPla,
+    const Board& board, const BoardHistory& hist, Player nextPla,
     PositionSample& sampleBuf,
     std::set<Hash128>& uniqueHashes,
     bool requireUnique,
@@ -197,7 +216,7 @@ struct Sgf {
     bool flipIfPassOrWFirst,
     bool allowGameOver,
     const std::string& comments,
-    std::function<void(PositionSample&,const BoardHistory&,const std::string&)> f
+    const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
   ) const;
 };
 
@@ -212,28 +231,28 @@ struct CompactSgf {
   Player sgfWinner;
   Hash128 hash;
 
-  CompactSgf(const Sgf* sgf);
+  CompactSgf(const Sgf& sgf);
   CompactSgf(Sgf&& sgf);
   ~CompactSgf();
 
   CompactSgf(const CompactSgf&) = delete;
   CompactSgf& operator=(const CompactSgf&) = delete;
 
-  static CompactSgf* parse(const std::string& str);
-  static CompactSgf* loadFile(const std::string& file);
-  static std::vector<CompactSgf*> loadFiles(const std::vector<std::string>& files);
+  static std::unique_ptr<CompactSgf> parse(const std::string& str);
+  static std::unique_ptr<CompactSgf> loadFile(const std::string& file);
+  static std::vector<std::unique_ptr<CompactSgf>> loadFiles(const std::vector<std::string>& files);
 
   bool hasRules() const;
   Rules getRulesOrFail() const;
   Rules getRulesOrFailAllowUnspecified(const Rules& defaultRules) const;
-  Rules getRulesOrWarn(const Rules& defaultRules, std::function<void(const std::string& msg)> f) const;
+  Rules getRulesOrWarn(const Rules& defaultRules, const std::function<void(const std::string& msg)>& f) const;
 
-  void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist) const;
+  void setupInitialBoardAndHist(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, const BoardHistoryModes& modes) const;
   void playMovesAssumeLegal(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const;
-  void setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx) const;
+  void setupBoardAndHistAssumeLegal(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, const BoardHistoryModes& modes) const;
   //These throw a StringError upon illegal move.
   void playMovesTolerant(Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const;
-  void setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore) const;
+  void setupBoardAndHistTolerant(const Rules& initialRules, Board& board, Player& nextPla, BoardHistory& hist, int64_t turnIdx, bool preventEncore, const BoardHistoryModes& modes) const;
 };
 
 namespace WriteSgf {

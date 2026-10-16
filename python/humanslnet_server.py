@@ -1,10 +1,10 @@
 import sys
 import json
 import numpy as np
-from load_model import load_model
-from gamestate import GameState
-from features import Features
-from sgfmetadata import SGFMetadata
+from katago.train.load_model import load_model
+from katago.game.gamestate import GameState
+from katago.game.features import Features
+from katago.game.sgfmetadata import SGFMetadata
 import argparse
 
 def numpy_array_encoder(obj):
@@ -44,9 +44,10 @@ def main():
         data = json.loads(line)
 
         if data["command"] == "start":
-            board_size = data["board_size"]
+            board_x_size = data["board_x_size"]
+            board_y_size = data["board_y_size"]
             rules = data["rules"]
-            game_state = GameState(board_size, rules)
+            game_state = GameState((board_x_size,board_y_size), rules)
             write(dict(outputs=""))
 
         elif data["command"] == "play":

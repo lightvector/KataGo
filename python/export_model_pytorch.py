@@ -17,10 +17,162 @@ from typing import Dict, List
 import torch
 import torch.nn
 from torch.optim.swa_utils import AveragedModel
+from katago.train.model_pytorch import RMSNormMask
 
-import modelconfigs
-from model_pytorch import Model, ResBlock, NestedBottleneckResBlock
-from load_model import load_model
+from katago.train import modelconfigs
+from katago.train.model_pytorch import Model, ResBlock, NestedBottleneckResBlock, TransformerAttentionBlock, TransformerFFNBlock, NestedBottleneckTransformerBlock
+from katago.train.model_pytorch import compute_attn_logit_dataless_bounds
+from katago.train.load_model import load_model
+
+# A transformer FFN hidden channel is pruned when no weight touching it exceeds this in
+# absolute value. Training with Muon and weight decay can leave channels at exactly zero on
+# every side, and such channels never recover, so this only needs to catch exact zeros.
+DEAD_FFN_CHANNEL_MAX_ABS = 1e-15
+# Pruned FFN widths are multiples of this, or of the largest power of two dividing the original
+# width when that is smaller, so that the inference backends' matrix kernels keep tiling them
+# evenly. The OpenCL tensor core path needs a multiple of 32 and the CUDA fused FFN a multiple
+# of 8, and larger multiples keep the GEMM tiles full.
+FFN_CHANNEL_MULTIPLE = 64
+
+
+def ffn_width_granularity(ffn_dim):
+    """The step between allowed pruned widths for an FFN of width ffn_dim."""
+    g = 1
+    while g < FFN_CHANNEL_MULTIPLE and ffn_dim % (2 * g) == 0:
+        g *= 2
+    return g
+
+
+def ffn_blocks_in_export_order(model):
+    """(name, block) for every transformer FFN block, in the order the trunk is written."""
+    out = []
+    for i, block in enumerate(model.blocks):
+        if isinstance(block, TransformerFFNBlock):
+            out.append((f"blocks.{i}", block))
+        elif hasattr(block, "blockstack"):
+            for j, sub in enumerate(block.blockstack):
+                if isinstance(sub, TransformerFFNBlock):
+                    out.append((f"blocks.{i}.blockstack.{j}", sub))
+    return out
+
+
+def choose_ffn_widths(live_counts, ffn_dim, granularity, scratch_factor):
+    """Picks the width each FFN block of original width ffn_dim is pruned to. Each block gets the
+    smallest width from a chosen set of allowed widths that still holds its live channels. The
+    set is chosen to minimize the total width over the blocks, which is the compute spent on
+    dead channels, under a memory bound. The inference backends pool scratch buffers by exact
+    size and never free them, so every distinct width in use keeps FFN scratch memory
+    proportional to that width, and the sum of the distinct widths is held to at most
+    scratch_factor * ffn_dim. ffn_dim itself is always in the set, since the block the OpenCL
+    tuner keys on is kept at full width. Widths are multiples of granularity. Returns the list
+    of widths, one per entry of live_counts."""
+    def round_up(c):
+        return max(granularity, math.ceil(c / granularity) * granularity)
+    # Only widths that some block would exactly fill, plus ffn_dim, need considering: any other
+    # allowed width could be lowered to the next such width without changing any block's
+    # assignment or raising the sum.
+    cands = sorted(set(round_up(c) for c in live_counts) | {ffn_dim})
+    num_cands = len(cands)
+    units = [w // granularity for w in cands]
+    budget = math.floor(scratch_factor * ffn_dim / granularity + 1e-9)
+    if budget < units[-1]:
+        raise Exception(f"-prune-ffn-scratch-factor {scratch_factor} does not leave room for the full width {ffn_dim}")
+    # count_le[j] is the number of blocks whose live channels fit in cands[j].
+    count_le = [sum(1 for c in live_counts if c <= w) for w in cands]
+    # best[j][b] is the minimal total width for the blocks fitting in cands[j], using a set of
+    # allowed widths whose largest is cands[j] and whose sum is at most b units of granularity.
+    # prev holds the next smaller set element, for backtracking.
+    inf = float("inf")
+    best = [[inf] * (budget + 1) for _ in range(num_cands)]
+    prev = [[None] * (budget + 1) for _ in range(num_cands)]
+    for j in range(num_cands):
+        for b in range(units[j], budget + 1):
+            best[j][b] = count_le[j] * cands[j]
+            for i in range(j):
+                if best[i][b - units[j]] < inf:
+                    cost = best[i][b - units[j]] + (count_le[j] - count_le[i]) * cands[j]
+                    if cost < best[j][b]:
+                        best[j][b] = cost
+                        prev[j][b] = i
+    allowed = []
+    j = num_cands - 1
+    b = budget
+    while j is not None:
+        allowed.append(cands[j])
+        j, b = prev[j][b], b - units[j]
+    allowed.sort()
+    return [next(w for w in allowed if w >= c) for c in live_counts]
+
+
+def prune_dead_ffn_channels(model, scratch_factor):
+    """Removes hidden channels of the transformer FFN blocks whose ffn_linear1 row, gate row and
+    ffn_linear2 column are all zero (below DEAD_FFN_CHANNEL_MAX_ABS in absolute value), which
+    leaves the model's function unchanged. Each block keeps its live channels in their original
+    order plus the lowest-index dead channels needed to reach the width chosen for it by
+    choose_ffn_widths. The last FFN block is not pruned at all, because the OpenCL tuner sizes
+    its FFN tuning from that block and its tuning file is shared with unpruned exports of the
+    same architecture. Returns (channels before, channels after, live channels) summed over the
+    blocks."""
+    blocks = ffn_blocks_in_export_order(model)
+    if len(blocks) == 0:
+        logging.info("No transformer FFN blocks, nothing to prune")
+        return 0, 0, 0
+    dead_masks = []
+    for name, block in blocks:
+        assert not getattr(block, "use_depthwise_conv", False), f"{name}: pruning an FFN with a depthwise conv is not supported"
+        w1 = block.ffn_linear1.weight.detach()
+        w2 = block.ffn_linear2.weight.detach()
+        dead = (w1.abs().amax(dim=1) < DEAD_FFN_CHANNEL_MAX_ABS) & (w2.abs().amax(dim=0) < DEAD_FFN_CHANNEL_MAX_ABS)
+        if block.use_swiglu:
+            dead &= block.ffn_linear_gate.weight.detach().abs().amax(dim=1) < DEAD_FFN_CHANNEL_MAX_ABS
+        dead_masks.append(dead)
+
+    # Widths are chosen per original width, normally a single group.
+    widths = [None] * len(blocks)
+    widths[-1] = blocks[-1][1].ffn_dim
+    for ffn_dim in sorted(set(block.ffn_dim for _, block in blocks)):
+        idx = [i for i, (_, block) in enumerate(blocks) if block.ffn_dim == ffn_dim and widths[i] is None]
+        if len(idx) == 0:
+            continue
+        live_counts = [ffn_dim - int(dead_masks[i].sum().item()) for i in idx]
+        chosen = choose_ffn_widths(live_counts, ffn_dim, ffn_width_granularity(ffn_dim), scratch_factor)
+        for i, w in zip(idx, chosen):
+            widths[i] = w
+
+    total_before = total_after = total_live = 0
+    for (name, block), dead, num_keep in zip(blocks, dead_masks, widths):
+        ffn_dim = block.ffn_dim
+        num_live = ffn_dim - int(dead.sum().item())
+        total_before += ffn_dim
+        total_after += num_keep
+        total_live += num_live
+        logging.info(f"{name}: FFN channels {ffn_dim} -> {num_keep}, {num_live} live")
+        if num_keep == ffn_dim:
+            continue
+        live_idx = torch.nonzero(~dead).flatten()
+        dead_idx = torch.nonzero(dead).flatten()
+        keep = torch.sort(torch.cat([live_idx, dead_idx[:num_keep - num_live]])).values
+        w1 = block.ffn_linear1.weight.detach()
+        w2 = block.ffn_linear2.weight.detach()
+        with torch.no_grad():
+            block.ffn_linear1.weight = torch.nn.Parameter(w1[keep].clone())
+            block.ffn_linear1.out_features = num_keep
+            if block.use_swiglu:
+                block.ffn_linear_gate.weight = torch.nn.Parameter(block.ffn_linear_gate.weight.detach()[keep].clone())
+                block.ffn_linear_gate.out_features = num_keep
+            block.ffn_linear2.weight = torch.nn.Parameter(w2[:, keep].clone())
+            block.ffn_linear2.in_features = num_keep
+        block.ffn_dim = num_keep
+        if getattr(block, "fused_swiglu_kernel", False):
+            from katago.train.fused_swiglu import is_supported_shape
+            block.fused_swiglu_kernel = is_supported_shape(block.c_main, num_keep)
+    distinct = sorted(set(widths))
+    logging.info(
+        f"Pruned dead FFN channels: {total_before} -> {total_after} hidden channels over {len(blocks)} FFN blocks "
+        f"({total_live} live), distinct widths {distinct} summing to {sum(distinct)}"
+    )
+    return total_before, total_after, total_live
+
 
 #Command and args-------------------------------------------------------------------
 
@@ -29,22 +181,35 @@ Export neural net weights to file for KataGo engine.
 """
 
 parser = argparse.ArgumentParser(description=description)
-parser.add_argument('-checkpoint', help='Checkpoint to test', required=True)
+parser.add_argument('-checkpoint', help='Checkpoint to test', required=False)
+parser.add_argument('-export-random-initialized-model', help='Instead of loading a checkpoint, export a freshly random-initialized model of the given model config name (e.g. b15c512h8nbttflrs-fson-silu-rsnh)', required=False)
 parser.add_argument('-export-dir', help='model file dir to save to', required=True)
 parser.add_argument('-model-name', help='name to record in model file', required=True)
 parser.add_argument('-filename-prefix', help='filename prefix to save to within dir', required=True)
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
 parser.add_argument('-export-14-as-15', help='Export model version 14 as 15', action="store_true", required=False)
+parser.add_argument('-export-15-or-16-as-17', help='Export model version 15 or 16 as 17', action="store_true", required=False)
+parser.add_argument('-attn-logit-bound-limit', help='Refuse to export if the data-free attention logit bound of any layer exceeds this (inference backends mask off-board keys with -3e4 in fp16, so genuine logits must stay well below that)', type=float, default=2.5e4, required=False)
+parser.add_argument('-ignore-attn-logit-bound', help='Export anyway when the attention logit bound limit is exceeded', action="store_true", required=False)
+parser.add_argument('-prune-dead-ffn-channels', help='Leave out transformer FFN hidden channels whose weights are all zero, to improve performance', action="store_true", required=False)
+parser.add_argument('-prune-ffn-scratch-factor', help='With -prune-dead-ffn-channels, the sum of the distinct FFN widths in use may be at most this multiple of the original width. Inference backends keep scratch memory for each distinct width, so this bounds the growth of that memory (default 2.0)', type=float, default=2.0, required=False)
 args = vars(parser.parse_args())
 
 
 def main(args):
     checkpoint_file = args["checkpoint"]
+    export_random_initialized_model = args["export_random_initialized_model"]
     export_dir = args["export_dir"]
     model_name = args["model_name"]
     filename_prefix = args["filename_prefix"]
     use_swa = args["use_swa"]
     export_14_as_15 = args["export_14_as_15"]
+    export_15_or_16_as_17 = args["export_15_or_16_as_17"]
+
+    if (checkpoint_file is None) == (export_random_initialized_model is None):
+        raise Exception("Exactly one of -checkpoint or -export-random-initialized-model must be specified")
+    if export_random_initialized_model is not None and use_swa:
+        raise Exception("-use-swa cannot be used with -export-random-initialized-model")
 
     os.makedirs(export_dir,exist_ok=True)
 
@@ -62,8 +227,50 @@ def main(args):
     logging.info(str(sys.argv))
 
     # LOAD MODEL ---------------------------------------------------------------------
-    model, swa_model, other_state_dict = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
+    if export_random_initialized_model is not None:
+        if export_random_initialized_model not in modelconfigs.config_of_name:
+            raise Exception(f"Unknown model config name: {export_random_initialized_model}")
+        model_config = modelconfigs.config_of_name[export_random_initialized_model]
+        logging.info(f"Exporting freshly random-initialized model with config: {export_random_initialized_model}")
+        logging.info(str(model_config))
+        model = Model(model_config, pos_len=19)
+        model.initialize()
+        model.to("cpu")
+        swa_model = None
+        other_state_dict = {}
+    else:
+        model, swa_model, other_state_dict = load_model(checkpoint_file, use_swa, device="cpu", verbose=True)
     model_config = model.config
+
+    # ATTN LOGIT BOUND GUARD -------------------------------------------------------
+    # Data-free certification that attention logits can never approach the additive mask
+    # constants the inference backends use for off-board keys (-3e4 in fp16 backends).
+    # See compute_attn_logit_dataless_bounds for the derivation and its tightness.
+    model_to_export = swa_model if swa_model is not None else model
+
+    if args["prune_dead_ffn_channels"]:
+        prune_dead_ffn_channels(model_to_export, args["prune_ffn_scratch_factor"])
+
+    attn_logit_bounds = compute_attn_logit_dataless_bounds(model_to_export)
+    if len(attn_logit_bounds) > 0:
+        top = sorted(attn_logit_bounds.items(), key=lambda kv: -kv[1])[:5]
+        logging.info(
+            f"Data-free attention logit bound, max over {len(attn_logit_bounds)} layers: "
+            + ", ".join(f"{n}={v:.0f}" for n, v in top)
+        )
+        worst_name, worst = top[0]
+        if worst > args["attn_logit_bound_limit"]:
+            msg = (
+                f"Attention logit bound of layer {worst_name} is {worst:.0f}, exceeding the export limit "
+                f"{args['attn_logit_bound_limit']:.0f}. Logits of this magnitude threaten the correctness of the "
+                f"additive off-board masking constants in fp16 inference backends (-3e4). The bound is data-free "
+                f"and usually several times above actual logit magnitudes - measure the actual logits and/or "
+                f"consider train.py -attn-logit-penalty-cap. Use -ignore-attn-logit-bound to export anyway."
+            )
+            if args["ignore_attn_logit_bound"]:
+                logging.warning("WARNING (-ignore-attn-logit-bound): " + msg)
+            else:
+                raise Exception(msg)
 
     # WRITING MODEL ----------------------------------------------------------------
     extension = ".bin"
@@ -81,6 +288,40 @@ def main(args):
     # Hack to be able to export version 14 as version 15
     if version == 14 and export_14_as_15:
         version = 15
+    elif export_14_as_15:
+        raise Exception("export_14_as_15 specified but version was " + str(version))
+
+    # Configs that use rmsnorm for trunk tip that claim version 15 or 16 automatically get upgraded
+    # to version 17. Version 17 is a model format change that supports a strict superset of version 15 and 16,
+    # representing q value predictions by outputting the expected policy outputs (2 or 4), having a few more
+    # slots for unused params to allow for flexibility without future version bumps
+    # Version 15 and/or 16 was used to train some experimental transformer with trunk tip rmsnorm
+    # that we want to still be able to export and run, so we autoupgrade to version 17 for exporting them.
+    if (version == 15 or version == 16) and export_15_or_16_as_17:
+        version = 17
+    elif export_15_or_16_as_17:
+        raise Exception("export_15_or_16_as_17 specified but version was " + str(version))
+    elif version == 15 or version == 16:
+        if model.trunk_final_rmsnorm:
+            logging.warn("Autoupgrading v15 or v16 model to v17 due to trunk rmsnorm")
+            version = 17
+        elif model_config.get("always_compute_pass_alive_under_suicide_rules"):
+            logging.warn("Autoupgrading v15 or v16 model to v17 due to always_compute_pass_alive_under_suicide_rules")
+            version = 17
+        elif model_config.get("exclude_territory_adjacent_to_atari"):
+            logging.warn("Autoupgrading v15 or v16 model to v17 due to exclude_territory_adjacent_to_atari")
+            version = 17
+
+    if model_config.get("always_compute_pass_alive_under_suicide_rules") and version < 17:
+        raise Exception(
+            "always_compute_pass_alive_under_suicide_rules is set but model would be exported as version "
+            + str(version) + " < 17, which can technically represent it but we're not outputting in practice"
+        )
+    if model_config.get("exclude_territory_adjacent_to_atari") and version < 17:
+        raise Exception(
+            "exclude_territory_adjacent_to_atari is set but model would be exported as version "
+            + str(version) + " < 17, which can technically represent it but we're not outputting in practice"
+        )
 
     writeln(model_name)
     writeln(version)
@@ -110,9 +351,21 @@ def main(args):
         else:
             writeln(0)
 
+        # preferPassAliveUnderSuicideRules: 1 if the model expects pass-alive area input features
+        # to be computed as if multi-stone suicide were always legal, regardless of the actual
+        # suicide rule. Only version 17+ engines parse nonzero values here (checked above).
+        if model_config.get("always_compute_pass_alive_under_suicide_rules"):
+            writeln(1)
+        else:
+            writeln(0)
+        # preferExcludeTerritoryAdjacentToAtari: 1 if the model expects territory scoring with
+        # TaxRule NONE to exclude empty points adjacent to chains in atari (rules version 3),
+        # both for adjudication and for its territory input features.
+        if model_config.get("exclude_territory_adjacent_to_atari"):
+            writeln(1)
+        else:
+            writeln(0)
         # Write some dummy placeholders for future features
-        writeln(0)
-        writeln(0)
         writeln(0)
         writeln(0)
         writeln(0)
@@ -177,7 +430,10 @@ def main(args):
             if normmask.gamma is not None:
                 assert normmask.gamma.shape == (1, normmask.c_in, 1, 1)
                 assert has_gamma_or_scale
-                write_weights(normmask.scale * normmask.gamma)
+                if normmask.gamma_weight_decay_center_1:
+                    write_weights(normmask.scale * (normmask.gamma+1.0))
+                else:
+                    write_weights(normmask.scale * normmask.gamma)
             else:
                 assert has_gamma_or_scale
                 write_weights(normmask.scale * torch.ones(normmask.c_in, dtype=torch.float, device="cpu"))
@@ -185,7 +441,10 @@ def main(args):
             if normmask.gamma is not None:
                 assert normmask.gamma.shape == (1, normmask.c_in, 1, 1)
                 assert has_gamma_or_scale
-                write_weights(normmask.gamma)
+                if normmask.gamma_weight_decay_center_1:
+                    write_weights(normmask.gamma+1.0)
+                else:
+                    write_weights(normmask.gamma)
             else:
                 assert not has_gamma_or_scale
                 pass
@@ -219,6 +478,8 @@ def main(args):
             writeln("ACTIVATION_RELU")
         elif isinstance(activation,torch.nn.Mish):
             writeln("ACTIVATION_MISH")
+        elif isinstance(activation,torch.nn.SiLU):
+            writeln("ACTIVATION_SILU")
         elif isinstance(activation,torch.nn.Identity):
             writeln("ACTIVATION_IDENTITY")
         else:
@@ -239,6 +500,25 @@ def main(args):
         (out_channels,) = linearbias.shape
         writeln(out_channels)
         write_weights(linearbias)
+
+    def write_rmsnorm(name,rmsnormmask):
+        writeln(name)
+        writeln(rmsnormmask.c_in)
+        writeln(rmsnormmask.eps)
+        writeln(1 if rmsnormmask.spatial else 0)
+        cgroup_size = rmsnormmask.cgroup_size if rmsnormmask.cgroup_size is not None else 0
+        writeln(cgroup_size)
+        if not rmsnormmask.spatial:
+            # Non-spatial: weight comes from torch.nn.RMSNorm
+            assert rmsnormmask.norm is not None
+            assert rmsnormmask.norm.weight.shape == (rmsnormmask.c_in,)
+            write_weights(rmsnormmask.norm.weight)
+        else:
+            # Spatial: weight comes from self.gamma
+            assert rmsnormmask.gamma.shape == (rmsnormmask.c_in,)
+            write_weights(rmsnormmask.gamma)
+        assert rmsnormmask.beta.shape == (rmsnormmask.c_in,)
+        write_weights(rmsnormmask.beta)
 
     def write_normactconv(name,normactconv):
         if normactconv.c_gpool is None:
@@ -272,6 +552,76 @@ def main(args):
             write_matmul(name+".convpool.linear_g", normactconv.convpool.linear_g.weight)
             assert normactconv.convpool.linear_g.bias is None
 
+    def write_transformer_norm(name,rmsnorm):
+        """Write an inline RMSNorm (torch.nn.RMSNorm) used inside transformer blocks.
+        These are simpler than the trunk-final RMSNormMask: just a weight vector, no bias, no spatial modes."""
+        writeln(name)
+        num_channels = rmsnorm.weight.shape[0]
+        writeln(num_channels)
+        writeln(rmsnorm.eps)
+        write_weights(rmsnorm.weight)
+
+    def write_transformer_attention_block(name,block):
+        assert not getattr(block, 'use_qk_norm', False), \
+            f"{name}: QK normalization is not yet supported for export"
+        assert not getattr(block, 'use_gab', False), \
+            f"{name}: GAB attention bias is not yet supported for export"
+        assert not getattr(block, 'use_tab', False), \
+            f"{name}: TAB attention bias is not yet supported for export"
+        assert not getattr(block, 'inline_registers', False), \
+            f"{name}: Inline registers are not yet supported for export"
+        assert getattr(block, 'num_rw_registers', 0) == 0, \
+            f"{name}: RW registers are not yet supported for export"
+
+        writeln("transformer_attention_block")
+        writeln(name)
+        writeln(block.num_heads)
+        writeln(block.num_kv_heads)
+        writeln(block.q_head_dim)
+        writeln(block.v_head_dim)
+        writeln(1 if block.use_rope else 0)
+        writeln(1 if block.learnable_rope else 0)
+
+        write_transformer_norm(name+".norm1", block.norm1)
+        write_matmul(name+".q_proj", block.q_proj.weight)
+        write_matmul(name+".k_proj", block.k_proj.weight)
+        write_matmul(name+".v_proj", block.v_proj.weight)
+        write_matmul(name+".out_proj", block.out_proj.weight)
+
+        if block.use_rope:
+            if block.learnable_rope:
+                # rope_freqs: (num_kv_heads, q_head_dim//2, 2)
+                writeln(name+".rope_freqs")
+                freqs = block.rope_freqs.detach()
+                writeln(freqs.shape[0])  # num_kv_heads
+                writeln(freqs.shape[1])  # num_pairs
+                writeln(freqs.shape[2])  # 2 (omega_x, omega_y)
+                write_weights(freqs)
+            else:
+                # Non-learnable: write theta so C++ can recompute
+                writeln(name+".rope_theta")
+                writeln(block.rope_theta)
+
+    def write_transformer_ffn_block(name,block):
+        assert not getattr(block, 'use_depthwise_conv', False), \
+            f"{name}: FFN depthwise conv is not yet supported for export"
+        assert not getattr(block, 'inline_registers', False), \
+            f"{name}: Inline registers are not yet supported for export"
+        assert getattr(block, 'num_rw_registers', 0) == 0, \
+            f"{name}: RW registers are not yet supported for export"
+
+        writeln("transformer_ffn_block")
+        writeln(name)
+        writeln(block.c_main)
+        writeln(block.ffn_dim)
+        writeln(1 if block.use_swiglu else 0)
+
+        write_transformer_norm(name+".norm", block.norm)
+        write_matmul(name+".ffn_linear1", block.ffn_linear1.weight)
+        if block.use_swiglu:
+            write_matmul(name+".ffn_linear_gate", block.ffn_linear_gate.weight)
+        write_matmul(name+".ffn_linear2", block.ffn_linear2.weight)
+
     def write_block(name,block):
         if isinstance(block,ResBlock) and block.normactconv1.c_gpool is None:
             assert block.normactconv2.c_gpool is None
@@ -294,8 +644,21 @@ def main(args):
             for i,subblock in enumerate(block.blockstack):
                 write_block(name+".blockstack."+str(i),subblock)
             write_normactconv(name+".normactconvq", block.normactconvq)
+        elif isinstance(block,TransformerAttentionBlock):
+            write_transformer_attention_block(name, block)
+        elif isinstance(block,TransformerFFNBlock):
+            write_transformer_ffn_block(name, block)
+        elif isinstance(block,NestedBottleneckTransformerBlock):
+            writeln("nested_bottleneck_block")
+            writeln(name)
+            writeln(2 * block.internal_length)
+            assert len(block.blockstack) == 2 * block.internal_length
+            write_normactconv(name+".normactconvp", block.normactconvp)
+            for i,subblock in enumerate(block.blockstack):
+                write_block(name+".blockstack."+str(i), subblock)
+            write_normactconv(name+".normactconvq", block.normactconvq)
         else:
-            assert False, "This kind of block is not supported for export right now"
+            assert False, f"This kind of block is not supported for export right now: {type(block)}"
 
     def write_metadata_encoder(name,encoder):
         writeln(name)
@@ -319,8 +682,25 @@ def main(args):
         writeln(model.c_gpool)
         writeln(model.c_gpool)
         if version >= 15:
+            # Trunk final norm kind:
+            # 0 = standard (batch norm or bias mask)
+            # 1 = RMSNorm (non-spatial)
+            # 2 = RMSNorm spatial (no groups)
+            # 3 = RMSNorm spatial grouped
+            if model.trunk_final_rmsnorm:
+                assert isinstance(model.norm_trunkfinal, RMSNormMask)
+                assert model.norm_trunkfinal.cgroup_size is None, \
+                    "Grouped spatial RMSNorm (cgroup_size != None) is not supported for export"
+                trunk_norm_kind = 1  # TRUNK_NORM_KIND_RMSNORM; spatial flag is in the RMSNormLayerDesc
+
+                # Older katago c++ versions didn't actually do proper checking here and yet didn't support
+                # this so it's not actually sound to output a non-zero trunk kind.
+                # Version 17 loading code on c++ does do proper checking.
+                assert version >= 17
+            else:
+                trunk_norm_kind = 0
+            writeln(trunk_norm_kind)
             # Write some dummy placeholders for future features
-            writeln(0)
             writeln(0)
             writeln(0)
             writeln(0)
@@ -336,7 +716,9 @@ def main(args):
 
         for i,block in enumerate(model.blocks):
             write_block("model.blocks."+str(i), block)
-        if model.trunk_normless:
+        if model.trunk_final_rmsnorm:
+            write_rmsnorm("model.norm_trunkfinal", model.norm_trunkfinal)
+        elif model.trunk_normless:
             write_biasmask("model.norm_trunkfinal", model.norm_trunkfinal)
         else:
             write_bn("model.norm_trunkfinal", model.norm_trunkfinal)
@@ -344,6 +726,16 @@ def main(args):
 
     def write_policy_head(name,policyhead):
         writeln(name)
+        if version >= 17:
+            assert policyhead.conv2p.weight.shape[0] == 6 or policyhead.conv2p.weight.shape[0] == 8
+            if policyhead.conv2p.weight.shape[0] == 6:
+                writeln(2) # we're going to write 2 policy output channels - regular and optimistic (see below)
+            else:
+                writeln(4) # we're going to write 4 policy output channels - regular, optimistic, q winloss, q score (see below)
+            # Write some dummy placeholders for future features
+            writeln(0)
+            writeln(0)
+            writeln(0)
         write_conv(name+".conv1p", policyhead.conv1p)
         write_conv(name+".conv1g", policyhead.conv1g)
         write_biasmask(name+".biasg", policyhead.biasg)
@@ -379,7 +771,7 @@ def main(args):
             write_matbias(name+".linear_pass_bias", torch.tensor([0.0]*c_p1,dtype=torch.float32,device="cpu"))
             write_activation(name+".act_pass", torch.nn.Identity())
             write_matmul(name+".linear_pass2", torch.tensor([[1.0,0.0]+[0.0]*(c_p1-2),[0.0,1.0]+[0.0]*(c_p1-2)],dtype=torch.float32,device="cpu"))
-        else:
+        elif version <= 15 or policyhead.conv2p.weight.shape[0] == 6:
             assert policyhead.conv2p.weight.shape[0] == 6
             write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5]), dim=0))
             write_matmul(name+".linear_pass", policyhead.linear_pass.weight)
@@ -388,12 +780,26 @@ def main(args):
             assert policyhead.linear_pass2.weight.shape[0] == 6
             write_matmul(name+".linear_pass2", torch.stack((policyhead.linear_pass2.weight[0], policyhead.linear_pass2.weight[5]), dim=0))
             assert policyhead.linear_pass2.bias is None
+        else:
+            assert policyhead.conv2p.weight.shape[0] == 8
+            write_conv_weight(name+".conv2p", torch.stack((policyhead.conv2p.weight[0], policyhead.conv2p.weight[5], policyhead.conv2p.weight[6], policyhead.conv2p.weight[7]), dim=0))
+            write_matmul(name+".linear_pass", policyhead.linear_pass.weight)
+            write_matbias(name+".linear_pass_bias", policyhead.linear_pass.bias)
+            write_activation(name+".act_pass", policyhead.act_pass)
+            assert policyhead.linear_pass2.weight.shape[0] == 8
+            write_matmul(name+".linear_pass2", torch.stack((policyhead.linear_pass2.weight[0], policyhead.linear_pass2.weight[5], policyhead.linear_pass2.weight[6], policyhead.linear_pass2.weight[7]), dim=0))
+            assert policyhead.linear_pass2.bias is None
 
         assert policyhead.conv2p.bias is None
 
 
     def write_value_head(name, valuehead):
         writeln(name)
+        if version >= 17:
+            # Write some dummy placeholders for future features
+            writeln(0)
+            writeln(0)
+            writeln(0)
         write_conv(name+".conv1", valuehead.conv1)
         write_biasmask(name+".bias1", valuehead.bias1)
         write_activation(name+".act1", valuehead.act1)
@@ -430,7 +836,7 @@ def main(args):
     f.close()
 
     with open(os.path.join(export_dir,"metadata.json"),"w") as f:
-        train_state = other_state_dict["train_state"]
+        train_state = other_state_dict.get("train_state", {})
         data = {}
         if "global_step_samples" in train_state:
             data["global_step_samples"] = train_state["global_step_samples"]

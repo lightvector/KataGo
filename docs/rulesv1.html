@@ -298,7 +298,7 @@ NOTE: Some online servers that claim to implement certain rules might actually d
 <span><input type="checkbox" id="whiteHandicapBonusN" name="whiteHandicapBonus" value="whiteHandicapBonusN"><label for="whiteHandicapBonusN">N</label></span>
 </div>
 </li>
-<li class="selfPlayOpts"><span class="definition">SelfPlayOpts</span>: <br/> Some optimizations that KataGo uses for self-play. These theoretically could make a difference to correct play in extremely contrived situations involving things like carefully constructed superko histories, but for all practical purposes these rules modifications are compatible with the rules without these modifications and simply speed up self-play a via faster game end, even if one or both players want to prolong the game.
+<li class="selfPlayOpts"><span class="definition">SelfPlayOpts</span>: <br/> Some optimizations that KataGo uses for self-play. These theoretically could make a difference to correct play in extremely contrived situations involving things like carefully constructed superko histories, but for all practical purposes these rules modifications are compatible with the rules without these modifications and simply speed up self-play a via faster game end, even if one or both players want to prolong the game. (Note: KataGo's own internal code and neural nets always use these optimizations, and then use various postprocessing to achieve other passing/game-end/cleanup behavior).
 <div class="flex-vertical">
 <span><input type="checkbox" id="selfPlayOptsEnabled" name="selfPlayOpts" value="selfPlayOptsEnabled"><label for="selfPlayOptsEnabled">Enabled</label></span>
 </div>

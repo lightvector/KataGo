@@ -15,8 +15,9 @@ void Parallel::iterRange(int numThreads, size_t size, const std::function<void(i
 
   // Start threads
   std::vector<std::thread> threads;
+  threads.reserve(numThreads);
   for(int i = 0; i<numThreads; i++)
-    threads.push_back(std::thread(processLoop,i));
+    threads.emplace_back(processLoop,i);
   for(size_t i = 0; i<threads.size(); i++)
     threads[i].join();
 }
@@ -37,8 +38,9 @@ void Parallel::iterRange(int numThreads, size_t size, Logger& logger, const std:
 
   // Start threads
   std::vector<std::thread> threads;
+  threads.reserve(numThreads);
   for(int i = 0; i<numThreads; i++)
-    threads.push_back(std::thread(processLoopProtected,i));
+    threads.emplace_back(processLoopProtected,i);
   for(size_t i = 0; i<threads.size(); i++)
     threads[i].join();
 }

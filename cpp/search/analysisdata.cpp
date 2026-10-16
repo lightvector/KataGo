@@ -1,5 +1,7 @@
 #include "../search/analysisdata.h"
 
+#include "../core/test.h"
+
 AnalysisData::AnalysisData()
   :move(Board::NULL_LOC),
    numVisits(0),
@@ -10,6 +12,7 @@ AnalysisData::AnalysisData()
    resultUtility(0.0),
    scoreUtility(0.0),
    winLossValue(0.0),
+   noResultValue(0.0),
    policyPrior(0.0),
    scoreMean(0.0),
    scoreStdev(0.0),
@@ -41,6 +44,7 @@ AnalysisData::AnalysisData(const AnalysisData& other)
    resultUtility(other.resultUtility),
    scoreUtility(other.scoreUtility),
    winLossValue(other.winLossValue),
+   noResultValue(other.noResultValue),
    policyPrior(other.policyPrior),
    scoreMean(other.scoreMean),
    scoreStdev(other.scoreStdev),
@@ -72,6 +76,7 @@ AnalysisData::AnalysisData(AnalysisData&& other) noexcept
    resultUtility(other.resultUtility),
    scoreUtility(other.scoreUtility),
    winLossValue(other.winLossValue),
+   noResultValue(other.noResultValue),
    policyPrior(other.policyPrior),
    scoreMean(other.scoreMean),
    scoreStdev(other.scoreStdev),
@@ -108,6 +113,7 @@ AnalysisData& AnalysisData::operator=(const AnalysisData& other) {
   resultUtility = other.resultUtility;
   scoreUtility = other.scoreUtility;
   winLossValue = other.winLossValue;
+  noResultValue = other.noResultValue;
   policyPrior = other.policyPrior;
   scoreMean = other.scoreMean;
   scoreStdev = other.scoreStdev;
@@ -142,6 +148,7 @@ AnalysisData& AnalysisData::operator=(AnalysisData&& other) noexcept {
   resultUtility = other.resultUtility;
   scoreUtility = other.scoreUtility;
   winLossValue = other.winLossValue;
+  noResultValue = other.noResultValue;
   policyPrior = other.policyPrior;
   scoreMean = other.scoreMean;
   scoreStdev = other.scoreStdev;
@@ -249,7 +256,7 @@ void AnalysisData::writePVVisitsUpToPhaseEnd(std::ostream& out, const Board& ini
   Board board(initialBoard);
   BoardHistory hist(initialHist);
   Player nextPla = initialPla;
-  assert(pv.size() == pvVisits.size());
+  testAssert(pv.size() == pvVisits.size());
   for(int j = 0; j<pv.size(); j++) {
     if(j > 0)
       out << " ";
@@ -266,7 +273,7 @@ void AnalysisData::writePVEdgeVisitsUpToPhaseEnd(std::ostream& out, const Board&
   Board board(initialBoard);
   BoardHistory hist(initialHist);
   Player nextPla = initialPla;
-  assert(pv.size() == pvEdgeVisits.size());
+  testAssert(pv.size() == pvEdgeVisits.size());
   for(int j = 0; j<pv.size(); j++) {
     if(j > 0)
       out << " ";

@@ -1,5 +1,6 @@
 #include "../core/fileutils.h"
 
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -7,6 +8,7 @@
 #include <ghc/filesystem.hpp>
 
 #include "../core/global.h"
+#include "../core/os.h"
 #include "../core/sha2.h"
 #include "../core/test.h"
 
@@ -55,6 +57,23 @@ void FileUtils::open(ifstream& in, const string& filename, std::ios_base::openmo
 }
 void FileUtils::open(ofstream& out, const string& filename, std::ios_base::openmode mode) {
   open(out, filename.c_str(), mode);
+}
+
+bool FileUtils::tryOpen(FILE*& file, const string& filename, const char* mode) {
+#ifdef OS_IS_WINDOWS
+  // On Windows the narrow-character fopen interprets the path in the current ANSI codepage rather than
+  // as utf-8, so convert to wide characters the same way as the rest of our path handling does.
+  gfs::path gfsPath(gfs::u8path(filename));
+  std::wstring wideMode(mode, mode + std::strlen(mode));
+  file = _wfopen(gfsPath.wstring().c_str(), wideMode.c_str());
+#else
+  file = std::fopen(filename.c_str(), mode);
+#endif
+  return file != NULL;
+}
+void FileUtils::open(FILE*& file, const string& filename, const char* mode) {
+  if(!tryOpen(file, filename, mode))
+    throw IOError("Could not open file " + filename + " - does not exist or invalid path or permissions?");
 }
 
 std::string FileUtils::weaklyCanonical(const std::string& path) {
@@ -187,7 +206,10 @@ void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const st
 
     zret = inflate(&zs,(totalSizeLeft > 0 ? Z_SYNC_FLUSH : Z_FINISH));
 
-    assert(zret != Z_STREAM_ERROR);
+    if(zret == Z_STREAM_ERROR) {
+      (void)inflateEnd(&zs);
+      throw StringError("Error while ungzipping file, Z_STREAM_ERROR. Invalid or corrupt file? File: " + filename);
+    }
     switch(zret) {
     case Z_NEED_DICT:
       (void)inflateEnd(&zs);
@@ -205,7 +227,7 @@ void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const st
     //Still more input to consume?
     if(totalSizeLeft > 0) {
       size_t amountMoreInputToProvide = std::min(INPUT_CHUNK_SIZE - zs.avail_in, totalSizeLeft);
-      assert(amountMoreInputToProvide > 0);
+      testAssert(amountMoreInputToProvide > 0);
       zs.avail_in += (unsigned int)amountMoreInputToProvide;
       totalSizeLeft -= amountMoreInputToProvide;
       assert(zs.avail_out < CHUNK_SIZE);
@@ -229,7 +251,10 @@ void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const st
     assert(zs.avail_out > 0);
     //It must be the case that we're done
     if(zret == Z_STREAM_END) {
-      assert(zs.next_in == (Bytef*)(&(*compressed)[0]) + compressed->size());
+      if(zs.next_in != (Bytef*)(&(*compressed)[0]) + compressed->size()) {
+        (void)inflateEnd(&zs);
+        throw StringError("Error while ungzipping file, not all input was consumed. Invalid or corrupt file? File: " + filename);
+      }
       break;
     }
     //Otherwise, we're in trouble
@@ -237,7 +262,7 @@ void FileUtils::uncompressAndLoadFileIntoString(const string& filename, const st
     throw StringError("Error while ungzipping file, reached unexpected end of input. File: " + filename);
   }
   //Prune string down to just what we need.
-  assert(totalAmountOfOutputProduced <= uncompressed.size());
+  testAssert(totalAmountOfOutputProduced <= uncompressed.size());
   uncompressed.resize(totalAmountOfOutputProduced);
   //Clean up
   (void)inflateEnd(&zs);
@@ -306,7 +331,7 @@ vector<string> FileUtils::listFiles(const std::string& dirname) {
   return collected;
 }
 
-void FileUtils::collectFiles(const string& dirname, std::function<bool(const string&)> fileFilter, vector<string>& collected)
+void FileUtils::collectFiles(const string& dirname, const std::function<bool(const string&)>& fileFilter, vector<string>& collected)
 {
   namespace gfs = ghc::filesystem;
   try {

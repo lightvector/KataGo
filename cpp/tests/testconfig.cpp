@@ -6,8 +6,12 @@
 #include "../core/test.h"
 #include "../command/commandline.h"
 
+#include "../distributed/client.h"
+
 using namespace std;
 using namespace TestCommon;
+
+using json = nlohmann::json;
 
 void Tests::runInlineConfigTests() {
   {
@@ -218,6 +222,100 @@ a-x = c-y
 notrailing = newline is okay)%%";
     testAssert(!isCfgFail(s));
   }
+
+  // Test that getInt/getFloat/getDouble without range args accept the full range of values
+  {
+    string s = R"%%(
+negInt = -42
+zeroInt = 0
+posInt = 100
+bigInt = 2000000000
+negInt64 = -9000000000000
+zeroInt64 = 0
+posUInt64 = 18000000000000
+negFloat = -3.5
+zeroFloat = 0.0
+posFloat = 1.5e20
+negDouble = -1.0e100
+zeroDouble = 0.0
+posDouble = 1.0e100
+)%%";
+    istringstream in(s);
+    ConfigParser cfg(in);
+
+    testAssert(cfg.getInt("negInt") == -42);
+    testAssert(cfg.getInt("zeroInt") == 0);
+    testAssert(cfg.getInt("posInt") == 100);
+    testAssert(cfg.getInt("bigInt") == 2000000000);
+
+    testAssert(cfg.getInt64("negInt64") == -9000000000000LL);
+    testAssert(cfg.getInt64("zeroInt64") == 0);
+
+    testAssert(cfg.getUInt64("posUInt64") == 18000000000000ULL);
+
+    testAssert(cfg.getFloat("negFloat") == -3.5f);
+    testAssert(cfg.getFloat("zeroFloat") == 0.0f);
+    testAssert(cfg.getFloat("posFloat") == 1.5e20f);
+
+    testAssert(cfg.getDouble("negDouble") == -1.0e100);
+    testAssert(cfg.getDouble("zeroDouble") == 0.0);
+    testAssert(cfg.getDouble("posDouble") == 1.0e100);
+  }
+
+  // Test that getInt/getFloat/getDouble with range args reject out-of-range values
+  {
+    string s = R"%%(
+val = 5
+fval = 2.5
+)%%";
+    istringstream in(s);
+    ConfigParser cfg(in);
+
+    testAssert(cfg.getInt("val", 0, 10) == 5);
+    testAssert(cfg.getFloat("fval", 0.0f, 5.0f) == 2.5f);
+    testAssert(cfg.getDouble("fval", 0.0, 5.0) == 2.5);
+
+    bool failed = false;
+    try { cfg.getInt("val", 10, 20); } catch(const IOError&) { failed = true; }
+    testAssert(failed);
+
+    failed = false;
+    try { cfg.getFloat("fval", 5.0f, 10.0f); } catch(const IOError&) { failed = true; }
+    testAssert(failed);
+
+    failed = false;
+    try { cfg.getDouble("fval", 5.0, 10.0); } catch(const IOError&) { failed = true; }
+    testAssert(failed);
+  }
+
+  // Test that getInts/getFloats/getDoubles without range args accept the full range
+  {
+    string s = R"%%(
+ints = -100, 0, 100
+floats = -1.5, 0.0, 1.5
+doubles = -1.0e50, 0.0, 1.0e50
+)%%";
+    istringstream in(s);
+    ConfigParser cfg(in);
+
+    vector<int> ints = cfg.getInts("ints");
+    testAssert(ints.size() == 3);
+    testAssert(ints[0] == -100);
+    testAssert(ints[1] == 0);
+    testAssert(ints[2] == 100);
+
+    vector<float> floats = cfg.getFloats("floats");
+    testAssert(floats.size() == 3);
+    testAssert(floats[0] == -1.5f);
+    testAssert(floats[1] == 0.0f);
+    testAssert(floats[2] == 1.5f);
+
+    vector<double> doubles = cfg.getDoubles("doubles");
+    testAssert(doubles.size() == 3);
+    testAssert(doubles[0] == -1.0e50);
+    testAssert(doubles[1] == 0.0);
+    testAssert(doubles[2] == 1.0e50);
+  }
 }
 
 void Tests::runConfigTests(const vector<string>& args) {
@@ -375,4 +473,122 @@ void Tests::runParseAllConfigsTest() {
       cout << cfg.getAllKeyVals() << endl;
     }
   }
+}
+
+void Tests::runTaskParsingTests() {
+#ifdef BUILD_DISTRIBUTED
+  {
+    std::string jsonResponse = R"({
+        "kind": "selfplay",
+        "network": {
+            "name": "test_network",
+            "url": "https://example.com/network/info",
+            "model_file": "https://example.com/network/download",
+            "model_file_bytes": 1024000,
+            "model_file_sha256": "abcdefg",
+            "is_random": false
+        },
+        "run": {
+            "name": "katatest",
+            "url": "https://example.com/run/info"
+        },
+        "config": "maxVisits = 800\nstartPosesPolicyInitAreaProp=0.0\nkoRules = SIMPLE,POSITIONAL,SITUATIONAL\nscoringRules = AREA,TERRITORY\nnumSearchThreads=1\nearlyForkGameProb = 0.04\nearlyForkGameExpectedMoveProp = 0.025\nforkGameProb = 0.01\nforkGameMinChoices = 3\nearlyForkGameMaxChoices = 12\nforkGameMaxChoices = 36\nsekiForkHackProb = 0.02\n\ninitGamesWithPolicy = true\npolicyInitAreaProp = 0.04\ncompensateAfterPolicyInitProb = 0.2\nsidePositionProb = 0.020\n\ncheapSearchProb = 0.75\ncheapSearchVisits = 100\ncheapSearchTargetWeight = 0.0\n\nreduceVisits = true\nreduceVisitsThreshold = 0.9\nreduceVisitsThresholdLookback = 3\nreducedVisitsMin = 100\nreducedVisitsWeight = 0.1\n\nhandicapAsymmetricPlayoutProb = 0.5\nnormalAsymmetricPlayoutProb = 0.01\nmaxAsymmetricRatio = 8.0\nminAsymmetricCompensateKomiProb = 0.4\n\npolicySurpriseDataWeight = 0.5\nvalueSurpriseDataWeight = 0.1\n\nestimateLeadProb = 0.05\nswitchNetsMidGame = true\nfancyKomiVarying = true\n\n",
+        "start_poses": [
+            {
+                "board": "........./.XX....../..OO.X.O./.O...XX../X.XXXOXX./.XXOOOOO./.OOXXO.../...O...../........./",
+                "hintLoc": "null",
+                "initialTurnNumber": 29,
+                "moveLocs": ["B7", "E7", "D8", "E9", "E6"],
+                "movePlas": ["W", "B", "W", "B", "W"],
+                "nextPla": "W",
+                "weight": 4.5,
+                "xSize": 9,
+                "ySize": 9
+            }
+        ],
+        "overrides": [
+            "startPosesPolicyInitAreaProp=0.25,rules=Japanese",
+            ""
+        ]
+    })";
+
+    json response = json::parse(jsonResponse);
+
+    Client::Task task;
+    Client::Connection::parseTask(task, response);
+
+    testAssert(task.taskId == "");
+    testAssert(task.taskGroup == "test_network");
+    testAssert(task.runName == "katatest");
+    testAssert(task.runInfoUrl == "https://example.com/run/info");
+    testAssert(task.config == "maxVisits = 800\nstartPosesPolicyInitAreaProp=0.0\nkoRules = SIMPLE,POSITIONAL,SITUATIONAL\nscoringRules = AREA,TERRITORY\nnumSearchThreads=1\nearlyForkGameProb = 0.04\nearlyForkGameExpectedMoveProp = 0.025\nforkGameProb = 0.01\nforkGameMinChoices = 3\nearlyForkGameMaxChoices = 12\nforkGameMaxChoices = 36\nsekiForkHackProb = 0.02\n\ninitGamesWithPolicy = true\npolicyInitAreaProp = 0.04\ncompensateAfterPolicyInitProb = 0.2\nsidePositionProb = 0.020\n\ncheapSearchProb = 0.75\ncheapSearchVisits = 100\ncheapSearchTargetWeight = 0.0\n\nreduceVisits = true\nreduceVisitsThreshold = 0.9\nreduceVisitsThresholdLookback = 3\nreducedVisitsMin = 100\nreducedVisitsWeight = 0.1\n\nhandicapAsymmetricPlayoutProb = 0.5\nnormalAsymmetricPlayoutProb = 0.01\nmaxAsymmetricRatio = 8.0\nminAsymmetricCompensateKomiProb = 0.4\n\npolicySurpriseDataWeight = 0.5\nvalueSurpriseDataWeight = 0.1\n\nestimateLeadProb = 0.05\nswitchNetsMidGame = true\nfancyKomiVarying = true\n\n");
+
+    testAssert(task.modelBlack.name == "test_network");
+    testAssert(task.modelBlack.infoUrl == "https://example.com/network/info");
+    testAssert(task.modelBlack.downloadUrl == "https://example.com/network/download");
+    testAssert(task.modelBlack.bytes == 1024000);
+    testAssert(task.modelBlack.sha256 == "abcdefg");
+    testAssert(task.modelBlack.isRandom == false);
+
+    testAssert(task.modelWhite.name == task.modelBlack.name);
+    testAssert(task.modelWhite.infoUrl == task.modelBlack.infoUrl);
+    testAssert(task.modelWhite.downloadUrl == task.modelBlack.downloadUrl);
+    testAssert(task.modelWhite.bytes == task.modelBlack.bytes);
+    testAssert(task.modelWhite.sha256 == task.modelBlack.sha256);
+    testAssert(task.modelWhite.isRandom == task.modelBlack.isRandom);
+
+    testAssert(task.startPoses.size() == 1);
+
+    testAssert(task.overrides.size() == 2);
+    testAssert(task.overrides[0] == "startPosesPolicyInitAreaProp=0.25,rules=Japanese");
+    testAssert(task.overrides[1] == "");
+
+    testAssert(task.doWriteTrainingData == true);
+    testAssert(task.isRatingGame == false);
+
+    {
+      istringstream taskCfgIn(task.config);
+      ConfigParser taskCfg(taskCfgIn);
+      const std::string overrides = task.overrides[0];
+      try {
+        if(overrides.size() > 0) {
+          map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrides);
+          taskCfg.overrideKeys(newkvs);
+        }
+      }
+      catch(StringError& e) {
+        cerr << "Error applying overrides " << overrides << endl;
+        cerr << e.what() << endl;
+        throw;
+      }
+      testAssert(taskCfg.getString("scoringRules") == "AREA,TERRITORY");
+      testAssert(taskCfg.getDouble("startPosesPolicyInitAreaProp") == 0.25);
+      testAssert(taskCfg.getString("rules") == "Japanese");
+      testAssert(taskCfg.getInt("maxVisits") == 800);
+    }
+
+
+    {
+      istringstream taskCfgIn(task.config);
+      ConfigParser taskCfg(taskCfgIn);
+      const std::string overrides = task.overrides[1];
+      try {
+        if(overrides.size() > 0) {
+          map<string,string> newkvs = ConfigParser::parseCommaSeparated(overrides);
+          taskCfg.overrideKeys(newkvs);
+        }
+      }
+      catch(StringError& e) {
+        cerr << "Error applying overrides " << overrides << endl;
+        cerr << e.what() << endl;
+        throw;
+      }
+      testAssert(taskCfg.getString("scoringRules") == "AREA,TERRITORY");
+      testAssert(taskCfg.getDouble("startPosesPolicyInitAreaProp") == 0.0);
+      testAssert(taskCfg.getInt("maxVisits") == 800);
+    }
+
+    std::cout << "All task parsing tests passed!" << std::endl;
+  }
+#endif // BUILD_DISTRIBUTED
 }

@@ -87,7 +87,7 @@ static float roundKomiWithLinearProb(float komi, Rand& rand) {
 void PlayUtils::setKomiWithoutNoise(const ExtraBlackAndKomi& extraBlackAndKomi, BoardHistory& hist) {
   float komi = extraBlackAndKomi.komiMean;
   komi = roundAndClipKomi(komi, hist.getRecentBoard(0));
-  assert(Rules::komiIsIntOrHalfInt(komi));
+  testAssert(Rules::komiIsIntOrHalfInt(komi));
   hist.setKomi(komi);
 }
 
@@ -99,7 +99,7 @@ void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, Boa
     komi = komi * (float)rand.nextDouble();
   komi = roundKomiWithLinearProb(komi,rand);
   komi = roundAndClipKomi(komi, hist.getRecentBoard(0));
-  assert(Rules::komiIsIntOrHalfInt(komi));
+  testAssert(Rules::komiIsIntOrHalfInt(komi));
   if(!extraBlackAndKomi.allowInteger && komi == (int)komi)
     komi += rand.nextBool(0.5) ? (-0.5f) : (0.5f);
   hist.setKomi(komi);
@@ -109,6 +109,7 @@ void PlayUtils::setKomiWithNoise(const ExtraBlackAndKomi& extraBlackAndKomi, Boa
 Loc PlayUtils::chooseRandomLegalMove(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc banMove) {
   int numLegalMoves = 0;
   Loc locs[Board::MAX_ARR_SIZE];
+  testAssert(pla == hist.presumedNextMovePla);
   for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
     if(hist.isLegal(board,loc,pla) && loc != banMove) {
       locs[numLegalMoves] = loc;
@@ -125,6 +126,7 @@ Loc PlayUtils::chooseRandomLegalMove(const Board& board, const BoardHistory& his
 int PlayUtils::chooseRandomLegalMoves(const Board& board, const BoardHistory& hist, Player pla, Rand& gameRand, Loc* buf, int len) {
   int numLegalMoves = 0;
   Loc locs[Board::MAX_ARR_SIZE];
+  testAssert(pla == hist.presumedNextMovePla);
   for(Loc loc = 0; loc < Board::MAX_ARR_SIZE; loc++) {
     if(hist.isLegal(board,loc,pla)) {
       locs[numLegalMoves] = loc;
@@ -151,6 +153,7 @@ Loc PlayUtils::chooseRandomPolicyMove(
   int numLegalMoves = 0;
   double relProbs[NNPos::MAX_NN_POLICY_SIZE];
   int locs[NNPos::MAX_NN_POLICY_SIZE];
+  testAssert(pla == hist.presumedNextMovePla);
   for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++) {
     Loc loc = NNPos::posToLoc(pos,board.x_size,board.y_size,nnXLen,nnYLen);
     if((loc == Board::PASS_LOC && !allowPass) || loc == banMove)
@@ -174,12 +177,19 @@ Loc PlayUtils::chooseRandomPolicyMove(
 
 
 Loc PlayUtils::getGameInitializationMove(
-  Search* botB, Search* botW, Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
+  Search* botB, Search* botW, const Board& board, const BoardHistory& hist, Player pla, NNResultBuf& buf,
   Rand& gameRand, double temperature
 ) {
-  NNEvaluator* nnEval = (pla == P_BLACK ? botB : botW)->nnEvaluator;
+  const Search* searcher = (pla == P_BLACK ? botB : botW);
+  NNEvaluator* nnEval = searcher->nnEvaluator;
   MiscNNInputParams nnInputParams;
-  nnInputParams.drawEquivalentWinsForWhite = (pla == P_BLACK ? botB : botW)->searchParams.drawEquivalentWinsForWhite;
+  nnInputParams.drawEquivalentWinsForWhite = searcher->searchParams.drawEquivalentWinsForWhite;
+  //Featurize for this bot's net the way that bot's own searches would, even if the game-level history
+  //carries different BoardHistoryModes.
+  nnInputParams.passAliveSuicideRulesOverride =
+    Search::resolveAlwaysComputePassAliveUnderSuicideRules(searcher->searchParams, nnEval) ? 1 : 0;
+  nnInputParams.excludeTerritoryAdjAtariOverride =
+    Search::resolveExcludeTerritoryAdjacentToAtari(searcher->searchParams, nnEval) ? 1 : 0;
   nnEval->evaluate(board,hist,pla,nnInputParams,buf,false,false);
   std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
@@ -192,6 +202,7 @@ Loc PlayUtils::getGameInitializationMove(
   testAssert(nnXLen > 0 && nnXLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
   testAssert(nnYLen > 0 && nnYLen < 100); //Just a sanity check to make sure no other crazy values have snuck in
   int policySize = NNPos::getPolicySize(nnXLen,nnYLen);
+  testAssert(pla == hist.presumedNextMovePla);
   for(int movePos = 0; movePos<policySize; movePos++) {
     Loc moveLoc = NNPos::posToLoc(movePos,board.x_size,board.y_size,nnXLen,nnYLen);
     double policyProb = nnOutput->policyProbs[movePos];
@@ -223,13 +234,24 @@ Loc PlayUtils::getGameInitializationMove(
 void PlayUtils::initializeGameUsingPolicy(
   Search* botB, Search* botW, Board& board, BoardHistory& hist, Player& pla,
   Rand& gameRand, bool doEndGameIfAllPassAlive,
-  double proportionOfBoardArea, double temperature
+  double proportionOfBoardArea, double policyInitGammaShape, double temperature
 ) {
   NNResultBuf buf;
 
-  //This gives us about 15 moves on average for 19x19.
-  int numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * (board.x_size * board.y_size * proportionOfBoardArea));
-  assert(numInitialMovesToPlay >= 0);
+  if(hist.isGameFinished)
+    return;
+
+  double mean = board.x_size * board.y_size * proportionOfBoardArea;
+  int numInitialMovesToPlay;
+
+  if(policyInitGammaShape != 1.0) {
+    numInitialMovesToPlay = (int)floor(gameRand.nextGamma(policyInitGammaShape) * (mean/policyInitGammaShape));
+  }
+  else {
+    numInitialMovesToPlay = (int)floor(gameRand.nextExponential() * mean);
+  }
+
+  testAssert(numInitialMovesToPlay >= 0);
   for(int i = 0; i<numInitialMovesToPlay; i++) {
     Loc loc = getGameInitializationMove(botB, botW, board, hist, pla, buf, gameRand, temperature);
 
@@ -259,22 +281,29 @@ void PlayUtils::playExtraBlack(
 ) {
   Player pla = P_BLACK;
 
-  NNResultBuf buf;
-  for(int i = 0; i<numExtraBlack; i++) {
-    MiscNNInputParams nnInputParams;
-    nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
-    bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
-    std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
+  if(!hist.isGameFinished) {
+    NNResultBuf buf;
+    bool botPassAliveMode = Search::resolveAlwaysComputePassAliveUnderSuicideRules(bot->searchParams, bot->nnEvaluator);
+    bool botExcludeTerritoryAdjAtari = Search::resolveExcludeTerritoryAdjacentToAtari(bot->searchParams, bot->nnEvaluator);
+    for(int i = 0; i<numExtraBlack; i++) {
+      MiscNNInputParams nnInputParams;
+      nnInputParams.drawEquivalentWinsForWhite = bot->searchParams.drawEquivalentWinsForWhite;
+      //Featurize the way this bot's own searches would, even if the passed history differs.
+      nnInputParams.passAliveSuicideRulesOverride = botPassAliveMode ? 1 : 0;
+      nnInputParams.excludeTerritoryAdjAtariOverride = botExcludeTerritoryAdjAtari ? 1 : 0;
+      bot->nnEvaluator->evaluate(board,hist,pla,nnInputParams,buf,false,false);
+      std::shared_ptr<NNOutput> nnOutput = std::move(buf.result);
 
-    bool allowPass = false;
-    Loc banMove = Board::NULL_LOC;
-    Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass, banMove);
-    if(loc == Board::NULL_LOC)
-      break;
+      bool allowPass = false;
+      Loc banMove = Board::NULL_LOC;
+      Loc loc = chooseRandomPolicyMove(nnOutput.get(), board, hist, pla, gameRand, temperature, allowPass, banMove);
+      if(loc == Board::NULL_LOC)
+        break;
 
-    assert(hist.isLegal(board,loc,pla));
-    hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
-    hist.clear(board,pla,hist.rules,0);
+      assert(hist.isLegal(board,loc,pla));
+      hist.makeBoardMoveAssumeLegal(board,loc,pla,NULL);
+      hist.clear(board,pla,hist.rules,0);
+    }
   }
 
   bot->setPosition(pla,board,hist);
@@ -345,7 +374,7 @@ float PlayUtils::roundAndClipKomi(double unrounded, const Board& board) {
   return (float)(0.5 * round(2.0 * unrounded));
 }
 
-static SearchParams getNoiselessParams(SearchParams oldParams, int64_t numVisits) {
+static SearchParams getNoiselessParams(const SearchParams& oldParams, int64_t numVisits) {
   SearchParams newParams = oldParams;
   newParams.maxVisits = numVisits;
   newParams.maxPlayouts = numVisits;
@@ -371,7 +400,7 @@ ReportedSearchValues PlayUtils::getWhiteScoreValues(
   int64_t numVisits,
   const OtherGameProperties& otherGameProps
 ) {
-  assert(numVisits > 0);
+  testAssert(numVisits > 0);
   SearchParams oldParams = bot->searchParams;
   SearchParams newParams = getNoiselessParams(oldParams,numVisits);
 
@@ -541,7 +570,7 @@ static double getNaiveEvenKomiHelper(
     }
   }
   //Floating point math should be exact to multiples of 0.5 so this should hold *exactly*.
-  assert(upperDelta - lowerDelta == 0.5);
+  testAssert(upperDelta - lowerDelta == 0.5);
 
   double finalDelta;
   //If the winLoss are crossed, potentially due to noise, then just pick the average
@@ -599,7 +628,7 @@ float PlayUtils::computeLead(
 
   bool granularityIsCoarse = hist.rules.scoringRule == Rules::SCORING_AREA && !hist.rules.hasButton;
   if(!granularityIsCoarse) {
-    assert(hist.rules.komi == oldKomi);
+    testAssert(hist.rules.komi == oldKomi);
     return (float)(oldKomi - naiveKomi);
   }
 
@@ -613,7 +642,7 @@ float PlayUtils::computeLead(
 
   //If komi is exactly an integer, then we're good.
   if(naiveKomi == round(naiveKomi)) {
-    assert(hist.rules.komi == oldKomi);
+    testAssert(hist.rules.komi == oldKomi);
     return (float)(oldKomi - naiveKomi);
   }
 
@@ -635,7 +664,7 @@ float PlayUtils::computeLead(
     if(result < lower-0.5) result = lower-0.5;
     if(result > upper+0.5) result = upper+0.5;
   }
-  assert(hist.rules.komi == oldKomi);
+  testAssert(hist.rules.komi == oldKomi);
   return (float)(oldKomi - result);
 }
 
@@ -672,7 +701,7 @@ vector<double> PlayUtils::computeOwnership(
   Player pla,
   int64_t numVisits
 ) {
-  assert(numVisits > 0);
+  testAssert(numVisits > 0);
   bool oldAlwaysIncludeOwnerMap = bot->alwaysIncludeOwnerMap;
   bot->setAlwaysIncludeOwnerMap(true);
 
@@ -680,6 +709,7 @@ vector<double> PlayUtils::computeOwnership(
   SearchParams newParams = getNoiselessParams(oldParams,numVisits);
   newParams.playoutDoublingAdvantagePla = C_EMPTY;
   newParams.playoutDoublingAdvantage = 0.0;
+  newParams.visitCapContempt = 0;
   //Make sure the search is always from a state where the game isn't believed to end with another pass
   newParams.conservativePass = true;
 
@@ -884,7 +914,7 @@ void PlayUtils::BenchmarkResults::printEloComparison(const vector<BenchmarkResul
 
 PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   const SearchParams& params,
-  const CompactSgf* sgf,
+  const CompactSgf& sgf,
   int numPositionsToUse,
   NNEvaluator* nnEval,
   const BenchmarkResults* baseline,
@@ -892,7 +922,7 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   bool printElo
 ) {
   //Pick random positions from the SGF file, but deterministically
-  vector<Move> moves = sgf->moves;
+  vector<Move> moves = sgf.moves;
   if(moves.size() > 0xFFFF)
     moves.resize(0xFFFF);
   string posSeed = "benchmarkPosSeed|";
@@ -934,12 +964,12 @@ PlayUtils::BenchmarkResults PlayUtils::benchmarkSearchOnPositionsAndPrint(
   //Ignore the SGF rules, except for komi. Just use Tromp-taylor.
   Rules initialRules = Rules::getTrompTaylorish();
   //Take the komi from the sgf, otherwise ignore the rules in the sgf
-  initialRules.komi = sgf->getRulesOrFailAllowUnspecified(initialRules).komi;
+  initialRules.komi = sgf.getRulesOrFailAllowUnspecified(initialRules).komi;
 
   Board board;
   Player nextPla;
   BoardHistory hist;
-  sgf->setupInitialBoardAndHist(initialRules, board, nextPla, hist);
+  sgf.setupInitialBoardAndHist(initialRules, board, nextPla, hist, Search::resolveHistoryModes(params, nnEval));
 
   int moveNum = 0;
 
@@ -994,7 +1024,8 @@ void PlayUtils::printGenmoveLog(
   Loc moveLoc,
   double timeTaken,
   Player perspective,
-  bool logSearchInfoForChosenMove
+  bool logSearchInfoForChosenMove,
+  const PrintTreeOptions& treeOptions
 ) {
   const Board& board = search->getRootBoard();
   Board::printBoard(out, board, moveLoc, &(search->getRootHist().moveHistory));
@@ -1010,14 +1041,17 @@ void PlayUtils::printGenmoveLog(
     out << "PlayoutDoublingAdvantage: " << (
       search->getRootPla() == getOpp(search->getPlayoutDoublingAdvantagePla()) ?
       -search->searchParams.playoutDoublingAdvantage : search->searchParams.playoutDoublingAdvantage) << endl;
+  if(search->searchParams.visitCapContempt > 0)
+    out << "VisitCapContempt: " << search->searchParams.visitCapContempt
+        << " (capped player " << PlayerIO::playerToString(search->getVisitCappedPla()) << ")" << endl;
   out << "PV: ";
   search->printPV(out, search->rootNode, 25);
   out << "\n";
   out << "Tree:\n";
   if(logSearchInfoForChosenMove && moveLoc != Board::NULL_LOC)
-    search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10).alsoBranch(board,{Location::toString(moveLoc,board)}),perspective);
+    search->printTree(out, search->rootNode, treeOptions.alsoBranch(board,{Location::toString(moveLoc,board)}),perspective);
   else
-    search->printTree(out, search->rootNode, PrintTreeOptions().maxDepth(1).maxChildrenToShow(10),perspective);
+    search->printTree(out, search->rootNode, treeOptions,perspective);
 }
 
 Rules PlayUtils::genRandomRules(Rand& rand) {
@@ -1048,6 +1082,7 @@ Loc PlayUtils::maybeCleanupBeforePass(
   if(friendlyPass == enabled_t::True)
     return moveLoc;
   const BoardHistory& hist = bot->getRootHist();
+  testAssert(pla == hist.presumedNextMovePla);
   const Rules& rules = hist.rules;
   const bool doCleanupBeforePass =
     cleanupBeforePass == enabled_t::True ? true :
@@ -1056,7 +1091,7 @@ Loc PlayUtils::maybeCleanupBeforePass(
   if(doCleanupBeforePass && moveLoc == Board::PASS_LOC && hist.isFinalPhase() && !hist.hasButton) {
     const Board& board = bot->getRootBoard();
     const Color* safeArea = bot->getSearch()->rootSafeArea;
-    assert(safeArea != NULL);
+    testAssert(safeArea != NULL);
     //Scan the board for any spot that is adjacent to an opponent group that is part of our pass-alive territory.
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
@@ -1117,7 +1152,7 @@ Loc PlayUtils::maybeFriendlyPass(
 
   const Board board = bot->getRootBoard();
   const BoardHistory hist = bot->getRootHist();
-  assert(oldPla == pla);
+  testAssert(oldPla == pla);
 
   if(!hist.isLegal(board,moveLoc,pla))
     throw StringError("PlayUtils::maybeFriendlyPass called on illegal move " + Location::toString(moveLoc,board));
@@ -1141,7 +1176,7 @@ Loc PlayUtils::maybeFriendlyPass(
     bool nonPassAliveStones = true;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = true;
-    bool isMultiStoneSuicideLegal = hist.rules.multiStoneSuicideLegal;
+    bool isMultiStoneSuicideLegal = hist.suicideLegalForPassAlive();
     cleanBoard.calculateArea(area, nonPassAliveStones, safeBigTerritories, unsafeBigTerritories, isMultiStoneSuicideLegal);
   }
   const double highOwnershipThreshold = 0.75;
@@ -1169,6 +1204,7 @@ Loc PlayUtils::maybeFriendlyPass(
     SearchParams newParams = getNoiselessParams(oldParams,numVisits);
     newParams.playoutDoublingAdvantagePla = C_EMPTY;
     newParams.playoutDoublingAdvantage = 0.0;
+    newParams.visitCapContempt = 0;
     //Conservative pass makes sure we evaluate the opponent's turn as one in which the game is neither finished nor the opponent
     //will be able to end the game via passing.
     newParams.conservativePass = true;
@@ -1222,15 +1258,16 @@ Loc PlayUtils::maybeFriendlyPass(
 }
 
 
-std::shared_ptr<NNOutput> PlayUtils::getFullSymmetryNNOutput(const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, NNEvaluator* nnEval) {
+std::shared_ptr<NNOutput> PlayUtils::getFullSymmetryNNOutput(
+  const Board& board, const BoardHistory& hist, Player pla, bool includeOwnerMap, const SGFMetadata* sgfMeta, NNEvaluator* nnEval
+) {
   vector<std::shared_ptr<NNOutput>> ptrs;
-  Board b = board;
   for(int sym = 0; sym<SymmetryHelpers::NUM_SYMMETRIES; sym++) {
     MiscNNInputParams nnInputParams;
     nnInputParams.symmetry = sym;
     NNResultBuf buf;
     bool skipCache = true; //Always ignore cache so that we use the desired symmetry
-    nnEval->evaluate(b,hist,pla,nnInputParams,buf,skipCache,includeOwnerMap);
+    nnEval->evaluate(board,hist,pla,sgfMeta,nnInputParams,buf,skipCache,includeOwnerMap);
     ptrs.push_back(std::move(buf.result));
   }
   std::shared_ptr<NNOutput> result(new NNOutput(ptrs));

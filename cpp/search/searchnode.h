@@ -7,6 +7,7 @@
 #include "../game/boardhistory.h"
 #include "../neuralnet/nneval.h"
 #include "../search/subtreevaluebiastable.h"
+#include "../search/evalcache.h"
 
 typedef int SearchNodeState; // See SearchNode::STATE_*
 
@@ -66,7 +67,7 @@ struct NodeStats {
   inline static double childWeightSq(int64_t edgeVisits, int64_t childVisits, double rawChildWeightSq) {
     return rawChildWeightSq * ((double)edgeVisits / (double)std::max(childVisits,(int64_t)1));
   }
-  double getChildWeight(int64_t edgeVisits) {
+  double getChildWeight(int64_t edgeVisits) const {
     return childWeight(edgeVisits, visits, weightSum);
   }
 };
@@ -116,24 +117,24 @@ public:
 
   void storeAll(const SearchChildPointer& other);
 
-  SearchNode* getIfAllocated();
-  const SearchNode* getIfAllocated() const;
-  SearchNode* getIfAllocatedRelaxed();
-  void store(SearchNode* node);
-  void storeRelaxed(SearchNode* node);
+  inline SearchNode* getIfAllocated() { return data.load(std::memory_order_acquire); }
+  inline const SearchNode* getIfAllocated() const { return data.load(std::memory_order_acquire); }
+  inline SearchNode* getIfAllocatedRelaxed() { return data.load(std::memory_order_relaxed); }
+  inline void store(SearchNode* node) { data.store(node, std::memory_order_release); }
+  inline void storeRelaxed(SearchNode* node) { data.store(node, std::memory_order_relaxed); }
   bool storeIfNull(SearchNode* node);
 
-  int64_t getEdgeVisits() const;
-  int64_t getEdgeVisitsRelaxed() const;
-  void setEdgeVisits(int64_t x);
-  void setEdgeVisitsRelaxed(int64_t x);
-  void addEdgeVisits(int64_t delta);
+  inline int64_t getEdgeVisits() const { return edgeVisits.load(std::memory_order_acquire); }
+  inline int64_t getEdgeVisitsRelaxed() const { return edgeVisits.load(std::memory_order_relaxed); }
+  inline void setEdgeVisits(int64_t x) { edgeVisits.store(x, std::memory_order_release); }
+  inline void setEdgeVisitsRelaxed(int64_t x) { edgeVisits.store(x, std::memory_order_relaxed); }
+  inline void addEdgeVisits(int64_t delta) { edgeVisits.fetch_add(delta, std::memory_order_acq_rel); }
   bool compexweakEdgeVisits(int64_t& expected, int64_t desired);
 
-  Loc getMoveLoc() const;
-  Loc getMoveLocRelaxed() const;
-  void setMoveLoc(Loc loc);
-  void setMoveLocRelaxed(Loc loc);
+  inline Loc getMoveLoc() const { return moveLoc.load(std::memory_order_acquire); }
+  inline Loc getMoveLocRelaxed() const { return moveLoc.load(std::memory_order_relaxed); }
+  inline void setMoveLoc(Loc loc) { moveLoc.store(loc, std::memory_order_release); }
+  inline void setMoveLocRelaxed(Loc loc) { moveLoc.store(loc, std::memory_order_relaxed); }
 };
 
 namespace SearchChildrenSizes {
@@ -167,9 +168,25 @@ struct ConstSearchNodeChildrenReference {
     : snapshottedState(other.snapshottedState), node(other.node) {}
   inline ConstSearchNodeChildrenReference(SearchNodeState snapshottedState_, const SearchNode* node_)
     : snapshottedState(snapshottedState_), node(node_) {}
-  const SearchChildPointer& operator[](int i);
+  const SearchChildPointer& operator[](int i) const;
   int getCapacity() const;
   int iterateAndCountChildren() const;
+};
+
+//Child weight distribution at a node where the player capped by SearchParams::visitCapContempt is to move,
+//taken when the node reaches the cap. With multiple threads, it may include up to about one extra visit per thread.
+struct VisitCapSnapshot {
+  struct Entry {
+    int pos;
+    double weightFrac;
+  };
+  //Fraction of the total child weight for each child that had weight, sorted by policy position. Sums to 1.
+  std::vector<Entry> entries;
+
+  //Sorts the entries. Call once after all entries are added.
+  void finalize();
+  //The weight fraction for the child at policy position pos, 0 if that child had no weight.
+  double getWeightFrac(int pos) const;
 };
 
 struct SearchNode {
@@ -217,6 +234,10 @@ struct SearchNode {
   NodeStatsAtomic stats;
   std::atomic<int32_t> virtualLosses;
 
+  //During search, only ever transitions from NULL -> non-NULL, under statsLock, once the node reaches
+  //the visit cap for nextPla. Stays NULL if nextPla is not capped. Owned by this node.
+  std::atomic<VisitCapSnapshot*> visitCapSnapshot;
+
   //Protected under the entryLock in subtreeValueBiasTableEntry
   //Used only if subtreeValueBiasTableEntry is not nullptr.
   //During search, subtreeValueBiasTableEntry itself is set upon creation of the node and remains constant
@@ -225,10 +246,16 @@ struct SearchNode {
   double lastSubtreeValueBiasWeight;
   std::shared_ptr<SubtreeValueBiasEntry> subtreeValueBiasTableEntry;
 
+  //Only valid if useGraphSearch is true.
+  //Graph hash of this node.
+  //Note that this is NOT a unique key for evaluations due to nodes varying by forceNonTerminal.
+  Hash128 graphHash;
+  std::shared_ptr<EvalCacheEntry> evalCacheEntry;
+
   std::atomic<int32_t> dirtyCounter;
 
   //--------------------------------------------------------------------------------
-  SearchNode(Player prevPla, bool forceNonTerminal, uint32_t mutexIdx);
+  SearchNode(Player prevPla, bool forceNonTerminal, uint32_t mutexIdx, Hash128 graphHash);
   SearchNode(const SearchNode&, bool forceNonTerminal, bool copySubtreeValueBias);
   ~SearchNode();
 
@@ -272,7 +299,7 @@ inline SearchChildPointer& SearchNodeChildrenReference::operator[](int i) {
   if(i < SearchChildrenSizes::SIZE1TOTAL) return node->children1[i-SearchChildrenSizes::SIZE0TOTAL];
   return node->children2[i-SearchChildrenSizes::SIZE1TOTAL];
 }
-inline const SearchChildPointer& ConstSearchNodeChildrenReference::operator[](int i) {
+inline const SearchChildPointer& ConstSearchNodeChildrenReference::operator[](int i) const {
   if(i < SearchChildrenSizes::SIZE0TOTAL) return node->children0[i];
   if(i < SearchChildrenSizes::SIZE1TOTAL) return node->children1[i-SearchChildrenSizes::SIZE0TOTAL];
   return node->children2[i-SearchChildrenSizes::SIZE1TOTAL];

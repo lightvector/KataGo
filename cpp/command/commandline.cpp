@@ -1,6 +1,7 @@
 #include "../command/commandline.h"
 
 #include "../core/fileutils.h"
+#include "../core/test.h"
 #include "../core/os.h"
 #include "../core/logger.h"
 #include "../dataio/homedata.h"
@@ -200,7 +201,7 @@ void KataGoCommandLine::setShortUsageArgLimit() {
 }
 
 void KataGoCommandLine::addModelFileArg() {
-  assert(modelFileArg == NULL);
+  testAssert(modelFileArg == NULL);
   string helpDesc = "Neural net model file. Defaults to: " + getDefaultModelPathForHelp();
   bool required = false;
   //We don't apply a default directly here, but rather in getModelFile() since there is more than one path we
@@ -212,7 +213,7 @@ void KataGoCommandLine::addModelFileArg() {
 }
 
 void KataGoCommandLine::addHumanModelFileArg() {
-  assert(humanModelFileArg == NULL);
+  testAssert(humanModelFileArg == NULL);
   string helpDesc = "Human SL neural net model file";
   bool required = false;
   string defaultPath = "";
@@ -230,7 +231,7 @@ void KataGoCommandLine::addConfigFileArg(const string& defaultCfgFileName, const
 }
 
 void KataGoCommandLine::addConfigFileArg(const string& defaultCfgFileName, const string& exampleConfigFile, bool required) {
-  assert(configFileArg == NULL);
+  testAssert(configFileArg == NULL);
   defaultConfigFileName = defaultCfgFileName;
 
   string helpDesc = "Config file(s) to use, can be one or multiple files";
@@ -247,7 +248,7 @@ void KataGoCommandLine::addConfigFileArg(const string& defaultCfgFileName, const
 }
 
 void KataGoCommandLine::addOverrideConfigArg() {
-  assert(overrideConfigArg == NULL);
+  testAssert(overrideConfigArg == NULL);
   overrideConfigArg = new TCLAP::MultiArg<string>(
     "","override-config","Override config parameters. Format: \"key=value, key=value,...\"",false,"KEYVALUEPAIRS"
   );
@@ -256,7 +257,7 @@ void KataGoCommandLine::addOverrideConfigArg() {
 
 
 string KataGoCommandLine::getModelFile() const {
-  assert(modelFileArg != NULL);
+  testAssert(modelFileArg != NULL);
   string modelFile = modelFileArg->getValue();
   if(modelFile.empty()) {
     string pathForErrMsg;
@@ -284,12 +285,12 @@ bool KataGoCommandLine::modelFileIsDefault() const {
 
 
 string KataGoCommandLine::getHumanModelFile() const {
-  assert(humanModelFileArg != NULL);
+  testAssert(humanModelFileArg != NULL);
   return humanModelFileArg->getValue();
 }
 
 vector<string> KataGoCommandLine::getConfigFiles() const {
-  assert(configFileArg != NULL);
+  testAssert(configFileArg != NULL);
   vector<string> configFiles = configFileArg->getValue();
   if(configFiles.empty() && !defaultConfigFileName.empty()) {
     string pathForErrMsg;
@@ -342,7 +343,7 @@ void KataGoCommandLine::logOverrides(Logger& logger) const {
 //cfg must be uninitialized, this will initialize it based on user-provided arguments
 void KataGoCommandLine::getConfig(ConfigParser& cfg) const {
   vector<string> configFiles = getConfigFiles();
-  assert(!configFiles.empty());
+  testAssert(!configFiles.empty());
   cfg.initialize(configFiles[0]);
   if(configFiles.size() > 1) {
     configFiles.erase(configFiles.begin());

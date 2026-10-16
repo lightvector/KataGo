@@ -91,6 +91,8 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `avoid PLAYER VERTEX,VERTEX,... UNTILDEPTH` - Prohibit the search from exploring the specified moves for the specified player, until `UNTILDEPTH` ply deep in the search.
             * May be supplied multiple times with different `UNTILDEPTH` for different sets of moves. The behavior is unspecified if a move is specified more than once with different `UNTILDEPTH`.
          * `allow PLAYER VERTEX,VERTEX,... UNTILDEPTH` - Equivalent to `avoid` on all vertices EXCEPT for the specified vertices. Can only be specified once, and cannot be specified at the same time as `avoid`.
+         * `focus VERTEX[:WEIGHT],VERTEX[:WEIGHT],... PROB` - Direct extra search into the specified moves for the player to move. Each playout from the root is redirected with probability `PROB` into one of the specified moves, as a weightless visit that does not count toward the root's own visits or value. `PROB` is a probability from 0 to 1. It is capped at 0.99 so that the root keeps receiving some visits and visit limits are still reached. The move is chosen at random in proportion to the weights. Weights are positive numbers and default to 1 when omitted. For example `focus C3:3,D4 0.5` sends three quarters of the focused playouts to C3 and one quarter to D4. Such visits also do not count toward visit or playout limits, so focusing adds search on top of the normal search rather than replacing part of it. The reported `visits` of a focused move include these extra visits. Moves that are illegal or excluded by `avoid` or `allow` are ignored. Can only be specified once.
+            * To change or cancel the focus while analyzing, send the analyze command again with a different `focus` or without one. If the other arguments are unchanged, the search tree is kept across such re-sends, so no search progress is lost.
       * Output format:
          * Outputted lines look like `info move E4 visits 1178 winrate 4802 prior 2211 lcb 4781 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 1056 winrate 4796 prior 2206 lcb 4769 order 1 pv P16 P17 O17 Q17 O16 E16 E17 F17 D17 F16 K17 D14 B14 P3 info move E3 visits 264 winrate 4752 prior 944 lcb 4722 order 2 pv E3 D5 P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 info move E16 visits 262 winrate 4741 prior 1047 lcb 4709 order 3 pv E16 P4 P3 O3 Q3 O4 P16 P17 O17 Q17 O16 Q14`
          * `info` - Indicates the start of information for a new possible move
@@ -115,6 +117,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
          * `movesOwnershipStdev true` - Output the standard deviation of the distribution of predicted final ownerships of every point on the board across the search tree for every individual move.
          * `pvVisits true` - Output the number of visits spent in the position after each move in each principal variation.
          * `pvEdgeVisits true` - Output the number of visits spent following each move in each principal variation.
+         * `noResultValue true` - Output the predicted probability that the game ends in a no-result for each move.
       * Output format:
          * Outputted lines look like `info move E4 visits 487 utility -0.0408357 winrate 0.480018 scoreMean -0.611848 scoreStdev 24.7058 scoreLead -0.611848 scoreSelfplay -0.515178 prior 0.221121 lcb 0.477221 utilityLcb -0.0486664 order 0 pv E4 E3 F3 D3 F4 P4 P3 O3 Q3 O4 K3 Q6 S6 E16 E17 info move P16 visits 470 utility -0.0414945 winrate 0.479712 scoreMean -0.63075 scoreStdev 24.7179 scoreLead -0.63075 scoreSelfplay -0.5221 prior 0.220566 lcb 0.47657 utilityLcb -0.0502929 order 1 pv P16 P17 O17 Q17 O16 E17 H17 D15 C15 D14 C13 D13 C12 D12 info move E16 visits 143 utility -0.0534071 winrate 0.474509 scoreMean -0.729858 scoreStdev 24.7991 scoreLead -0.729858 scoreSelfplay -0.735747 prior 0.104652 lcb 0.470674 utilityLcb -0.0641425 order 2 pv E16 P4 P3 O3 Q3 O4 E3 H3 D5 C5`
          * Or, for example, if options like `rootInfo` and `ownership` are specified, they may look like: `info move E4 <same info for E4 as above> info move P16 <same info for P16 as above> info move E16 <same info for E16 as above> rootInfo visits 1101 <winrate, utility, other properties of root> ownership <361 floats predicting ownership of each board point>`
@@ -130,6 +133,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
             * `scoreLead` - The predicted average number of points that the current side is leading by (with this many points fewer, it would be an even game).
             * `scoreSelfplay` - The predicted average value of the final score of the game after this move from low-playout noisy selfplay, in points. (NOTE: users should usually prefer scoreLead, since scoreSelfplay may be biased by the fact that KataGo isn't perfectly score-maximizing).
             * `prior` - The policy prior of the move, as a float in [0,1].
+            * `noResultValue` - The predicted probability that the game ends in a no-result (e.g. triple ko/long cycle), as a float in [0,1]. Only present if `noResultValue true` was requested. Relevant for rulesets like Japanese rules without superko.
             * `utility` - The utility of the move, combining both winrate and score, as a float in [-C,C] where C is the maximum possible utility.
             * `lcb` - The [LCB](https://github.com/leela-zero/leela-zero/issues/2282) of the move's winrate, as a float in [0,1].
             * `utilityLcb` - The LCB of the move's utility.
@@ -186,8 +190,10 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
         * A GTP controller should be prepared that when it cancels a search, it's possible that the search has just finished at the same time, and reports a real move rather than `play cancelled`. Unlike `kata-genmove_analyze`, since this command doesn't change the board state, this race should hopefully not be hard for a controller to handle.
      * The same note about pondering as for `kata-search` and `kata-search_cancellable` applies here. GTP controllers should reply with the `play` command confirming the move they wish to make as soon as possible.
 
-  * `kata-raw-nn SYMMETRY`
+  * `kata-raw-nn [COLOR] SYMMETRY [OPTIMISM]`
      * `SYMMETRY` should be an integer from 0-7 or "all".
+     * `COLOR` is optional and should be `b`/`black` or `w`/`white`. If specified, it must come before `SYMMETRY`, and the raw evaluation is performed as if it were that player's turn to move (similar to how `genmove COLOR` specifies the player). If omitted, the current player to move is used.
+     * `OPTIMISM` is optional and, if specified, must come after `SYMMETRY`. It is a value from 0 to 1 that overrides the policy optimism used for the evaluation. If omitted, the configured `rootPolicyOptimism` is used.
      * Reports the result of a raw neural net evaluation from KataGo, or multiple raw evaluations in the case of "all".
      * Output format is of the form `symmetry <integer 0-7> <key> <value(s)> <key> <value(s)> ...`, possibly with additional whitespace or newlines between any tokens. In the case of "all", multiple such outputs of this form are concatenated together.
      * Possible keys are currently
@@ -198,6 +204,7 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      whiteLead (1 float) - predicted number of points that white is ahead by (this is the preferred score value for user display).
      whiteScoreSelfplay (1 float) - predicted mean score that would result from low-playout noisy selfplay (may be biased, Kata isn't fully score-maximizing).
      whiteScoreSelfplaySq (1 float) - predicted mean square of score that would result via low-playout noisy selfplay
+     varTimeLeft (1 float) - guess of how "soon" on average in moves until the game's winner/loser will become clear. This value has not been heavily studied, but could still be meaningful for research.
      shorttermWinlossError (1 float) - predicted square root of the mean squared difference between (whiteWin-whiteLoss) and the MCTS (whiteWin-whiteLoss) in low-playout noisy selfplay after a few turns. Generally unavailable for nets prior to December 2020, in which case this value will always equal -1.
      shorttermScoreError (1 float) - predicted square root of the mean difference between whiteScoreSelfplay and the MCTS score in low-playout noisy selfplay after a few turns.  Generally unavailable for nets prior to December 2020, in which case this value will always equal -1.
      policy (boardXSize * boardYSize floats, including possibly NAN for illegal moves) - policy distribution for next move
@@ -206,15 +213,22 @@ In addition to a basic set of [GTP commands](https://www.lysator.liu.se/~gunnar/
      ```
      Any consumers of this data should attempt to be robust to any pattern of whitespace within the output, as well as possibly the future addition of new keys and values. The ordering of the keys is also not guaranteed - consumers should be capable of handling any permutation of them.
 
-  * `kata-raw-human-nn SYMMETRY`
+  * `kata-raw-human-nn [COLOR] SYMMETRY`
      * Similar to `kata-raw-nn`, but uses the human SL model for evaluation.
      * `SYMMETRY` should be an integer from 0-7 or "all".
+     * `COLOR` is optional and behaves as in `kata-raw-nn`.
      * This command is only available if a human SL model was provided using the `-human-model` command line option. Typically, this should be a model like `b18c384nbt-humanv0.bin.gz`.
+     * **Output format differences from `kata-raw-nn`:**
+        * Reports `whiteScore` instead of `whiteLead`.
+        * Reports `whiteScoreSq` instead of `whiteScoreSelfplaySq`
+        * Does NOT report `whiteScoreSelfplay` or `varTimeLeft`
+        * The reason for these naming differences is that the human SL model was NOT trained report to "lead" (i.e. how many points would need to change hands to make the game fair), and was NOT trained to predict self-play either. Instead, it was trained to predict the average *final* score of the game, inclusive of human biases/tilt, players in the games appearing to be of different skill levels, etc. Note that this score prediction will also be significantly biased in unknown ways due to many human games in training data ending in resignation, timeout, and not providing a reliable score.
 
   * `kata-get-param PARAM`, `kata-set-param PARAM VALUE`
      * Get a parameter or set a parameter to a given value.
      * Almost any search-related parameter in the GTP config can be retrieved or set. Some of the notable ones are:
         * `playoutDoublingAdvantage (float)`. See documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg). Setting this via this command affects the value used for analysis, and affects play only if the config is not already set to use `dynamicPlayoutDoublingAdvantageCapPerOppLead`.
+        * `visitCapContempt (int)`. Model the opponent as searching with only this many visits per position (at least 2, or set to 0 to disable), see documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg). Affects both play and analysis.
         * `analysisWideRootNoise (float)`. See documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg)
         * `numSearchThreads (int)`. The number of CPU threads to use in parallel, see documentation for this parameter in [the example config](../cpp/configs/gtp_example.cfg).
         * `maxVisits (int), maxPlayouts (int), maxTime (float)`. Set or override one or more limits on the search, see [the example config](../cpp/configs/gtp_example.cfg). KataGo will obey the *combination* of all three.

@@ -1,33 +1,36 @@
 # KataGo
 
-* [Overview](#overview)
-* [Training History and Research](#training-history-and-research)
-* [Where To Download Stuff](#where-to-download-stuff)
-* [Setting Up and Running KataGo](#setting-up-and-running-katago)
-  * [GUIs](#guis)
-  * [Windows and Linux](#windows-and-linux)
-  * [MacOS](#macos)
-  * [OpenCL vs CUDA vs TensorRT vs Eigen](#opencl-vs-cuda-vs-tensorrt-vs-eigen)
-  * [How To Use](#how-to-use)
-  * [Tuning for Performance](#tuning-for-performance)
-  * [Common Questions and Issues](#common-questions-and-issues)
-    * [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers)
-    * [Common Problems](#common-problems)
-    * [Other Questions](#other-questions)
-* [Features for Developers](#features-for-developers)
-  * [GTP Extensions](#gtp-extensions)
-  * [Analysis Engine](#analysis-engine)
-* [Compiling KataGo](#compiling-katago)
-* [Source Code Overview](#source-code-overview)
-* [Selfplay Training](#selfplay-training)
-* [Contributors](#contributors)
-* [License](#license)
+- [KataGo](#katago)
+  - [Overview](#overview)
+  - [Training History and Research and Docs](#training-history-and-research-and-docs)
+  - [Where To Download Stuff](#where-to-download-stuff)
+  - [Setting Up and Running KataGo](#setting-up-and-running-katago)
+    - [GUIs](#guis)
+    - [Windows and Linux](#windows-and-linux)
+    - [MacOS](#macos)
+    - [OpenCL vs CUDA vs TensorRT vs ROCm vs ONNX vs Eigen](#opencl-vs-cuda-vs-tensorrt-vs-rocm-vs-onnx-vs-eigen)
+    - [How To Use](#how-to-use)
+      - [Human-style Play and Analysis](#human-style-play-and-analysis)
+      - [Other Commands:](#other-commands)
+    - [Tuning for Performance](#tuning-for-performance)
+    - [Common Questions and Issues](#common-questions-and-issues)
+      - [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers)
+      - [Common Problems](#common-problems)
+      - [Other Questions](#other-questions)
+  - [Features for Developers](#features-for-developers)
+      - [GTP Extensions:](#gtp-extensions)
+      - [Analysis Engine:](#analysis-engine)
+  - [Compiling KataGo](#compiling-katago)
+  - [Source Code Overview:](#source-code-overview)
+  - [Selfplay Training:](#selfplay-training)
+  - [Contributors](#contributors)
+  - [License](#license)
 
 ## Overview
 
 KataGo's public distributed training run is ongoing! See https://katagotraining.org/ for more details, to download the latest and strongest neural nets, or to learn how to contribute if you want to help KataGo improve further! Also check out the computer Go [discord channel](https://discord.gg/bqkZAz3)!
 
-As of 2024, KataGo remains one of the strongest open source Go bots available online. KataGo was trained using an AlphaZero-like process with many enhancements and improvements, and is capable of reaching top levels rapidly and entirely from scratch with no outside data, improving only via self-play. Some of these improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other self-play-trained bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to superhuman strength within a few months.
+As of 2026, KataGo remains one of the strongest open source Go bots available online. KataGo was trained using an AlphaZero-like process with many enhancements and improvements, and is capable of reaching top levels rapidly and entirely from scratch with no outside data, improving only via self-play. Some of these improvements take advantage of game-specific features and training targets, but also many of the techniques are general and could be applied in other games. As a result, early training is immensely faster than in other self-play-trained bots - with only a few strong GPUs for a few days, any researcher/enthusiast should be able to train a neural net from nothing to high amateur dan strength on the full 19x19 board. If tuned well, a training run using only a *single* top-end consumer GPU could possibly train a bot from scratch to superhuman strength within a few months.
 
 Experimentally, KataGo did also try some limited ways of using external data at the end of its June 2020 run, and has continued to do so into its most recent public distributed run, "kata1" at https://katagotraining.org/. External data is not necessary for reaching top levels of play, but still appears to provide some mild benefits against some opponents, and noticeable benefits in a useful analysis tool for a variety of kinds of situations that don't occur in self-play but that do occur in human games and  games that users wish to analyze.
 
@@ -46,6 +49,8 @@ Here are some links to some docs/papers/posts about KataGo's research and traini
 * Paper about the major new ideas and techniques used in KataGo: [Accelerating Self-Play Learning in Go (arXiv)](https://arxiv.org/abs/1902.10565). Many of the specific parameters are outdated, but the general methods continue to be used.
 
 * Many major further improvements have been found since then, which have been incorporated into KataGo's more recent runs and are documented here: [KataGoMethods.md](docs/KataGoMethods.md).
+
+* A description of the neural network sizes and architectures used in KataGo's main public run is: [NetworkArchitectures.md](docs/NetworkArchitectures.md).
 
 * KataGo has a fully working implementation of Monte-Carlo Graph Search, extending MCTS to operate on graphs instead of just trees! An explanation can be found here [Monte-Carlo Graph Search from First Principles](docs/GraphSearch.md). This explanation is written to be general (not specific to KataGo) and to fill a big gap in explanatory material in the academic literature and hopefully it can be useful to others!
 
@@ -66,10 +71,11 @@ And the latest neural nets are available at [https://katagotraining.org/](https:
 KataGo implements just a GTP engine, which is a simple text protocol that Go software uses. It does NOT have a graphical interface on its own. So generally, you will want to use KataGo along with a GUI or analysis program. A few of them bundle KataGo in their download so that you can get everything from one place rather than downloading separately and managing the file paths and commands.
 
 ### GUIs
-This is by no means a complete list - there are lots of things out there. But, writing as of 2020, a few of the easier and/or popular ones might be:
+This is by no means a complete list - there are lots of things out there. But, writing as of 2026, a few of the easier and/or popular ones might be:
 
 * [KaTrain](https://github.com/sanderland/katrain) - KaTrain might be the easiest to set up for non-technical users, offering an all-in-one package (no need to download KataGo separately!), modified-strength bots for weaker players, and good analysis features.
-* [Lizzie](https://github.com/featurecat/lizzie) - Lizzie is very popular for running long interactive analyses and visualizing them as they happen. Lizzie also offers an all-in-one package. However keep mind that KataGo's OpenCL version may take quite a while to tune and load on the very first startup as described [here](#opencl-vs-cuda), and Lizzie does a poor job of displaying this progress as it happens. And in case of an actual error or failure, Lizzie's interface is not the best at explaining these errors and will appear to hang forever. The version of KataGo packaged with Lizzie is quite strong but might not always be the newest or strongest, so once you have it working, you may want to download KataGo and a newer network from [releases page](https://github.com/lightvector/KataGo/releases) and replace Lizzie's versions with them.
+* [LizzieYzy Next](https://github.com/wimi321/lizzieyzy-next) or [LizzieYzy](https://github.com/yzyray/lizzieyzy) - Various more recent forks of Lizzie, with a lot more features and reworked interfaces but still focusing on live interactive review.
+* [Lizzie](https://github.com/featurecat/lizzie) - Used to be very popular for running long interactive analyses and visualizing them as they happen. Note that Lizzie at this point is a bit old and, e.g. the version of KataGo packaged with it is very outdated, and there are many long-standing interface bugs in Lizzie itself that have never been fixed. Nowadays, one of the several forks of Lizzie might be preferable.
 * [Ogatak](https://github.com/rooklift/ogatak) is a KataGo-specific GUI with an emphasis on displaying the basics in a snappy, responsive fashion. It does not come with KataGo included.
 * [q5Go](https://github.com/bernds/q5Go) and [Sabaki](https://sabaki.yichuanshen.de/) are general SGF editors and GUIs that support KataGo, including KataGo's score estimation, and many high-quality features.
 
@@ -77,27 +83,33 @@ Generally, for GUIs that don't offer an all-in-one package, you will need to dow
 
 ### Windows and Linux
 
-KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). On Windows, the executables should generally work out of the box, on Linux if you encounter issues with system library versions, as an alternative [building from source](Compiling.md) is usually straightforward. Not all different OS versions and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also of course be compiled from source on Windows via MSVC on Windows or on Linux via usual compilers like g++, documented further down.
+KataGo currently officially supports both Windows and Linux, with [precompiled executables provided each release](https://github.com/lightvector/KataGo/releases). On Windows, the executables should generally work out of the box, on Linux if you encounter issues with system library versions, as an alternative [building from source](Compiling.md) is usually straightforward. Not all different OS versions and compilers have been tested, so if you encounter problems, feel free to open an issue. KataGo can also, of course, be compiled from source on Windows or Linux. On Windows it supports MSVC or MinGW compilers, on Linux it supports usual compilers like g++, documented further down.
 
 ### MacOS
 The community also provides KataGo packages for [Homebrew](https://brew.sh) on MacOS - releases there may lag behind official releases slightly.
 
 Use `brew install katago`. The latest config files and networks are installed in KataGo's `share` directory. Find them via `brew list --verbose katago`. A basic way to run katago will be `katago gtp -config $(brew list --verbose katago | grep 'gtp.*\.cfg') -model $(brew list --verbose katago | grep .gz | head -1)`. You should choose the Network according to the release notes here and customize the provided example config as with every other way of installing KataGo.
 
-### OpenCL vs CUDA vs TensorRT vs Eigen
-KataGo has four backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), and Eigen (CPU).
+### OpenCL vs CUDA vs TensorRT vs ROCm vs ONNX vs Eigen
+KataGo has six backends, OpenCL (GPU), CUDA (GPU), TensorRT (GPU), ROCm (GPU), ONNX Runtime (varied hardware), and Eigen (CPU). (On macOS there is also a Metal backend, most easily obtained via homebrew - see above.)
+
+As of v1.17, KataGo supports transformer neural nets, which are generally much stronger for the same compute cost and which the main training run is switching to. Transformer models are more demanding on the GPU backend than the older convolutional nets, so the backend recommendations below matter more for them - in particular OpenCL is noticeably slower on transformers, and on NVIDIA the CUDNN and TensorRT versions make a large difference.
 
 The quick summary is:
-  * **To easily get something working, try OpenCL if you have any good or decent GPU.**
+  * **To easily get something working, try OpenCL if you have any good or decent GPU.** Note that it is noticeably slower than the NVIDIA-specific backends, especially for transformer models.
   * **For often much better performance on NVIDIA GPUs, try TensorRT**, but you may need to install TensorRT from Nvidia.
   * Use Eigen with AVX2 if you don't have a GPU or if your GPU is too old/weak to work with OpenCL, and you just want a plain CPU KataGo.
   * Use Eigen without AVX2 if your CPU is old or on a low-end device that doesn't support AVX2.
-  * The CUDA backend can work for NVIDIA GPUs with CUDA+CUDNN installed but is likely worse than TensorRT.
+  * The CUDA+CUDNN backend can also work well for NVIDIA GPUs. It has faster startup than TensorRT and is competitive on transformers if using CUDNN >= 9.8.0, though TensorRT 10.16 is often still slightly faster.
+  * The ROCm backend can work for AMD GPUs with ROCm+MIOpen installed, and is much faster than OpenCL on AMD datacenter (CDNA) GPUs.
+  * The ONNX Runtime backend is mainly useful for hardware with no native KataGo backend, most notably Intel GPUs and NPUs (via its OpenVINO execution provider) and any DirectX 12 GPU on Windows (via DirectML).
 
 More in detail:
-  * OpenCL is a general GPU backend should be able to run with any GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), including NVIDIA GPUs, AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. This is the most general GPU version of KataGo and doesn't require a complicated install like CUDA does, so is most likely to work out of the box as long as you have a fairly modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer. Also, the quality of OpenCL implementations is sometimes inconsistent, particularly for Intel Integrated Graphics and for AMD GPUs that are older than several years, so it might not work for very old machines, as well as specific buggy newer AMD GPUs, see also [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers).
-  * CUDA is a GPU backend specific to NVIDIA GPUs (it will not work with AMD or Intel or any other GPUs) and requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU. On most GPUs, the OpenCL implementation will actually beat NVIDIA's own CUDA/CUDNN at performance. The exception is for top-end NVIDIA GPUs that support FP16 and tensor cores, in which case sometimes one is better and sometimes the other is better.
-  * TensorRT is similar to CUDA, but only uses NVIDIA's TensorRT framework to run the neural network with more optimized kernels. For modern NVIDIA GPUs, it should work whenever CUDA does and will usually be faster than CUDA or any other backend.
+  * OpenCL is a general GPU backend should be able to run with any GPUs or accelerators that support [OpenCL](https://en.wikipedia.org/wiki/OpenCL), including NVIDIA GPUs, AMD GPUs, as well CPU-based OpenCL implementations or things like Intel Integrated Graphics. This is the most general GPU version of KataGo and doesn't require a complicated install like CUDA does, so is most likely to work out of the box as long as you have a fairly modern GPU. **However, it also need to take some time when run for the very first time to tune itself.** For many systems, this will take 5-30 seconds, but on a few older/slower systems, may take many minutes or longer. Also, the quality of OpenCL implementations is sometimes inconsistent, particularly for Intel Integrated Graphics and for AMD GPUs that are older than several years, so it might not work for very old machines, as well as specific buggy newer AMD GPUs, see also [Issues with specific GPUs or GPU drivers](#issues-with-specific-gpus-or-gpu-drivers). OpenCL is not as optimized as the NVIDIA-specific backends and will generally be slower, particularly for transformer models.
+  * CUDA is a GPU backend specific to NVIDIA GPUs (it will not work with AMD or Intel or any other GPUs) and requires installing [CUDA](https://developer.nvidia.com/cuda-zone) and [CUDNN](https://developer.nvidia.com/cudnn) and a modern NVIDIA GPU. For older convolutional nets, on many GPUs the OpenCL implementation can match or beat NVIDIA's own CUDA/CUDNN, with the exception of top-end NVIDIA GPUs that support FP16 and tensor cores. For transformer nets, CUDA+CUDNN clearly outperforms OpenCL, but you should use CUDNN >= 9.8.0 if at all possible - the older CUDNN 8.9.7 is a LOT slower on transformer models. Compared to TensorRT, CUDA+CUDNN has faster startup times and is often only slightly slower (and occasionally faster) on transformers.
+  * TensorRT is similar to CUDA, but uses NVIDIA's TensorRT framework to run the neural network with more optimized kernels. For modern NVIDIA GPUs it should work whenever CUDA does, and will usually be the fastest backend, though it has much longer startup times on every launch. As of v1.17.0, TensorRT versions older than 10 are no longer supported. For transformer models, recent versions like CUDA 13 + TensorRT 10.16 are best, while older TensorRT versions can be outperformed by CUDA+CUDNN.
+  * ROCm is a GPU backend specific to AMD GPUs (it will not work with NVIDIA or Intel or any other GPUs) and requires installing [ROCm](https://rocm.docs.amd.com) and [MIOpen](https://rocm.docs.amd.com/projects/MIOpen) and a modern AMD GPU. It supports both **Linux** (via official ROCm packages, ROCm 6.4+) and **Windows** (via [AMD TheRock](https://github.com/ROCm/TheRock) builds). Performance relative to OpenCL depends on the GPU. On AMD's datacenter accelerators (CDNA), ROCm is much faster than OpenCL: measured on an MI300X at roughly 2.5x for convolutional nets and 6-12x for transformers. On consumer (RDNA) GPUs the two are closer and either may win depending on the GPU and driver, so if you want the best choice, run KataGo's benchmark with both. Transformer/attention-based neural nets (model version 17+) are supported on all AMD GPUs, and get an additional fused-attention speedup on CDNA and RDNA3/RDNA3.5/RDNA4 GPUs when AMD's Composable Kernel library is also installed (see [Compiling.md](Compiling.md)).
+  * ONNX runs the neural net using [ONNX Runtime](https://onnxruntime.ai/), which supports many kinds of hardware through its "execution providers". This is mainly useful for hardware that has no native KataGo backend, such as Intel GPUs and NPUs (via the OpenVINO provider) or any DirectX 12 GPU on Windows (via the DirectML provider). If you have an NVIDIA GPU, use KataGo's native CUDA or TensorRT backends instead - they will almost certainly be faster. See [Compiling.md](Compiling.md#onnx-runtime-backend-optional) for the status of the various execution providers and what each one requires.
   * Eigen is a *CPU* backend that should work widely *without* needing a GPU or fancy drivers. Use this if you don't have a good GPU or really any GPU at all. It will be quite significantly slower than OpenCL or CUDA, but on a good CPU can still often get 10 to 20 playouts per second if using the smaller (15 or 20) block neural nets. Eigen can also be compiled with AVX2 and FMA support, which can provide a big performance boost for Intel and AMD CPUs from the last few years. However, it will not run at all on older CPUs (and possibly even some recent but low-power modern CPUs) that don't support these fancy vector instructions.
 
 For **any** implementation, it's recommended that you also tune the number of threads used if you care about optimal performance, as it can make a factor of 2-3 difference in the speed. See "Tuning for Performance" below. However, if you mostly just want to get it working, then the default untuned settings should also be still reasonable.
@@ -157,6 +169,10 @@ Force OpenCL tuner to re-tune:
 
    * `./katago tuner -config <GTP_CONFIG>.cfg`
 
+On the TensorRT and ONNX backends, write out the [ONNX graph](docs/ONNX_Model_Files.md) that KataGo builds for a model, which can then be run as a model file in its own right:
+
+   * `./katago dumponnx -model <NEURALNET>.bin.gz -out <NEURALNET>.onnx`
+
 Print version:
 
    * `./katago version`
@@ -175,6 +191,7 @@ This section summarizes a number of common questions and issues when running Kat
 #### Issues with specific GPUs or GPU drivers
 If you are observing any crashes in KataGo while attempting to run the benchmark or the program itself, and you have one of the below GPUs, then this is likely the reason.
 
+* **AMD GPUs** - The ROCm backend's builds include GPU code for gfx906 (Vega 20), CDNA (gfx908/90a/942/950), and RDNA1 through RDNA4 (as supported by the installed ROCm toolchain). If your GPU is not among these or is outside AMD's official [ROCm support list](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/reference/system-requirements.html), KataGo may fail at startup with a GPU initialization error - use the OpenCL backend instead. See [Compiling.md](Compiling.md) for ROCm build instructions.
 * **AMD Radeon RX 5700** - AMD's drivers for OpenCL for this GPU have been buggy ever since this GPU was released, and as of May 2020 AMD has still never released a fix. If you are using this GPU, you will just not be able to run KataGo (Leela Zero and other Go engines will probably fail too) and will probably also obtain incorrect calculations or crash if doing anything else scientific or mathematical that uses OpenCL. See for example these reddit threads: [[1]](https://www.reddit.com/r/Amd/comments/ebso1x/its_not_just_setihome_any_mathematic_or/) or [[2]](https://www.reddit.com/r/BOINC/comments/ebiz18/psa_please_remove_your_amd_rx5700xt_from_setihome/) or this [L19 thread](https://lifein19x19.com/viewtopic.php?f=18&t=17093).
 * **OpenCL Mesa** - These drivers for OpenCL are buggy. Particularly if on startup before crashing you see KataGo printing something like
 `Found OpenCL Platform 0: ... (Mesa) (OpenCL 1.1 Mesa ...) ...`
@@ -233,7 +250,7 @@ KataGo also implements a separate engine that can evaluate much faster due to ba
 KataGo also includes example code demonstrating how you can invoke the analysis engine from Python, see [here](python/query_analysis_engine_example.py)!
 
 ## Compiling KataGo
-KataGo is written in C++. It should compile on Linux or OSX via g++ that supports at least C++14, or on Windows via MSVC 15 (2017) and later. Instructions may be found at [Compiling KataGo](Compiling.md).
+KataGo is written in C++. It should compile on Linux or OSX via g++ that supports at least C++14, or on Windows via MSVC 15 (2017) and later or MinGW. Instructions may be found at [Compiling KataGo](Compiling.md).
 
 ## Source Code Overview:
 See the [cpp readme](cpp/README.md) or the [python readme](python/README.md) for some high-level overviews of the source code in this repo, if you want to get a sense of what is where and how it fits together.

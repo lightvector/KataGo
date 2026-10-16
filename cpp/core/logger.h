@@ -40,7 +40,7 @@ class Logger {
   void write(const std::string& str);
   void writeNoEndline(const std::string& str);
 
-  static void logThreadUncaught(const std::string& name, Logger* logger, std::function<void()> f);
+  static void logThreadUncaught(const std::string& name, Logger* logger, const std::function<void()>& f);
 
  private:
   //------------

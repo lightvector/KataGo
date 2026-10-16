@@ -12,6 +12,7 @@
 #include "../program/setup.h"
 #include "../program/play.h"
 #include "../command/commandline.h"
+#include "../core/test.h"
 #include "../main.h"
 
 #include <chrono>
@@ -30,7 +31,7 @@ static ValueTargets makeForcedWinnerValueTarget(Player winner) {
     targets.lead = 0.0f;
     return targets;
   }
-  assert(winner == P_BLACK || winner == P_WHITE);
+  testAssert(winner == P_BLACK || winner == P_WHITE);
   targets.win = winner == P_WHITE ? 1.0f : 0.0f;
   targets.loss = winner == P_BLACK ? 1.0f : 0.0f;
   targets.noResult = 0.0f;
@@ -61,8 +62,7 @@ static void getNNEval(
   nnInputParams.drawEquivalentWinsForWhite = drawEquivalentWinsForWhite;
   nnInputParams.playoutDoublingAdvantage = (playoutDoublingAdvantagePla == getOpp(nextPla) ? -playoutDoublingAdvantage : playoutDoublingAdvantage);
   nnInputParams.maxHistory = maxHistory;
-  Board copy(board);
-  nnEval->evaluate(copy,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
+  nnEval->evaluate(board,hist,nextPla,nnInputParams,buf,skipCache,includeOwnerMap);
 }
 
 // static double getPassProb(
@@ -268,6 +268,9 @@ static void parseSGFRank(
     if(rankStr == "") {
       isUnknown = true;
     }
+    else if(rankStr == "?") {
+      isUnknown = true;
+    }
     else if(rankStr == "-") {
       isUnranked = true;
     }
@@ -384,7 +387,8 @@ static void parseSGFRank(
     throw StringError("Unable to parse rank: " + rankStr);
   }
 
-  assert((int)isKyu + (int)isKyuAma + (int)isDan + (int)isDanAma + (int)isPro + (int)isUnranked + (int)isUnknown == 1);
+  if((int)isKyu + (int)isKyuAma + (int)isDan + (int)isDanAma + (int)isPro + (int)isUnranked + (int)isUnknown != 1)
+    throw StringError("Unable to parse rank, ambiguous classification: " + rankStr);
 
   //Special handling for gogod ranks. Gogod labels pro dan as d, and amateur dan sometimes as "a" or "d ama".
   //Also Gogod kyu labels are not reliable to modern kyu since they could be historical very strong kyu.
@@ -447,18 +451,18 @@ struct KGSCsvLine {
   string unknownField; // Not sure what this is
   float result;
 
-  string getKey() {
+  string getKey() const {
     return date.toString() + "|$#" + sgfWUsername + "|$#" + sgfBUsername + "|" + Global::intToString(indexThisDayZeroIndexed);
   }
-  static string makeKey(SimpleDate date, string sgfWUsername, string sgfBUsername, int indexThisDayZeroIndexed) {
+  static string makeKey(const SimpleDate& date, const string &sgfWUsername, const string &sgfBUsername, int indexThisDayZeroIndexed) {
     return date.toString() + "|$#" + sgfWUsername + "|$#" + sgfBUsername + "|" + Global::intToString(indexThisDayZeroIndexed);
   }
 };
 
 static void readKgsCsv(
   const string& kgsCsv,
-  SimpleDate kgsCsvMinDate,
-  SimpleDate kgsCsvMaxDate,
+  const SimpleDate& kgsCsvMinDate,
+  const SimpleDate& kgsCsvMaxDate,
   Logger& logger,
   std::map<string,KGSCsvLine>& kgsCsvMap
 ) {
@@ -556,6 +560,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   string nnModelFile;
   vector<string> sgfDirs;
   string noTrainUsersFile;
+  string onlyTrainUsersFile;
   string noGameUsersFile;
   string isBotUsersFile;
   string excludeGamesFile;
@@ -582,6 +587,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     TCLAP::MultiArg<string> sgfDirArg("","sgfdir","Directory of sgf files",false,"DIR");
     TCLAP::ValueArg<string> noTrainUsersArg("","no-train-users-file","Avoid training on these player's moves",true,string(),"TXTFILE");
+    TCLAP::ValueArg<string> onlyTrainUsersArg("","only-train-users-file","Only train on these player's moves",false,string(),"TXTFILE");
     TCLAP::ValueArg<string> noGameUsersArg("","no-game-users-file","Avoid training on games with these players",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> isBotUsersArg("","is-bot-users-file","Mark these usernames as bots",true,string(),"TXTFILE");
     TCLAP::ValueArg<string> excludeGamesArg("","exclude-games-file","Exclude games whose paths contain these strings",false,string(),"TXTFILE");
@@ -602,6 +608,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
     cmd.add(sgfDirArg);
     cmd.add(noTrainUsersArg);
+    cmd.add(onlyTrainUsersArg);
     cmd.add(noGameUsersArg);
     cmd.add(isBotUsersArg);
     cmd.add(excludeGamesArg);
@@ -625,6 +632,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     nnModelFile = cmd.getModelFile();
     sgfDirs = sgfDirArg.getValue();
     noTrainUsersFile = noTrainUsersArg.getValue();
+    onlyTrainUsersFile = onlyTrainUsersArg.getValue();
     noGameUsersFile = noGameUsersArg.getValue();
     isBotUsersFile = isBotUsersArg.getValue();
     excludeGamesFile = excludeGamesArg.getValue();
@@ -673,7 +681,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   const int numSearchThreads = 1;
   const int numTotalThreads = numWorkerThreads * numSearchThreads;
 
-  const int dataBoardLen = cfg.getInt("dataBoardLen",3,37);
+  const int dataBoardLen = cfg.getInt("dataBoardLen",3,Board::MAX_LEN);
   const int maxApproxRowsPerTrainFile = cfg.getInt("maxApproxRowsPerTrainFile",1,100000000);
 
   const std::vector<std::pair<int,int>> allowedBoardSizes =
@@ -688,6 +696,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   const int numGlobalChannels = NNInputs::NUM_FEATURES_GLOBAL_V7;
 
   const std::set<string> noTrainUsers = loadStrippedTxtFileLines(noTrainUsersFile);
+  const std::set<string> onlyTrainUsers =
+    (onlyTrainUsersFile != "") ? loadStrippedTxtFileLines(onlyTrainUsersFile) : std::set<string>();
   const std::set<string> noGameUsers = loadStrippedTxtFileLines(noGameUsersFile);
   const std::set<string> isBotUsers = loadStrippedTxtFileLines(isBotUsersFile);
   const std::set<string> excludeFiles =
@@ -697,13 +707,12 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   {
     Setup::initializeSession(cfg);
     const int expectedConcurrentEvals = numTotalThreads;
-    const int defaultMaxBatchSize = std::max(8,((numTotalThreads+3)/4)*4);
     const bool defaultRequireExactNNLen = false;
     const bool disableFP16 = false;
     const string expectedSha256 = "";
     nnEval = Setup::initializeNNEvaluator(
       nnModelFile,nnModelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
-      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,defaultMaxBatchSize,defaultRequireExactNNLen,disableFP16,
+      NNPos::MAX_BOARD_LEN,NNPos::MAX_BOARD_LEN,Setup::MaxBatchSizeRequest::fromConcurrency(),defaultRequireExactNNLen,disableFP16,
       Setup::SETUP_FOR_ANALYSIS
     );
   }
@@ -711,6 +720,13 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
   string searchRandSeed = Global::uint64ToString(seedRand.nextUInt64());
   SearchParams params = SearchParams::basicDecentParams();
+  //BoardHistoryModes, applied uniformly to game replay/adjudication, featurization,
+  //training targets, and the searches below. Auto resolves to the model's declared preferences.
+  if(cfg.contains("alwaysComputePassAliveUnderSuicideRules"))
+    params.alwaysComputePassAliveUnderSuicideRules = cfg.getEnabled("alwaysComputePassAliveUnderSuicideRules");
+  if(cfg.contains("excludeTerritoryAdjacentToAtari"))
+    params.excludeTerritoryAdjacentToAtari = cfg.getEnabled("excludeTerritoryAdjacentToAtari");
+  const BoardHistoryModes historyModes = Search::resolveHistoryModes(params, nnEval);
   params.maxVisits = maxVisits;
   params.chosenMoveTemperatureEarly = 0.1;
   params.chosenMoveTemperature = 0.1;
@@ -847,7 +863,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
     }
 
-    std::unique_ptr<Sgf> sgfRaw = NULL;
+    std::unique_ptr<Sgf> sgfRaw = nullptr;
     XYSize xySize;
     try {
       sgfRaw = std::unique_ptr<Sgf>(Sgf::loadFile(fileName));
@@ -898,9 +914,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     const string sizeStr = " (size " + Global::intToString(xySize.x) + "x" + Global::intToString(xySize.y) + ")";
     const string bSizeStr = Global::intToString(xySize.x) + "x" + Global::intToString(xySize.y);
 
-    std::unique_ptr<CompactSgf> sgf = NULL;
+    std::unique_ptr<CompactSgf> sgf = nullptr;
     try {
-      sgf = std::make_unique<CompactSgf>(sgfRaw.get());
+      sgf = std::make_unique<CompactSgf>(*sgfRaw);
     }
     catch(const StringError& e) {
       logger.write("Invalid SGF " + fileName + ": " + e.what());
@@ -1073,8 +1089,14 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       isBotW = isBotW || isLikelyBot(sgfWUsername,whatDataSource);
     }
 
-    const bool shouldTrainB = noTrainUsers.find(sgfBUsername) == noTrainUsers.end() && !(noTrainOnBots && isBotB);
-    const bool shouldTrainW = noTrainUsers.find(sgfWUsername) == noTrainUsers.end() && !(noTrainOnBots && isBotW);
+    const bool shouldTrainB =
+      noTrainUsers.find(sgfBUsername) == noTrainUsers.end()
+      && !(noTrainOnBots && isBotB)
+      && !(onlyTrainUsers.size() > 0 && onlyTrainUsers.find(sgfBUsername) == onlyTrainUsers.end());
+    const bool shouldTrainW =
+      noTrainUsers.find(sgfWUsername) == noTrainUsers.end()
+      && !(noTrainOnBots && isBotW)
+      && !(onlyTrainUsers.size() > 0 && onlyTrainUsers.find(sgfWUsername) == onlyTrainUsers.end());
 
     if(!shouldTrainB && !shouldTrainW) {
       if(verbosity >= 2)
@@ -1361,7 +1383,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     Player nextPla;
     BoardHistory hist;
     try {
-      sgf->setupInitialBoardAndHist(rules, board, nextPla, hist);
+      //Set up before replaying so game replay/adjudication, featurization, and targets are all uniform
+      //with each other and with the searches (whose setPosition resolves to the same value from params).
+      sgf->setupInitialBoardAndHist(rules, board, nextPla, hist, historyModes);
     }
     catch(const StringError& e) {
       logger.write("Bad initial setup in sgf " + fileName + " " + e.what());
@@ -1909,8 +1933,8 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
 
       Move move = sgfMoves[m];
       moves.push_back(move.loc);
-      policyTargets.push_back(vector<PolicyTargetMove>());
-      policyTargets[policyTargets.size()-1].push_back(PolicyTargetMove(move.loc,1));
+      policyTargets.emplace_back();
+      policyTargets[policyTargets.size()-1].emplace_back(move.loc,1);
 
       // We want policies learned from human moves to be compatible with KataGo using them in a search which may use
       // stricter computer rules. So if a player passes, we do NOT train on it. And do NOT train on the opponent's response
@@ -2049,7 +2073,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           Loc moveLoc = search->runWholeSearchAndGetMove(nextPla);
 
           moves.push_back(moveLoc);
-          policyTargets.push_back(vector<PolicyTargetMove>());
+          policyTargets.emplace_back();
           Play::extractPolicyTarget(policyTargets[policyTargets.size()-1],search,search->rootNode,locsBuf,playSelectionValuesBuf);
 
           // KataGo cleanup moves get weighted a tiny bit, so we can preserve the instinct to cleanup
@@ -2057,8 +2081,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           trainingWeights.push_back(0.05);
 
           bool suc = hist.isLegal(board,moveLoc,nextPla);
-          (void)suc;
-          assert(suc);
+          testAssert(suc);
 
           bool preventEncore = false;
           hist.makeBoardMoveAssumeLegal(board,moveLoc,nextPla,NULL,preventEncore);
@@ -2083,7 +2106,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           // Ownership stuff!
           hasOwnershipTargets = true;
           hists[hists.size()-1].endAndScoreGameNow(board,finalOwnership);
-          board.calculateArea(finalFullArea, true, true, true, hist.rules.multiStoneSuicideLegal);
+          board.calculateArea(finalFullArea, true, true, true, hist.suicideLegalForPassAlive());
           NNInputs::fillScoring(board,finalOwnership,hist.rules.taxRule == Rules::TAX_ALL,finalWhiteScoring);
 
           // Make sure KataGo didn't leave huge unscored regions due to passing weirdness, and make sure the scoring agrees with
@@ -2285,7 +2308,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
     // Only fill in the lead when we have ownership targets, with the game scored correctly.
     // Lead is going to be pretty high variance,
     if(hasOwnershipTargets) {
-      assert(!hasForcedWinner);
+      testAssert(!hasForcedWinner);
       for(size_t m = 0; m<whiteValueTargets.size()-1; m++) {
         const ValueTargets& finalTargets = whiteValueTargets[whiteValueTargets.size()-1];
         whiteValueTargets[m].hasLead = true;
@@ -2321,6 +2344,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       const std::vector<ChangedNeuralNet*> changedNeuralNets;
       const bool hitTurnLimit = false;
       const int mode = 0;
+      const std::vector<QValueTargets> whiteQValueTargets;
 
       if(
         trainingWeights[m] > 1e-8
@@ -2342,6 +2366,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
           policyEntropy,
           searchEntropy,
           whiteValueTargets,
+          whiteQValueTargets,
           turnIdx,
           valueTargetWeight,
           tdValueTargetWeight,
@@ -2421,7 +2446,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
   );
 
   auto printGameCountsMap = [&](
-    const std::map<string,int64_t> counts,
+    const std::map<string,int64_t>& counts,
     const string& label,
     bool sortByCount,
     std::map<string,int64_t>* accCounts

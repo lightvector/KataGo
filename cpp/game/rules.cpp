@@ -254,7 +254,7 @@ string Rules::toJsonStringNoKomiMaybeOmitStuff() const {
   return toJsonHelper(true,true).dump();
 }
 
-Rules Rules::updateRules(const string& k, const string& v, Rules oldRules) {
+Rules Rules::updateRules(const string& k, const string& v, const Rules& oldRules) {
   Rules rules = oldRules;
   string key = Global::trim(k);
   string value = Global::trim(Global::toUpper(v));
@@ -357,7 +357,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
     rules.hasButton = false;
     rules.whiteHandicapBonusRule = Rules::WHB_ZERO;
     rules.friendlyPassOk = true;
-    rules.komi = 7.5;
+    rules.komi = 7.0;
   }
   else if(lowercased == "tromp-taylor" || lowercased == "tromp_taylor" || lowercased == "tromp taylor" || lowercased == "tromptaylor") {
     rules.scoringRule = Rules::SCORING_AREA;
@@ -388,7 +388,7 @@ static Rules parseRulesHelper(const string& sOrig, bool allowKomi) {
       json input = json::parse(sOrig);
       string s;
       for(json::iterator iter = input.begin(); iter != input.end(); ++iter) {
-        string key = iter.key();
+        const string& key = iter.key();
         if(key == "ko")
           rules.koRule = Rules::parseKoRule(iter.value().get<string>());
         else if(key == "score")
@@ -614,3 +614,12 @@ const Hash128 Rules::ZOBRIST_MULTI_STONE_SUICIDE_HASH =   //Based on sha256 hash
 
 const Hash128 Rules::ZOBRIST_BUTTON_HASH =   //Based on sha256 hash of Rules::ZOBRIST_BUTTON_HASH
   Hash128(0xb8b914c9234ece84ULL, 0x3d759cddebe29c14ULL);
+
+const Hash128 Rules::ZOBRIST_FRIENDLY_PASS_OK_HASH =   //Based on sha256 hash of Rules::ZOBRIST_FRIENDLY_PASS_OK_HASH
+  Hash128(0x0113655998ef0a25ULL, 0x99c9d04ecd964874ULL);
+
+const Hash128 Rules::ZOBRIST_PASS_ALIVE_UNDER_SUICIDE_HASH =   //Based on sha256 hash of Rules::ZOBRIST_PASS_ALIVE_UNDER_SUICIDE_HASH
+  Hash128(0x3094018861134017ULL, 0x706330a293e266aaULL);
+
+const Hash128 Rules::ZOBRIST_EXCLUDE_TERRITORY_ADJ_ATARI_HASH =   //Based on sha256 hash of Rules::ZOBRIST_EXCLUDE_TERRITORY_ADJ_ATARI_HASH
+  Hash128(0x02755c10129903ceULL, 0x786bb096ee2f483dULL);

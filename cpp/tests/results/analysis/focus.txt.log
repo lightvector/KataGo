@@ -1,0 +1,256 @@
+: Running with following config:
+cudaUseFP16 = false
+cudaUseNHWC = false
+forDeterministicTesting = true
+logAllRequests = true
+logAllResponses = true
+logFile = tests/results/analysis/focus.txt.log
+logSearchInfo = true
+logTimeStamp = false
+maxPlayouts = 10000
+maxVisits = 100
+nnCacheSizePowerOfTwo = 23
+nnMaxBatchSize = 64
+nnMutexPoolSizePowerOfTwo = 17
+nnRandSeed = analysisTest
+nnRandomize = false
+numAnalysisThreads = 1
+numSearchThreads = 1
+openclUseFP16 = false
+reportAnalysisWinratesAs = BLACK
+rootSymmetryPruning = false
+trtUseFP16 = false
+
+: Analysis Engine starting...
+: KataGo v1.18.2
+: nnRandSeed0 = analysisTest
+: After dedups: nnModelFile0 = tests/models/g170-b6c96-s175395328-d26788732.bin.gz useFP16 false
+: Initializing neural net buffer to be size 19 * 19 allowing smaller boards
+: Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
+: Cuda backend thread 0: Model version 8 useFP16 = false useNHWC = false
+: Cuda backend thread 0: Model name: g170-b6c96-s175395328-d26788732 (convnet, 1027911 params)
+: Loaded config configs/analysis_example.cfg and/or command-line and query overrides
+: Loaded model tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: Config override: cudaUseFP16 = false
+: Config override: cudaUseNHWC = false
+: Config override: forDeterministicTesting = true
+: Config override: logAllRequests = true
+: Config override: logAllResponses = true
+: Config override: logDir = 
+: Config override: logFile = tests/results/analysis/focus.txt.log
+: Config override: logSearchInfo = true
+: Config override: logTimeStamp = false
+: Config override: maxPlayouts = 10000
+: Config override: maxVisits = 100
+: Config override: nnRandSeed = analysisTest
+: Config override: nnRandomize = false
+: Config override: numAnalysisThreads = 1
+: Config override: numSearchThreadsPerAnalysisThread = 1
+: Config override: openclUseFP16 = false
+: Config override: rootSymmetryPruning = false
+: Config override: trtUseFP16 = false
+: Analyzing up to 1 positions at a time in parallel
+: Started, ready to begin handling requests
+: Request: {"id":"focustest","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5","E5"],"focusProb":0.5}
+: Request: {"id":"focustest","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5"],"focusProb":0.9,"includePVVisits":true}
+: Request: {"id":"focustest","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5"]}
+: Request: {"id":"focusweighted","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5","E5","C3"],"focusWeights":[6,3,1],"focusProb":0.9}
+: Request: {"id":"focusbadweightlen","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5","E5"],"focusWeights":[1]}
+: Response: {"error":"Must be an array of positive numbers with the same length as focusMoves","field":"focusWeights","id":"focusbadweightlen"}
+: Error: {"error":"Must be an array of positive numbers with the same length as focusMoves","field":"focusWeights","id":"focusbadweightlen"}
+: Request: {"id":"focusbadweightval","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5","E5"],"focusWeights":[1,0]}
+: Response: {"error":"Must be an array of positive numbers with the same length as focusMoves","field":"focusWeights","id":"focusbadweightval"}
+: Error: {"error":"Must be an array of positive numbers with the same length as focusMoves","field":"focusWeights","id":"focusbadweightval"}
+: Request: {"id":"focusbadloc","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["Z9"]}
+: Response: {"error":"Could not parse board location: Z9","field":"focusMoves","id":"focusbadloc"}
+: Error: {"error":"Could not parse board location: Z9","field":"focusMoves","id":"focusbadloc"}
+: Request: {"id":"focusbadprob","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5"],"focusProb":1.5}
+: Response: {"error":"Must be a number from 0.0 to 1.0","field":"focusProb","id":"focusbadprob"}
+: Error: {"error":"Must be a number from 0.0 to 1.0","field":"focusProb","id":"focusbadprob"}
+: Request: {"id":"focusavoided","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100},"focusMoves":["C5"],"focusProb":1.0,"avoidMoves":[{"player":"B","moves":["C5"],"untilDepth":1}]}
+: Request: {"id":"queued","initialStones":[],"moves":[["B","D4"],["W","D5"]],"rules":"tromp-taylor","komi":9,"boardXSize":7,"boardYSize":7,"overrideSettings":{"maxVisits":100}}
+: Request: {"id":"setfocus1","action":"set_focus","targetId":"queued","focusMoves":["C5"],"focusProb":0.9}
+: Response: {"action":"set_focus","focusMoves":["C5"],"focusProb":0.9,"id":"setfocus1","targetId":"queued"}
+: Request: {"id":"setfocus2","action":"set_focus"}
+: Response: {"error":"Requests for a set_focus action must have a string \"targetId\" field","field":"targetId","id":"setfocus2"}
+: Error: {"error":"Requests for a set_focus action must have a string \"targetId\" field","field":"targetId","id":"setfocus2"}
+: Request: {"id":"setfocus3","action":"set_focus","targetId":"queued","focusProb":2}
+: Response: {"error":"Must be a number from 0.0 to 1.0","field":"focusProb","id":"setfocus3"}
+: Error: {"error":"Must be a number from 0.0 to 1.0","field":"focusProb","id":"setfocus3"}
+: Request: {"id":"setfocus4","action":"set_focus","targetId":"queued","focusMoves":["Z9"]}
+: Response: {"error":"Could not parse board location: Z9","field":"focusMoves","id":"setfocus4"}
+: Error: {"error":"Could not parse board location: Z9","field":"focusMoves","id":"setfocus4"}
+: Request: {"id":"setfocus5","action":"set_focus","targetId":"nonexistent","focusMoves":["C5"]}
+: Response: {"action":"set_focus","focusMoves":["C5"],"id":"setfocus5","targetId":"nonexistent"}
+: Request: {"id":"setfocus6","action":"set_focus","targetId":"queued","focusMoves":["C5"],"focusWeights":[1,2]}
+: Response: {"error":"Must be an array of positive numbers with the same length as focusMoves","field":"focusWeights","id":"setfocus6"}
+: Error: {"error":"Must be an array of positive numbers with the same length as focusMoves","field":"focusWeights","id":"setfocus6"}
+: MoveNum: 2 HASH: DB0B9B3B2B1EBC1530C0D5F088115709
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . . . O2. . .
+ 4 . . . X1. . .
+ 3 . . . . . . .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi9
+Root visits: 100
+New playouts: 100
+NN rows: 130
+NN batches: 130
+NN avg batch size: 1
+PV: E5 C4 D3 C6 D6 C5 C3 E6 F6
+Tree:
+: T   5.02c W   9.28c S  -4.15c ( +0.8 L  +0.4) N     100  --  E5 C4 D3 C6 D6 C5 C3
+---Black(^)---
+E5  : T   9.04c W  12.66c S  -3.73c ( +1.0 L  +0.5) LCB  -16.60c P 37.30% WF  51.3 PSV      50 N      54  --  E5 C4 D3 C6 D6 C5 C3 E6
+C5  : T   0.27c W   5.90c S  -4.67c ( +0.6 L  +0.3) LCB  -26.75c P 41.16% WF  30.1 PSV      24 N      66  --  C5 E4 D3 E6 D6 E5 E3 C6
+E4  : T  -0.24c W   2.89c S  -4.86c ( +0.5 L  +0.1) LCB  -28.04c P 10.22% WF   8.8 PSV       5 N       9  --  E4 C5 C4 E5 F5
+C4  : T  -4.38c W   0.81c S  -5.10c ( +0.4 L  +0.2) LCB  -30.17c P 10.95% WF   8.7 PSV       4 N       9  --  C4 E5 E4 C5 F5
+
+: Response: {"id":"focustest","isDuringSearch":false,"moveInfos":[{"edgeVisits":50,"edgeWeight":50.0,"lcb":0.471749427,"move":"E5","order":0,"playSelectionValue":50.0,"prior":0.372959465,"pv":["E5","C4","D3","C6","D6","C5","C3","E6","F6"],"scoreLead":0.474574339,"scoreMean":0.474574339,"scoreSelfplay":1.03315859,"scoreStdev":9.62464655,"utility":0.090353016,"utilityLcb":-0.165991318,"visits":54,"weight":54.0,"winrate":0.563300975},{"edgeVisits":31,"edgeWeight":30.8312982,"lcb":0.433028962,"move":"C5","order":1,"playSelectionValue":24.0,"prior":0.41159609,"pv":["C5","E4","D3","E6","D6","E5","E3","C6","B6","D7","B5","F3","F2","F4"],"scoreLead":0.321115318,"scoreMean":0.321115318,"scoreSelfplay":0.618451033,"scoreStdev":9.25538155,"utility":0.00269366378,"utilityLcb":-0.267482021,"visits":66,"weight":65.6408285,"winrate":0.529520278},{"edgeVisits":9,"edgeWeight":9.0,"lcb":0.41515014,"move":"E4","order":2,"playSelectionValue":5.0,"prior":0.102184221,"pv":["E4","C5","C4","E5","F5"],"scoreLead":0.058383486,"scoreMean":0.058383486,"scoreSelfplay":0.520836914,"scoreStdev":9.28997714,"utility":-0.0023897357,"utilityLcb":-0.280372776,"visits":9,"weight":9.0,"winrate":0.514429797},{"edgeVisits":9,"edgeWeight":9.0,"lcb":0.411940422,"move":"C4","order":3,"playSelectionValue":4.0,"prior":0.109456629,"pv":["C4","E5","E4","C5","F5"],"scoreLead":0.198106304,"scoreMean":0.198106304,"scoreSelfplay":0.375585347,"scoreStdev":9.42829678,"utility":-0.0437570933,"utilityLcb":-0.301701273,"visits":9,"weight":9.0,"winrate":0.504063344}],"rootInfo":{"currentPlayer":"B","rawLead":3.15101528,"rawNoResultProb":0.0,"rawScoreSelfplay":4.33458424,"rawScoreSelfplayStdev":10.3453611,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.836973846,"scoreLead":0.424652887,"scoreSelfplay":0.89216505,"scoreStdev":9.51070592,"symHash":"5121B114D9530778F5F52C8F58DD297F","thisHash":"5121B114D9530778F5F52C8F58DD297F","utility":0.060687532,"visits":100,"weight":99.83129823483188,"winrate":0.55117752},"turnNumber":2}
+: MoveNum: 2 HASH: DB0B9B3B2B1EBC1530C0D5F088115709
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . . . O2. . .
+ 4 . . . X1. . .
+ 3 . . . . . . .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi9
+Root visits: 100
+New playouts: 100
+NN rows: 1018
+NN batches: 1018
+NN avg batch size: 1
+PV: C5 E4 D3 E6 C6 E3 E2 F2 D2 F1 D6 E5 E7 F7 D7 E1 F6 F5 G7 C4 B2 D1 C2 B4 B5
+Tree:
+: T  16.48c W  20.05c S  -3.32c ( +1.3 L  +0.9) N     100  --  C5 E4 D3 E6 C6 E3 E2
+---Black(^)---
+C5  : T  22.48c W  25.17c S  -3.09c ( +1.4 L  +1.1) LCB   -4.79c P 41.16% WF  69.0 PSV      67 N    1065  --  C5 E4 D3 E6 C6 E3 E2 F2
+E5  : T   0.56c W   8.55c S  -3.54c ( +1.0 L  +0.5) LCB  -34.32c P 37.30% WF  16.5 PSV      14 N      18  --  E5 C4 D3 C5 E6 C3
+C4  : T  -0.36c W   3.90c S  -4.83c ( +0.5 L  +0.2) LCB  -23.53c P 10.95% WF   7.4 PSV       4 N       8  --  C4 E5 E4 C5 B5
+E4  : T  -0.51c W   0.69c S  -4.74c ( +0.5 L  +0.1) LCB  -34.57c P 10.22% WF   4.7 PSV       3 N       5  --  E4 C4 C3
+
+: Response: {"id":"focustest","isDuringSearch":false,"moveInfos":[{"edgeVisits":68,"edgeWeight":66.6911985,"lcb":0.528472788,"move":"C5","order":0,"playSelectionValue":66.6911985,"prior":0.41159609,"pv":["C5","E4","D3","E6","C6","E3","E2","F2","D2","F1","D6","E5","E7","F7","D7","E1"],"pvEdgeVisits":[68,835,795,633,453,452,438,410,406,262,238,235,232,223,222,195],"pvVisits":[1065,835,795,633,453,452,438,410,406,262,238,235,232,223,222,195],"scoreLead":1.09455277,"scoreMean":1.09455277,"scoreSelfplay":1.3999461,"scoreStdev":9.15889002,"utility":0.224778831,"utilityLcb":-0.0478696831,"visits":1065,"weight":1044.50186,"winrate":0.625847258},{"edgeVisits":18,"edgeWeight":18.0,"lcb":0.418184896,"move":"E5","order":1,"playSelectionValue":14.0,"prior":0.372959465,"pv":["E5","C4","D3","C5","E6","C3"],"pvEdgeVisits":[18,15,8,5,2,1],"pvVisits":[18,15,8,5,2,1],"scoreLead":0.488811236,"scoreMean":0.488811236,"scoreSelfplay":1.02499693,"scoreStdev":10.4211328,"utility":0.00563340703,"utilityLcb":-0.343202473,"visits":18,"weight":18.0,"winrate":0.542769139},{"edgeVisits":8,"edgeWeight":8.0,"lcb":0.436729799,"move":"C4","order":2,"playSelectionValue":4.0,"prior":0.109456629,"pv":["C4","E5","E4","C5","B5"],"pvEdgeVisits":[8,4,3,2,1],"pvVisits":[8,4,3,2,1],"scoreLead":0.248848515,"scoreMean":0.248848515,"scoreSelfplay":0.523718898,"scoreStdev":9.34360702,"utility":-0.00357093832,"utilityLcb":-0.235330117,"visits":8,"weight":8.0,"winrate":0.519500935},{"edgeVisits":5,"edgeWeight":5.0,"lcb":0.381784327,"move":"E4","order":3,"playSelectionValue":3.0,"prior":0.102184221,"pv":["E4","C4","C3"],"pvEdgeVisits":[5,2,1],"pvVisits":[5,2,1],"scoreLead":0.0671093286,"scoreMean":0.0671093286,"scoreSelfplay":0.458087575,"scoreStdev":10.037566,"utility":-0.00508281405,"utilityLcb":-0.345727823,"visits":5,"weight":5.0,"winrate":0.503443258}],"rootInfo":{"currentPlayer":"B","rawLead":3.15101528,"rawNoResultProb":0.0,"rawScoreSelfplay":4.33458424,"rawScoreSelfplayStdev":10.3453611,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.836973846,"scoreLead":0.949227565,"scoreSelfplay":1.30247155,"scoreStdev":9.43114764,"symHash":"5121B114D9530778F5F52C8F58DD297F","thisHash":"5121B114D9530778F5F52C8F58DD297F","utility":0.177498291,"visits":100,"weight":98.69119852102934,"winrate":0.606177162},"turnNumber":2}
+: MoveNum: 2 HASH: DB0B9B3B2B1EBC1530C0D5F088115709
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . . . O2. . .
+ 4 . . . X1. . .
+ 3 . . . . . . .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi9
+Root visits: 100
+New playouts: 100
+NN rows: 1018
+NN batches: 1018
+NN avg batch size: 1
+PV: C5 E4 D3 E6 D6 E5 C6 E3 E2 F2 D2 F1 E7 F7
+Tree:
+: T   6.47c W  11.08c S  -4.14c ( +0.9 L  +0.5) N     100  --  C5 E4 D3 E6 D6 E5 C6
+---Black(^)---
+C5  : T  11.20c W  14.23c S  -4.33c ( +0.9 L  +0.5) LCB  -11.14c P 41.16% WF  54.5 PSV      53 N     104  --  C5 E4 D3 E6 D6 E5 C6 E3
+E5  : T   0.21c W   8.57c S  -3.57c ( +1.0 L  +0.5) LCB  -33.61c P 37.30% WF  27.1 PSV      18 N      28  --  E5 C4 D3 C5 E6 C3 C2
+E4  : T  -0.24c W   2.89c S  -4.86c ( +0.5 L  +0.1) LCB  -28.04c P 10.22% WF   8.8 PSV       5 N       9  --  E4 C5 C4 E5 F5
+C4  : T  -4.38c W   0.81c S  -5.10c ( +0.4 L  +0.2) LCB  -30.17c P 10.95% WF   8.6 PSV       4 N       9  --  C4 E5 E4 C5 F5
+
+: Response: {"id":"focustest","isDuringSearch":false,"moveInfos":[{"edgeVisits":53,"edgeWeight":53.0,"lcb":0.491385766,"move":"C5","order":0,"playSelectionValue":53.0,"prior":0.41159609,"pv":["C5","E4","D3","E6","D6","E5","C6","E3","E2","F2","D2","F1","E7","F7"],"scoreLead":0.535046295,"scoreMean":0.535046295,"scoreSelfplay":0.854266452,"scoreStdev":8.79535961,"utility":0.112014431,"utilityLcb":-0.11139375,"visits":104,"weight":104.0,"winrate":0.571174402},{"edgeVisits":28,"edgeWeight":28.0,"lcb":0.422095913,"move":"E5","order":1,"playSelectionValue":18.0,"prior":0.372959465,"pv":["E5","C4","D3","C5","E6","C3","C2"],"scoreLead":0.496699725,"scoreMean":0.496699725,"scoreSelfplay":1.00451833,"scoreStdev":10.4515086,"utility":0.00209274622,"utilityLcb":-0.336055799,"visits":28,"weight":28.0,"winrate":0.542863251},{"edgeVisits":9,"edgeWeight":9.0,"lcb":0.41515014,"move":"E4","order":2,"playSelectionValue":5.0,"prior":0.102184221,"pv":["E4","C5","C4","E5","F5"],"scoreLead":0.058383486,"scoreMean":0.058383486,"scoreSelfplay":0.520836914,"scoreStdev":9.28997714,"utility":-0.0023897357,"utilityLcb":-0.280372776,"visits":9,"weight":9.0,"winrate":0.514429797},{"edgeVisits":9,"edgeWeight":9.0,"lcb":0.411940422,"move":"C4","order":3,"playSelectionValue":4.0,"prior":0.109456629,"pv":["C4","E5","E4","C5","F5"],"scoreLead":0.198106304,"scoreMean":0.198106304,"scoreSelfplay":0.375585347,"scoreStdev":9.42829678,"utility":-0.0437570933,"utilityLcb":-0.301701273,"visits":9,"weight":9.0,"winrate":0.504063344}],"rootInfo":{"currentPlayer":"B","rawLead":3.15101528,"rawNoResultProb":0.0,"rawScoreSelfplay":4.33458424,"rawScoreSelfplayStdev":10.3453611,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.836973846,"scoreLead":0.512758106,"scoreSelfplay":0.886402001,"scoreStdev":9.27909431,"symHash":"5121B114D9530778F5F52C8F58DD297F","thisHash":"5121B114D9530778F5F52C8F58DD297F","utility":0.0801220768,"visits":100,"weight":100.0,"winrate":0.56134763},"turnNumber":2}
+: MoveNum: 2 HASH: DB0B9B3B2B1EBC1530C0D5F088115709
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . . . O2. . .
+ 4 . . . X1. . .
+ 3 . . . . . . .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi9
+Root visits: 100
+New playouts: 100
+NN rows: 1368
+NN batches: 1368
+NN avg batch size: 1
+PV: C5 E4 D3 E6 C6 E3 E2 F2 D2 F1 D6 E5 E7 F7 D7 E1 D1 F6 pass pass
+Tree:
+: T  18.04c W  20.59c S  -3.28c ( +1.3 L  +0.9) N     100  --  C5 E4 D3 E6 C6 E3 E2
+---Black(^)---
+C5  : T  22.20c W  24.45c S  -2.79c ( +1.5 L  +1.0) LCB   -3.22c P 41.16% WF  59.3 PSV      58 N     588  --  C5 E4 D3 E6 C6 E3 E2 F2
+E5  : T  11.60c W  15.88c S  -4.31c ( +0.9 L  +0.6) LCB  -28.06c P 37.30% WF  26.0 PSV      21 N     312  --  E5 C4 D3 C6 D6 C5 C3 E6
+C4  : T   8.46c W   5.89c S  -4.34c ( +0.7 L  +0.4) LCB  -19.29c P 10.95% WF   5.8 PSV       5 N       6  --  C4 E4 E3 E5
+E4  : T  -9.82c W  -4.68c S  -5.08c ( +0.3 L  +0.1) LCB  -84.17c P 10.22% WF   2.7 PSV       2 N       3  --  E4 C4
+C3  : T -67.62c W -56.15c S -11.56c ( -2.4 L  -2.1) LCB -1400.00c P  0.08% WF   0.0 PSV       0 N     105  --  C3 E5 C5 C6 B6 B5 C4 B7
+
+: Response: {"id":"focusweighted","isDuringSearch":false,"moveInfos":[{"edgeVisits":63,"edgeWeight":57.900577,"lcb":0.5314643,"move":"C5","order":0,"playSelectionValue":57.900577,"prior":0.41159609,"pv":["C5","E4","D3","E6","C6","E3","E2","F2","D2","F1","D6","E5","E7","F7","D7","E1"],"scoreLead":1.04481399,"scoreMean":1.04481399,"scoreSelfplay":1.48049355,"scoreStdev":9.82338072,"utility":0.221987449,"utilityLcb":-0.0322385834,"visits":588,"weight":540.405386,"winrate":0.622259312},{"edgeVisits":27,"edgeWeight":26.9599319,"lcb":0.437771643,"move":"E5","order":1,"playSelectionValue":21.0,"prior":0.372959465,"pv":["E5","C4","D3","C6","D6","C5","C3","E6","F6","D7","F5","B3","B2","B4","A2","F7"],"scoreLead":0.619602984,"scoreMean":0.619602984,"scoreSelfplay":0.871264131,"scoreStdev":8.76125344,"utility":0.116001571,"utilityLcb":-0.280576211,"visits":312,"weight":311.536991,"winrate":0.579406566},{"edgeVisits":6,"edgeWeight":6.0,"lcb":0.430361974,"move":"C4","order":2,"playSelectionValue":5.0,"prior":0.109456629,"pv":["C4","E4","E3","E5"],"scoreLead":0.405026014,"scoreMean":0.405026014,"scoreSelfplay":0.68591543,"scoreStdev":9.90102943,"utility":0.0845753367,"utilityLcb":-0.192896157,"visits":6,"weight":6.0,"winrate":0.529458936},{"edgeVisits":3,"edgeWeight":3.0,"lcb":0.211070673,"move":"E4","order":3,"playSelectionValue":2.0,"prior":0.102184221,"pv":["E4","C4"],"scoreLead":0.057372721,"scoreMean":0.057372721,"scoreSelfplay":0.27965423,"scoreStdev":10.0406039,"utility":-0.0981755854,"utilityLcb":-0.841656102,"visits":3,"weight":3.0,"winrate":0.476599429},{"edgeVisits":0,"edgeWeight":0.0,"lcb":-4.78074639,"move":"C3","order":4,"playSelectionValue":0.0,"prior":0.0008033372,"pv":["C3","E5","C5","C6","B6","B5","C4","B7","A6","A5","D6","A7"],"scoreLead":-2.11001288,"scoreMean":-2.11001288,"scoreSelfplay":-2.44210896,"scoreStdev":7.96952712,"utility":-0.676241509,"utilityLcb":-14.0,"visits":105,"weight":104.852985,"winrate":0.219253608}],"rootInfo":{"currentPlayer":"B","rawLead":3.15101528,"rawNoResultProb":0.0,"rawScoreSelfplay":4.33458424,"rawScoreSelfplayStdev":10.3453611,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.836973846,"scoreLead":0.906759067,"scoreSelfplay":1.29275836,"scoreStdev":9.60494597,"symHash":"5121B114D9530778F5F52C8F58DD297F","thisHash":"5121B114D9530778F5F52C8F58DD297F","utility":0.186629266,"visits":100,"weight":94.86050896221309,"winrate":0.605682727},"turnNumber":2}
+: MoveNum: 2 HASH: DB0B9B3B2B1EBC1530C0D5F088115709
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . . . O2. . .
+ 4 . . . X1. . .
+ 3 . . . . . . .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi9
+Root visits: 100
+New playouts: 100
+NN rows: 1415
+NN batches: 1415
+NN avg batch size: 1
+PV: E5 C4 D3 C5 E6 C3 C2 B2 D2 D6
+Tree:
+: T   1.43c W   7.06c S  -4.30c ( +0.7 L  +0.3) N     100  --  E5 C4 D3 C5 E6 C3 C2
+---Black(^)---
+E5  : T   4.09c W   9.69c S  -3.71c ( +1.0 L  +0.5) LCB  -25.96c P 37.30% WF  33.5 PSV      33 N      33  --  E5 C4 D3 C5 E6 C3 C2 B2
+E4  : T  -1.78c W   4.25c S  -5.10c ( +0.5 L  +0.2) LCB  -33.64c P 10.22% WF  12.8 PSV       5 N      13  --  E4 C5 C4 E5 B5 B6 B4
+C4  : T  -4.38c W   0.81c S  -5.10c ( +0.4 L  +0.2) LCB  -30.17c P 10.95% WF   8.8 PSV       5 N       9  --  C4 E5 E4 C5 B5 B6 B4
+C3  : T -73.27c W -60.36c S -12.91c ( -3.6 L  -1.9) LCB -423.27c P  0.08% WF   0.1 PSV       0 N       1  --  C3
+E3  : T -58.20c W -46.58c S -11.61c ( -2.9 L  -1.4) LCB -408.20c P  0.06% WF   0.1 PSV       0 N       1  --  E3
+D3  : T -79.70c W -67.10c S -12.60c ( -3.3 L  -2.3) LCB -429.70c P  0.03% WF   0.0 PSV       0 N       1  --  D3
+B5  : T -95.53c W -79.97c S -15.56c ( -6.3 L  -4.4) LCB -445.53c P  0.01% WF   0.0 PSV       0 N       1  --  B5
+D6  : T -94.92c W -80.55c S -14.36c ( -6.0 L  -4.6) LCB -444.92c P  0.01% WF   0.0 PSV       0 N       1  --  D6
+F5  : T -107.19c W -89.85c S -17.34c ( -7.4 L  -5.9) LCB -457.19c P  0.01% WF   0.0 PSV       0 N       1  --  F5
+F4  : T -103.50c W -87.34c S -16.16c ( -6.2 L  -5.0) LCB -453.50c P  0.01% WF   0.0 PSV       0 N       1  --  F4
+
+: Response: {"id":"focusavoided","isDuringSearch":false,"moveInfos":[{"edgeVisits":33,"edgeWeight":33.0,"lcb":0.441098413,"move":"E5","order":0,"playSelectionValue":33.0,"prior":0.372959465,"pv":["E5","C4","D3","C5","E6","C3","C2","B2","D2","D6"],"scoreLead":0.489698825,"scoreMean":0.489698825,"scoreSelfplay":0.982005694,"scoreStdev":10.0694316,"utility":0.040886236,"utilityLcb":-0.259631765,"visits":33,"weight":33.0,"winrate":0.54842627},{"edgeVisits":13,"edgeWeight":13.0,"lcb":0.407487877,"move":"E4","order":1,"playSelectionValue":5.0,"prior":0.102184221,"pv":["E4","C5","C4","E5","B5","B6","B4"],"scoreLead":0.19663017,"scoreMean":0.19663017,"scoreSelfplay":0.494254968,"scoreStdev":8.73654271,"utility":-0.0177785398,"utilityLcb":-0.336353665,"visits":13,"weight":13.0,"winrate":0.521264707},{"edgeVisits":9,"edgeWeight":9.0,"lcb":0.411940422,"move":"C4","order":2,"playSelectionValue":5.0,"prior":0.109456629,"pv":["C4","E5","E4","C5","B5","B6","B4"],"scoreLead":0.198106304,"scoreMean":0.198106304,"scoreSelfplay":0.375585347,"scoreStdev":9.42829678,"utility":-0.0437570933,"utilityLcb":-0.301701273,"visits":9,"weight":9.0,"winrate":0.504063344},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.05179215,"move":"C3","order":3,"playSelectionValue":0.0,"prior":0.0008033372,"pv":["C3"],"scoreLead":-1.91967833,"scoreMean":-1.91967833,"scoreSelfplay":-3.63937116,"scoreStdev":9.18097332,"utility":-0.732698884,"utilityLcb":-4.2326989,"visits":1,"weight":1.0,"winrate":0.198207855},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-0.982920534,"move":"E3","order":4,"playSelectionValue":0.0,"prior":0.00061601022,"pv":["E3"],"scoreLead":-1.44049871,"scoreMean":-1.44049871,"scoreSelfplay":-2.94503212,"scoreStdev":9.24105215,"utility":-0.581957395,"utilityLcb":-4.08195741,"visits":1,"weight":1.0,"winrate":0.267079473},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.08549624,"move":"D3","order":5,"playSelectionValue":0.0,"prior":0.00026571838,"pv":["D3"],"scoreLead":-2.2633376100000002,"scoreMean":-2.2633376100000002,"scoreSelfplay":-3.31384325,"scoreStdev":8.81077282,"utility":-0.796969135,"utilityLcb":-4.29696915,"visits":1,"weight":1.0,"winrate":0.164503768},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.14984889,"move":"B5","order":6,"playSelectionValue":0.0,"prior":0.00012547255,"pv":["B5"],"scoreLead":-4.39574289,"scoreMean":-4.39574289,"scoreSelfplay":-6.27174139,"scoreStdev":11.3567946,"utility":-0.955283236,"utilityLcb":-4.45528325,"visits":1,"weight":1.0,"winrate":0.100151118},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.15277028,"move":"D6","order":7,"playSelectionValue":0.0,"prior":9.85177903e-05,"pv":["D6"],"scoreLead":-4.64143085,"scoreMean":-4.64143085,"scoreSelfplay":-6.02319002,"scoreStdev":12.5274999,"utility":-0.949163508,"utilityLcb":-4.44916353,"visits":1,"weight":1.0,"winrate":0.0972297229},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.1992402,"move":"F5","order":8,"playSelectionValue":0.0,"prior":9.3334922e-05,"pv":["F5"],"scoreLead":-5.87298393,"scoreMean":-5.87298393,"scoreSelfplay":-7.43364573,"scoreStdev":11.2228625,"utility":-1.07186994,"utilityLcb":-4.57186996,"visits":1,"weight":1.0,"winrate":0.0507598016},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.18669713,"move":"F4","order":9,"playSelectionValue":0.0,"prior":7.82263232e-05,"pv":["F4"],"scoreLead":-4.97069168,"scoreMean":-4.97069168,"scoreSelfplay":-6.15017653,"scoreStdev":10.3392744,"utility":-1.03501284,"utilityLcb":-4.53501286,"visits":1,"weight":1.0,"winrate":0.0633028783},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.15840084,"move":"B4","order":10,"playSelectionValue":0.0,"prior":7.78539761e-05,"pv":["B4"],"scoreLead":-4.41191483,"scoreMean":-4.41191483,"scoreSelfplay":-5.93610716,"scoreStdev":10.5176895,"utility":-0.973726986,"utilityLcb":-4.473727,"visits":1,"weight":1.0,"winrate":0.0915991664},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.20476211,"move":"B6","order":11,"playSelectionValue":0.0,"prior":6.96197458e-05,"pv":["B6"],"scoreLead":-7.82533407,"scoreMean":-7.82533407,"scoreSelfplay":-9.1846571,"scoreStdev":12.6132413,"utility":-1.09535164,"utilityLcb":-4.59535166,"visits":1,"weight":1.0,"winrate":0.0452379007},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.1900081,"move":"E6","order":12,"playSelectionValue":0.0,"prior":6.91613386e-05,"pv":["E6"],"scoreLead":-8.44552612,"scoreMean":-8.44552612,"scoreSelfplay":-9.43321705,"scoreStdev":12.8824008,"utility":-1.06689185,"utilityLcb":-4.56689187,"visits":1,"weight":1.0,"winrate":0.0599919055},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.19346881,"move":"C6","order":13,"playSelectionValue":0.0,"prior":6.44813845e-05,"pv":["C6"],"scoreLead":-7.11353207,"scoreMean":-7.11353207,"scoreSelfplay":-8.82380867,"scoreStdev":12.6791528,"utility":-1.06767636,"utilityLcb":-4.56767638,"visits":1,"weight":1.0,"winrate":0.0565311983},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.20857352,"move":"B3","order":14,"playSelectionValue":0.0,"prior":5.70612356e-05,"pv":["B3"],"scoreLead":-7.82724094,"scoreMean":-7.82724094,"scoreSelfplay":-8.6534605,"scoreStdev":9.69854338,"utility":-1.12000472,"utilityLcb":-4.62000474,"visits":1,"weight":1.0,"winrate":0.0414264835},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.19756085,"move":"F6","order":15,"playSelectionValue":0.0,"prior":5.62777168e-05,"pv":["F6"],"scoreLead":-7.51685715,"scoreMean":-7.51685715,"scoreSelfplay":-8.61693192,"scoreStdev":12.2749807,"utility":-1.07628206,"utilityLcb":-4.57628208,"visits":1,"weight":1.0,"winrate":0.0524391532},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24592876,"move":"pass","order":16,"playSelectionValue":0.0,"prior":5.52840283e-05,"pv":["pass"],"scoreLead":-15.5997705,"scoreMean":-15.5997705,"scoreSelfplay":-21.7504005,"scoreStdev":9.14756524,"utility":-1.30447227,"utilityLcb":-4.80447229,"visits":1,"weight":1.0,"winrate":0.00407125009},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.20694298,"move":"F3","order":17,"playSelectionValue":0.0,"prior":5.14567182e-05,"pv":["F3"],"scoreLead":-7.00512695,"scoreMean":-7.00512695,"scoreSelfplay":-8.06464958,"scoreStdev":9.63921235,"utility":-1.10928699,"utilityLcb":-4.60928701,"visits":1,"weight":1.0,"winrate":0.0430570282},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.2240693,"move":"B2","order":18,"playSelectionValue":0.0,"prior":5.08569865e-05,"pv":["B2"],"scoreLead":-9.21105671,"scoreMean":-9.21105671,"scoreSelfplay":-10.2455425,"scoreStdev":9.40364541,"utility":-1.1735128,"utilityLcb":-4.67351282,"visits":1,"weight":1.0,"winrate":0.0259307073},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.23267753,"move":"B7","order":19,"playSelectionValue":0.0,"prior":5.04525997e-05,"pv":["B7"],"scoreLead":-14.239481,"scoreMean":-14.239481,"scoreSelfplay":-18.800108,"scoreStdev":11.7044262,"utility":-1.24985594,"utilityLcb":-4.74985596,"visits":1,"weight":1.0,"winrate":0.0173224779},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.2160232,"move":"D2","order":20,"playSelectionValue":0.0,"prior":4.99802154e-05,"pv":["D2"],"scoreLead":-5.85237408,"scoreMean":-5.85237408,"scoreSelfplay":-7.84035921,"scoreStdev":8.9365262,"utility":-1.13050455,"utilityLcb":-4.63050457,"visits":1,"weight":1.0,"winrate":0.0339768045},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24366928,"move":"A1","order":21,"playSelectionValue":0.0,"prior":4.98747031e-05,"pv":["A1"],"scoreLead":-17.6765327,"scoreMean":-17.6765327,"scoreSelfplay":-25.3793602,"scoreStdev":10.9913608,"utility":-1.30781221,"utilityLcb":-4.80781223,"visits":1,"weight":1.0,"winrate":0.00633072923},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24096953,"move":"G6","order":22,"playSelectionValue":0.0,"prior":4.96598914e-05,"pv":["G6"],"scoreLead":-14.9957228,"scoreMean":-14.9957228,"scoreSelfplay":-19.9429379,"scoreStdev":11.2523758,"utility":-1.27614303,"utilityLcb":-4.77614305,"visits":1,"weight":1.0,"winrate":0.00903047482},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.2355366,"move":"F7","order":23,"playSelectionValue":0.0,"prior":4.93060579e-05,"pv":["F7"],"scoreLead":-14.9703608,"scoreMean":-14.9703608,"scoreSelfplay":-19.6002979,"scoreStdev":11.7242441,"utility":-1.2605555,"utilityLcb":-4.76055551,"visits":1,"weight":1.0,"winrate":0.0144634102},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.21778822,"move":"C2","order":24,"playSelectionValue":0.0,"prior":4.89022968e-05,"pv":["C2"],"scoreLead":-7.61118317,"scoreMean":-7.61118317,"scoreSelfplay":-8.84289551,"scoreStdev":9.14543765,"utility":-1.14576501,"utilityLcb":-4.64576502,"visits":1,"weight":1.0,"winrate":0.0322117824},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.21720028,"move":"E2","order":25,"playSelectionValue":0.0,"prior":4.86538884e-05,"pv":["E2"],"scoreLead":-7.00185061,"scoreMean":-7.00185061,"scoreSelfplay":-8.38174343,"scoreStdev":8.96754586,"utility":-1.14003318,"utilityLcb":-4.6400332,"visits":1,"weight":1.0,"winrate":0.0327997301},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.2412541,"move":"B1","order":26,"playSelectionValue":0.0,"prior":4.70590276e-05,"pv":["B1"],"scoreLead":-13.2726326,"scoreMean":-13.2726326,"scoreSelfplay":-15.8737898,"scoreStdev":10.2748945,"utility":-1.25535123,"utilityLcb":-4.75535125,"visits":1,"weight":1.0,"winrate":0.00874590827},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.23885077,"move":"A6","order":27,"playSelectionValue":0.0,"prior":4.59991643e-05,"pv":["A6"],"scoreLead":-14.4049931,"scoreMean":-14.4049931,"scoreSelfplay":-17.716856,"scoreStdev":11.4895546,"utility":-1.25615283,"utilityLcb":-4.75615285,"visits":1,"weight":1.0,"winrate":0.0111492411},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24443032,"move":"G4","order":28,"playSelectionValue":0.0,"prior":4.57251044e-05,"pv":["G4"],"scoreLead":-14.7571297,"scoreMean":-14.7571297,"scoreSelfplay":-17.8555183,"scoreStdev":10.5588798,"utility":-1.27407473,"utilityLcb":-4.77407475,"visits":1,"weight":1.0,"winrate":0.00556968222},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24170751,"move":"C1","order":29,"playSelectionValue":0.0,"prior":4.4797107e-05,"pv":["C1"],"scoreLead":-13.305418,"scoreMean":-13.305418,"scoreSelfplay":-15.4486351,"scoreStdev":10.0123008,"utility":-1.25471134,"utilityLcb":-4.75471136,"visits":1,"weight":1.0,"winrate":0.00829249714},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.22405023,"move":"F2","order":30,"playSelectionValue":0.0,"prior":4.38216048e-05,"pv":["F2"],"scoreLead":-8.42163658,"scoreMean":-8.42163658,"scoreSelfplay":-9.59966087,"scoreStdev":9.32177924,"utility":-1.16637066,"utilityLcb":-4.66637068,"visits":1,"weight":1.0,"winrate":0.0259497724},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24314405,"move":"G2","order":31,"playSelectionValue":0.0,"prior":4.34357426e-05,"pv":["G2"],"scoreLead":-13.7527275,"scoreMean":-13.7527275,"scoreSelfplay":-16.8318539,"scoreStdev":10.1529069,"utility":-1.26698716,"utilityLcb":-4.76698718,"visits":1,"weight":1.0,"winrate":0.00685595861},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.2436275,"move":"G3","order":32,"playSelectionValue":0.0,"prior":4.14855094e-05,"pv":["G3"],"scoreLead":-13.8633709,"scoreMean":-13.8633709,"scoreSelfplay":-16.3418655,"scoreStdev":10.0890011,"utility":-1.26483211,"utilityLcb":-4.76483212,"visits":1,"weight":1.0,"winrate":0.0063725072},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.2409525,"move":"A2","order":33,"playSelectionValue":0.0,"prior":4.1344505e-05,"pv":["A2"],"scoreLead":-13.9234076,"scoreMean":-13.9234076,"scoreSelfplay":-16.3956032,"scoreStdev":10.52113,"utility":-1.25706958,"utilityLcb":-4.7570696,"visits":1,"weight":1.0,"winrate":0.00904750358},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24360569,"move":"D1","order":34,"playSelectionValue":0.0,"prior":4.11406072e-05,"pv":["D1"],"scoreLead":-13.4124641,"scoreMean":-13.4124641,"scoreSelfplay":-15.4397116,"scoreStdev":9.74492551,"utility":-1.26023215,"utilityLcb":-4.76023216,"visits":1,"weight":1.0,"winrate":0.00639432063},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24417292,"move":"G7","order":35,"playSelectionValue":0.0,"prior":3.96734285e-05,"pv":["G7"],"scoreLead":-18.2045918,"scoreMean":-18.2045918,"scoreSelfplay":-25.4224129,"scoreStdev":10.9087063,"utility":-1.30924264,"utilityLcb":-4.80924266,"visits":1,"weight":1.0,"winrate":0.00582708186},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24098786,"move":"G5","order":36,"playSelectionValue":0.0,"prior":3.94962262e-05,"pv":["G5"],"scoreLead":-13.9216948,"scoreMean":-13.9216948,"scoreSelfplay":-17.4630718,"scoreStdev":10.955165,"utility":-1.26206599,"utilityLcb":-4.76206601,"visits":1,"weight":1.0,"winrate":0.00901214918},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24321251,"move":"F1","order":37,"playSelectionValue":0.0,"prior":3.94579001e-05,"pv":["F1"],"scoreLead":-14.0540209,"scoreMean":-14.0540209,"scoreSelfplay":-17.2559681,"scoreStdev":10.0320287,"utility":-1.27078458,"utilityLcb":-4.7707846,"visits":1,"weight":1.0,"winrate":0.00678749289},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24492806,"move":"G1","order":38,"playSelectionValue":0.0,"prior":3.90389105e-05,"pv":["G1"],"scoreLead":-18.1528721,"scoreMean":-18.1528721,"scoreSelfplay":-25.5888195,"scoreStdev":10.433235,"utility":-1.31279249,"utilityLcb":-4.81279251,"visits":1,"weight":1.0,"winrate":0.00507194665},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.24194737,"move":"A4","order":39,"playSelectionValue":0.0,"prior":3.89621418e-05,"pv":["A4"],"scoreLead":-14.5917759,"scoreMean":-14.5917759,"scoreSelfplay":-16.5465317,"scoreStdev":11.0148982,"utility":-1.25690844,"utilityLcb":-4.75690846,"visits":1,"weight":1.0,"winrate":0.00805263873},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.2442813,"move":"E1","order":40,"playSelectionValue":0.0,"prior":3.75825766e-05,"pv":["E1"],"scoreLead":-13.8738346,"scoreMean":-13.8738346,"scoreSelfplay":-16.2404327,"scoreStdev":9.64769378,"utility":-1.268195,"utilityLcb":-4.76819502,"visits":1,"weight":1.0,"winrate":0.00571870385},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.23998797,"move":"A3","order":41,"playSelectionValue":0.0,"prior":3.73157927e-05,"pv":["A3"],"scoreLead":-13.3966064,"scoreMean":-13.3966064,"scoreSelfplay":-14.9106445,"scoreStdev":10.3856887,"utility":-1.24429013,"utilityLcb":-4.74429015,"visits":1,"weight":1.0,"winrate":0.010012032},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.23692842,"move":"C7","order":42,"playSelectionValue":0.0,"prior":3.46476336e-05,"pv":["C7"],"scoreLead":-13.5500317,"scoreMean":-13.5500317,"scoreSelfplay":-19.076828,"scoreStdev":11.9175809,"utility":-1.25885797,"utilityLcb":-4.75885799,"visits":1,"weight":1.0,"winrate":0.0130715906},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.23565186,"move":"E7","order":43,"playSelectionValue":0.0,"prior":3.39847429e-05,"pv":["E7"],"scoreLead":-14.1960182,"scoreMean":-14.1960182,"scoreSelfplay":-20.6171684,"scoreStdev":11.9642944,"utility":-1.26548538,"utilityLcb":-4.7654854,"visits":1,"weight":1.0,"winrate":0.0143481446},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.23637964,"move":"A5","order":44,"playSelectionValue":0.0,"prior":3.33174758e-05,"pv":["A5"],"scoreLead":-13.1360054,"scoreMean":-13.1360054,"scoreSelfplay":-15.3218088,"scoreStdev":11.3178881,"utility":-1.23380645,"utilityLcb":-4.73380647,"visits":1,"weight":1.0,"winrate":0.0136203635},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.2416622,"move":"A7","order":45,"playSelectionValue":0.0,"prior":3.22525484e-05,"pv":["A7"],"scoreLead":-16.5441151,"scoreMean":-16.5441151,"scoreSelfplay":-22.5094719,"scoreStdev":11.0353245,"utility":-1.29192751,"utilityLcb":-4.79192753,"visits":1,"weight":1.0,"winrate":0.00833780365},{"edgeVisits":1,"edgeWeight":1.0,"lcb":-1.23862851,"move":"D7","order":46,"playSelectionValue":0.0,"prior":2.37859367e-05,"pv":["D7"],"scoreLead":-15.2574997,"scoreMean":-15.2574997,"scoreSelfplay":-22.224638,"scoreStdev":11.7534268,"utility":-1.28118299,"utilityLcb":-4.78118301,"visits":1,"weight":1.0,"winrate":0.0113715013}],"rootInfo":{"currentPlayer":"B","rawLead":3.15101528,"rawNoResultProb":0.0,"rawScoreSelfplay":4.33458424,"rawScoreSelfplayStdev":10.3453611,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.836973846,"scoreLead":0.48374452,"scoreSelfplay":0.933863039,"scoreStdev":9.87797857,"symHash":"5121B114D9530778F5F52C8F58DD297F","thisHash":"5121B114D9530778F5F52C8F58DD297F","utility":0.0396363326,"visits":100,"weight":56.76320416201936,"winrate":0.546856387},"turnNumber":2}
+: MoveNum: 2 HASH: DB0B9B3B2B1EBC1530C0D5F088115709
+   A B C D E F G
+ 7 . . . . . . .
+ 6 . . . . . . .
+ 5 . . . O2. . .
+ 4 . . . X1. . .
+ 3 . . . . . . .
+ 2 . . . . . . .
+ 1 . . . . . . .
+
+koPOSITIONALscoreAREAtaxNONEsui1komi9
+Root visits: 100
+New playouts: 100
+NN rows: 1415
+NN batches: 1415
+NN avg batch size: 1
+PV: C5 E4 D3 E6 C6 E3 E2 F2 D2 F1 D6 E5 E7 F7 D7 E1 F6 F5 G7 C4 B4 B2 C2 C1
+Tree:
+: T  15.52c W  19.43c S  -3.43c ( +1.2 L  +0.9) N     100  --  C5 E4 D3 E6 C6 E3 E2
+---Black(^)---
+C5  : T  21.18c W  24.24c S  -3.28c ( +1.3 L  +1.0) LCB   -6.35c P 41.16% WF  67.9 PSV      66 N    1034  --  C5 E4 D3 E6 C6 E3 E2 F2
+E5  : T  -0.40c W   8.80c S  -3.44c ( +1.1 L  +0.5) LCB  -37.66c P 37.30% WF  15.6 PSV      14 N      17  --  E5 C4 D3 C5 C3 E6
+C4  : T  -0.36c W   3.90c S  -4.83c ( +0.5 L  +0.2) LCB  -23.53c P 10.95% WF   7.5 PSV       4 N       8  --  C4 E5 E4 C5 B5
+E4  : T   4.86c W   5.64c S  -4.45c ( +0.7 L  +0.3) LCB  -25.27c P 10.22% WF   6.7 PSV       4 N       7  --  E4 C5 C4 E5 B5
+
+: Response: {"id":"queued","isDuringSearch":false,"moveInfos":[{"edgeVisits":67,"edgeWeight":65.7186166,"lcb":0.522877812,"move":"C5","order":0,"playSelectionValue":65.7186166,"prior":0.41159609,"pv":["C5","E4","D3","E6","C6","E3","E2","F2","D2","F1","D6","E5","E7","F7","D7","E1"],"scoreLead":1.02477162,"scoreMean":1.02477162,"scoreSelfplay":1.32059057,"scoreStdev":9.06320988,"utility":0.211782548,"utilityLcb":-0.0635410636,"visits":1034,"weight":1014.22462,"winrate":0.621207674},{"edgeVisits":17,"edgeWeight":17.0,"lcb":0.410958229,"move":"E5","order":1,"playSelectionValue":14.0,"prior":0.372959465,"pv":["E5","C4","D3","C5","C3","E6"],"scoreLead":0.491852359,"scoreMean":0.491852359,"scoreSelfplay":1.05361323,"scoreStdev":10.6441986,"utility":-0.00397404258,"utilityLcb":-0.376554799,"visits":17,"weight":17.0,"winrate":0.544022785},{"edgeVisits":8,"edgeWeight":8.0,"lcb":0.436729799,"move":"C4","order":2,"playSelectionValue":4.0,"prior":0.109456629,"pv":["C4","E5","E4","C5","B5"],"scoreLead":0.248848515,"scoreMean":0.248848515,"scoreSelfplay":0.523718898,"scoreStdev":9.34360702,"utility":-0.00357093832,"utilityLcb":-0.235330117,"visits":8,"weight":8.0,"winrate":0.519500935},{"edgeVisits":7,"edgeWeight":7.0,"lcb":0.420575505,"move":"E4","order":3,"playSelectionValue":4.0,"prior":0.102184221,"pv":["E4","C5","C4","E5","B5"],"scoreLead":0.259117302,"scoreMean":0.259117302,"scoreSelfplay":0.686900461,"scoreStdev":9.52949469,"utility":0.0486443894,"utilityLcb":-0.252723984,"visits":7,"weight":7.0,"winrate":0.528207067}],"rootInfo":{"currentPlayer":"B","rawLead":3.15101528,"rawNoResultProb":0.0,"rawScoreSelfplay":4.33458424,"rawScoreSelfplayStdev":10.3453611,"rawStScoreError":-1.0,"rawStWrError":-0.5,"rawVarTimeLeft":-1.0,"rawWinrate":0.836973846,"scoreLead":0.895137773,"scoreSelfplay":1.24793461,"scoreStdev":9.38709821,"symHash":"5121B114D9530778F5F52C8F58DD297F","thisHash":"5121B114D9530778F5F52C8F58DD297F","utility":0.166201243,"visits":100,"weight":98.71861663961195,"winrate":0.602681104},"turnNumber":2}
+: tests/models/g170-b6c96-s175395328-d26788732.bin.gz
+: NN rows: 1415
+: NN batches: 1415
+: NN avg batch size: 1
+: GPU -1 finishing, processed 1415 rows 1415 batches
+: All cleaned up, quitting

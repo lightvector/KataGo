@@ -142,10 +142,9 @@ void Logger::writeLocked(const std::string &str, bool endLine, std::ostream &out
 {
   if(isDisabled)
     return;
-  const char* timeFormat = "%F %T%z: ";
 
   if(logTime) {
-    DateTime::writeTimeToStream(out, timeFormat, time);
+    DateTime::writeTimeToStream(out, DateTime::timeFormat, time);
     out << str;
   }
   else
@@ -186,7 +185,7 @@ int LogBuf::sync() {
   return 0;
 }
 
-void Logger::logThreadUncaught(const string& name, Logger* logger, std::function<void()> f) {
+void Logger::logThreadUncaught(const string& name, Logger* logger, const std::function<void()>& f) {
   try {
     f();
   }

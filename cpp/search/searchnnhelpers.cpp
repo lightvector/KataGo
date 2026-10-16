@@ -34,6 +34,17 @@ void Search::computeRootNNEvaluation(NNResultBuf& nnResultBuf, bool includeOwner
   );
 }
 
+MiscNNInputParams Search::paramsForHumanEvaluator(const MiscNNInputParams& nnInputParams) const {
+  MiscNNInputParams humanNNInputParams = nnInputParams;
+  //Featurize for the human net per its own resolution (its own declaration when the params are auto),
+  //which may differ from the modes the search itself is using.
+  humanNNInputParams.passAliveSuicideRulesOverride =
+    resolveAlwaysComputePassAliveUnderSuicideRules(searchParams, humanEvaluator) ? 1 : 0;
+  humanNNInputParams.excludeTerritoryAdjAtariOverride =
+    resolveExcludeTerritoryAdjacentToAtari(searchParams, humanEvaluator) ? 1 : 0;
+  return humanNNInputParams;
+}
+
 bool Search::needsHumanOutputAtRoot() const {
   return humanEvaluator != NULL && (searchParams.humanSLProfile.initialized || !humanEvaluator->requiresSGFMetadata());
 }
@@ -93,7 +104,7 @@ bool Search::initNodeNNOutput(
     if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
       humanResult = humanEvaluator->averageMultipleSymmetries(
         thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
-        nnInputParams,
+        paramsForHumanEvaluator(nnInputParams),
         thread.nnResultBuf, includeOwnerMap,
         thread.rand, searchParams.rootNumSymmetriesToSample
       );
@@ -109,7 +120,7 @@ bool Search::initNodeNNOutput(
     if(needsHumanOutputInTree() || (isRoot && needsHumanOutputAtRoot())) {
       humanEvaluator->evaluate(
         thread.board, thread.history, thread.pla, &searchParams.humanSLProfile,
-        nnInputParams,
+        paramsForHumanEvaluator(nnInputParams),
         thread.nnResultBuf, skipCache, includeOwnerMap
       );
       humanResult = new std::shared_ptr<NNOutput>(std::move(thread.nnResultBuf.result));
@@ -180,7 +191,7 @@ bool Search::maybeRecomputeExistingNNOutput(
     if(oldAge < searchNodeAge) {
       NNOutput* nnOutput = node.getNNOutput();
       NNOutput* humanOutput = node.getHumanOutput();
-      assert(nnOutput != NULL);
+      testAssert(nnOutput != NULL);
 
       //Recompute if we have no ownership map, since we need it for getEndingWhiteScoreBonus
       //If conservative passing, then we may also need to recompute the root policy ignoring the history if a pass ends the game

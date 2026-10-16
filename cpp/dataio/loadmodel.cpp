@@ -27,23 +27,23 @@ static const vector<string> GENERIC_MODEL_NAMES {
   "model.bin.gz",
   "model.bin",
   "model.txt.gz",
-  "model.txt"
+  "model.txt",
   "Model.bin.gz",
   "Model.bin",
   "Model.txt.gz",
-  "Model.txt"
+  "Model.txt",
   "MODEL.bin.gz",
   "MODEL.bin",
   "MODEL.txt.gz",
-  "MODEL.txt"
+  "MODEL.txt",
   "model.ckpt",
-  "Model.ckpt"
+  "Model.ckpt",
   "MODEL.ckpt",
   "model.checkpoint",
-  "Model.checkpoint"
+  "Model.checkpoint",
   "MODEL.checkpoint",
   "model",
-  "Model"
+  "Model",
   "MODEL",
 };
 
@@ -63,7 +63,7 @@ bool LoadModel::findLatestModel(const string& modelsDir, Logger& logger, string&
   gfs::file_time_type latestTime;
   gfs::path latestPath;
   for(const auto& dirEntry: gfs::recursive_directory_iterator(gfs::u8path(modelsDir))) {
-    gfs::path filePath = dirEntry.path();
+    const gfs::path& filePath = dirEntry.path();
     if(gfs::is_regular_file(filePath) && endsWithAnySuffix(filePath.filename().u8string(), ACCEPTABLE_MODEL_SUFFIXES)) {
       gfs::file_time_type thisTime = gfs::last_write_time(filePath);
       if(!hasLatestTime || thisTime > latestTime) {

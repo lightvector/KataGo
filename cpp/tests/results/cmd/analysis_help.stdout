@@ -5,7 +5,7 @@ DESCRIPTION:
 
 USAGE: 
 
-   analysis  -config <FILE> ...  [-model <FILE>] [-human-model <FILE>]
+   analysis  -config <FILE> ... [-model <FILE>] [-human-model <FILE>]
              [...other flags...]
 
 
