@@ -2081,7 +2081,7 @@ static bool tuneHGemmWmma(
   double& bestKernelsPerSecond
 ) {
   out << "------------------------------------------------------" << endl;
-  out << "Tuning hGemmWmma for convolutions" << endl;
+  out << "Tuning hGemmWmma for convolutions full: " << full << endl;
 
   vector<OpenCLTuneParams> configs;
   configs.push_back(currentConfig);
@@ -2116,6 +2116,7 @@ static bool tuneHGemmWmma(
   }
 
   shuffleConfigs(configs);
+  out << "Shuffled configs" << endl;
 
   OpenCLTuneParams referenceConfig = currentConfig;
   referenceConfig.hGemmWmma.MWG = untunedConfig.hGemmWmma.MWG;
@@ -2136,10 +2137,36 @@ static bool tuneHGemmWmma(
 
   auto test = [&](const OpenCLTuneParams& cfg, vector<float>& ret, bool computeOnCPU) {
     OpenCLTuneAccums accums;
-
+    out << "Querying OpenCL device information..." << endl;
     cl_int err;
     cl_program program;
     string compileError;
+
+    char deviceName[128];
+    err = clGetDeviceInfo(deviceIdsToUse[0], CL_DEVICE_NAME, sizeof(deviceName), deviceName, NULL);
+    if (err != CL_SUCCESS) {
+        out << "Error querying device name: " << err << endl;
+        accums.bad = true;
+        accums.badErr = err;
+        return accums;
+    }
+
+    out << "Device Name: " << deviceName << endl;
+
+    // Check if the device name contains "Mali"
+    std::string deviceNameStr(deviceName);
+    bool isMali = deviceNameStr.find("Mali") != std::string::npos;
+
+    if (isMali) {
+        // Skip the kernel creation on Mali GPUs
+        out << "Mali GPU detected. Skipping kernel creation." << endl;
+        accums.bad = true;
+        accums.badErr = 1;
+        return accums;
+    }
+    out << "Non-Mali GPU detected. Proceeding with kernel creation." << endl;
+
+
     bool compileSuc = tryCompileProgram(
       "hgemmWmmaProgram", context, deviceIdsToUse, OpenCLKernels::hgemmWmma,
       cfg.hGemmWmma.compileOptions() + OpenCLKernels::fp16StorageDefine,
@@ -2288,8 +2315,6 @@ static bool tuneHGemmWmmaNCHW(
   OpenCLTuneParams& tunedConfig,
   double& bestKernelsPerSecond
 ) {
-  out << "------------------------------------------------------" << endl;
-  out << "Tuning hGemmWmmaNCHW for 1x1 convolutions" << endl;
 
   vector<OpenCLTuneParams> configs;
   configs.push_back(currentConfig);
@@ -2345,7 +2370,37 @@ static bool tuneHGemmWmmaNCHW(
     cl_int err;
     cl_program program;
     string compileError;
-    bool compileSuc = tryCompileProgram(
+
+      out << "------------------------------------------------------" << endl;
+      out << "Tuning hGemmWmmaNCHW for 1x1 convolutions" << endl;
+
+      out << "Querying OpenCL device information..." << endl;
+
+      char deviceName[128];
+      err = clGetDeviceInfo(deviceIdsToUse[0], CL_DEVICE_NAME, sizeof(deviceName), deviceName, NULL);
+      if (err != CL_SUCCESS) {
+          out << "Error querying device name: " << err << endl;
+          accums.bad = true;
+          accums.badErr = err;
+          return accums;
+      }
+
+      out << "Device Name: " << deviceName << endl;
+
+      // Check if the device name contains "Mali"
+      std::string deviceNameStr(deviceName);
+      bool isMali = deviceNameStr.find("Mali") != std::string::npos;
+
+      if (isMali) {
+          // Skip the kernel creation on Mali GPUs
+          out << "Mali GPU detected. Skipping kernel creation." << endl;
+          accums.bad = true;
+          accums.badErr = 1;
+          return accums;
+      }
+      out << "Non-Mali GPU detected. Proceeding with kernel creation." << endl;
+
+      bool compileSuc = tryCompileProgram(
       "hgemmWmmaNCHWProgram", context, deviceIdsToUse, OpenCLKernels::hgemmWmmaNCHW,
       cfg.hGemmWmmaNCHW.compileOptions() + OpenCLKernels::fp16StorageDefine,
       program, compileError

@@ -92,3 +92,6 @@ cpp/build.ninja
 cpp/KataGoSwift.*
 cpp/include/KataGoSwift/KataGoSwift-swift.h
 cpp/external/katagocoreml/proto/
+
+android/app/src/main/jniLibs/arm64-v8a/libOpenCL.so 
+android/app/src/main/jniLibs/armeabi-v7a/libOpenCL.so 

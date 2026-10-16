@@ -558,6 +558,17 @@ include_directories(SYSTEM external/tclap-1.2.5/include) #SYSTEM suppresses warn
 include_directories(SYSTEM external/filesystem-1.5.8/include) #SYSTEM suppresses a few warnings
 
 #--------------------------- PLATFORM SPECIFIC -------------------------------------------------------------------------
+if(ANDROID)
+  add_definitions(-DBYTE_ORDER=LITTLE_ENDIAN)
+  string(REGEX REPLACE "/cpp$" "" CMAKE_MODIFIED_LIST_DIR "${CMAKE_CURRENT_LIST_DIR}")
+
+  set(OpenCL_LIBRARY "${CMAKE_MODIFIED_LIST_DIR}/jniLibs/${ANDROID_ABI}/libOpenCL.so")
+
+  # If OpenCL_LIBRARY is still not found, raise an error
+  if(NOT OpenCL_LIBRARY)
+    message(FATAL_ERROR "${CMAKE_MODIFIED_LIST_DIR}")
+  endif()
+endif()
 
 if(APPLE)
   # Fix linking on 10.14+. See https://stackoverflow.com/questions/54068035
