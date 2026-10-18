@@ -365,7 +365,10 @@ void rkDot2AttnKernel(
       #pragma unroll
       for(int i = 0; i < TM; i++) {
         float shift = (mr[i] > 8.0f || mr[i] < -8.0f) ? mr[i] : 0.0f;
-        float alpha = __builtin_amdgcn_exp2f(-shift);
+        // The reference only moves down (shift < 0) before the row has accumulated anything
+        // (running max -inf), when l and acc are still 0, so alpha would scale nothing, but
+        // exp2(-shift) can overflow to inf there and turn the zeros into NaN: clamp it to 1.
+        float alpha = __builtin_amdgcn_exp2f(-fmaxf(shift, 0.0f));
         negM[i] -= shift;
         l[i] *= alpha;
         #pragma unroll
