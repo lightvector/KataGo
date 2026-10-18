@@ -12,6 +12,10 @@
 // hipDeviceProp_t::gcnArchName (e.g. "gfx1030" or "gfx90a:sramecc+:xnack-"). The archs without it
 // (GCN gfx900-class and RDNA1 gfx1010/gfx1013) get empty kernel bodies, so callers must check this.
 bool rocmArchHasDot2(const char* gcnArchName);
+// Whether rocmUseDot2Attention = auto enables the dot2 attention kernels on this arch: only RDNA2
+// (gfx1030-gfx1036), where they were developed and measured (on gfx1030). Other archs with
+// v_dot2_f32_f16 run them only with rocmUseDot2Attention = true.
+bool rocmDot2AttentionAutoArch(const char* gcnArchName);
 
 //==============================================================================================
 // dot2 scaled dot product attention

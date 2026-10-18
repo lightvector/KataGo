@@ -1628,10 +1628,11 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   endif()
 
   # ---------- Optional CK DPP GEMM (RDNA2) ----------
-  # Composable Kernel's DPP GEMM kernels beat rocBLAS on the transformer projection GEMMs on
-  # gfx103x (see rocmckgemm.h). They only exist for gfx103x, and CK's headers are slow to compile,
-  # so rocmckgemm.hip is built as a separate object for just the gfx103x archs of the build, after
-  # a one-time configure probe (cached) that it compiles against the installed CK headers.
+  # Composable Kernel's DPP GEMM kernels beat rocBLAS on many transformer projection GEMM shapes on
+  # gfx103x (the backend picks per shape at runtime, see rocmckgemm.h). They only exist for gfx103x,
+  # and CK's headers are slow to compile, so rocmckgemm.hip is built as a separate object for just
+  # the gfx103x archs of the build, after a one-time configure probe (cached) that it compiles
+  # against the installed CK headers.
   find_path(KATAGO_CK_INCLUDE_DIR
     NAMES ck/tensor_operation/gpu/device/impl/device_gemm_dpp.hpp
     HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
@@ -1645,22 +1646,40 @@ elseif(USE_BACKEND STREQUAL "ROCM")
     endif()
   endforeach()
   set(_katago_ck_gemm_enabled FALSE)
-  if(KATAGO_CK_INCLUDE_DIR AND KATAGO_CK_GEMM_ARCHS)
-    list(GET KATAGO_CK_GEMM_ARCHS 0 _ck_gemm_probe_arch)
+  if(KATAGO_CK_GEMM_ARCHS AND NOT KATAGO_CK_INCLUDE_DIR)
+    message(STATUS "CK headers (ck/tensor_operation/gpu/device/impl/device_gemm_dpp.hpp) not found; ROCm backend will use hipBLAS for all GEMMs on ${KATAGO_CK_GEMM_ARCHS}")
+  elseif(KATAGO_CK_GEMM_ARCHS)
+    # As for the CK FMHA probe above: the signature covers everything the verdict depends on, and
+    # the probe compiles with the per-configuration flags the real build will use.
     file(SHA1 "${CMAKE_SOURCE_DIR}/neuralnet/rocmckgemm.hip" _ck_gemm_src_hash)
     file(SHA1 "${KATAGO_CK_INCLUDE_DIR}/ck/tensor_operation/gpu/device/impl/device_gemm_dpp.hpp" _ck_gemm_hdr_hash)
-    set(_ck_gemm_probe_sig "${CMAKE_HIP_COMPILER}|${CMAKE_HIP_COMPILER_VERSION}|${_ck_gemm_probe_arch}|${_ck_gemm_src_hash}|${_ck_gemm_hdr_hash}")
+    set(_ck_gemm_probe_sig "${KATAGO_CK_INCLUDE_DIR}|${CMAKE_HIP_COMPILER}|${CMAKE_HIP_COMPILER_VERSION}|${CMAKE_BUILD_TYPE}|${CMAKE_HIP_FLAGS}|${KATAGO_CK_GEMM_ARCHS}|${_ck_gemm_src_hash}|${_ck_gemm_hdr_hash}")
     if(NOT DEFINED KATAGO_CK_GEMM_COMPILE_OK OR NOT "${KATAGO_CK_GEMM_PROBED_SIG}" STREQUAL "${_ck_gemm_probe_sig}")
-      message(STATUS "Probing whether the CK DPP GEMM kernels compile for ${_ck_gemm_probe_arch} (may take a little while)...")
+      message(STATUS "Probing whether the CK DPP GEMM kernels compile for ${KATAGO_CK_GEMM_ARCHS} (may take a little while)...")
       set(_ck_gemm_probe_dir "${CMAKE_BINARY_DIR}/_katago_ck_gemm_probe")
       file(MAKE_DIRECTORY "${_ck_gemm_probe_dir}")
       separate_arguments(_ck_gemm_probe_flags NATIVE_COMMAND "${CMAKE_HIP_FLAGS}")
+      string(TOUPPER "${CMAKE_BUILD_TYPE}" _ck_gemm_probe_build_type)
+      if(NOT _ck_gemm_probe_build_type)
+        set(_ck_gemm_probe_build_type "RELEASE")
+      endif()
+      if(CMAKE_HIP_FLAGS_${_ck_gemm_probe_build_type})
+        separate_arguments(_ck_gemm_probe_config_flags NATIVE_COMMAND "${CMAKE_HIP_FLAGS_${_ck_gemm_probe_build_type}}")
+        list(APPEND _ck_gemm_probe_flags ${_ck_gemm_probe_config_flags})
+      else()
+        list(APPEND _ck_gemm_probe_flags "-O3")
+      endif()
       if(KATAGO_HIP_SYSTEM_INCLUDE_DIR)
         list(APPEND _ck_gemm_probe_flags "-isystem${KATAGO_HIP_SYSTEM_INCLUDE_DIR}")
       endif()
+      set(_ck_gemm_probe_arch_flags "")
+      foreach(_arch ${KATAGO_CK_GEMM_ARCHS})
+        list(APPEND _ck_gemm_probe_arch_flags "--offload-arch=${_arch}")
+      endforeach()
+      # The arch list macro only feeds rocmCkGemmSupportsArch, so any value compiles the same.
       execute_process(
-        COMMAND "${CMAKE_HIP_COMPILER}" -x hip --offload-arch=${_ck_gemm_probe_arch} -std=c++17 -O3 -c
-                "-isystem${KATAGO_CK_INCLUDE_DIR}" -DCK_ENABLE_FP16 "-DKATAGO_ROCM_CK_GEMM_ARCHS=\"${_ck_gemm_probe_arch}\""
+        COMMAND "${CMAKE_HIP_COMPILER}" -x hip ${_ck_gemm_probe_arch_flags} -std=c++17 -c
+                "-isystem${KATAGO_CK_INCLUDE_DIR}" -DCK_ENABLE_FP16 "-DKATAGO_ROCM_CK_GEMM_ARCHS=\"probe\""
                 ${_ck_gemm_probe_flags}
                 "${CMAKE_SOURCE_DIR}/neuralnet/rocmckgemm.hip" -o "${_ck_gemm_probe_dir}/probe.o"
         RESULT_VARIABLE _ck_gemm_rc

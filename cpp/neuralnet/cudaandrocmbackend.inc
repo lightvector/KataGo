@@ -651,8 +651,9 @@ struct CudaHandles {
   // Whether 1x1 NHWC convs run as a hipBLAS GEMM instead of a MIOpen conv, already resolved
   // against the GPU architecture, so Auto here means on. Set before Model construction.
   enabled_t use1x1MatmulMode;
-  // Whether FP16 attention may use the dot2 kernels in rocmkernels.h (arch has v_dot2_f32_f16
-  // and not disabled by config). Set before the first apply.
+  // Whether FP16 attention may use the dot2 kernels in rocmkernels.h: the arch has
+  // v_dot2_f32_f16, and rocmUseDot2Attention is true, or auto on an arch it is measured on (see
+  // rocmDot2AttentionAutoArch). Set before Model construction, which picks the QKV layout by it.
   bool dot2AttentionEnabled;
   bool loggedUsingDot2Attention;
   // hipDeviceProp_t::multiProcessorCount and warpSize, which size the dot2 attention launch.
@@ -725,10 +726,14 @@ struct CudaHandles {
 //with weights out-major, [outC][inC] row-major, and FP32 accumulation, adding into out if
 //accumulate. runHipblas must compute the same through hipBLAS (from the layer's in-major
 //weights). Which of the two (and which CK instance) is fastest per problem shape is decided by
-//timing the real calls: the first few calls of each shape rotate through the candidates, each
-//timed with events, and once every candidate has CK_GEMM_SAMPLES timings, the one with the best
-//runs from then on. Timing them in place rather than in isolation matters: back-to-back runs on
-//cache-hot operands rank the candidates differently than the model's interleaved calls do.
+//timing the real calls: the calls of each shape rotate through the candidates, each timed with
+//events, until every candidate has CK_GEMM_SAMPLES timings and the last one has completed (polled,
+//never waited for); the candidate with the best timing runs from then on. Timing in place rather
+//than in isolation matters: back-to-back runs on cache-hot operands rank the candidates
+//differently than the model's interleaved calls do. All candidates compute the same product with
+//FP32 accumulation, so until the choice settles, results differ from the steady state only by
+//summation order (and, when accumulating, CK's FP16 add, see rocmCkGemmRun). The choice is per
+//handle, so it is not bit-reproducible across runs.
 template<typename RunHipblas>
 static void rocmTokenGemmCkOrHipblas(
   CudaHandles* cudaHandles,
@@ -768,7 +773,14 @@ static void rocmTokenGemmCkOrHipblas(
       }
     }
     const size_t numTaken = choice.sampleEvents.size() / 2;
-    if(numTaken < choice.candidates.size() * CK_GEMM_SAMPLES) {
+    bool samplesReady = false;
+    if(numTaken >= choice.candidates.size() * CK_GEMM_SAMPLES) {
+      const hipError_t status = hipEventQuery(choice.sampleEvents.back());
+      if(status != hipErrorNotReady)
+        CUDA_ERR(name.c_str(), status);
+      samplesReady = status == hipSuccess;
+    }
+    if(!samplesReady) {
       const int candidate = choice.candidates[numTaken % choice.candidates.size()];
       hipEvent_t start, stop;
       CUDA_ERR(name.c_str(), hipEventCreate(&start));
@@ -780,9 +792,8 @@ static void rocmTokenGemmCkOrHipblas(
       CUDA_ERR(name.c_str(), hipEventRecord(stop, cudaHandles->stream));
       return;
     }
-    // Every sample is in: the candidate with the best (fastest) sample wins, ties going to
-    // hipBLAS, the first candidate.
-    CUDA_ERR(name.c_str(), hipEventSynchronize(choice.sampleEvents.back()));
+    // The candidate with the best (fastest) sample wins, ties going to hipBLAS, the first
+    // candidate. Every sample has completed: the stream ran them in order.
     vector<float> bestMs(choice.candidates.size(), 1e30f);
     for(size_t s = 0; s < numTaken; s++) {
       float ms = 0.0f;
@@ -3436,7 +3447,7 @@ struct TransformerAttentionBlock {
           cudaHandles->logger->write(
             "ROCm backend: CK fused attention unavailable" +
             (ckFailure.empty() ? string(" (unsupported shape/config)") : (": " + ckFailure)) +
-            "; using the plain attention kernel instead");
+            (useDot2Attention ? "; using the dot2 attention kernel instead" : "; using the plain attention kernel instead"));
         }
       }
     }
@@ -3446,8 +3457,10 @@ struct TransformerAttentionBlock {
        !cudaHandles->loggedCkFmhaDisabled) {
       cudaHandles->loggedCkFmhaDisabled = true;
       if(cudaHandles->logger != NULL)
-        cudaHandles->logger->write(
-          "ROCm backend: rocmDisableFusedAttention is set, using the plain attention kernel instead of the CK fused attention path that would otherwise have been used");
+        cudaHandles->logger->write(string(
+          "ROCm backend: rocmDisableFusedAttention is set, using the ") +
+          (useDot2Attention ? "dot2" : "plain") +
+          " attention kernel instead of the CK fused attention path that would otherwise have been used");
     }
 #endif
     // dot2 attention (see useDot2Attention above), when the CK path was not taken or failed.
@@ -5168,7 +5181,8 @@ struct ComputeContext {
   bool fuseResidualNorm;
   // See CudaHandles::use1x1MatmulMode.
   enabled_t use1x1MatmulMode;
-  // See CudaHandles::dot2AttentionEnabled. Auto = on where the arch has v_dot2_f32_f16.
+  // See CudaHandles::dot2AttentionEnabled. Auto = on for the archs the kernels were measured on
+  // (rocmDot2AttentionAutoArch), True = on wherever the arch has v_dot2_f32_f16.
   enabled_t useDot2AttentionMode;
   // See CudaHandles::ckGemmEnabled. Auto = on where this build has CK GEMM kernels for the arch.
   enabled_t useCkGemmMode;
@@ -5373,6 +5387,7 @@ struct ComputeHandle {
     bool ckFmhaArchSupported,
     bool preferMiopen1x1Conv,
     bool archHasDot2,
+    bool archDot2AttentionAuto,
     bool archHasCkGemm,
     int numMultiprocessors,
     int waveSize,
@@ -5404,7 +5419,10 @@ struct ComputeHandle {
       ? enabled_t::False : context->use1x1MatmulMode;
     if(context->useDot2AttentionMode == enabled_t::True && !archHasDot2)
       throw StringError("rocmUseDot2Attention = true, but this GPU architecture has no v_dot2_f32_f16");
-    cudaHandles->dot2AttentionEnabled = archHasDot2 && context->useDot2AttentionMode != enabled_t::False;
+    cudaHandles->dot2AttentionEnabled =
+      archHasDot2 &&
+      (context->useDot2AttentionMode == enabled_t::True ||
+       (context->useDot2AttentionMode == enabled_t::Auto && archDot2AttentionAuto));
     cudaHandles->numMultiprocessors = numMultiprocessors;
     cudaHandles->waveSize = waveSize;
     if(context->useCkGemmMode == enabled_t::True && !archHasCkGemm)
@@ -5612,7 +5630,8 @@ ComputeHandle* NeuralNet::createComputeHandle(
   // same ones that prefer NHWC at all.
   ComputeHandle* gpuHandle = new ComputeHandle(
     context,loadedModel,logger,prop.major,prop.minor,isCkFmhaSupportedArch(prop),
-    isNhwcFp16PreferredArch(prop), rocmArchHasDot2(prop.gcnArchName), archHasCkGemm,
+    isNhwcFp16PreferredArch(prop), rocmArchHasDot2(prop.gcnArchName), rocmDot2AttentionAutoArch(prop.gcnArchName),
+    archHasCkGemm,
     prop.multiProcessorCount, prop.warpSize,
     maxBatchSize,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
   );

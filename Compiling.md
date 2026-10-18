@@ -86,10 +86,12 @@ As also mentioned in the instructions below but repeated here for visibility, if
         can also run on a machine with a different (soname-compatible) ROCm version installed.
       * On first run, MIOpen will search for optimal convolution algorithms for your specific GPU and network size. This may take up to a minute and results are cached (compiled kernels in `~/.cache/miopen/`, the tuning find-db in `~/.config/miopen/`) for subsequent runs.
       * **Transformer/attention models (model version 17+):** supported on all architectures via
-        built-in kernels (on every GPU with `v_dot2_f32_f16`, i.e. all but gfx900-class GCN and
-        RDNA1, a dedicated dot2 attention kernel, measured ~1.5x faster end to end than the generic
-        one on a gfx1030/RX 6800 XT). If a matching version of AMD's Composable Kernel (CK, packaged as
-        `composablekernel-dev` / `amdrocm-ck*`) is also installed, the build additionally enables a fused-attention fast path
+        built-in kernels. On RDNA2 (gfx103x) GPUs the built-in attention is a dedicated dot2 kernel
+        by default (on a gfx1030/RX 6800 XT, transformer nets ran ~1.5x faster end to end with it
+        than with the generic kernel); other GPUs with `v_dot2_f32_f16` can opt into it with
+        `rocmUseDot2Attention = true`, untested there. If a matching version of AMD's Composable
+        Kernel (CK, packaged as `composablekernel-dev` / `amdrocm-ck*`) is also installed, the build
+        additionally enables a fused-attention fast path
         (measured ~2x faster on a gfx1100/RX 7900 XTX) for CDNA and RDNA3/RDNA3.5/RDNA4 GPUs -
         RDNA1/RDNA2 always use the built-in kernels, as does any GPU if the fused path isn't
         available or is explicitly disabled with `rocmDisableFusedAttention = true` in the config.

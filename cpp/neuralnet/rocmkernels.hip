@@ -15,15 +15,25 @@
   #define KATAGO_ROCM_DEVICE_HAS_DOT2 1
 #endif
 
-bool rocmArchHasDot2(const char* gcnArchName) {
+static std::string rkArchBaseName(const char* gcnArchName) {
   std::string arch(gcnArchName);
   size_t colonPos = arch.find(':');
   if(colonPos != std::string::npos)
     arch = arch.substr(0, colonPos);
+  return arch;
+}
+
+bool rocmArchHasDot2(const char* gcnArchName) {
+  const std::string arch = rkArchBaseName(gcnArchName);
   return !(
     arch == "gfx900" || arch == "gfx902" || arch == "gfx909" || arch == "gfx90c" ||
     arch == "gfx1010" || arch == "gfx1013" || arch == "gfx9-generic" || arch == "gfx10-1-generic"
   );
+}
+
+bool rocmDot2AttentionAutoArch(const char* gcnArchName) {
+  const std::string arch = rkArchBaseName(gcnArchName);
+  return arch.size() == 7 && arch.compare(0, 6, "gfx103") == 0 && arch[6] >= '0' && arch[6] <= '6';
 }
 
 typedef _Float16 rk_h2 __attribute__((ext_vector_type(2)));

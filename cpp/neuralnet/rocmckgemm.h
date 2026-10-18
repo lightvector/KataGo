@@ -20,7 +20,10 @@ int rocmCkGemmNumInstances();
 // Whether instance (in [0, rocmCkGemmNumInstances())) supports this problem.
 bool rocmCkGemmSupports(int instance, int tokens, int outChannels, int inChannels, int inStride, int wStride, int outStride);
 // Runs instance on the problem, which it must support. With accumulate, adds the product into out
-// instead (rounded to FP16 first, then added in FP16). Pointers must be 16-byte aligned.
+// instead, rounded to FP16 first and then added in FP16: the same rounding as the transformer
+// residual adds on masked boards, where the projection is written to FP16 and added into the
+// trunk by the next RMSNorm, but not hipBLAS's beta = 1, which adds in FP32 and rounds once.
+// Pointers must be 16-byte aligned.
 void rocmCkGemmRun(
   int instance, bool accumulate,
   const half* in, int inStride, const half* w, int wStride, half* out, int outStride,
