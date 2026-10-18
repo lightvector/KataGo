@@ -1,5 +1,5 @@
 // FP16 GEMM through Composable Kernel's DPP GEMM kernels (rocmckgemm.hip), which on RDNA2
-// (gfx103x, no matrix cores) run the transformer projection shapes 5-20% faster than the rocBLAS /
+// (gfx103x, no matrix cores) run many transformer projection shapes faster than the rocBLAS /
 // Tensile kernels hipBLAS picks. Compiled only for the gfx103x archs of the build (see the CK GEMM
 // section of CMakeLists.txt), so callers must check rocmCkGemmSupportsArch first.
 
@@ -11,18 +11,19 @@
 // Whether this build has CK GEMM kernels for the device architecture (hipDeviceProp_t::gcnArchName).
 bool rocmCkGemmSupportsArch(const char* gcnArchName);
 
-// C[M][N] = A[M][K] * B[N][K]^T with all three row-major at leading dimensions lda/ldb/ldc
-// (elements), FP32 accumulation. In KataGo terms: A is NHWC activations (M = tokens, K = input
-// channels), B the weights as [outC][inC], C the NHWC output.
+// out[t][o] = sum_i in[t][i] * w[o][i] for t < tokens, o < outChannels, i < inChannels, with in
+// (NHWC activations), w (weights, out-major) and out (NHWC) row-major at row strides inStride,
+// wStride, outStride (elements), and FP32 accumulation.
 //
-// Picks the fastest kernel instance for this problem by timing each candidate on the given buffers
-// (overwriting C) and synchronizing the stream. Returns -1 if no instance supports the problem,
-// else the instance, with its time (best of several runs) in *bestMs.
-int rocmCkGemmTune(
-  const half* A, int lda, const half* B, int ldb, half* C, int ldc, int M, int N, int K, hipStream_t stream,
-  float* bestMs);
-// Runs the instance returned by rocmCkGemmTune for the same problem shape.
+// The kernel instances, which perform differently per problem shape, so callers time them.
+int rocmCkGemmNumInstances();
+// Whether instance (in [0, rocmCkGemmNumInstances())) supports this problem.
+bool rocmCkGemmSupports(int instance, int tokens, int outChannels, int inChannels, int inStride, int wStride, int outStride);
+// Runs instance on the problem, which it must support. With accumulate, adds the product into out
+// instead (rounded to FP16 first, then added in FP16). Pointers must be 16-byte aligned.
 void rocmCkGemmRun(
-  int instance, const half* A, int lda, const half* B, int ldb, half* C, int ldc, int M, int N, int K, hipStream_t stream);
+  int instance, bool accumulate,
+  const half* in, int inStride, const half* w, int wStride, half* out, int outStride,
+  int tokens, int outChannels, int inChannels, hipStream_t stream);
 
 #endif  // NEURALNET_ROCMCKGEMM_H_
