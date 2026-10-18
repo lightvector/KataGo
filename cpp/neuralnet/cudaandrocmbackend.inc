@@ -48,6 +48,7 @@
 #error "Define only one of KATAGO_GPU_CUDA and KATAGO_GPU_HIP (the gates below are if/else)"
 #endif
 
+#include <array>
 #include <atomic>
 #include <map>
 #include <mutex>
@@ -442,8 +443,14 @@ enum class SharedWeightsKind : int {
   CONV_1X1_MATMUL = 2,
   QKV_PACKED = 3,
   FFN_PACKED = 4,
+  // Out-major ([outC][inC]) linear1 then gate weights: for the CUTLASS fused FFN on CUDA, the CK
+  // GEMM path on ROCm.
   FFN_FUSED_PACKED = 5,
   QKV_COMBINED = 6,
+  // Out-major ([outC][inC]) variants used by the ROCm CK GEMM path, see rocmTokenGemmCkOrHipblas.
+  MATMUL_OUT_MAJOR = 7,
+  CONV_1X1_OUT_MAJOR = 8,
+  QKV_COMBINED_OUT_MAJOR = 9,
 };
 
 //Upload a weight buffer to the device, taking ownership of the allocation even if the upload
@@ -644,6 +651,38 @@ struct CudaHandles {
   // Whether 1x1 NHWC convs run as a hipBLAS GEMM instead of a MIOpen conv, already resolved
   // against the GPU architecture, so Auto here means on. Set before Model construction.
   enabled_t use1x1MatmulMode;
+  // Whether FP16 attention may use the dot2 kernels in rocmkernels.h: the arch has
+  // v_dot2_f32_f16, and rocmUseDot2Attention is true, or auto on an arch it is measured on (see
+  // rocmDot2AttentionAutoArch). Set before Model construction, which picks the QKV layout by it.
+  bool dot2AttentionEnabled;
+  bool loggedUsingDot2Attention;
+  // hipDeviceProp_t::multiProcessorCount and warpSize, which size the dot2 attention launch.
+  int numMultiprocessors;
+  int waveSize;
+  // Whether FP16 token GEMMs (transformer projections, NHWC 1x1 convs) may run on the CK DPP GEMM
+  // kernels (rocmckgemm.h): built for this arch and not disabled by config. Set before Model
+  // construction, since the layers that use it upload their weights out-major for it.
+  bool ckGemmEnabled;
+  // Per GEMM problem {M, N, K, lda, ldb, ldc, accumulate}: the CK instance to run (or -1 for
+  // hipBLAS), chosen from timings of the real calls, see rocmTokenGemmCkOrHipblas. Only touched by
+  // this handle's server thread.
+  struct CkGemmChoice {
+    // hipBLAS (-1) and the CK instances supporting the problem.
+    std::vector<int> candidates;
+    // While undecided, the start and stop events of each timed call, the calls rotating through
+    // the candidates.
+    std::vector<hipEvent_t> sampleEvents;
+    bool decided = false;
+    int instance = -1;
+    CkGemmChoice() = default;
+    CkGemmChoice(const CkGemmChoice&) = delete;
+    CkGemmChoice& operator=(const CkGemmChoice&) = delete;
+    ~CkGemmChoice() {
+      for(hipEvent_t e : sampleEvents)
+        (void)hipEventDestroy(e);
+    }
+  };
+  std::map<std::array<int,7>, CkGemmChoice> ckGemmChoices;
 
   CudaHandles(int major, int minor, Logger* logger_, bool ckFmhaArchSupported_, bool disableFusedAttention_)
     : majorComputeCapability(major),
@@ -658,7 +697,12 @@ struct CudaHandles {
       loggedUsingCkFmha(false),
       loggedCkFmhaDisabled(false),
       loggedUsing1x1Matmul(false),
-      use1x1MatmulMode(enabled_t::Auto)
+      use1x1MatmulMode(enabled_t::Auto),
+      dot2AttentionEnabled(false),
+      loggedUsingDot2Attention(false),
+      numMultiprocessors(0),
+      waveSize(0),
+      ckGemmEnabled(false)
   {
     CUBLAS_ERR("CudaHandles",cublasSetStream(cublas.handle,stream.stream));
     CUDNN_ERR("CudaHandles",cudnnSetStream(cudnn.handle,stream.stream));
@@ -674,6 +718,131 @@ struct CudaHandles {
   CudaHandles(const CudaHandles&) = delete;
   CudaHandles& operator=(const CudaHandles&) = delete;
 };
+#endif
+
+#ifdef KATAGO_GPU_HIP
+//FP16 GEMM over tokens on the CK DPP kernels (see rocmckgemm.h):
+//  out[t][o] (row stride outStride) (+)= sum_i in[t][i] (row stride inStride) * weights[o][i]
+//with weights out-major, [outC][inC] row-major, and FP32 accumulation, adding into out if
+//accumulate. runHipblas must compute the same through hipBLAS (from the layer's in-major
+//weights). Which of the two (and which CK instance) is fastest per problem shape is decided by
+//timing the real calls: the calls of each shape rotate through the candidates, each timed with
+//events, until every candidate has CK_GEMM_SAMPLES timings and the last one has completed (polled,
+//never waited for); the candidate with the best timing runs from then on. Timing in place rather
+//than in isolation matters: back-to-back runs on cache-hot operands rank the candidates
+//differently than the model's interleaved calls do. All candidates compute the same product with
+//FP32 accumulation, so until the choice settles, results differ from the steady state only by
+//summation order (and, when accumulating, CK's FP16 add, see rocmCkGemmRun). The choice is per
+//handle, so it is not bit-reproducible across runs.
+template<typename RunHipblas>
+static void rocmTokenGemmCkOrHipblas(
+  CudaHandles* cudaHandles,
+  const string& name,
+  const void* weights,
+  int outChannels,
+  int inChannels,
+  const void* inputBuf,
+  int inStride,
+  void* outputBuf,
+  int outStride,
+  int tokens,
+  bool accumulate,
+  RunHipblas runHipblas
+) {
+#if KATAGO_ROCM_HAS_CK_GEMM
+  constexpr int CK_GEMM_SAMPLES = 4;
+  auto runCandidate = [&](int instance) {
+    if(instance < 0) {
+      runHipblas();
+      return;
+    }
+    rocmCkGemmRun(
+      instance, accumulate,
+      (const half*)inputBuf, inStride, (const half*)weights, inChannels, (half*)outputBuf, outStride,
+      tokens, outChannels, inChannels, cudaHandles->stream);
+    CUDA_ERR(name.c_str(), hipPeekAtLastError());
+  };
+  const std::array<int,7> key = {tokens, outChannels, inChannels, inStride, inChannels, outStride, accumulate ? 1 : 0};
+  CudaHandles::CkGemmChoice& choice = cudaHandles->ckGemmChoices[key];
+  if(!choice.decided) {
+    if(choice.candidates.empty()) {
+      choice.candidates.push_back(-1);
+      for(int i = 0; i < rocmCkGemmNumInstances(); i++) {
+        if(rocmCkGemmSupports(i, tokens, outChannels, inChannels, inStride, inChannels, outStride))
+          choice.candidates.push_back(i);
+      }
+    }
+    const size_t numTaken = choice.sampleEvents.size() / 2;
+    bool samplesReady = false;
+    if(numTaken >= choice.candidates.size() * CK_GEMM_SAMPLES) {
+      const hipError_t status = hipEventQuery(choice.sampleEvents.back());
+      if(status != hipErrorNotReady)
+        CUDA_ERR(name.c_str(), status);
+      samplesReady = status == hipSuccess;
+    }
+    if(!samplesReady) {
+      const int candidate = choice.candidates[numTaken % choice.candidates.size()];
+      hipEvent_t start, stop;
+      CUDA_ERR(name.c_str(), hipEventCreate(&start));
+      choice.sampleEvents.push_back(start);
+      CUDA_ERR(name.c_str(), hipEventCreate(&stop));
+      choice.sampleEvents.push_back(stop);
+      CUDA_ERR(name.c_str(), hipEventRecord(start, cudaHandles->stream));
+      runCandidate(candidate);
+      CUDA_ERR(name.c_str(), hipEventRecord(stop, cudaHandles->stream));
+      return;
+    }
+    // The candidate with the best (fastest) sample wins, ties going to hipBLAS, the first
+    // candidate. Every sample has completed: the stream ran them in order.
+    vector<float> bestMs(choice.candidates.size(), 1e30f);
+    for(size_t s = 0; s < numTaken; s++) {
+      float ms = 0.0f;
+      CUDA_ERR(name.c_str(), hipEventElapsedTime(&ms, choice.sampleEvents[2 * s], choice.sampleEvents[2 * s + 1]));
+      const size_t j = s % choice.candidates.size();
+      bestMs[j] = std::min(bestMs[j], ms);
+    }
+    size_t best = 0;
+    for(size_t j = 1; j < choice.candidates.size(); j++) {
+      if(bestMs[j] < bestMs[best])
+        best = j;
+    }
+    choice.instance = choice.candidates[best];
+    choice.decided = true;
+    for(hipEvent_t e : choice.sampleEvents)
+      CUDA_ERR(name.c_str(), hipEventDestroy(e));
+    choice.sampleEvents.clear();
+  }
+  runCandidate(choice.instance);
+#else
+  // Never called without CK: the out-major weights only exist when cudaHandles->ckGemmEnabled.
+  (void)cudaHandles; (void)name; (void)weights; (void)outChannels; (void)inChannels;
+  (void)inputBuf; (void)inStride; (void)outputBuf; (void)outStride; (void)tokens; (void)accumulate;
+  runHipblas();
+#endif
+}
+
+//Transposes in-major [inC][outC] weights (the layout of MatMulLayerDesc) to out-major [outC][inC].
+static vector<float> transposeInMajorWeights(const vector<float>& w, int inChannels, int outChannels) {
+  vector<float> t((size_t)inChannels * outChannels);
+  for(int i = 0; i < inChannels; i++)
+    for(int o = 0; o < outChannels; o++)
+      t[(size_t)o * inChannels + i] = w[(size_t)i * outChannels + o];
+  return t;
+}
+
+//Whether TransformerAttentionBlock::apply attempts the CK fused attention path for FP16 attention.
+//Over a handle's lifetime this can only turn from true to false (fusedAttentionRuntimeDisabled),
+//so a false at model construction holds for every apply.
+static bool rocmCkFmhaWillBeTried(const CudaHandles* cudaHandles) {
+#if KATAGO_ROCM_HAS_CK_FMHA && KATAGO_ROCM_CK_FMHA_ARCH_OK
+  return
+    !cudaHandles->disableFusedAttention && cudaHandles->ckFmhaArchSupported &&
+    !cudaHandles->fusedAttentionRuntimeDisabled;
+#else
+  (void)cudaHandles;
+  return false;
+#endif
+}
 #endif
 
 //---------------------------------------------------------------------------------
@@ -835,6 +1004,7 @@ struct CudnnManager {
 
 struct ScratchBuffers {
 
+  const int maxBatchSize;
   const size_t batchXYFloatBytes;
   const size_t batchFloatBytes;
   const size_t batchXYBytes;
@@ -858,7 +1028,8 @@ struct ScratchBuffers {
   ScratchBuffers& operator=(const ScratchBuffers&) = delete;
 
   ScratchBuffers(int maxBatchSize, int nnXLen, int nnYLen, bool useFP16)
-    : batchXYFloatBytes((size_t)maxBatchSize * nnXLen * nnYLen * sizeof(float)),
+    : maxBatchSize(maxBatchSize),
+      batchXYFloatBytes((size_t)maxBatchSize * nnXLen * nnYLen * sizeof(float)),
       batchFloatBytes((size_t)maxBatchSize * sizeof(float)),
       batchXYBytes((size_t)maxBatchSize * nnXLen * nnYLen * (useFP16 ? sizeof(half_t) : sizeof(float))),
       batchBytes((size_t)maxBatchSize * (useFP16 ? sizeof(half_t) : sizeof(float)))
@@ -1243,6 +1414,10 @@ struct ConvLayer {
   bool use1x1Matmul;
   int matmulSpatialSize;
   SharedDeviceBuf matmulWeightBuf;
+  // With use1x1Matmul in FP16 when the CK GEMM kernels are enabled, also the desc weights
+  // unchanged, [outC, inC] (out-major), for the CK kernels via rocmTokenGemmCkOrHipblas, which
+  // falls back to hipBLAS on matmulWeightBuf where that is faster.
+  SharedDeviceBuf matmulWeightOutMajorBuf;
   // Set when MIOpen's only NHWC solution for this conv is its naive fallback. The conv is then
   // re-expressed as NCHW at runtime, transposing the input and output around it.
   bool useNchwFallback;
@@ -1313,6 +1488,12 @@ struct ConvLayer {
         name + ":matmulW",
         [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":matmulW",wT,b,useFP16); },
         desc, SharedWeightsKind::CONV_1X1_MATMUL, useFP16, cudaHandles->shareModelWeights);
+      if(useFP16 && cudaHandles->ckGemmEnabled && inChannels % 8 == 0 && outChannels % 8 == 0) {
+        matmulWeightOutMajorBuf = mallocAndCopyToDeviceMaybeShared(
+          name + ":matmulWOutMajor",
+          [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":matmulWOutMajor",desc->weights,b,useFP16); },
+          desc, SharedWeightsKind::CONV_1X1_OUT_MAJOR, useFP16, cudaHandles->shareModelWeights);
+      }
       if(!cudaHandles->loggedUsing1x1Matmul) {
         cudaHandles->loggedUsing1x1Matmul = true;
         if(cudaHandles->logger != NULL)
@@ -1565,36 +1746,44 @@ struct ConvLayer {
           &beta, (float*)outputBuf, outChannels));
       }
       else {
+        auto runHipblas = [&]() {
 #if defined(hipblasVersionMajor) && hipblasVersionMajor >= 2
-        // FP32 compute for accuracy, as in MatMulLayer.
-        const float alpha = 1.0f;
-        const float beta = accumulate ? 1.0f : 0.0f;
-        CUBLAS_ERR(name.c_str(),hipblasGemmEx(
-          cudaHandles->cublas,
-          HIPBLAS_OP_N,
-          HIPBLAS_OP_N,
-          outChannels,
-          tokens,
-          inChannels,
-          &alpha,
-          matmulWeightBuf.buf, HIP_R_16F, outChannels,
-          inputBuf, HIP_R_16F, inChannels,
-          &beta,
-          outputBuf, HIP_R_16F, outChannels,
-          HIPBLAS_COMPUTE_32F,
-          HIPBLAS_GEMM_DEFAULT
-        ));
+          // FP32 compute for accuracy, as in MatMulLayer.
+          const float alpha = 1.0f;
+          const float beta = accumulate ? 1.0f : 0.0f;
+          CUBLAS_ERR(name.c_str(),hipblasGemmEx(
+            cudaHandles->cublas,
+            HIPBLAS_OP_N,
+            HIPBLAS_OP_N,
+            outChannels,
+            tokens,
+            inChannels,
+            &alpha,
+            matmulWeightBuf.buf, HIP_R_16F, outChannels,
+            inputBuf, HIP_R_16F, inChannels,
+            &beta,
+            outputBuf, HIP_R_16F, outChannels,
+            HIPBLAS_COMPUTE_32F,
+            HIPBLAS_GEMM_DEFAULT
+          ));
 #else
-        // hipBLAS older than 2.0, below the minimum Compiling.md documents.
-        const cublas_half_t* alpha = (const cublas_half_t*)scratch->oneBuf;
-        const cublas_half_t* betaHalf = (const cublas_half_t*)(accumulate ? scratch->oneBuf : scratch->zeroBuf);
-        CUBLAS_ERR(name.c_str(),cublasHgemm(
-          cudaHandles->cublas, CUBLAS_OP_N, CUBLAS_OP_N,
-          outChannels, tokens, inChannels,
-          alpha, (const cublas_half_t*)matmulWeightBuf.buf, outChannels,
-          (const cublas_half_t*)inputBuf, inChannels,
-          betaHalf, (cublas_half_t*)outputBuf, outChannels));
+          // hipBLAS older than 2.0, below the minimum Compiling.md documents.
+          const cublas_half_t* alpha = (const cublas_half_t*)scratch->oneBuf;
+          const cublas_half_t* betaHalf = (const cublas_half_t*)(accumulate ? scratch->oneBuf : scratch->zeroBuf);
+          CUBLAS_ERR(name.c_str(),cublasHgemm(
+            cudaHandles->cublas, CUBLAS_OP_N, CUBLAS_OP_N,
+            outChannels, tokens, inChannels,
+            alpha, (const cublas_half_t*)matmulWeightBuf.buf, outChannels,
+            (const cublas_half_t*)inputBuf, inChannels,
+            betaHalf, (cublas_half_t*)outputBuf, outChannels));
 #endif
+        };
+        if(matmulWeightOutMajorBuf.buf != nullptr)
+          rocmTokenGemmCkOrHipblas(
+            cudaHandles, name, matmulWeightOutMajorBuf.buf, outChannels, inChannels,
+            inputBuf, inChannels, outputBuf, outChannels, tokens, accumulate, runHipblas);
+        else
+          runHipblas();
       }
       return;
     }
@@ -1774,15 +1963,23 @@ struct MatMulLayer {
   const int outChannels;
   const bool usingFP16;
   SharedDeviceBuf matBuf;
+  // ROCm only: an additional out-major ([outC][inC]) copy of the weights for the CK GEMM kernels
+  // via rocmTokenGemmCkOrHipblas. Uploaded for layers that multiply over all board positions
+  // (tokenGemm) when the CK GEMM kernels are enabled. matBuf stays for hipBLAS, which wins on
+  // some shapes.
+  SharedDeviceBuf matBufOutMajor;
 
   MatMulLayer() = delete;
   MatMulLayer(const MatMulLayer&) = delete;
   MatMulLayer& operator=(const MatMulLayer&) = delete;
 
+  // tokenGemm: this layer's apply() always multiplies over every board position of the batch
+  // (transformer projections), so it is worth the CK GEMM path (ROCm only).
   MatMulLayer(
     CudaHandles* cudaHandles,
     const MatMulLayerDesc* desc,
-    bool useFP16
+    bool useFP16,
+    bool tokenGemm = false
   ) :
     name(desc->name),
     inChannels(desc->inChannels),
@@ -1795,6 +1992,16 @@ struct MatMulLayer {
         name,
         [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name,desc->weights,b,useFP16); },
         desc, SharedWeightsKind::MATMUL, useFP16, cudaHandles->shareModelWeights);
+#ifdef KATAGO_GPU_HIP
+      if(tokenGemm && useFP16 && cudaHandles->ckGemmEnabled && inChannels % 8 == 0 && outChannels % 8 == 0) {
+        matBufOutMajor = mallocAndCopyToDeviceMaybeShared(
+          name + ":outMajor",
+          [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":outMajor",transposeInMajorWeights(desc->weights,inChannels,outChannels),b,useFP16); },
+          desc, SharedWeightsKind::MATMUL_OUT_MAJOR, useFP16, cudaHandles->shareModelWeights);
+      }
+#else
+      (void)tokenGemm;
+#endif
     }
   }
 
@@ -1808,6 +2015,7 @@ struct MatMulLayer {
 
   //If accumulate is true, adds the matmul result into outputBuf (GEMM beta=1) instead of
   //overwriting it, letting a residual add fuse into the GEMM epilogue.
+  //inputLd is the row stride of inputBuf in elements, 0 for packed rows (inChannels).
   void apply(
     CudaHandles* cudaHandles,
     ScratchBuffers* scratch,
@@ -1816,11 +2024,14 @@ struct MatMulLayer {
     void* outputBuf,
     void* workspaceBuf,
     size_t workspaceBytes,
-    bool accumulate = false
+    bool accumulate = false,
+    int inputLd = 0
   ) const {
     (void)workspaceBuf;
     (void)workspaceBytes;
     assert(inChannels > 0 && outChannels > 0);
+    if(inputLd == 0)
+      inputLd = inChannels;
 
     if(!usingFP16) {
       const float alpha = 1.0f;
@@ -1834,7 +2045,7 @@ struct MatMulLayer {
         inChannels,
         &alpha,
         (const float*)matBuf.buf,outChannels,
-        (const float*)inputBuf,inChannels,
+        (const float*)inputBuf,inputLd,
         &beta,
         (float*)outputBuf,outChannels
       ));
@@ -1846,23 +2057,31 @@ struct MatMulLayer {
       //FP16 in/out and FP32 compute fixes that and costs nothing in speed. alpha/beta must match
       //the compute type, so they are plain host floats here rather than the half zeroBuf/oneBuf
       //the CUDA path uses.
-      const float alpha = 1.0f;
-      const float beta = accumulate ? 1.0f : 0.0f;
-      CUBLAS_ERR(name.c_str(),hipblasGemmEx(
-        cudaHandles->cublas,
-        HIPBLAS_OP_N,
-        HIPBLAS_OP_N,
-        outChannels,
-        batchSize,
-        inChannels,
-        &alpha,
-        matBuf.buf, HIP_R_16F, outChannels,
-        inputBuf, HIP_R_16F, inChannels,
-        &beta,
-        outputBuf, HIP_R_16F, outChannels,
-        HIPBLAS_COMPUTE_32F,
-        HIPBLAS_GEMM_DEFAULT
-      ));
+      auto runHipblas = [&]() {
+        const float alpha = 1.0f;
+        const float beta = accumulate ? 1.0f : 0.0f;
+        CUBLAS_ERR(name.c_str(),hipblasGemmEx(
+          cudaHandles->cublas,
+          HIPBLAS_OP_N,
+          HIPBLAS_OP_N,
+          outChannels,
+          batchSize,
+          inChannels,
+          &alpha,
+          matBuf.buf, HIP_R_16F, outChannels,
+          inputBuf, HIP_R_16F, inputLd,
+          &beta,
+          outputBuf, HIP_R_16F, outChannels,
+          HIPBLAS_COMPUTE_32F,
+          HIPBLAS_GEMM_DEFAULT
+        ));
+      };
+      if(matBufOutMajor.buf != nullptr)
+        rocmTokenGemmCkOrHipblas(
+          cudaHandles, name, matBufOutMajor.buf, outChannels, inChannels,
+          inputBuf, inputLd, outputBuf, outChannels, batchSize, accumulate, runHipblas);
+      else
+        runHipblas();
 #else
       //CUDA, or hipBLAS older than 2.0 (below ROCm 6.0, itself below the minimum Compiling.md
       //documents). There hipblasGemmEx has no spelling that takes hipblasComputeType_t at all, so
@@ -1878,7 +2097,7 @@ struct MatMulLayer {
         inChannels,
         alpha,
         (const cublas_half_t*)matBuf.buf,outChannels,
-        (const cublas_half_t*)inputBuf,inChannels,
+        (const cublas_half_t*)inputBuf,inputLd,
         beta,
         (cublas_half_t*)outputBuf,outChannels
       ));
@@ -1892,9 +2111,11 @@ struct MatMulLayer {
 //---------------------------------------------------------------------------------
 
 //Run `count` GEMMs that share one input (B stride 0) over weight matrices packed contiguously
-//in device memory, writing the outputs at a fixed stride. Used to batch the Q/K/V projections
-//and the FFN linear+gate projections of transformer blocks into single GEMM calls.
-//Precision behavior matches MatMulLayer::apply.
+//in device memory, writing the outputs at a fixed stride, each output row at outputLd elements.
+//Used to batch the Q/K/V projections and the FFN linear+gate projections of transformer blocks
+//into single GEMM calls: outputs one after another (outputStrideElts a whole output, outputLd =
+//outChannels), or interleaved per row (outputStrideElts = outChannels, outputLd = count *
+//outChannels). Precision behavior matches MatMulLayer::apply.
 static void applySharedInputStridedMatMuls(
   CudaHandles* cudaHandles,
   ScratchBuffers* scratch,
@@ -1907,6 +2128,7 @@ static void applySharedInputStridedMatMuls(
   const void* inputBuf,
   void* outputBuf,
   long long outputStrideElts,
+  int outputLd,
   int count
 ) {
   const long long weightStrideElts = (long long)inChannels * outChannels;
@@ -1924,7 +2146,7 @@ static void applySharedInputStridedMatMuls(
       (const float*)packedWeights, outChannels, weightStrideElts,
       (const float*)inputBuf, inChannels, 0LL,
       &beta,
-      (float*)outputBuf, outChannels, outputStrideElts,
+      (float*)outputBuf, outputLd, outputStrideElts,
       count
     ));
   }
@@ -1944,7 +2166,7 @@ static void applySharedInputStridedMatMuls(
       packedWeights, HIP_R_16F, outChannels, weightStrideElts,
       inputBuf, HIP_R_16F, inChannels, 0LL,
       &beta,
-      outputBuf, HIP_R_16F, outChannels, outputStrideElts,
+      outputBuf, HIP_R_16F, outputLd, outputStrideElts,
       count,
       HIPBLAS_COMPUTE_32F,
       HIPBLAS_GEMM_DEFAULT
@@ -1963,7 +2185,7 @@ static void applySharedInputStridedMatMuls(
       (const cublas_half_t*)packedWeights, outChannels, weightStrideElts,
       (const cublas_half_t*)inputBuf, inChannels, 0LL,
       beta,
-      (cublas_half_t*)outputBuf, outChannels, outputStrideElts,
+      (cublas_half_t*)outputBuf, outputLd, outputStrideElts,
       count
     ));
 #endif
@@ -2624,13 +2846,16 @@ struct TransformerAttentionBlock {
   // three projections run as a single strided-batched GEMM sharing the input. Otherwise the
   // three separate projection layers below are constructed and applied individually.
   const bool sameQKVShapes;
-  // When the mma attention path will consume Q/K/V (FP16, mma-supported shapes), the three
-  // projections instead run as ONE combined GEMM writing an interleaved [tokens, q|k|v]
-  // buffer that downstream kernels read via strides. qkvPackedWeights then holds the
-  // combined interleaved layout (SharedWeightsKind::QKV_COMBINED) instead of the
-  // strided-batched slices.
+  // When the mma attention path (CUDA) or the dot2 attention path (ROCm, with the CK GEMM
+  // kernels enabled) will consume Q/K/V, the three projections instead run as ONE combined GEMM
+  // writing an interleaved [tokens, q|k|v] buffer that downstream kernels read via strides.
+  // qkvPackedWeights then holds the combined interleaved layout (SharedWeightsKind::QKV_COMBINED)
+  // instead of the strided-batched slices.
   const bool useCombinedQKV;
   SharedDeviceBuf qkvPackedWeights;
+  // ROCm only, with useCombinedQKV: the combined weights out-major ([q|k|v][inC]) for the CK GEMM
+  // kernels, see rocmTokenGemmCkOrHipblas.
+  SharedDeviceBuf qkvCombinedOutMajorWeights;
   std::unique_ptr<MatMulLayer> qProj;
   std::unique_ptr<MatMulLayer> kProj;
   std::unique_ptr<MatMulLayer> vProj;
@@ -2644,13 +2869,12 @@ struct TransformerAttentionBlock {
   int ropeNumKVHeads;
 
   static bool shouldCombineQKV(CudaHandles* cudaHandles, const TransformerAttentionDesc* desc, bool useFP16) {
-#if defined(DEBUG_INTERMEDIATE_VALUES) || !defined(KATAGO_GPU_CUDA)
+#if defined(DEBUG_INTERMEDIATE_VALUES)
     // The intermediate-value debug prints assume packed per-tensor layouts, so keep them
     // meaningful by never using the interleaved combined layout in debug-print builds.
-    // HIP has no combined-QKV path at all.
     (void)cudaHandles; (void)desc; (void)useFP16;
     return false;
-#else
+#elif defined(KATAGO_GPU_CUDA)
     return
       useFP16 &&
       cudaHandles->mmaAttentionEnabled &&
@@ -2658,6 +2882,19 @@ struct TransformerAttentionBlock {
       desc->qProj.inChannels == desc->kProj.inChannels &&
       desc->qProj.inChannels == desc->vProj.inChannels &&
       customCudaFlashAttentionMmaSupportsShape(desc->numHeads, desc->numKVHeads, desc->qHeadDim, desc->vHeadDim);
+#else
+    // ROCm: for the CK GEMM kernels, which run one combined GEMM faster than hipBLAS runs the
+    // projections at small batch sizes. Only when dot2 attention is the sole consumer of Q/K/V:
+    // it reads them through strides and applies RoPE itself, while the CK fused attention path,
+    // which would otherwise be tried first, and Step 3's separate RoPE kernels do not.
+    return
+      useFP16 &&
+      cudaHandles->ckGemmEnabled &&
+      cudaHandles->dot2AttentionEnabled &&
+      !rocmCkFmhaWillBeTried(cudaHandles) &&
+      desc->qProj.inChannels == desc->kProj.inChannels &&
+      desc->qProj.inChannels == desc->vProj.inChannels &&
+      rocmDot2AttentionSupportsShape(desc->numHeads, desc->numKVHeads, desc->qHeadDim, desc->vHeadDim);
 #endif
   }
 
@@ -2686,7 +2923,7 @@ struct TransformerAttentionBlock {
     usingFP16(useFP16),
     usingNHWC(useNHWC),
     preLN(cudaHandles, &desc->preLN, useFP16),
-    outProj(cudaHandles, &desc->outProj, useFP16),
+    outProj(cudaHandles, &desc->outProj, useFP16, true),
     sameQKVShapes(
       desc->qProj.inChannels == desc->kProj.inChannels &&
       desc->qProj.inChannels == desc->vProj.inChannels &&
@@ -2744,6 +2981,12 @@ struct TransformerAttentionBlock {
         name + ":qkvCombined",
         [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":qkvCombined", packed, b, useFP16); },
         desc, SharedWeightsKind::QKV_COMBINED, useFP16, cudaHandles->shareModelWeights);
+#ifdef KATAGO_GPU_HIP
+      qkvCombinedOutMajorWeights = mallocAndCopyToDeviceMaybeShared(
+        name + ":qkvCombinedOutMajor",
+        [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":qkvCombinedOutMajor", transposeInMajorWeights(packed, inChannels, (int)combinedN), b, useFP16); },
+        desc, SharedWeightsKind::QKV_COMBINED_OUT_MAJOR, useFP16, cudaHandles->shareModelWeights);
+#endif
     }
     else if(sameQKVShapes) {
       vector<float> packed;
@@ -2823,6 +3066,21 @@ struct TransformerAttentionBlock {
     CudaUtils::debugPrint3D(KATAGO_GPU_BACKEND_NAME " Attn RMSNorm out", trunkScratchBuf, batchSize, inChannels, seqLen, usingNHWC, usingFP16, maskBuf);
 #endif
 
+#ifdef KATAGO_GPU_HIP
+    // The dot2 attention path (rocmkernels.h) compacts and re-lays-out Q/K/V in a prep kernel that
+    // can apply RoPE on the way, replacing Step 3's separate RoPE launch. That only happens when
+    // nothing else will consume Q/K first, i.e. when the CK fused path will not be attempted.
+    const bool useDot2Attention =
+      usingFP16 && cudaHandles->dot2AttentionEnabled &&
+      rocmDot2AttentionSupportsShape(numHeads, numKVHeads, qHeadDim, vHeadDim);
+    const bool ckWillBeTried = usingFP16 && rocmCkFmhaWillBeTried(cudaHandles);
+    const bool fuseRopeIntoDot2Prep = useRope && useDot2Attention && !ckWillBeTried;
+    // The combined layout is chosen at construction only for dot2 attention as the sole consumer.
+    testAssert(!useCombinedQKV || (useDot2Attention && !ckWillBeTried));
+#else
+    const bool fuseRopeIntoDot2Prep = false;
+#endif
+
     // Step 2: Q/K/V projections
     // trunkScratchBuf is [N, XY, C] NHWC = [C, N*seqLen] column-major.
     // MatMulLayer expects input as [inChannels, batchSize], which matches.
@@ -2852,11 +3110,20 @@ struct TransformerAttentionBlock {
       // The mma kernel wants 16-byte-aligned slice pointers, so the interior offsets must be
       // multiples of 8 halfs. True for every real head configuration, so assert.
       testAssert(qTotalDim % 8 == 0 && kTotalDim % 8 == 0);
-      applySharedInputStridedMatMuls(
-        cudaHandles, scratch, usingFP16, name,
-        combinedN, matBatchSize, inChannels,
-        qkvPackedWeights.buf, trunkScratchBuf, qkvBuf.buf, 0, 1
-      );
+      auto runBlas = [&]() {
+        applySharedInputStridedMatMuls(
+          cudaHandles, scratch, usingFP16, name,
+          combinedN, matBatchSize, inChannels,
+          qkvPackedWeights.buf, trunkScratchBuf, qkvBuf.buf, 0, combinedN, 1
+        );
+      };
+#ifdef KATAGO_GPU_HIP
+      rocmTokenGemmCkOrHipblas(
+        cudaHandles, name, qkvCombinedOutMajorWeights.buf, combinedN, inChannels,
+        trunkScratchBuf, inChannels, qkvBuf.buf, combinedN, matBatchSize, false, runBlas);
+#else
+      runBlas();
+#endif
     }
     else {
       qPtr = qkvBuf.buf;
@@ -2876,7 +3143,7 @@ struct TransformerAttentionBlock {
         applySharedInputStridedMatMuls(
           cudaHandles, scratch, usingFP16, name,
           qTotalDim, matBatchSize, inChannels,
-          qkvPackedWeights.buf, trunkScratchBuf, qPtr, strideElts, 3
+          qkvPackedWeights.buf, trunkScratchBuf, qPtr, strideElts, qTotalDim, 3
         );
       }
       else {
@@ -2892,7 +3159,7 @@ struct TransformerAttentionBlock {
 
     // Step 3: Apply RoPE to Q and K
     // Q is [qTotalDim, seqLen*batchSize] column-major = [batchSize*seqLen, qTotalDim] row-major
-    if(useRope) {
+    if(useRope && !fuseRopeIntoDot2Prep) {
       // The fused Q+K kernels assume each KV head maps to a whole number of query heads.
       // Models always satisfy this, but fall back to separate launches if not.
       bool fuseQK = (numHeads % numKVHeads == 0);
@@ -3070,8 +3337,7 @@ struct TransformerAttentionBlock {
 
     bool usedSDPA = false;
 #if KATAGO_ROCM_HAS_CK_FMHA && KATAGO_ROCM_CK_FMHA_ARCH_OK
-    if(usingFP16 && !cudaHandles->disableFusedAttention &&
-       cudaHandles->ckFmhaArchSupported && !cudaHandles->fusedAttentionRuntimeDisabled) {
+    if(ckWillBeTried) {
       bool hasMask = (maskBuf != NULL);
 
       // CK's fused path takes a pre-materialized additive bias rather than a raw per-position
@@ -3181,7 +3447,7 @@ struct TransformerAttentionBlock {
           cudaHandles->logger->write(
             "ROCm backend: CK fused attention unavailable" +
             (ckFailure.empty() ? string(" (unsupported shape/config)") : (": " + ckFailure)) +
-            "; using the plain attention kernel instead");
+            (useDot2Attention ? "; using the dot2 attention kernel instead" : "; using the plain attention kernel instead"));
         }
       }
     }
@@ -3191,10 +3457,50 @@ struct TransformerAttentionBlock {
        !cudaHandles->loggedCkFmhaDisabled) {
       cudaHandles->loggedCkFmhaDisabled = true;
       if(cudaHandles->logger != NULL)
-        cudaHandles->logger->write(
-          "ROCm backend: rocmDisableFusedAttention is set, using the plain attention kernel instead of the CK fused attention path that would otherwise have been used");
+        cudaHandles->logger->write(string(
+          "ROCm backend: rocmDisableFusedAttention is set, using the ") +
+          (useDot2Attention ? "dot2" : "plain") +
+          " attention kernel instead of the CK fused attention path that would otherwise have been used");
     }
 #endif
+    // dot2 attention (see useDot2Attention above), when the CK path was not taken or failed.
+    if(!usedSDPA && useDot2Attention) {
+      RocmAttnRope rope;
+      if(fuseRopeIntoDot2Prep) {
+        if(learnableRope) {
+          rope.mode = RocmAttnRope::RECOMPUTE;
+          rope.freqs = (const float*)ropeFreqsBuf.buf;
+          rope.nnXLen = nnXLen;
+        }
+        else {
+          rope.mode = RocmAttnRope::TABLE;
+          rope.cosTable = (const half*)ropeCosTable.buf;
+          rope.sinTable = (const half*)ropeSinTable.buf;
+          rope.learnableTable = false;
+        }
+      }
+      // Sized by max batch size like every transient buffer here, see the comment on qkvBuf.
+      const size_t kvBytes = rocmDot2AttentionKVBytes(scratch->maxBatchSize, seqLen, numKVHeads, qHeadDim);
+      SizedBuf<void*> kcBuf(scratch->allocator, kvBytes);
+      SizedBuf<void*> vcBuf(scratch->allocator, kvBytes);
+      SizedBuf<void*> permBuf(scratch->allocator, rocmDot2AttentionPermBytes(scratch->maxBatchSize, seqLen));
+      rocmDot2AttentionPrep(
+        (half*)qPtr, (const half*)kPtr, (const half*)vPtr, (const half*)maskBuf,
+        (half*)kcBuf.buf, (half*)vcBuf.buf, (short*)permBuf.buf,
+        batchSize, seqLen, numHeads, numKVHeads, qHeadDim, qStrideElts, kvStrideElts, rope, cudaHandles->stream);
+      rocmDot2Attention(
+        (const half*)qPtr, (const half*)kcBuf.buf, (const half*)vcBuf.buf, (const short*)permBuf.buf,
+        (half*)attnOutBuf.buf, batchSize, seqLen, numHeads, numKVHeads, qHeadDim, qStrideElts,
+        cudaHandles->numMultiprocessors, cudaHandles->waveSize, cudaHandles->stream);
+      CUDA_ERR(name.c_str(), hipPeekAtLastError());
+      // Not SDPA proper, but it is what keeps the plain fallback below from running.
+      usedSDPA = true;
+      if(!cudaHandles->loggedUsingDot2Attention) {
+        cudaHandles->loggedUsingDot2Attention = true;
+        if(cudaHandles->logger != NULL)
+          cudaHandles->logger->write("ROCm backend: using dot2 attention");
+      }
+    }
 #endif
 
     if(!usedSDPA) {
@@ -3280,6 +3586,12 @@ struct TransformerFFNBlock {
 #if defined(KATAGO_GPU_CUDA) && defined(USE_CUTLASS_FUSED_FFN)
   bool usingFusedFFN = false;
 #endif
+  // ROCm only: additionally the out-major layout (as for the CUTLASS kernel) when the CK GEMM
+  // kernels are enabled for FP16. linear1 and the gate then write one buffer interleaved per
+  // token, [tokens, linear1 | gate], through either one CK GEMM or the strided-batched hipBLAS
+  // GEMM, whichever times faster (see rocmTokenGemmCkOrHipblas), and linear2 reads the SwiGLU
+  // result in place at that row stride.
+  SharedDeviceBuf ffnOutMajorWeights;
 
   TransformerFFNBlock() = delete;
   TransformerFFNBlock(const TransformerFFNBlock&) = delete;
@@ -3302,7 +3614,7 @@ struct TransformerFFNBlock {
     usingFP16(useFP16),
     usingNHWC(useNHWC),
     preLN(cudaHandles, &desc->preLN, useFP16),
-    linear2(cudaHandles, &desc->linear2, useFP16)
+    linear2(cudaHandles, &desc->linear2, useFP16, true)
   {
     if(!useSwiGLU) {
       throw StringError("Non-SwiGLU transformer FFN is not yet supported in " KATAGO_GPU_BACKEND_NAME " backend");
@@ -3359,6 +3671,17 @@ struct TransformerFFNBlock {
         name + ":ffnPacked",
         [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":ffnPacked", packed, b, useFP16); },
         desc, SharedWeightsKind::FFN_PACKED, useFP16, cudaHandles->shareModelWeights);
+#if defined(KATAGO_GPU_HIP) && !defined(DEBUG_INTERMEDIATE_VALUES)
+      if(useFP16 && cudaHandles->ckGemmEnabled && ffnChannels % 8 == 0 && numChannels % 8 == 0) {
+        vector<float> outMajor = transposeInMajorWeights(desc->linear1.weights, numChannels, ffnChannels);
+        const vector<float> gateOutMajor = transposeInMajorWeights(desc->linearGate.weights, numChannels, ffnChannels);
+        outMajor.insert(outMajor.end(), gateOutMajor.begin(), gateOutMajor.end());
+        ffnOutMajorWeights = mallocAndCopyToDeviceMaybeShared(
+          name + ":ffnOutMajor",
+          [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":ffnOutMajor", outMajor, b, useFP16); },
+          desc, SharedWeightsKind::FFN_FUSED_PACKED, useFP16, cudaHandles->shareModelWeights);
+      }
+#endif
     }
   }
 
@@ -3425,6 +3748,29 @@ struct TransformerFFNBlock {
       usedFusedFFN = true;
     }
 #endif
+    // Row stride (elements) of the SwiGLU result in ffnBuf, which linear2 reads.
+    int swigluRowStride = ffnChannels;
+#ifdef KATAGO_GPU_HIP
+    if(ffnOutMajorWeights.buf != nullptr) {
+      // See ffnOutMajorWeights: [tokens, linear1 | gate], SwiGLU in place into the linear1 half.
+      swigluRowStride = 2 * ffnChannels;
+      auto runHipblas = [&]() {
+        applySharedInputStridedMatMuls(
+          cudaHandles, scratch, usingFP16, name,
+          ffnChannels, matBatchSize, numChannels,
+          ffnPackedWeights.buf, trunkScratchBuf, ffnBuf.buf, ffnChannels, swigluRowStride, 2
+        );
+      };
+      rocmTokenGemmCkOrHipblas(
+        cudaHandles, name, ffnOutMajorWeights.buf, swigluRowStride, numChannels,
+        trunkScratchBuf, numChannels, ffnBuf.buf, swigluRowStride, matBatchSize, false, runHipblas);
+      customCudaSwiGLURows(
+        (const half*)ffnBuf.buf, (const half*)ffnBuf.buf + ffnChannels, (half*)ffnBuf.buf,
+        matBatchSize, ffnChannels, swigluRowStride, cudaHandles->stream);
+      CUDA_ERR(name.c_str(), cudaPeekAtLastError());
+    }
+    else
+#endif
     if(!usedFusedFFN) {
       {
         const size_t eltBytes = usingFP16 ? sizeof(cublas_half_t) : sizeof(float);
@@ -3432,7 +3778,7 @@ struct TransformerFFNBlock {
         applySharedInputStridedMatMuls(
           cudaHandles, scratch, usingFP16, name,
           ffnChannels, matBatchSize, numChannels,
-          ffnPackedWeights.buf, trunkScratchBuf, ffnBuf.buf, strideElts, 2
+          ffnPackedWeights.buf, trunkScratchBuf, ffnBuf.buf, strideElts, ffnChannels, 2
         );
       }
 
@@ -3456,11 +3802,11 @@ struct TransformerFFNBlock {
     // Same masking logic as the attention block's output projection: fuse the residual into the
     // GEMM only when there is no mask.
     if(maskBuf == NULL) {
-      linear2.apply(cudaHandles, scratch, matBatchSize, ffnBuf.buf, trunkBuf, workspaceBuf, workspaceBytes, true);
+      linear2.apply(cudaHandles, scratch, matBatchSize, ffnBuf.buf, trunkBuf, workspaceBuf, workspaceBytes, true, swigluRowStride);
       CUDA_ERR(name.c_str(), cudaPeekAtLastError());
     }
     else {
-      linear2.apply(cudaHandles, scratch, matBatchSize, ffnBuf.buf, trunkScratchBuf, workspaceBuf, workspaceBytes);
+      linear2.apply(cudaHandles, scratch, matBatchSize, ffnBuf.buf, trunkScratchBuf, workspaceBuf, workspaceBytes, false, swigluRowStride);
 
       if(pendingTrunkDelta != NULL) {
         // Defer the add so the next block can fuse it into its pre-norm.
@@ -4835,6 +5181,11 @@ struct ComputeContext {
   bool fuseResidualNorm;
   // See CudaHandles::use1x1MatmulMode.
   enabled_t use1x1MatmulMode;
+  // See CudaHandles::dot2AttentionEnabled. Auto = on for the archs the kernels were measured on
+  // (rocmDot2AttentionAutoArch), True = on wherever the arch has v_dot2_f32_f16.
+  enabled_t useDot2AttentionMode;
+  // See CudaHandles::ckGemmEnabled. Auto = on where this build has CK GEMM kernels for the arch.
+  enabled_t useCkGemmMode;
 };
 #endif
 
@@ -4917,6 +5268,10 @@ ComputeContext* NeuralNet::createComputeContext(
   context->fuseResidualNorm =
     cfg.contains("rocmFuseResidualNorm") ? cfg.getBool("rocmFuseResidualNorm") : true;
   context->use1x1MatmulMode = use1x1MatmulMode;
+  context->useDot2AttentionMode =
+    cfg.contains("rocmUseDot2Attention") ? cfg.getEnabled("rocmUseDot2Attention") : enabled_t::Auto;
+  context->useCkGemmMode =
+    cfg.contains("rocmUseCkGemm") ? cfg.getEnabled("rocmUseCkGemm") : enabled_t::Auto;
   return context;
 }
 #endif
@@ -5031,6 +5386,11 @@ struct ComputeHandle {
     int minorComputeCapability,
     bool ckFmhaArchSupported,
     bool preferMiopen1x1Conv,
+    bool archHasDot2,
+    bool archDot2AttentionAuto,
+    bool archHasCkGemm,
+    int numMultiprocessors,
+    int waveSize,
     int maxBatchSize,
     bool requireExactNNLen_,
     bool inputsUseNHWC_,
@@ -5057,6 +5417,21 @@ struct ComputeHandle {
     cudaHandles->use1x1MatmulMode =
       (context->use1x1MatmulMode == enabled_t::Auto && preferMiopen1x1Conv)
       ? enabled_t::False : context->use1x1MatmulMode;
+    if(context->useDot2AttentionMode == enabled_t::True && !archHasDot2)
+      throw StringError("rocmUseDot2Attention = true, but this GPU architecture has no v_dot2_f32_f16");
+    cudaHandles->dot2AttentionEnabled =
+      archHasDot2 &&
+      (context->useDot2AttentionMode == enabled_t::True ||
+       (context->useDot2AttentionMode == enabled_t::Auto && archDot2AttentionAuto));
+    cudaHandles->numMultiprocessors = numMultiprocessors;
+    cudaHandles->waveSize = waveSize;
+    if(context->useCkGemmMode == enabled_t::True && !archHasCkGemm)
+      throw StringError("rocmUseCkGemm = true, but this build has no CK GEMM kernels for this GPU architecture (only gfx103x is supported)");
+    // Only the FP16 GEMMs have CK kernels; must be set before building the model, whose layers
+    // choose their weight layout by it.
+    cudaHandles->ckGemmEnabled = useFP16 && archHasCkGemm && context->useCkGemmMode != enabled_t::False;
+    if(cudaHandles->ckGemmEnabled && logger != NULL)
+      logger->write("ROCm backend: CK DPP GEMM kernels enabled for FP16 token GEMMs, used per shape where faster than hipBLAS");
     model = std::make_unique<Model>(
       cudaHandles.get(), &(loadedModel->modelDesc), maxBatchSize,
       nnXLen, nnYLen, inputsUseNHWC, useFP16, useNHWC
@@ -5246,11 +5621,18 @@ ComputeHandle* NeuralNet::createComputeHandle(
     );
   }
 
+#if KATAGO_ROCM_HAS_CK_GEMM
+  const bool archHasCkGemm = rocmCkGemmSupportsArch(prop.gcnArchName);
+#else
+  const bool archHasCkGemm = false;
+#endif
   // Reusing the NHWC predicate: the archs that prefer MIOpen's NHWC 1x1 conv over a GEMM are the
   // same ones that prefer NHWC at all.
   ComputeHandle* gpuHandle = new ComputeHandle(
     context,loadedModel,logger,prop.major,prop.minor,isCkFmhaSupportedArch(prop),
-    isNhwcFp16PreferredArch(prop),
+    isNhwcFp16PreferredArch(prop), rocmArchHasDot2(prop.gcnArchName), rocmDot2AttentionAutoArch(prop.gcnArchName),
+    archHasCkGemm,
+    prop.multiProcessorCount, prop.warpSize,
     maxBatchSize,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
   );
   return gpuHandle;

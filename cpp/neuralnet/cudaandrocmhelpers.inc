@@ -1125,28 +1125,43 @@ void customCudaAddTensorInplace(float* buf, const float* biases, int nSize, cuda
 // convolution when the two differ. Only the initial convolution's input ever needs this.
 //
 // out[n][b][a] = in[n][a][b]. For NCHW->NHWC call with (a=C, b=HW), for NHWC->NCHW with (a=HW, b=C).
-// Reads are coalesced over b, in's contiguous axis. The tensor is small, being the raw input
-// planes, so the strided writes are not worth tiling for.
+// Besides the input planes, this also transposes the output of a conv re-expressed as NCHW (see
+// ConvLayer::useNchwFallback), e.g. a 512-channel trunk, so it is tiled through shared memory to
+// keep both the reads and the writes coalesced: one 32x32 tile per block, 32x8 threads.
 
 template<typename T>
 __global__
 void batchedTranspose2DKernel(const T* in, T* out, int aSize, int bSize)
 {
-  int b = blockIdx.x * blockDim.x + threadIdx.x;
-  int a = blockIdx.y;
-  int n = blockIdx.z;
-  if(b < bSize)
-    out[((size_t)n * bSize + b) * aSize + a] = in[((size_t)n * aSize + a) * bSize + b];
+  __shared__ T tile[32][33];
+  const int b0 = blockIdx.x * 32;
+  const int a0 = blockIdx.y * 32;
+  const int n = blockIdx.z;
+  const T* inN = in + (size_t)n * aSize * bSize;
+  T* outN = out + (size_t)n * aSize * bSize;
+  for(int i = threadIdx.y; i < 32; i += 8) {
+    int a = a0 + i;
+    int b = b0 + threadIdx.x;
+    if(a < aSize && b < bSize)
+      tile[i][threadIdx.x] = inN[(size_t)a * bSize + b];
+  }
+  __syncthreads();
+  for(int i = threadIdx.y; i < 32; i += 8) {
+    int b = b0 + i;
+    int a = a0 + threadIdx.x;
+    if(a < aSize && b < bSize)
+      outN[(size_t)b * aSize + a] = tile[threadIdx.x][i];
+  }
 }
 
 template<typename T>
 static void applyBatchedTranspose2D(const T* in, T* out, int nSize, int aSize, int bSize, const char* name, cudaStream_t stream) {
   checkBufferIndexFitsInt(nSize, aSize, bSize, name);
-  if(nSize > 65535 || aSize > 65535)
+  if(nSize > 65535 || (aSize + 31) / 32 > 65535)
     throw std::runtime_error(std::string(name) + ": dimension exceeds the grid y/z size limit");
-  int blockSize = targetNumThreads;
-  dim3 grid((bSize + blockSize - 1) / blockSize, aSize, nSize);
-  batchedTranspose2DKernel<<<grid, blockSize, 0, stream>>>(in, out, aSize, bSize);
+  dim3 grid((bSize + 31) / 32, (aSize + 31) / 32, nSize);
+  dim3 threads(32, 8);
+  batchedTranspose2DKernel<<<grid, threads, 0, stream>>>(in, out, aSize, bSize);
 }
 
 void customCudaCopyNCHWtoNHWC(const float* in, float* out, int nSize, int cSize, int xySize, cudaStream_t stream) {
@@ -2131,12 +2146,106 @@ void applyCScaleBiasNHWCSiluMaskHalfKernel(const half* in, half* out, const half
 #endif
 }
 
+#ifdef KATAGO_GPU_HIP
+// ROCm only so far: these vectorized FP16 kernels (here and the masked residual add, wave-per-row
+// RMSNorm, and SwiGLU ones below) were measured on ROCm (gfx1030) only, so the CUDA backend keeps
+// the kernels they bypass.
+//
+// Vectorized FP16 NHWC variant of the kernels above: one thread per 8 consecutive channels of one
+// position, with 16-byte loads and stores, used whenever cSize is a multiple of 8 and the buffers
+// are 16-byte aligned. The scalar kernels move 2 bytes per thread and reach only a fraction of
+// memory bandwidth, which made them a visible cost next to the GEMMs. Per-element arithmetic is
+// exactly that of the scalar half kernels (half fma, then half mask multiply, then the activation),
+// so results are bit-identical.
+#ifdef KATAGO_GPU_SUPPORTS_FP16
+template<int ACTIVATION>
+__device__ __forceinline__ half applyActivationHalf(half a) {
+  if(ACTIVATION == ACTIVATION_RELU) {
+    const half halfzero = __float2half(0.0f);
+    return __hgt(a,halfzero) ? a : halfzero;
+  }
+  else if(ACTIVATION == ACTIVATION_MISH)
+    return mishh(a);
+  else if(ACTIVATION == ACTIVATION_MISH_SCALE8)
+    return mishh_scale8(a);
+  else if(ACTIVATION == ACTIVATION_SILU)
+    return siluh(a);
+  else
+    return a;
+}
+#endif
+
+template<int ACTIVATION, bool HAS_MASK>
+__global__
+void applyCScaleBiasNHWCHalfVec8Kernel(const half* in, half* out, const half* scale, const half* biases, const half* mask, int numPositions, int cSize)
+{
+#ifdef KATAGO_GPU_SUPPORTS_FP16
+  const int c8Size = cSize / 8;
+  const int t = blockIdx.x * blockDim.x + threadIdx.x;
+  if(t >= numPositions * c8Size)
+    return;
+  const int pos = t / c8Size;
+  const int c8 = t - pos * c8Size;
+  uint4 v = ((const uint4*)in)[t];
+  const uint4 s = ((const uint4*)scale)[c8];
+  const uint4 b = ((const uint4*)biases)[c8];
+  half* hv = (half*)&v;
+  const half* hs = (const half*)&s;
+  const half* hb = (const half*)&b;
+  const half m = HAS_MASK ? mask[pos] : __float2half(1.0f);
+  #pragma unroll
+  for(int k = 0; k < 8; k++) {
+    half a = __hfma(hv[k],hs[k],hb[k]);
+    if(HAS_MASK)
+      a = __hmul(a,m);
+    hv[k] = applyActivationHalf<ACTIVATION>(a);
+  }
+  ((uint4*)out)[t] = v;
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
+
+template<bool HAS_MASK>
+static void launchApplyCScaleBiasNHWCHalfVec8(const half* in, half* out, const half* scale, const half* biases, const half* mask, int numPositions, int cSize, int activation, cudaStream_t stream) {
+  const int total = numPositions * (cSize / 8);
+  const int threads = 256;
+  const int blocks = (total + threads - 1) / threads;
+  if(activation == ACTIVATION_IDENTITY)
+    applyCScaleBiasNHWCHalfVec8Kernel<ACTIVATION_IDENTITY,HAS_MASK><<<blocks,threads,0,stream>>>(in,out,scale,biases,mask,numPositions,cSize);
+  else if(activation == ACTIVATION_RELU)
+    applyCScaleBiasNHWCHalfVec8Kernel<ACTIVATION_RELU,HAS_MASK><<<blocks,threads,0,stream>>>(in,out,scale,biases,mask,numPositions,cSize);
+  else if(activation == ACTIVATION_MISH)
+    applyCScaleBiasNHWCHalfVec8Kernel<ACTIVATION_MISH,HAS_MASK><<<blocks,threads,0,stream>>>(in,out,scale,biases,mask,numPositions,cSize);
+  else if(activation == ACTIVATION_SILU)
+    applyCScaleBiasNHWCHalfVec8Kernel<ACTIVATION_SILU,HAS_MASK><<<blocks,threads,0,stream>>>(in,out,scale,biases,mask,numPositions,cSize);
+  else if(activation == ACTIVATION_MISH_SCALE8)
+    applyCScaleBiasNHWCHalfVec8Kernel<ACTIVATION_MISH_SCALE8,HAS_MASK><<<blocks,threads,0,stream>>>(in,out,scale,biases,mask,numPositions,cSize);
+  else
+    throw std::runtime_error("customCudaApplyCScaleBiasNHWC: unsupported activation");
+}
+
+static bool isAligned16(const void* p) {
+  return ((uintptr_t)p & 15) == 0;
+}
+#endif  // KATAGO_GPU_HIP
+
 static void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, const void* biases, const void* mask, int nSize, int xySize, int cSize, bool isHalf, int activation, cudaStream_t stream) {
   if(nSize > 65535)
     throw std::runtime_error("customCudaApplyCScaleBiasNHWC: nSize too large");
   if(xySize > 65535)
     throw std::runtime_error("customCudaApplyCScaleBiasNHWC: xySize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaApplyCScaleBiasNHWC");
+
+#ifdef KATAGO_GPU_HIP
+  if(isHalf && cSize % 8 == 0 && isAligned16(in) && isAligned16(out) && isAligned16(scale) && isAligned16(biases)) {
+    if(mask == NULL)
+      launchApplyCScaleBiasNHWCHalfVec8<false>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,NULL,nSize*xySize,cSize,activation,stream);
+    else
+      launchApplyCScaleBiasNHWCHalfVec8<true>((const half*)in,(half*)out,(const half*)scale,(const half*)biases,(const half*)mask,nSize*xySize,cSize,activation,stream);
+    return;
+  }
+#endif
 
   int sSize = xySize;
   int cThreads;
@@ -3120,9 +3229,52 @@ void customCudaSwiGLU(const float* a, const float* b, float* out, int size, cuda
   int blocks = (size + threads - 1) / threads;
   swiGLUKernel<<<blocks, threads, 0, stream>>>(a, b, out, size);
 }
+#ifdef KATAGO_GPU_HIP
+// Vectorized variant over rows (ROCm only, see applyCScaleBiasNHWCHalfVec8Kernel): out[r][c] =
+// SiLU(a[r][c]) * b[r][c] for c < cols, every operand at row stride rowStride (elements), one thread
+// per 8 consecutive elements with 16-byte accesses. Same per-element arithmetic as the kernel above.
+__global__
+void swiGLURowsHalfVec8Kernel(const half* a, const half* b, half* out, int rows, int cols, int rowStride)
+{
+#ifdef KATAGO_GPU_SUPPORTS_FP16
+  const int c8Size = cols / 8;
+  const int t = blockIdx.x * blockDim.x + threadIdx.x;
+  if(t >= rows * c8Size)
+    return;
+  const int r = t / c8Size;
+  const int c = (t - r * c8Size) * 8;
+  const size_t offset = (size_t)r * rowStride + c;
+  uint4 av = *(const uint4*)(a + offset);
+  const uint4 bv = *(const uint4*)(b + offset);
+  half* ha = (half*)&av;
+  const half* hb = (const half*)&bv;
+  #pragma unroll
+  for(int e = 0; e < 8; e++)
+    ha[e] = __float2half(siluf(__half2float(ha[e])) * __half2float(hb[e]));
+  *(uint4*)(out + offset) = av;
+#else
+  (void)a; (void)b; (void)out; (void)rows; (void)cols; (void)rowStride;
+#endif
+}
+
+static void launchSwiGLURowsHalfVec8(const half* a, const half* b, half* out, int rows, int cols, int rowStride, cudaStream_t stream) {
+  const int total = rows * (cols / 8);
+  const int threads = 256;
+  swiGLURowsHalfVec8Kernel<<<(total + threads - 1) / threads, threads, 0, stream>>>(a, b, out, rows, cols, rowStride);
+}
+#endif  // KATAGO_GPU_HIP
+
 void customCudaSwiGLU(const half* a, const half* b, half* out, int size, cudaStream_t stream) {
   if(size <= 0)
     return;
+#ifdef KATAGO_GPU_HIP
+  // Contiguous operands are a single row for the vectorized kernel, about 1.5x faster at the
+  // transformer FFN sizes of small batches.
+  if(size % 8 == 0 && isAligned16(a) && isAligned16(b) && isAligned16(out)) {
+    launchSwiGLURowsHalfVec8(a, b, out, 1, size, size, stream);
+    return;
+  }
+#endif
   constexpr int ELTS_PER_THREAD = 4;  // half2 pairs per thread
   int threads = 256;
   int pairCount = size >> 1;
@@ -3130,6 +3282,17 @@ void customCudaSwiGLU(const half* a, const half* b, half* out, int size, cudaStr
   if(blocks < 1) blocks = 1;  // ensure the odd-size tail still gets a block
   swiGLUHalfStrideKernel<ELTS_PER_THREAD><<<blocks, threads, 0, stream>>>(a, b, out, size);
 }
+#ifdef KATAGO_GPU_HIP
+void customCudaSwiGLURows(const half* a, const half* b, half* out, int rows, int cols, int rowStride, cudaStream_t stream) {
+  if(rows <= 0 || cols <= 0)
+    return;
+  if(cols % 8 != 0 || rowStride % 8 != 0 || !isAligned16(a) || !isAligned16(b) || !isAligned16(out))
+    throw std::runtime_error("customCudaSwiGLURows: cols and rowStride must be multiples of 8, pointers 16-byte aligned");
+  if((long long)rows * (cols / 8) >= (1LL << 31))
+    throw std::runtime_error("customCudaSwiGLURows: too many elements");
+  launchSwiGLURowsHalfVec8(a, b, out, rows, cols, rowStride, stream);
+}
+#endif
 
 //--------------------------------------------------------------------------------------------------------------
 // Masked residual add: trunk[i] += residual[i] * mask[spatial_idx]
@@ -3227,10 +3390,44 @@ void customCudaMaskedResidualAddNHWC(float* trunk, const float* residual, const 
   dim3 threads(cThreads, xyThreads, 1);
   maskedResidualAddNHWCKernel<<<grid, threads, 0, stream>>>(trunk, residual, mask, xySize, cSize);
 }
+#ifdef KATAGO_GPU_HIP
+// Vectorized variant (ROCm only, see applyCScaleBiasNHWCHalfVec8Kernel): one thread per 8
+// consecutive channels (16-byte accesses), same arithmetic.
+__global__
+void maskedResidualAddNHWCHalfVec8Kernel(half* trunk, const half* residual, const half* mask, int numPositions, int cSize)
+{
+#ifdef KATAGO_GPU_SUPPORTS_FP16
+  const int c8Size = cSize / 8;
+  const int t = blockIdx.x * blockDim.x + threadIdx.x;
+  if(t >= numPositions * c8Size)
+    return;
+  const int pos = t / c8Size;
+  const float m = (mask != NULL) ? __half2float(mask[pos]) : 1.0f;
+  uint4 tv = ((const uint4*)trunk)[t];
+  const uint4 rv = ((const uint4*)residual)[t];
+  half* ht = (half*)&tv;
+  const half* hr = (const half*)&rv;
+  #pragma unroll
+  for(int e = 0; e < 8; e++)
+    ht[e] = __float2half(__half2float(ht[e]) + __half2float(hr[e]) * m);
+  ((uint4*)trunk)[t] = tv;
+#else
+  //Do nothing, FP16 not supported
+#endif
+}
+#endif
+
 void customCudaMaskedResidualAddNHWC(half* trunk, const half* residual, const half* mask, int nSize, int xySize, int cSize, cudaStream_t stream) {
   if(nSize > 65535)
     throw std::runtime_error("customCudaMaskedResidualAddNHWC: nSize too large");
   checkBufferIndexFitsInt(nSize, xySize, cSize, "customCudaMaskedResidualAddNHWC");
+#ifdef KATAGO_GPU_HIP
+  if(cSize % 8 == 0 && isAligned16(trunk) && isAligned16(residual)) {
+    const int total = nSize * xySize * (cSize / 8);
+    maskedResidualAddNHWCHalfVec8Kernel<<<(total + 255) / 256, 256, 0, stream>>>(trunk, residual, mask, nSize * xySize, cSize);
+    return;
+  }
+#endif
   int cThreads, cBlocks, xyThreads, xyBlocks;
   splitThreadsAcrossDim01(cSize, xySize, cThreads, cBlocks, xyThreads, xyBlocks);
   dim3 grid(cBlocks, xyBlocks, nSize);
@@ -3646,6 +3843,113 @@ void residualAddRmsNormGammaBetaNHWCHalfVecKernel(
 #endif
 }
 
+#ifdef KATAGO_GPU_HIP
+// Wave-per-row variants (ROCm only, see applyCScaleBiasNHWCHalfVec8Kernel) of the two vectorized
+// kernels above (RMSNorm, optionally fused with the masked residual add), for cSize a multiple of 8
+// and at most 8 * MAX_CHUNKS * 32. One warp / wavefront handles one position with 16-byte accesses
+// and a pure shuffle reduction, instead of one block per position with a two-level shared memory
+// reduction: at the trunk widths of transformer blocks (256-768 channels) the per-block overhead
+// dominated those kernels. Positions are walked with a grid-stride loop over warps, so the launch
+// does not depend on the warp width. Arithmetic per element matches the kernels above; only the
+// order of the float sum of squares differs.
+template<bool RESIDUAL, int MAX_CHUNKS>
+__global__
+void rmsNormGammaBetaNHWCHalfWaveRowKernel(
+  half* trunk, const half* in, half* out, const half* gamma, const half* beta, const half* mask,
+  int totalPositions, int cSize, float epsilon, int activation
+) {
+#ifdef KATAGO_GPU_SUPPORTS_FP16
+  const int lanes = KATAGO_WARP_LANES;
+  const int lane = threadIdx.x % lanes;
+  const int wavesPerBlock = blockDim.x / lanes;
+  const int numChunks = cSize / 8;
+  for(int pos = blockIdx.x * wavesPerBlock + threadIdx.x / lanes; pos < totalPositions; pos += gridDim.x * wavesPerBlock) {
+    const float maskVal = (mask != NULL) ? __half2float(mask[pos]) : 1.0f;
+    const uint4* inRow = (const uint4*)(in + (size_t)pos * cSize);
+    uint4* trunkRow = RESIDUAL ? (uint4*)(trunk + (size_t)pos * cSize) : NULL;
+    float vals[MAX_CHUNKS][8];
+    float acc = 0.0f;
+    #pragma unroll
+    for(int j = 0; j < MAX_CHUNKS; j++) {
+      const int k = lane + j * lanes;
+      if(k < numChunks) {
+        uint4 v = inRow[k];
+        const half* hv = (const half*)&v;
+        if(RESIDUAL) {
+          // in is the delta: trunk += delta * mask, rounded through half, then normalize trunk.
+          uint4 t = trunkRow[k];
+          half* ht = (half*)&t;
+          #pragma unroll
+          for(int e = 0; e < 8; e++)
+            ht[e] = __float2half(__half2float(ht[e]) + __half2float(hv[e]) * maskVal);
+          trunkRow[k] = t;
+          #pragma unroll
+          for(int e = 0; e < 8; e++)
+            vals[j][e] = __half2float(ht[e]) * maskVal;
+        }
+        else {
+          #pragma unroll
+          for(int e = 0; e < 8; e++)
+            vals[j][e] = __half2float(hv[e]) * maskVal;
+        }
+        #pragma unroll
+        for(int e = 0; e < 8; e++)
+          acc += vals[j][e] * vals[j][e];
+      }
+    }
+    acc = warpReduceSumFloat(acc);
+    const float rms = rsqrtf(acc / (float)cSize + epsilon);
+    #pragma unroll
+    for(int j = 0; j < MAX_CHUNKS; j++) {
+      const int k = lane + j * lanes;
+      if(k < numChunks) {
+        const uint4 g = ((const uint4*)gamma)[k];
+        const uint4 b = ((const uint4*)beta)[k];
+        const half* hg = (const half*)&g;
+        const half* hb = (const half*)&b;
+        uint4 o;
+        half* ho = (half*)&o;
+        #pragma unroll
+        for(int e = 0; e < 8; e++) {
+          float x = vals[j][e] * rms * __half2float(hg[e]) + __half2float(hb[e]);
+          if(activation == ACTIVATION_RELU)
+            x = fmaxf(x, 0.0f);
+          else if(activation == ACTIVATION_MISH)
+            x = mishf(x);
+          else if(activation == ACTIVATION_SILU)
+            x = siluf(x);
+          ho[e] = __float2half(x * maskVal);
+        }
+        ((uint4*)(out + (size_t)pos * cSize))[k] = o;
+      }
+    }
+  }
+#else
+  (void)trunk; (void)in; (void)out; (void)gamma; (void)beta; (void)mask;
+  (void)totalPositions; (void)cSize; (void)epsilon; (void)activation;
+#endif
+}
+
+// Launches the wave-per-row kernel if the shape and alignment allow it, returning whether it did.
+template<bool RESIDUAL>
+static bool tryLaunchRmsNormWaveRow(
+  half* trunk, const half* in, half* out, const half* gamma, const half* beta, const half* mask,
+  int totalPositions, int cSize, float epsilon, int activation, cudaStream_t stream
+) {
+  constexpr int MAX_CHUNKS = 4;
+  if(cSize % 8 != 0 || cSize / 8 > MAX_CHUNKS * 32)
+    return false;
+  if(!isAligned16(in) || !isAligned16(out) || !isAligned16(gamma) || !isAligned16(beta) || (RESIDUAL && !isAligned16(trunk)))
+    return false;
+  // 8 positions per 256-thread block at a warp width of 32 (64-wide wavefronts loop twice).
+  const int threads = 256;
+  const int blocks = (totalPositions + 7) / 8;
+  rmsNormGammaBetaNHWCHalfWaveRowKernel<RESIDUAL, MAX_CHUNKS><<<blocks, threads, 0, stream>>>(
+    trunk, in, out, gamma, beta, mask, totalPositions, cSize, epsilon, activation);
+  return true;
+}
+#endif  // KATAGO_GPU_HIP
+
 void customCudaMaskedResidualAddRMSNormNHWC(
   float* trunk, const float* delta, float* out, const float* gamma, const float* beta, const float* mask,
   int nSize, int xySize, int cSize, float epsilon, int activation, cudaStream_t stream
@@ -3668,6 +3972,10 @@ void customCudaMaskedResidualAddRMSNormNHWC(
   int totalPositions = nSize * xySize;
   if(totalPositions <= 0)
     return;
+#ifdef KATAGO_GPU_HIP
+  if(tryLaunchRmsNormWaveRow<true>(trunk, delta, out, gamma, beta, mask, totalPositions, cSize, epsilon, activation, stream))
+    return;
+#endif
   // Same vectorized-path eligibility as customCudaRMSNormGammaBetaNHWC.
   if(cSize % 2 == 0) {
     int halfPairs = cSize / 2;
@@ -3716,6 +4024,10 @@ void customCudaRMSNormGammaBetaNHWC(
   int totalPositions = nSize * xySize;
   if(totalPositions <= 0)
     return;
+#ifdef KATAGO_GPU_HIP
+  if(tryLaunchRmsNormWaveRow<false>(NULL, in, out, gamma, beta, mask, totalPositions, cSize, epsilon, activation, stream))
+    return;
+#endif
   // Vectorized path: cSize must be even (use half2). Pick ELTS_PER_THREAD so we end up with a
   // thread count that is a whole number of warps and <= 512.
   // For cSize=384 -> 192 half2 pairs -> 192 threads, 1 elt/thread.

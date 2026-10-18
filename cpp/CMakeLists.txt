@@ -899,10 +899,12 @@ elseif(USE_BACKEND STREQUAL "ROCM")
   # rocmbackend.cpp, rocmutils.cpp, and rocmhelpers.hip are thin wrappers around
   # cudaandrocmbackend.inc, cudaandrocmutils.inc, and cudaandrocmhelpers.inc, which are shared
   # with the CUDA backend (tracked via compiler depfiles, so they do not appear here).
+  # rocmkernels.hip holds the ROCm-only kernels with no CUDA counterpart.
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/rocmbackend.cpp
     neuralnet/rocmutils.cpp
     neuralnet/rocmhelpers.hip
+    neuralnet/rocmkernels.hip
   )
 
 elseif(USE_BACKEND STREQUAL "")
@@ -1623,6 +1625,98 @@ elseif(USE_BACKEND STREQUAL "ROCM")
       message(STATUS "ck_tile headers not found; ROCm backend will only use its built-in (non-fused) attention kernel")
     endif()
     target_compile_definitions(katago PRIVATE KATAGO_ROCM_HAS_CK_FMHA=0)
+  endif()
+
+  # ---------- Optional CK DPP GEMM (RDNA2) ----------
+  # Composable Kernel's DPP GEMM kernels beat rocBLAS on many transformer projection GEMM shapes on
+  # gfx103x (the backend picks per shape at runtime, see rocmckgemm.h). They only exist for gfx103x,
+  # and CK's headers are slow to compile, so rocmckgemm.hip is built as a separate object for just
+  # the gfx103x archs of the build, after a one-time configure probe (cached) that it compiles
+  # against the installed CK headers.
+  find_path(KATAGO_CK_INCLUDE_DIR
+    NAMES ck/tensor_operation/gpu/device/impl/device_gemm_dpp.hpp
+    HINTS ${CMAKE_PREFIX_PATH} ENV HIP_PATH ENV ROCM_PATH
+    PATH_SUFFIXES include
+  )
+  set(KATAGO_CK_GEMM_ARCHS "")
+  foreach(_arch ${CMAKE_HIP_ARCHITECTURES})
+    string(REGEX REPLACE ":.*$" "" _arch_base "${_arch}")
+    if(_arch_base MATCHES "^gfx103[0-6]$")
+      list(APPEND KATAGO_CK_GEMM_ARCHS "${_arch}")
+    endif()
+  endforeach()
+  set(_katago_ck_gemm_enabled FALSE)
+  if(KATAGO_CK_GEMM_ARCHS AND NOT KATAGO_CK_INCLUDE_DIR)
+    message(STATUS "CK headers (ck/tensor_operation/gpu/device/impl/device_gemm_dpp.hpp) not found; ROCm backend will use hipBLAS for all GEMMs on ${KATAGO_CK_GEMM_ARCHS}")
+  elseif(KATAGO_CK_GEMM_ARCHS)
+    # As for the CK FMHA probe above: the signature covers everything the verdict depends on, and
+    # the probe compiles with the per-configuration flags the real build will use.
+    file(SHA1 "${CMAKE_SOURCE_DIR}/neuralnet/rocmckgemm.hip" _ck_gemm_src_hash)
+    file(SHA1 "${KATAGO_CK_INCLUDE_DIR}/ck/tensor_operation/gpu/device/impl/device_gemm_dpp.hpp" _ck_gemm_hdr_hash)
+    set(_ck_gemm_probe_sig "${KATAGO_CK_INCLUDE_DIR}|${CMAKE_HIP_COMPILER}|${CMAKE_HIP_COMPILER_VERSION}|${CMAKE_BUILD_TYPE}|${CMAKE_HIP_FLAGS}|${KATAGO_CK_GEMM_ARCHS}|${_ck_gemm_src_hash}|${_ck_gemm_hdr_hash}")
+    if(NOT DEFINED KATAGO_CK_GEMM_COMPILE_OK OR NOT "${KATAGO_CK_GEMM_PROBED_SIG}" STREQUAL "${_ck_gemm_probe_sig}")
+      message(STATUS "Probing whether the CK DPP GEMM kernels compile for ${KATAGO_CK_GEMM_ARCHS} (may take a little while)...")
+      set(_ck_gemm_probe_dir "${CMAKE_BINARY_DIR}/_katago_ck_gemm_probe")
+      file(MAKE_DIRECTORY "${_ck_gemm_probe_dir}")
+      separate_arguments(_ck_gemm_probe_flags NATIVE_COMMAND "${CMAKE_HIP_FLAGS}")
+      string(TOUPPER "${CMAKE_BUILD_TYPE}" _ck_gemm_probe_build_type)
+      if(NOT _ck_gemm_probe_build_type)
+        set(_ck_gemm_probe_build_type "RELEASE")
+      endif()
+      if(CMAKE_HIP_FLAGS_${_ck_gemm_probe_build_type})
+        separate_arguments(_ck_gemm_probe_config_flags NATIVE_COMMAND "${CMAKE_HIP_FLAGS_${_ck_gemm_probe_build_type}}")
+        list(APPEND _ck_gemm_probe_flags ${_ck_gemm_probe_config_flags})
+      else()
+        list(APPEND _ck_gemm_probe_flags "-O3")
+      endif()
+      if(KATAGO_HIP_SYSTEM_INCLUDE_DIR)
+        list(APPEND _ck_gemm_probe_flags "-isystem${KATAGO_HIP_SYSTEM_INCLUDE_DIR}")
+      endif()
+      set(_ck_gemm_probe_arch_flags "")
+      foreach(_arch ${KATAGO_CK_GEMM_ARCHS})
+        list(APPEND _ck_gemm_probe_arch_flags "--offload-arch=${_arch}")
+      endforeach()
+      # The arch list macro only feeds rocmCkGemmSupportsArch, so any value compiles the same.
+      execute_process(
+        COMMAND "${CMAKE_HIP_COMPILER}" -x hip ${_ck_gemm_probe_arch_flags} -std=c++17 -c
+                "-isystem${KATAGO_CK_INCLUDE_DIR}" -DCK_ENABLE_FP16 "-DKATAGO_ROCM_CK_GEMM_ARCHS=\"probe\""
+                ${_ck_gemm_probe_flags}
+                "${CMAKE_SOURCE_DIR}/neuralnet/rocmckgemm.hip" -o "${_ck_gemm_probe_dir}/probe.o"
+        RESULT_VARIABLE _ck_gemm_rc
+        OUTPUT_QUIET
+        ERROR_VARIABLE _ck_gemm_err)
+      if(_ck_gemm_rc EQUAL 0)
+        set(KATAGO_CK_GEMM_COMPILE_OK TRUE CACHE INTERNAL "")
+      else()
+        file(WRITE "${_ck_gemm_probe_dir}/probe_error.log" "${_ck_gemm_err}")
+        set(KATAGO_CK_GEMM_COMPILE_OK FALSE CACHE INTERNAL "")
+      endif()
+      set(KATAGO_CK_GEMM_PROBED_SIG "${_ck_gemm_probe_sig}" CACHE INTERNAL "")
+    endif()
+    if(KATAGO_CK_GEMM_COMPILE_OK)
+      set(_katago_ck_gemm_enabled TRUE)
+    else()
+      message(STATUS "The CK DPP GEMM kernels failed to compile against ${KATAGO_CK_INCLUDE_DIR} (see ${CMAKE_BINARY_DIR}/_katago_ck_gemm_probe/probe_error.log); ROCm backend will use hipBLAS for all GEMMs")
+    endif()
+  endif()
+  if(_katago_ck_gemm_enabled)
+    message(STATUS "Enabling CK DPP GEMM kernels for ${KATAGO_CK_GEMM_ARCHS}")
+    add_library(katago_ck_gemm OBJECT neuralnet/rocmckgemm.hip)
+    set_target_properties(katago_ck_gemm PROPERTIES HIP_ARCHITECTURES "${KATAGO_CK_GEMM_ARCHS}")
+    target_include_directories(katago_ck_gemm SYSTEM PRIVATE ${KATAGO_CK_INCLUDE_DIR})
+    string(REPLACE ";" "\\;" _ck_gemm_archs_escaped "${KATAGO_CK_GEMM_ARCHS}")
+    target_compile_definitions(katago_ck_gemm PRIVATE CK_ENABLE_FP16 "KATAGO_ROCM_CK_GEMM_ARCHS=\"${_ck_gemm_archs_escaped}\"")
+    # Same stale-/usr/include/hip workaround as for katago_ck_fmha_kernels above.
+    if(KATAGO_HIP_SYSTEM_INCLUDE_DIR)
+      target_compile_options(katago_ck_gemm PRIVATE "-isystem${KATAGO_HIP_SYSTEM_INCLUDE_DIR}")
+    endif()
+    target_link_libraries(katago katago_ck_gemm)
+    target_compile_definitions(katago PRIVATE KATAGO_ROCM_HAS_CK_GEMM=1)
+  else()
+    if(NOT KATAGO_CK_GEMM_ARCHS)
+      message(STATUS "No gfx103x arch targeted; ROCm backend will use hipBLAS for all GEMMs")
+    endif()
+    target_compile_definitions(katago PRIVATE KATAGO_ROCM_HAS_CK_GEMM=0)
   endif()
   # On Windows plain clang++ (not hipcc) is the CXX compiler, so rocmbackend.cpp - which contains
   # the device-code-including shared backend - must get real HIP compilation via a source property,

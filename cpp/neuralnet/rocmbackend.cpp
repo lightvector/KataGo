@@ -32,6 +32,10 @@
 #endif
 
 #include "../neuralnet/rocmhelpers.h"
+#include "../neuralnet/rocmkernels.h"
+#if KATAGO_ROCM_HAS_CK_GEMM
+  #include "../neuralnet/rocmckgemm.h"
+#endif
 #include "../neuralnet/rocmutils.h"
 #include "../neuralnet/rocmcudanames.h"
 

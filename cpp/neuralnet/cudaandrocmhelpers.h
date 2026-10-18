@@ -151,6 +151,11 @@ bool customCudaFlashAttentionMmaSupported();
 //SwiGLU: out[i] = SiLU(a[i]) * b[i]
 void customCudaSwiGLU(const float* a, const float* b, float* out, int size, cudaStream_t stream);
 void customCudaSwiGLU(const half* a, const half* b, half* out, int size, cudaStream_t stream);
+//Row-strided SwiGLU: out[r][c] = SiLU(a[r][c]) * b[r][c] for r < rows, c < cols, every operand at
+//row stride rowStride (elements); out may alias a. cols and rowStride must be multiples of 8 and
+//the pointers 16-byte aligned. Used by the ROCm backend's interleaved FFN layout; the body is only
+//compiled on ROCm, but the declaration is harmless on CUDA.
+void customCudaSwiGLURows(const half* a, const half* b, half* out, int rows, int cols, int rowStride, cudaStream_t stream);
 
 //Convert mask [batchSize, seqLen] (0/1) into a fully-materialized additive attention bias of shape
 //[batchSize, seqLen, seqLen]: bias[b,q,k] = (mask[b,k] != 0 ? 0 : -3e4). Used to feed KataGo's
