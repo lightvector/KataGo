@@ -58,8 +58,9 @@ regenerating from a different tag, verify against the installed
 - hdim buckets: 32, 64 (covers KataGo's (qHeadDim, vHeadDim) combos of 32/32, 32/16, 64/64, 64/32,
   32/64 - smaller actual head dims like 16 are handled via CK's own padding within the 32 bucket)
 - targets: gfx9, gfx950, gfx11, gfx115, gfx12 (as of `therock-7.13`; CK has no FMHA codegen support
-  for gfx10/RDNA2 - gfx1030/1031/1032 always use the plain kernel fallback. gfx125 doesn't exist as
-  a target in this codegen version either.)
+  for gfx10/RDNA2 - gfx1030/1031/1032 always use the built-in attention kernels, the dot2 ones of
+  `cpp/neuralnet/rocmkernels.h` where they apply. gfx125 doesn't exist as a target in this codegen
+  version either.)
 
 ## Regenerating
 

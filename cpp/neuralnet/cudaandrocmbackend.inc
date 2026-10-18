@@ -48,6 +48,7 @@
 #error "Define only one of KATAGO_GPU_CUDA and KATAGO_GPU_HIP (the gates below are if/else)"
 #endif
 
+#include <array>
 #include <atomic>
 #include <map>
 #include <mutex>
@@ -444,6 +445,9 @@ enum class SharedWeightsKind : int {
   FFN_PACKED = 4,
   FFN_FUSED_PACKED = 5,
   QKV_COMBINED = 6,
+  // Out-major ([outC][inC]) variants used by the ROCm CK GEMM path, see rocmTokenGemmCkOrHipblas.
+  MATMUL_OUT_MAJOR = 7,
+  CONV_1X1_OUT_MAJOR = 8,
 };
 
 //Upload a weight buffer to the device, taking ownership of the allocation even if the upload
@@ -644,6 +648,21 @@ struct CudaHandles {
   // Whether 1x1 NHWC convs run as a hipBLAS GEMM instead of a MIOpen conv, already resolved
   // against the GPU architecture, so Auto here means on. Set before Model construction.
   enabled_t use1x1MatmulMode;
+  // Whether FP16 attention may use the dot2 kernels in rocmkernels.h (arch has v_dot2_f32_f16
+  // and not disabled by config). Set before the first apply.
+  bool dot2AttentionEnabled;
+  bool loggedUsingDot2Attention;
+  // hipDeviceProp_t::multiProcessorCount and warpSize, which size the dot2 attention launch.
+  int numMultiprocessors;
+  int waveSize;
+  // Whether FP16 token GEMMs (transformer projections, NHWC 1x1 convs) may run on the CK DPP GEMM
+  // kernels (rocmckgemm.h): built for this arch and not disabled by config. Set before Model
+  // construction, since the layers that use it upload their weights out-major for it.
+  bool ckGemmEnabled;
+  // Tuned CK instance (or -1 for hipBLAS, when no instance supports the problem or hipBLAS is
+  // faster) per GEMM problem {M, N, K, lda, ldb, ldc}, filled on first use. Only touched by this
+  // handle's server thread.
+  std::map<std::array<int,6>, int> ckGemmInstances;
 
   CudaHandles(int major, int minor, Logger* logger_, bool ckFmhaArchSupported_, bool disableFusedAttention_)
     : majorComputeCapability(major),
@@ -658,7 +677,12 @@ struct CudaHandles {
       loggedUsingCkFmha(false),
       loggedCkFmhaDisabled(false),
       loggedUsing1x1Matmul(false),
-      use1x1MatmulMode(enabled_t::Auto)
+      use1x1MatmulMode(enabled_t::Auto),
+      dot2AttentionEnabled(false),
+      loggedUsingDot2Attention(false),
+      numMultiprocessors(0),
+      waveSize(0),
+      ckGemmEnabled(false)
   {
     CUBLAS_ERR("CudaHandles",cublasSetStream(cublas.handle,stream.stream));
     CUDNN_ERR("CudaHandles",cudnnSetStream(cudnn.handle,stream.stream));
@@ -674,6 +698,86 @@ struct CudaHandles {
   CudaHandles(const CudaHandles&) = delete;
   CudaHandles& operator=(const CudaHandles&) = delete;
 };
+#endif
+
+#ifdef KATAGO_GPU_HIP
+//FP16 GEMM over tokens on the CK DPP kernels (see rocmckgemm.h):
+//  out[t][o] (row stride outStride) = sum_i in[t][i] (row stride inStride) * weights[o][i]
+//with weights out-major, [outC][inC] row-major, and FP32 accumulation. runHipblas must compute
+//the same product through hipBLAS (from the layer's in-major weights). On the first use of each
+//problem shape, this times the CK kernel instances against runHipblas and remembers the fastest,
+//so CK only runs where it actually wins.
+template<typename RunHipblas>
+static void rocmTokenGemmCkOrHipblas(
+  CudaHandles* cudaHandles,
+  const string& name,
+  const void* weights,
+  int outChannels,
+  int inChannels,
+  const void* inputBuf,
+  int inStride,
+  void* outputBuf,
+  int outStride,
+  int tokens,
+  RunHipblas runHipblas
+) {
+#if KATAGO_ROCM_HAS_CK_GEMM
+  const std::array<int,6> key = {tokens, outChannels, inChannels, inStride, inChannels, outStride};
+  auto it = cudaHandles->ckGemmInstances.find(key);
+  int instance;
+  if(it != cudaHandles->ckGemmInstances.end())
+    instance = it->second;
+  else {
+    float ckMs = 0.0f;
+    instance = rocmCkGemmTune(
+      (const half*)inputBuf, inStride, (const half*)weights, inChannels, (half*)outputBuf, outStride,
+      tokens, outChannels, inChannels, cudaHandles->stream, &ckMs);
+    if(instance >= 0) {
+      // Timed like rocmCkGemmTune times each instance: one untimed run, then the best of three.
+      hipEvent_t start, stop;
+      CUDA_ERR(name.c_str(), hipEventCreate(&start));
+      CUDA_ERR(name.c_str(), hipEventCreate(&stop));
+      runHipblas();
+      float hipblasMs = 1e30f;
+      for(int rep = 0; rep < 3; rep++) {
+        CUDA_ERR(name.c_str(), hipEventRecord(start, cudaHandles->stream));
+        runHipblas();
+        CUDA_ERR(name.c_str(), hipEventRecord(stop, cudaHandles->stream));
+        CUDA_ERR(name.c_str(), hipEventSynchronize(stop));
+        float ms = 0.0f;
+        CUDA_ERR(name.c_str(), hipEventElapsedTime(&ms, start, stop));
+        hipblasMs = std::min(hipblasMs, ms);
+      }
+      CUDA_ERR(name.c_str(), hipEventDestroy(start));
+      CUDA_ERR(name.c_str(), hipEventDestroy(stop));
+      if(hipblasMs <= ckMs)
+        instance = -1;
+    }
+    cudaHandles->ckGemmInstances[key] = instance;
+  }
+  if(instance >= 0) {
+    rocmCkGemmRun(
+      instance, (const half*)inputBuf, inStride, (const half*)weights, inChannels, (half*)outputBuf, outStride,
+      tokens, outChannels, inChannels, cudaHandles->stream);
+    CUDA_ERR(name.c_str(), hipPeekAtLastError());
+    return;
+  }
+#else
+  // Never called without CK: the out-major weights only exist when cudaHandles->ckGemmEnabled.
+  (void)cudaHandles; (void)name; (void)weights; (void)outChannels; (void)inChannels;
+  (void)inputBuf; (void)inStride; (void)outputBuf; (void)outStride; (void)tokens;
+#endif
+  runHipblas();
+}
+
+//Transposes in-major [inC][outC] weights (the layout of MatMulLayerDesc) to out-major [outC][inC].
+static vector<float> transposeInMajorWeights(const vector<float>& w, int inChannels, int outChannels) {
+  vector<float> t((size_t)inChannels * outChannels);
+  for(int i = 0; i < inChannels; i++)
+    for(int o = 0; o < outChannels; o++)
+      t[(size_t)o * inChannels + i] = w[(size_t)i * outChannels + o];
+  return t;
+}
 #endif
 
 //---------------------------------------------------------------------------------
@@ -835,6 +939,7 @@ struct CudnnManager {
 
 struct ScratchBuffers {
 
+  const int maxBatchSize;
   const size_t batchXYFloatBytes;
   const size_t batchFloatBytes;
   const size_t batchXYBytes;
@@ -858,7 +963,8 @@ struct ScratchBuffers {
   ScratchBuffers& operator=(const ScratchBuffers&) = delete;
 
   ScratchBuffers(int maxBatchSize, int nnXLen, int nnYLen, bool useFP16)
-    : batchXYFloatBytes((size_t)maxBatchSize * nnXLen * nnYLen * sizeof(float)),
+    : maxBatchSize(maxBatchSize),
+      batchXYFloatBytes((size_t)maxBatchSize * nnXLen * nnYLen * sizeof(float)),
       batchFloatBytes((size_t)maxBatchSize * sizeof(float)),
       batchXYBytes((size_t)maxBatchSize * nnXLen * nnYLen * (useFP16 ? sizeof(half_t) : sizeof(float))),
       batchBytes((size_t)maxBatchSize * (useFP16 ? sizeof(half_t) : sizeof(float)))
@@ -1243,6 +1349,10 @@ struct ConvLayer {
   bool use1x1Matmul;
   int matmulSpatialSize;
   SharedDeviceBuf matmulWeightBuf;
+  // With use1x1Matmul in FP16 when the CK GEMM kernels are enabled, also the desc weights
+  // unchanged, [outC, inC] (out-major), for non-accumulating applies via
+  // rocmTokenGemmCkOrHipblas (accumulating ones keep hipBLAS on matmulWeightBuf).
+  SharedDeviceBuf matmulWeightOutMajorBuf;
   // Set when MIOpen's only NHWC solution for this conv is its naive fallback. The conv is then
   // re-expressed as NCHW at runtime, transposing the input and output around it.
   bool useNchwFallback;
@@ -1313,6 +1423,12 @@ struct ConvLayer {
         name + ":matmulW",
         [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":matmulW",wT,b,useFP16); },
         desc, SharedWeightsKind::CONV_1X1_MATMUL, useFP16, cudaHandles->shareModelWeights);
+      if(useFP16 && cudaHandles->ckGemmEnabled && inChannels % 8 == 0 && outChannels % 8 == 0) {
+        matmulWeightOutMajorBuf = mallocAndCopyToDeviceMaybeShared(
+          name + ":matmulWOutMajor",
+          [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":matmulWOutMajor",desc->weights,b,useFP16); },
+          desc, SharedWeightsKind::CONV_1X1_OUT_MAJOR, useFP16, cudaHandles->shareModelWeights);
+      }
       if(!cudaHandles->loggedUsing1x1Matmul) {
         cudaHandles->loggedUsing1x1Matmul = true;
         if(cudaHandles->logger != NULL)
@@ -1565,36 +1681,45 @@ struct ConvLayer {
           &beta, (float*)outputBuf, outChannels));
       }
       else {
+        auto runHipblas = [&]() {
 #if defined(hipblasVersionMajor) && hipblasVersionMajor >= 2
-        // FP32 compute for accuracy, as in MatMulLayer.
-        const float alpha = 1.0f;
-        const float beta = accumulate ? 1.0f : 0.0f;
-        CUBLAS_ERR(name.c_str(),hipblasGemmEx(
-          cudaHandles->cublas,
-          HIPBLAS_OP_N,
-          HIPBLAS_OP_N,
-          outChannels,
-          tokens,
-          inChannels,
-          &alpha,
-          matmulWeightBuf.buf, HIP_R_16F, outChannels,
-          inputBuf, HIP_R_16F, inChannels,
-          &beta,
-          outputBuf, HIP_R_16F, outChannels,
-          HIPBLAS_COMPUTE_32F,
-          HIPBLAS_GEMM_DEFAULT
-        ));
+          // FP32 compute for accuracy, as in MatMulLayer.
+          const float alpha = 1.0f;
+          const float beta = accumulate ? 1.0f : 0.0f;
+          CUBLAS_ERR(name.c_str(),hipblasGemmEx(
+            cudaHandles->cublas,
+            HIPBLAS_OP_N,
+            HIPBLAS_OP_N,
+            outChannels,
+            tokens,
+            inChannels,
+            &alpha,
+            matmulWeightBuf.buf, HIP_R_16F, outChannels,
+            inputBuf, HIP_R_16F, inChannels,
+            &beta,
+            outputBuf, HIP_R_16F, outChannels,
+            HIPBLAS_COMPUTE_32F,
+            HIPBLAS_GEMM_DEFAULT
+          ));
 #else
-        // hipBLAS older than 2.0, below the minimum Compiling.md documents.
-        const cublas_half_t* alpha = (const cublas_half_t*)scratch->oneBuf;
-        const cublas_half_t* betaHalf = (const cublas_half_t*)(accumulate ? scratch->oneBuf : scratch->zeroBuf);
-        CUBLAS_ERR(name.c_str(),cublasHgemm(
-          cudaHandles->cublas, CUBLAS_OP_N, CUBLAS_OP_N,
-          outChannels, tokens, inChannels,
-          alpha, (const cublas_half_t*)matmulWeightBuf.buf, outChannels,
-          (const cublas_half_t*)inputBuf, inChannels,
-          betaHalf, (cublas_half_t*)outputBuf, outChannels));
+          // hipBLAS older than 2.0, below the minimum Compiling.md documents.
+          const cublas_half_t* alpha = (const cublas_half_t*)scratch->oneBuf;
+          const cublas_half_t* betaHalf = (const cublas_half_t*)(accumulate ? scratch->oneBuf : scratch->zeroBuf);
+          CUBLAS_ERR(name.c_str(),cublasHgemm(
+            cudaHandles->cublas, CUBLAS_OP_N, CUBLAS_OP_N,
+            outChannels, tokens, inChannels,
+            alpha, (const cublas_half_t*)matmulWeightBuf.buf, outChannels,
+            (const cublas_half_t*)inputBuf, inChannels,
+            betaHalf, (cublas_half_t*)outputBuf, outChannels));
 #endif
+        };
+        // CK's DPP GEMM cannot accumulate into its output.
+        if(matmulWeightOutMajorBuf.buf != nullptr && !accumulate)
+          rocmTokenGemmCkOrHipblas(
+            cudaHandles, name, matmulWeightOutMajorBuf.buf, outChannels, inChannels,
+            inputBuf, inChannels, outputBuf, outChannels, tokens, runHipblas);
+        else
+          runHipblas();
       }
       return;
     }
@@ -1774,15 +1899,23 @@ struct MatMulLayer {
   const int outChannels;
   const bool usingFP16;
   SharedDeviceBuf matBuf;
+  // ROCm only: an additional out-major ([outC][inC]) copy of the weights for the CK GEMM kernels
+  // via rocmTokenGemmCkOrHipblas, used for non-accumulating applies. Uploaded for layers that
+  // multiply over all board positions (tokenGemm) when the CK GEMM kernels are enabled. matBuf
+  // stays for hipBLAS, which accumulating applies need and which wins on some shapes.
+  SharedDeviceBuf matBufOutMajor;
 
   MatMulLayer() = delete;
   MatMulLayer(const MatMulLayer&) = delete;
   MatMulLayer& operator=(const MatMulLayer&) = delete;
 
+  // tokenGemm: this layer's apply() always multiplies over every board position of the batch
+  // (transformer projections), so it is worth the CK GEMM path (ROCm only).
   MatMulLayer(
     CudaHandles* cudaHandles,
     const MatMulLayerDesc* desc,
-    bool useFP16
+    bool useFP16,
+    bool tokenGemm = false
   ) :
     name(desc->name),
     inChannels(desc->inChannels),
@@ -1795,6 +1928,16 @@ struct MatMulLayer {
         name,
         [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name,desc->weights,b,useFP16); },
         desc, SharedWeightsKind::MATMUL, useFP16, cudaHandles->shareModelWeights);
+#ifdef KATAGO_GPU_HIP
+      if(tokenGemm && useFP16 && cudaHandles->ckGemmEnabled && inChannels % 8 == 0 && outChannels % 8 == 0) {
+        matBufOutMajor = mallocAndCopyToDeviceMaybeShared(
+          name + ":outMajor",
+          [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name + ":outMajor",transposeInMajorWeights(desc->weights,inChannels,outChannels),b,useFP16); },
+          desc, SharedWeightsKind::MATMUL_OUT_MAJOR, useFP16, cudaHandles->shareModelWeights);
+      }
+#else
+      (void)tokenGemm;
+#endif
     }
   }
 
@@ -1846,23 +1989,32 @@ struct MatMulLayer {
       //FP16 in/out and FP32 compute fixes that and costs nothing in speed. alpha/beta must match
       //the compute type, so they are plain host floats here rather than the half zeroBuf/oneBuf
       //the CUDA path uses.
-      const float alpha = 1.0f;
-      const float beta = accumulate ? 1.0f : 0.0f;
-      CUBLAS_ERR(name.c_str(),hipblasGemmEx(
-        cudaHandles->cublas,
-        HIPBLAS_OP_N,
-        HIPBLAS_OP_N,
-        outChannels,
-        batchSize,
-        inChannels,
-        &alpha,
-        matBuf.buf, HIP_R_16F, outChannels,
-        inputBuf, HIP_R_16F, inChannels,
-        &beta,
-        outputBuf, HIP_R_16F, outChannels,
-        HIPBLAS_COMPUTE_32F,
-        HIPBLAS_GEMM_DEFAULT
-      ));
+      auto runHipblas = [&]() {
+        const float alpha = 1.0f;
+        const float beta = accumulate ? 1.0f : 0.0f;
+        CUBLAS_ERR(name.c_str(),hipblasGemmEx(
+          cudaHandles->cublas,
+          HIPBLAS_OP_N,
+          HIPBLAS_OP_N,
+          outChannels,
+          batchSize,
+          inChannels,
+          &alpha,
+          matBuf.buf, HIP_R_16F, outChannels,
+          inputBuf, HIP_R_16F, inChannels,
+          &beta,
+          outputBuf, HIP_R_16F, outChannels,
+          HIPBLAS_COMPUTE_32F,
+          HIPBLAS_GEMM_DEFAULT
+        ));
+      };
+      // CK's DPP GEMM cannot accumulate into its output.
+      if(matBufOutMajor.buf != nullptr && !accumulate)
+        rocmTokenGemmCkOrHipblas(
+          cudaHandles, name, matBufOutMajor.buf, outChannels, inChannels,
+          inputBuf, inChannels, outputBuf, outChannels, batchSize, runHipblas);
+      else
+        runHipblas();
 #else
       //CUDA, or hipBLAS older than 2.0 (below ROCm 6.0, itself below the minimum Compiling.md
       //documents). There hipblasGemmEx has no spelling that takes hipblasComputeType_t at all, so
@@ -2686,7 +2838,7 @@ struct TransformerAttentionBlock {
     usingFP16(useFP16),
     usingNHWC(useNHWC),
     preLN(cudaHandles, &desc->preLN, useFP16),
-    outProj(cudaHandles, &desc->outProj, useFP16),
+    outProj(cudaHandles, &desc->outProj, useFP16, true),
     sameQKVShapes(
       desc->qProj.inChannels == desc->kProj.inChannels &&
       desc->qProj.inChannels == desc->vProj.inChannels &&
@@ -2823,6 +2975,24 @@ struct TransformerAttentionBlock {
     CudaUtils::debugPrint3D(KATAGO_GPU_BACKEND_NAME " Attn RMSNorm out", trunkScratchBuf, batchSize, inChannels, seqLen, usingNHWC, usingFP16, maskBuf);
 #endif
 
+#ifdef KATAGO_GPU_HIP
+    // The dot2 attention path (rocmkernels.h) compacts and re-lays-out Q/K/V in a prep kernel that
+    // can apply RoPE on the way, replacing Step 3's separate RoPE launch. That only happens when
+    // nothing else will consume Q/K first, i.e. when the CK fused path will not be attempted.
+    const bool useDot2Attention =
+      usingFP16 && cudaHandles->dot2AttentionEnabled &&
+      rocmDot2AttentionSupportsShape(numHeads, numKVHeads, qHeadDim, vHeadDim);
+    bool ckWillBeTried = false;
+#if KATAGO_ROCM_HAS_CK_FMHA && KATAGO_ROCM_CK_FMHA_ARCH_OK
+    ckWillBeTried =
+      usingFP16 && !cudaHandles->disableFusedAttention &&
+      cudaHandles->ckFmhaArchSupported && !cudaHandles->fusedAttentionRuntimeDisabled;
+#endif
+    const bool fuseRopeIntoDot2Prep = useRope && useDot2Attention && !ckWillBeTried;
+#else
+    const bool fuseRopeIntoDot2Prep = false;
+#endif
+
     // Step 2: Q/K/V projections
     // trunkScratchBuf is [N, XY, C] NHWC = [C, N*seqLen] column-major.
     // MatMulLayer expects input as [inChannels, batchSize], which matches.
@@ -2892,7 +3062,7 @@ struct TransformerAttentionBlock {
 
     // Step 3: Apply RoPE to Q and K
     // Q is [qTotalDim, seqLen*batchSize] column-major = [batchSize*seqLen, qTotalDim] row-major
-    if(useRope) {
+    if(useRope && !fuseRopeIntoDot2Prep) {
       // The fused Q+K kernels assume each KV head maps to a whole number of query heads.
       // Models always satisfy this, but fall back to separate launches if not.
       bool fuseQK = (numHeads % numKVHeads == 0);
@@ -3195,6 +3365,44 @@ struct TransformerAttentionBlock {
           "ROCm backend: rocmDisableFusedAttention is set, using the plain attention kernel instead of the CK fused attention path that would otherwise have been used");
     }
 #endif
+    // dot2 attention (see useDot2Attention above), when the CK path was not taken or failed.
+    if(!usedSDPA && useDot2Attention) {
+      RocmAttnRope rope;
+      if(fuseRopeIntoDot2Prep) {
+        if(learnableRope) {
+          rope.mode = RocmAttnRope::RECOMPUTE;
+          rope.freqs = (const float*)ropeFreqsBuf.buf;
+          rope.nnXLen = nnXLen;
+        }
+        else {
+          rope.mode = RocmAttnRope::TABLE;
+          rope.cosTable = (const half*)ropeCosTable.buf;
+          rope.sinTable = (const half*)ropeSinTable.buf;
+          rope.learnableTable = false;
+        }
+      }
+      // Sized by max batch size like every transient buffer here, see the comment on qkvBuf.
+      const size_t kvBytes = rocmDot2AttentionKVBytes(scratch->maxBatchSize, seqLen, numKVHeads, qHeadDim);
+      SizedBuf<void*> kcBuf(scratch->allocator, kvBytes);
+      SizedBuf<void*> vcBuf(scratch->allocator, kvBytes);
+      SizedBuf<void*> permBuf(scratch->allocator, rocmDot2AttentionPermBytes(scratch->maxBatchSize, seqLen));
+      rocmDot2AttentionPrep(
+        (half*)qPtr, (const half*)kPtr, (const half*)vPtr, (const half*)maskBuf,
+        (half*)kcBuf.buf, (half*)vcBuf.buf, (short*)permBuf.buf,
+        batchSize, seqLen, numHeads, numKVHeads, qHeadDim, qStrideElts, kvStrideElts, rope, cudaHandles->stream);
+      rocmDot2Attention(
+        (const half*)qPtr, (const half*)kcBuf.buf, (const half*)vcBuf.buf, (const short*)permBuf.buf,
+        (half*)attnOutBuf.buf, batchSize, seqLen, numHeads, numKVHeads, qHeadDim, qStrideElts,
+        cudaHandles->numMultiprocessors, cudaHandles->waveSize, cudaHandles->stream);
+      CUDA_ERR(name.c_str(), hipPeekAtLastError());
+      // Not SDPA proper, but it is what keeps the plain fallback below from running.
+      usedSDPA = true;
+      if(!cudaHandles->loggedUsingDot2Attention) {
+        cudaHandles->loggedUsingDot2Attention = true;
+        if(cudaHandles->logger != NULL)
+          cudaHandles->logger->write("ROCm backend: using dot2 attention");
+      }
+    }
 #endif
 
     if(!usedSDPA) {
@@ -3302,7 +3510,7 @@ struct TransformerFFNBlock {
     usingFP16(useFP16),
     usingNHWC(useNHWC),
     preLN(cudaHandles, &desc->preLN, useFP16),
-    linear2(cudaHandles, &desc->linear2, useFP16)
+    linear2(cudaHandles, &desc->linear2, useFP16, true)
   {
     if(!useSwiGLU) {
       throw StringError("Non-SwiGLU transformer FFN is not yet supported in " KATAGO_GPU_BACKEND_NAME " backend");
@@ -4835,6 +5043,10 @@ struct ComputeContext {
   bool fuseResidualNorm;
   // See CudaHandles::use1x1MatmulMode.
   enabled_t use1x1MatmulMode;
+  // See CudaHandles::dot2AttentionEnabled. Auto = on where the arch has v_dot2_f32_f16.
+  enabled_t useDot2AttentionMode;
+  // See CudaHandles::ckGemmEnabled. Auto = on where this build has CK GEMM kernels for the arch.
+  enabled_t useCkGemmMode;
 };
 #endif
 
@@ -4917,6 +5129,10 @@ ComputeContext* NeuralNet::createComputeContext(
   context->fuseResidualNorm =
     cfg.contains("rocmFuseResidualNorm") ? cfg.getBool("rocmFuseResidualNorm") : true;
   context->use1x1MatmulMode = use1x1MatmulMode;
+  context->useDot2AttentionMode =
+    cfg.contains("rocmUseDot2Attention") ? cfg.getEnabled("rocmUseDot2Attention") : enabled_t::Auto;
+  context->useCkGemmMode =
+    cfg.contains("rocmUseCkGemm") ? cfg.getEnabled("rocmUseCkGemm") : enabled_t::Auto;
   return context;
 }
 #endif
@@ -5031,6 +5247,10 @@ struct ComputeHandle {
     int minorComputeCapability,
     bool ckFmhaArchSupported,
     bool preferMiopen1x1Conv,
+    bool archHasDot2,
+    bool archHasCkGemm,
+    int numMultiprocessors,
+    int waveSize,
     int maxBatchSize,
     bool requireExactNNLen_,
     bool inputsUseNHWC_,
@@ -5057,6 +5277,18 @@ struct ComputeHandle {
     cudaHandles->use1x1MatmulMode =
       (context->use1x1MatmulMode == enabled_t::Auto && preferMiopen1x1Conv)
       ? enabled_t::False : context->use1x1MatmulMode;
+    if(context->useDot2AttentionMode == enabled_t::True && !archHasDot2)
+      throw StringError("rocmUseDot2Attention = true, but this GPU architecture has no v_dot2_f32_f16");
+    cudaHandles->dot2AttentionEnabled = archHasDot2 && context->useDot2AttentionMode != enabled_t::False;
+    cudaHandles->numMultiprocessors = numMultiprocessors;
+    cudaHandles->waveSize = waveSize;
+    if(context->useCkGemmMode == enabled_t::True && !archHasCkGemm)
+      throw StringError("rocmUseCkGemm = true, but this build has no CK GEMM kernels for this GPU architecture (only gfx103x is supported)");
+    // Only the FP16 GEMMs have CK kernels; must be set before building the model, whose layers
+    // choose their weight layout by it.
+    cudaHandles->ckGemmEnabled = useFP16 && archHasCkGemm && context->useCkGemmMode != enabled_t::False;
+    if(cudaHandles->ckGemmEnabled && logger != NULL)
+      logger->write("ROCm backend: CK DPP GEMM kernels enabled for FP16 token GEMMs, used per shape where faster than hipBLAS");
     model = std::make_unique<Model>(
       cudaHandles.get(), &(loadedModel->modelDesc), maxBatchSize,
       nnXLen, nnYLen, inputsUseNHWC, useFP16, useNHWC
@@ -5246,11 +5478,17 @@ ComputeHandle* NeuralNet::createComputeHandle(
     );
   }
 
+#if KATAGO_ROCM_HAS_CK_GEMM
+  const bool archHasCkGemm = rocmCkGemmSupportsArch(prop.gcnArchName);
+#else
+  const bool archHasCkGemm = false;
+#endif
   // Reusing the NHWC predicate: the archs that prefer MIOpen's NHWC 1x1 conv over a GEMM are the
   // same ones that prefer NHWC at all.
   ComputeHandle* gpuHandle = new ComputeHandle(
     context,loadedModel,logger,prop.major,prop.minor,isCkFmhaSupportedArch(prop),
-    isNhwcFp16PreferredArch(prop),
+    isNhwcFp16PreferredArch(prop), rocmArchHasDot2(prop.gcnArchName), archHasCkGemm,
+    prop.multiProcessorCount, prop.warpSize,
     maxBatchSize,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
   );
   return gpuHandle;
