@@ -78,6 +78,7 @@ This is by no means a complete list - there are lots of things out there. But, w
 * [Lizzie](https://github.com/featurecat/lizzie) - Used to be very popular for running long interactive analyses and visualizing them as they happen. Note that Lizzie at this point is a bit old and, e.g. the version of KataGo packaged with it is very outdated, and there are many long-standing interface bugs in Lizzie itself that have never been fixed. Nowadays, one of the several forks of Lizzie might be preferable.
 * [Ogatak](https://github.com/rooklift/ogatak) is a KataGo-specific GUI with an emphasis on displaying the basics in a snappy, responsive fashion. It does not come with KataGo included.
 * [q5Go](https://github.com/bernds/q5Go) and [Sabaki](https://sabaki.yichuanshen.de/) are general SGF editors and GUIs that support KataGo, including KataGo's score estimation, and many high-quality features.
+* [mirai](https://github.com/zhaob1n/mirai) is a native, cross-platform GTK4/libadwaita app built on KataGo's [analysis engine](docs/Analysis_Engine.md), for live analysis, whole-game review and play, with an optional server so that KataGo can run on a different machine. It does not come with KataGo included.
 
 Generally, for GUIs that don't offer an all-in-one package, you will need to download KataGo (or any other Go engine of your choice!) and tell the GUI the proper command line to run to invoke your engine, with the proper file paths involved. See [How To Use](#how-to-use) below for details on KataGo's command line interface.
 
