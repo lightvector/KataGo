@@ -114,6 +114,11 @@ struct ComputeContext {
   MetalComputeContext metalContext;
 
   /**
+   * @brief metalPadBatch: whether GPU (MPSGraph) threads run every batch at the max batch size.
+   */
+  enabled_t padBatchMode;
+
+  /**
    * @brief True only when every configured device is METAL_MUX_ANE, so no
    * MPSGraph (GPU) handle will ever read modelDesc weights. Gates the call to
    * ModelDesc::releaseWeights() so a mixed GPU+ANE config can never free live
@@ -154,6 +159,11 @@ struct ComputeHandle {
    * @brief The index of the GPU to use for computation.
    */
   int gpuIndex;
+
+  /**
+   * @brief Whether this handle runs every MPSGraph batch at the max batch size (see metalPadBatch).
+   */
+  bool padBatch;
 
   /**
    * @brief The version of the loaded model.
