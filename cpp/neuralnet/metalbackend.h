@@ -116,7 +116,7 @@ struct ComputeContext {
   /**
    * @brief metalPadBatch: whether GPU (MPSGraph) threads run every batch at the max batch size.
    */
-  enabled_t padBatchMode;
+  bool padBatch;
 
   /**
    * @brief True only when every configured device is METAL_MUX_ANE, so no
