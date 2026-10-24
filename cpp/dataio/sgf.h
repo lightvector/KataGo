@@ -202,6 +202,7 @@ struct Sgf {
     bool allowGameOver,
     bool tolerateIllegalMoves,
     bool isRoot,
+    const std::string& rootFileName,
     Rand* rand,
     std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
     const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f

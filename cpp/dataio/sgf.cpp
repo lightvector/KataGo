@@ -793,7 +793,7 @@ void Sgf::iterAllUniquePositions(
   bool isRoot = true;
   bool requireUnique = true;
   iterAllPositionsHelper(
-    board,hist,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,tolerateIllegalMoves,isRoot,rand,variationTraceNodesBranch,f
+    board,hist,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,tolerateIllegalMoves,isRoot,fileName,rand,variationTraceNodesBranch,f
   );
 }
 void Sgf::iterAllPositions(
@@ -824,7 +824,7 @@ void Sgf::iterAllPositions(
   bool hashComments = false;
   bool hashParent = false;
   iterAllPositionsHelper(
-    board,hist,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,tolerateIllegalMoves,isRoot,rand,variationTraceNodesBranch,f
+    board,hist,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,tolerateIllegalMoves,isRoot,fileName,rand,variationTraceNodesBranch,f
   );
 }
 
@@ -840,6 +840,7 @@ void Sgf::iterAllPositionsHelper(
   bool allowGameOver,
   bool tolerateIllegalMoves,
   bool isRoot,
+  const std::string& rootFileName,
   Rand* rand,
   std::vector<std::pair<int64_t,int64_t>>& variationTraceNodesBranch,
   const std::function<void(PositionSample&,const BoardHistory&,const std::string&)>& f
@@ -895,7 +896,7 @@ void Sgf::iterAllPositionsHelper(
           // Apply the setup faithfully, then simultaneously remove any zero-liberty stones, warning if any were removed.
           int numRemoved = board.setStonesTolerant(buf);
           if(numRemoved > 0) {
-            cerr << "WARNING: Removed " << numRemoved << " zero-liberty stone(s) from illegal setup in " << fileName
+            cerr << "WARNING: Removed " << numRemoved << " zero-liberty stone(s) from illegal setup in " << rootFileName
                  << " SGF trace (branches 0-indexed): " << buildTrace(i) << endl;
           }
         }
@@ -903,7 +904,7 @@ void Sgf::iterAllPositionsHelper(
           bool suc = board.setStonesFailIfNoLibs(buf);
           if(!suc) {
             throw StringError(
-              "Illegal placements in " + fileName + " SGF trace (branches 0-indexed): " + buildTrace(i)
+              "Illegal placements in " + rootFileName + " SGF trace (branches 0-indexed): " + buildTrace(i)
             );
           }
         }
@@ -968,7 +969,7 @@ void Sgf::iterAllPositionsHelper(
       // Strict mode: throw on any move that is illegal under tolerance or that violates simple ko
       if(!tolerateIllegalMoves && (!tolerantLegal || simpleKoBanned)) {
         throw StringError(
-          "Illegal move in " + fileName + " effective turn " + Global::int64ToString((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) + " move " +
+          "Illegal move in " + rootFileName + " effective turn " + Global::int64ToString((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) + " move " +
           Location::toString(moveLoc, board.x_size, board.y_size) + " SGF trace (branches 0-indexed): " + buildTrace(i)
         );
       }
@@ -977,7 +978,7 @@ void Sgf::iterAllPositionsHelper(
       // that did nothing - leave the board unchanged but interrupt/reset history. Warn, and do not sample (the
       // position is unchanged from the prior node).
       if(tolerateIllegalMoves && !tolerantLegal) {
-        cerr << "WARNING: Skipping illegal move in " << fileName << " effective turn "
+        cerr << "WARNING: Skipping illegal move in " << rootFileName << " effective turn "
              << ((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) << " move "
              << Location::toString(moveLoc, board.x_size, board.y_size)
              << " SGF trace (branches 0-indexed): " << buildTrace(i) << endl;
@@ -988,7 +989,7 @@ void Sgf::iterAllPositionsHelper(
       // We will play the move (it is at least tolerant-legal). In tolerant mode, warn for simple ko violations only;
       // tolerated superko or multi-stone-suicide violations are played silently.
       if(tolerateIllegalMoves && simpleKoBanned) {
-        cerr << "WARNING: Tolerating simple ko violation in " << fileName << " effective turn "
+        cerr << "WARNING: Tolerating simple ko violation in " << rootFileName << " effective turn "
              << ((int64_t)(hist.moveHistory.size())+hist.initialTurnNumber) << " move "
              << Location::toString(moveLoc, board.x_size, board.y_size)
              << " SGF trace (branches 0-indexed): " << buildTrace(i) << endl;
@@ -1029,7 +1030,7 @@ void Sgf::iterAllPositionsHelper(
     std::unique_ptr<BoardHistory> histCopy = std::make_unique<BoardHistory>(hist);
     variationTraceNodesBranch.emplace_back((int64_t)nodes.size(),(int64_t)i);
     children[i]->iterAllPositionsHelper(
-      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,tolerateIllegalMoves,false,rand,variationTraceNodesBranch,f
+      *copy,*histCopy,nextPla,rules,xSize,ySize,sampleBuf,uniqueHashes,requireUnique,hashComments,hashParent,flipIfPassOrWFirst,allowGameOver,tolerateIllegalMoves,false,rootFileName,rand,variationTraceNodesBranch,f
     );
     testAssert(variationTraceNodesBranch.size() > 0);
     variationTraceNodesBranch.erase(variationTraceNodesBranch.begin()+(variationTraceNodesBranch.size()-1));
