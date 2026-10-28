@@ -21,18 +21,19 @@ def is_fair_enough_pos(board: Board, katago: KataGo, initial_player: int, score_
     query["id"] = ""
     query["moves"] = []
     query["initialStones"] = []
-    for y in range(board.size):
-        for x in range(board.size):
+    for y in range(board.y_size):
+        for x in range(board.x_size):
             loc = board.loc(x,y)
             pla = board.board[loc]
             if pla != 0:
-                query["initialStones"].append((("B" if pla == 1 else "W"), sgfmill_to_str((y,x))))
+                # Board rows count from the top, sgfmill rows count from the bottom.
+                query["initialStones"].append((("B" if pla == 1 else "W"), sgfmill_to_str((board.y_size-1-y,x))))
 
     query["rules"] = "Japanese"
     query["initialPlayer"] = ("B" if initial_player == 1 else "W")
     query["komi"] = 7.0
-    query["boardXSize"] = board.size
-    query["boardYSize"] = board.size
+    query["boardXSize"] = board.x_size
+    query["boardYSize"] = board.y_size
     query["maxVisits"] = 400
 
     result = katago.query_raw(query)
@@ -75,9 +76,9 @@ def maybe_generate_one_pos(katago, score_rejection_pickiness, out):
     for pla in plays:
         choices = []
         weights = []
-        for y in range(board.size):
-            for x in range(board.size):
-                line = min(y+1,x+1,19-y,19-x)
+        for y in range(board.y_size):
+            for x in range(board.x_size):
+                line = min(y+1,x+1,board.y_size-y,board.x_size-x)
                 if line <= 1:
                     relprob = 1
                 elif line <= 2:
@@ -96,8 +97,8 @@ def maybe_generate_one_pos(katago, score_rejection_pickiness, out):
         to_write = {}
         to_write["board"] = ""
         num_stones = 0
-        for y in range(board.size):
-            for x in range(board.size):
+        for y in range(board.y_size):
+            for x in range(board.x_size):
                 loc = board.loc(x,y)
                 if board.board[loc] == 1:
                     to_write["board"] += "X"
@@ -114,8 +115,8 @@ def maybe_generate_one_pos(katago, score_rejection_pickiness, out):
         to_write["moveLocs"] = []
         to_write["movePlas"] = []
         to_write["weight"] = 1.0
-        to_write["xSize"] = board.size
-        to_write["ySize"] = board.size
+        to_write["xSize"] = board.x_size
+        to_write["ySize"] = board.y_size
         out.write(json.dumps(to_write) + "\n")
         out.flush()
         return True

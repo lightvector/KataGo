@@ -666,8 +666,8 @@ def maybe_generate_one_pos(out, training_weight, max_lopsidedness, soft_filter_l
     to_write["movePlas"] = []
     to_write["weight"] = 1.0
     to_write["trainingWeight"] = training_weight
-    to_write["xSize"] = board.size
-    to_write["ySize"] = board.size
+    to_write["xSize"] = board.x_size
+    to_write["ySize"] = board.y_size
     out.write(json.dumps(to_write) + "\n")
     out.flush()
     return True
