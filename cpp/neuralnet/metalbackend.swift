@@ -375,8 +375,26 @@ public func createCoreMLComputeHandle(
         printError("Metal backend \(serverThreadIdx): Compiling model...")
         let compiledURL = try MLModel.compileModel(at: mlpackagePath)
 
+        // compileModel(at:) writes the .mlmodelc into NSTemporaryDirectory(), which
+        // ignores TMPDIR. Move it next to the .mlpackage the C++ side passed in
+        // (temp_directory_path(), which honors TMPDIR) before loading, so the bundle
+        // shares that directory's lifetime. Derive the destination from that path
+        // rather than resolving the temp directory again here.
+        // A failed move is not fatal: load from where compileModel left the bundle.
+        // Do not delete the compiled bundle on either path: MLModel may read it lazily.
+        let stagedURL = mlpackagePath.deletingLastPathComponent()
+            .appendingPathComponent(compiledURL.lastPathComponent)
+        let modelURL: URL
+        do {
+            try FileManager.default.moveItem(at: compiledURL, to: stagedURL)
+            modelURL = stagedURL
+        } catch {
+            printError("Metal backend \(serverThreadIdx): Warning: Failed to move compiled model to \(stagedURL.path), loading it from \(compiledURL.path): \(error)")
+            modelURL = compiledURL
+        }
+
         printError("Metal backend \(serverThreadIdx): Loading compiled model...")
-        let model = try MLModel(contentsOf: compiledURL, configuration: config)
+        let model = try MLModel(contentsOf: modelURL, configuration: config)
 
         printError("Metal backend \(serverThreadIdx): Model loaded successfully, \(context.nnXLen)x\(context.nnYLen)")
 
