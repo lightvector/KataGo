@@ -16,6 +16,7 @@
 #include "../search/mutexpool.h"
 
 class NNEvaluator;
+class ComputeHandleStartupLatch;
 
 class NNCacheTable {
   struct Entry {
@@ -327,6 +328,10 @@ class NNEvaluator {
   // Queued up requests
   ThreadSafeQueue<NNResultBuf*> queryQueue;
 
+  // Makes one server thread build and warm up its compute handle before the others start theirs.
+  // Recreated on each spawnServerThreads. See ComputeHandleStartupLatch in nneval.cpp.
+  std::unique_ptr<ComputeHandleStartupLatch> handleStartupLatch;
+
   // Fill buf.row{Spatial,Global,Meta}Buf from a position. Shared by evaluate() and warmup.
   void fillRowBufs(
     const Board& board,
@@ -337,10 +342,10 @@ class NNEvaluator {
     NNResultBuf& buf
   ) const;
 
-  // Run a forward pass on this freshly-created handle for each batch size 1 to maxBatchSize, with an
-  // empty board. This pre-compiles any lazily-built backend graphs (e.g. cuDNN SDPA execution plans)
-  // so the first real searches aren't stalled. No-op unless this is a transformer model on a backend
-  // where warmup matters, and unless warmup is enabled.
+  // Run forward passes with an empty board on this freshly-created handle: batch size 1 on every
+  // backend, so that libraries do any setup they defer to the first run, and on CUDA every batch
+  // size 1 to maxBatchSize for transformer models, which pre-compiles the cuDNN SDPA execution
+  // plans so the first real searches aren't stalled.
   // gpuHandle may be NULL (neural-net-less), in which case this is a no-op.
   void maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverThreadIdx);
 

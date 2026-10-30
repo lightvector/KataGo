@@ -85,6 +85,17 @@ void NeuralNet::globalCleanup() {
   (void)cudaDeviceReset();
 }
 
+// Serializes GPU library calls that pick or build algorithms and kernels: cudnn convolution
+// algorithm queries, and MIOpen convolution solution queries and compiles. These libraries keep
+// process-global caches that are not always safe to update from several handles at once. cudnn
+// 9.8's convolution algorithm query inserts into an unsynchronized global std::map, and NN server
+// threads building their models at the same time intermittently corrupted the heap (double free
+// at exit), segfaulted, or hung. These calls run only while building compute handles.
+// cudnn SDPA plan builds are deliberately not serialized here: they take several seconds per
+// handle, and serializing them multiplied startup time with several server threads. They rely
+// instead on NNEvaluator making one server thread build and warm up its handle first.
+static std::mutex gpuLibraryPlanningMutex;
+
 #ifdef KATAGO_GPU_CUDA
 //---------------------------------------------------------------------------------
 // cudnn SDPA support. Graphs + execution plans cached lazily per SDPAGraphKey (batch size, head
@@ -1054,6 +1065,9 @@ struct ConvLayer {
         const cudnnTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
         const cudnnTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
 
+        // Not safe to call concurrently even on different cudnn handles, see gpuLibraryPlanningMutex.
+        std::lock_guard<std::mutex> planningLock(gpuLibraryPlanningMutex);
+
 #if CUDNN_MAJOR >= 8
         int requestedAlgoCount = CUDNN_CONVOLUTION_FWD_ALGO_COUNT;
         int returnedAlgoCount = -1;
@@ -1437,6 +1451,9 @@ struct ConvLayer {
     for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
       const miopenTensorDescriptor_t& inputDescriptor = inputDescriptors[batchSize];
       const miopenTensorDescriptor_t& outputDescriptor = outputDescriptors[batchSize];
+      // MIOpen's solution queries and kernel compiles go through process-global find/perf
+      // databases and kernel caches, see gpuLibraryPlanningMutex.
+      std::lock_guard<std::mutex> planningLock(gpuLibraryPlanningMutex);
       size_t availableAlgoCount = 0;
       CUDNN_ERR(name.c_str(),miopenConvolutionForwardGetSolutionCount(
         cudaHandles->cudnn,

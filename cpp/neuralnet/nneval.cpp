@@ -9,6 +9,66 @@ using namespace std;
 
 //-------------------------------------------------------------------------------------
 
+// GPU libraries do process-global setup the first time they see a model's shapes, such as filling
+// algorithm heuristic caches or compiling and caching kernels, and that setup is not always safe
+// to run from several threads at once (see gpuLibraryPlanningMutex in the CUDA/ROCm backend for a
+// real case). Instead of trusting every library, the first server thread to arrive builds and warms
+// up its compute handle alone while the rest wait, and then the rest proceed concurrently. By then
+// the one-time setup for this model is done, so the later handles mostly only read it.
+// This does not cover setup that a backend defers past warmup, or handles on different kinds of
+// GPU that need setup the first handle never triggered.
+class ComputeHandleStartupLatch {
+ public:
+  // Held by one server thread while it builds and warms up its handle. The constructor blocks
+  // until it is this thread's turn. finish() (or destruction, including during exception
+  // unwinding) lets the waiting threads go.
+  class Turn {
+   public:
+    explicit Turn(ComputeHandleStartupLatch& l) : latch(l), isLeader(l.arrive()) {}
+    ~Turn() { finish(); }
+    void finish() {
+      if(isLeader)
+        latch.leaderFinished();
+      isLeader = false;
+    }
+    Turn(const Turn&) = delete;
+    Turn& operator=(const Turn&) = delete;
+   private:
+    ComputeHandleStartupLatch& latch;
+    bool isLeader;
+  };
+
+  ComputeHandleStartupLatch() : mutex(), leaderDoneCV(), leaderClaimed(false), leaderDone(false) {}
+  ComputeHandleStartupLatch(const ComputeHandleStartupLatch&) = delete;
+  ComputeHandleStartupLatch& operator=(const ComputeHandleStartupLatch&) = delete;
+
+ private:
+  // Returns true for the first caller, who must later call leaderFinished(). Later callers block
+  // until that happens and return false.
+  bool arrive() {
+    std::unique_lock<std::mutex> lock(mutex);
+    if(!leaderClaimed) {
+      leaderClaimed = true;
+      return true;
+    }
+    while(!leaderDone)
+      leaderDoneCV.wait(lock);
+    return false;
+  }
+  void leaderFinished() {
+    std::lock_guard<std::mutex> lock(mutex);
+    leaderDone = true;
+    leaderDoneCV.notify_all();
+  }
+
+  std::mutex mutex;
+  std::condition_variable leaderDoneCV;
+  bool leaderClaimed;
+  bool leaderDone;
+};
+
+//-------------------------------------------------------------------------------------
+
 NNResultBuf::NNResultBuf()
   : clientWaitingForResult(),
     resultMutex(),
@@ -109,7 +169,8 @@ NNEvaluator::NNEvaluator(
    currentDoRandomize(doRandomize),
    currentDefaultSymmetry(defaultSymmetry),
    maxRowsToSendPerBatch(maxBatchSz),
-   queryQueue()
+   queryQueue(),
+   handleStartupLatch()
 {
   if(nnXLen > NNPos::MAX_BOARD_LEN)
     throw StringError("Maximum supported nnEval board size is " + Global::intToString(NNPos::MAX_BOARD_LEN));
@@ -430,6 +491,10 @@ void NNEvaluator::spawnServerThreads() {
 
   queryQueue.unsetReadOnly();
 
+  // Fresh each spawn, since a respawn may be for different batch sizes or settings that need
+  // their own one-time library setup.
+  handleStartupLatch = std::make_unique<ComputeHandleStartupLatch>();
+
   numServerThreadsStartingUp = numThreads;
   for(int i = 0; i<numThreads; i++) {
     int gpuIdxForThisThread = gpuIdxByServerThread[i];
@@ -522,26 +587,28 @@ void NNEvaluator::fillRowBufs(
 void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverThreadIdx) {
   if(gpuHandle == NULL || debugSkipNeuralNet || loadedModel == NULL)
     return;
-  // Warmup currently only matters on CUDA, where cuDNN lazily compiles an SDPA execution plan per
-  // batch size on first use. Other backends: nothing to warm up for now.
-#if !defined(USE_CUDA_BACKEND)
-  (void)serverThreadIdx;
-  return;
-#else
-  // Only transformer models build the lazy SDPA graphs; skip the (otherwise harmless but wasteful)
-  // warmup passes for plain convnets.
-  if(!NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks())
-    return;
 
-  if(logger != NULL) {
-    logger->write(
-      "Cuda backend thread " + Global::intToString(serverThreadIdx) +
-      ": warming up transformer graphs for batch sizes 1.." + Global::intToString(maxBatchSize)
-    );
+  // Every backend gets one forward pass at batch size 1, so that libraries finish any one-time
+  // setup they defer to the first run while this thread still holds its ComputeHandleStartupLatch
+  // turn. On CUDA, transformer models also go through every batch size, since cuDNN lazily
+  // compiles an SDPA execution plan per batch size on first use.
+  int warmupMaxBatchSize = 1;
+#if defined(USE_CUDA_BACKEND)
+  if(NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks()) {
+    warmupMaxBatchSize = maxBatchSize;
+    if(logger != NULL) {
+      logger->write(
+        "Cuda backend thread " + Global::intToString(serverThreadIdx) +
+        ": warming up transformer graphs for batch sizes 1.." + Global::intToString(maxBatchSize)
+      );
+    }
   }
+#else
+  (void)serverThreadIdx;
+#endif
 
-  // Empty board of the configured size, default rules/params. Outputs are discarded; we only want
-  // the forward passes to trigger graph compilation for every batch size that will be seen.
+  // Empty board of the configured size, default rules/params. Outputs are discarded, only the
+  // forward passes matter.
   Board board(nnXLen, nnYLen);
   //Featurize the way this model expects (a no-op under Tromp-Taylorish rules, but robust if the
   //warmup rules ever change).
@@ -566,9 +633,9 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   // Reusable per-row input; identical for every row since it's an empty board.
   std::vector<std::unique_ptr<NNResultBuf>> ownedBufs;
   std::vector<NNResultBuf*> resultBufs;
-  ownedBufs.reserve(maxBatchSize);
-  resultBufs.reserve(maxBatchSize);
-  for(int i = 0; i < maxBatchSize; i++) {
+  ownedBufs.reserve(warmupMaxBatchSize);
+  resultBufs.reserve(warmupMaxBatchSize);
+  for(int i = 0; i < warmupMaxBatchSize; i++) {
     ownedBufs.push_back(std::make_unique<NNResultBuf>());
     NNResultBuf* buf = ownedBufs.back().get();
     fillRowBufs(board, history, P_BLACK, sgfMetaPtr, nnInputParams, *buf);
@@ -577,7 +644,7 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
     resultBufs.push_back(buf);
   }
 
-  for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++) {
+  for(int batchSize = 1; batchSize <= warmupMaxBatchSize; batchSize++) {
     std::vector<NNOutput*> outputs;
     outputs.reserve(batchSize);
     for(int row = 0; row < batchSize; row++) {
@@ -594,7 +661,6 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
 
   NeuralNet::freeInputBuffers(inputBuffers);
   NeuralNet::setIsWarmup(gpuHandle, prevIsWarmup);
-#endif
 }
 
 NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(
@@ -653,11 +719,15 @@ NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(
   // other threads' tail iterations, but that perturbation is at least visible in samples).
   std::vector<std::chrono::steady_clock::time_point> threadEndTimes(numThreadsToUse);
 
+  ComputeHandleStartupLatch startupLatch;
+
   std::vector<std::thread> threads;
   threads.reserve(numThreadsToUse);
   for(int threadIdx = 0; threadIdx < numThreadsToUse; threadIdx++) {
     threads.emplace_back([&,threadIdx]() {
       try {
+        // Same startup ordering as serve().
+        ComputeHandleStartupLatch::Turn startupTurn(startupLatch);
         ComputeHandle* gpuHandle = NeuralNet::createComputeHandle(
           computeContext,
           loadedModel,
@@ -677,6 +747,7 @@ NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(
           // its GPU (see serve() for why the order matters).
           serverBuf = std::make_unique<NNServerBuf>(*this, loadedModel);
           maybeWarmupComputeHandle(gpuHandle, threadIdx);
+          startupTurn.finish();
           {
             std::lock_guard<std::mutex> lock(bufferMutex);
             if((size_t)threadIdx < serverThreadsIsUsingFP16.size())
@@ -798,6 +869,7 @@ void NNEvaluator::serve(
 
   ComputeHandle* gpuHandle = NULL;
   if(loadedModel != NULL) {
+    ComputeHandleStartupLatch::Turn startupTurn(*handleStartupLatch);
     gpuHandle = NeuralNet::createComputeHandle(
       computeContext,
       loadedModel,
