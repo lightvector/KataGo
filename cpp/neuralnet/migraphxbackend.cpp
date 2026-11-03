@@ -785,21 +785,24 @@ std::string NeuralNet::getRuntimeBackendDetail(ConfigParser& cfg) {
 }
 
 NeuralNet::BatchPolicy NeuralNet::getBatchPolicy(ConfigParser& cfg) {
-  // Unlike the CUDA/ROCm/OpenCL backends this is not fixed by the backend, because MIGraphX
-  // compiles for one exact input shape and which shapes exist is a config choice.
+  (void)cfg;
+  // MIGraphX compiles for one exact input shape, so every batch pads up to whichever compiled
+  // shape it lands on, and a padded row costs very nearly what a real one does (~70-79 us/row
+  // on MI325X for b18c384, measured with migraphx-driver alone as well as through KataGo).
+  // That is true whether or not bucketing is on: bucketing changes WHICH shape a batch pads up
+  // to, not the price of a padded row. So this backend wants FixedShape sizing in both modes.
   //
-  // With bucketing (the default) a ladder of shapes is compiled at startup and each eval is
-  // dispatched to the smallest bucket that fits, so padding waste is bounded by the ratio between
-  // adjacent buckets and a batch sized to all the work in flight is the right ask: Dynamic.
+  // Bucketing on its own does not make a larger ask safe. The latency-driven batcher settles
+  // near half the maximum, so raising the maximum does not merely add unused rungs at the top --
+  // it moves the batch onto them. On MI325X with b18c384 at 192 search threads, the Dynamic ask
+  // (max 192, rungs ...96,128,160,192) ran 8080 nnEvals/s at ~0.84 fill, while compiling for 96
+  // ran 9128 at 0.983 fill: the extra rungs cost 12%. Asking for half the concurrency keeps the
+  // top rung next to where the batch actually lands, and compiles fewer programs while doing it.
   //
-  // With migraphxBatchBuckets = false there is a single program compiled at nnMaxBatchSize and
-  // every short batch pads up to it, which is exactly the FixedShape case. See the rationale at
-  // the top of this file: at 192 threads the average batch is ~89 against a 192-row program, so
-  // under half the compute is useful. FixedShape makes Setup ask for about half the per-device
-  // concurrency instead, which is the sizing that mode wants.
-  const bool useBatchBuckets =
-    cfg.contains("migraphxBatchBuckets") ? cfg.getBool("migraphxBatchBuckets") : true;
-  return useBatchBuckets ? NeuralNet::BatchPolicy::Dynamic : NeuralNet::BatchPolicy::FixedShape;
+  // migraphxBatchBuckets keeps its meaning -- it still chooses between a ladder of shapes and a
+  // single program. Only the size this backend asks Setup for changes. Users who want the old
+  // sizing set nnMaxBatchSize explicitly, which setup.cpp honours ahead of either derivation.
+  return NeuralNet::BatchPolicy::FixedShape;
 }
 
 int NeuralNet::getNumEffectiveDevices(ConfigParser& cfg, const std::vector<int>& gpuIdxByServerThread) {
