@@ -44,17 +44,31 @@ using namespace std;
 //    and 1.53x at 160 (5 interleaved trials per point, sd <= 0.7%). The search's mean batch is
 //    ~89 while maxBatchSize is 192, i.e. under half the compute is useful.
 //
-//    So we compile a small set of BUCKETS and dispatch each eval to the smallest bucket that fits.
-//    Three measurements shaped this:
+//    So we can compile a small set of BUCKETS and dispatch each eval to the smallest bucket
+//    that fits. Three measurements shaped this:
 //      - MIGraphX 2.15's dynamic-batch path is unusable: the graph parses with dynamic dims
 //        propagated correctly, then the GPU compile aborts in shape.cpp with
-//        "lens() called on a dynamic shape". Buckets are the only option available.
+//        "lens() called on a dynamic shape". Setting MIGRAPHX_ENABLE_FULL_DYNAMIC=1, which
+//        skips the split_single_dyn_dim pass, aborts in the same place. A single dynamic
+//        program is therefore not available: the choice is between one static shape and a
+//        ladder of them.
 //      - Per-slot throughput is FLAT across compiled shapes (4411 vs 4478 inf/s at bs=96 vs 192,
 //        a 1.5% difference), so the entire win comes from not computing padding rows and the
 //        buckets do not need to be finely spaced.
 //      - Batch sizes are not uniformly distributed; MCTS batches cluster near full. Bucket
 //        spacing is therefore geometric, which bounds worst-case padding to <2x while keeping
 //        the bucket count (and so the compile time and weight memory) small.
+//
+//    Buckets are nevertheless OFF BY DEFAULT, because they cost correctness. Each bucket is a
+//    separately compiled program and MIGraphX selects kernels per program, so in FP16 the same
+//    position evaluated in a batch of 8 and in a batch of 48 disagrees by more than KataGo's
+//    tolerance -- which is exactly what runnnbatchingtest checks. With a single program that
+//    invariant holds bitwise: max |30-threaded - single-threaded| over 1428 positions is
+//    exactly 0.0, 4/4 repeats on MI325X with b18c384. The divergence is not peculiar to the
+//    ladder below; MIGraphX's own dynamic-batch lowering (split_single_dyn_dim) builds the same
+//    construction, a submodule per shape behind a select_module dispatcher, so it follows from
+//    compiling per shape at all rather than from anything this file does. Setting
+//    migraphxBatchBuckets = true trades the invariant back for 1.5-4% of throughput.
 //
 //    Cost: each compiled program bakes in its own copy of the weights (~100MB FP16 for
 //    b18c384nbt). The I/O buffers are NOT duplicated - see the note in ComputeHandle.
@@ -149,12 +163,14 @@ ComputeContext* NeuralNet::createComputeContext(
   // home directory unasked.
   context->useProgramCache =
     cfg.contains("migraphxProgramCache") ? cfg.getBool("migraphxProgramCache") : false;
-  // Batch bucketing (on by default; see the rationale at the top of this file). Setting this
-  // false compiles a single program at maxBatchSize, which is the pre-bucketing behavior — it
-  // trades throughput for a shorter startup and one copy of the weights, and gives a way to
-  // A/B the feature or fall back if a future MIGraphX regresses on multi-program compiles.
+  // Batch bucketing (OFF by default; see the rationale at the top of this file). The default
+  // compiles a single program at maxBatchSize, which makes an evaluation independent of the
+  // batch it happens to land in -- the invariant runnnbatchingtest asserts, and which a ladder
+  // of separately compiled programs does not satisfy in FP16. Setting this true compiles the
+  // ladder instead: worth 1.5-4% of throughput on MI325X, at the price of shape-dependent
+  // results, a longer startup, and one copy of the weights per rung.
   context->useBatchBuckets =
-    cfg.contains("migraphxBatchBuckets") ? cfg.getBool("migraphxBatchBuckets") : true;
+    cfg.contains("migraphxBatchBuckets") ? cfg.getBool("migraphxBatchBuckets") : false;
   return context;
 }
 
