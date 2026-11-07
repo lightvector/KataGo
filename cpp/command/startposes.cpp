@@ -766,7 +766,8 @@ static bool maybeGetValuesAfterMove(
   Search* search, Loc moveLoc,
   Player nextPla, const Board& board, const BoardHistory& hist,
   double quickSearchFactor,
-  ReportedSearchValues& values
+  ReportedSearchValues& values,
+  Loc avoidLocAfterMove = Board::NULL_LOC
 ) {
   Board newBoard = board;
   BoardHistory newHist = hist;
@@ -780,6 +781,11 @@ static bool maybeGetValuesAfterMove(
   }
 
   search->setPosition(newNextPla,newBoard,newHist);
+  if(avoidLocAfterMove != Board::NULL_LOC) {
+    std::vector<int> avoidMoveUntilByLoc(Board::MAX_ARR_SIZE,0);
+    avoidMoveUntilByLoc[avoidLocAfterMove] = 1;
+    search->setAvoidMoveUntilByLoc(avoidMoveUntilByLoc,avoidMoveUntilByLoc);
+  }
 
   std::function<bool()> shouldStopEarly = []() noexcept {
     return shouldStop.load(std::memory_order_acquire);
@@ -855,6 +861,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
   double turnWeightLambda;
   int maxPosesPerOutFile;
   double utilityThreshold;
+  double utilitySoftThreshold;
   double gameModeFastThreshold;
   bool flipIfPassOrWFirst;
   bool allowGameOver;
@@ -899,6 +906,12 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     TCLAP::ValueArg<double> turnWeightLambdaArg("","turn-weight-lambda","Adjust weight for writing down each position",false,0.0,"LAMBDA");
     TCLAP::ValueArg<int> maxPosesPerOutFileArg("","max-poses-per-out-file","Number of hintposes per output file",false,100000,"INT");
     TCLAP::ValueArg<double> utilityThresholdArg("","utility-threshold","Utility threshold for expensive pass",false,0.01,"UTILS");
+    TCLAP::ValueArg<double> utilitySoftThresholdArg(
+      "","utility-soft-threshold",
+      "If positive, scale each hint weight by min(1, utility gain / this), drop hint if resulting weight is too small."
+      "Not applied to hints marked manually in the sgf, or in -surprise-mode.",
+      false,0.0,"UTILS"
+    );
     TCLAP::ValueArg<double> gameModeFastThresholdArg("","game-mode-fast-threshold","Utility threshold for game mode fast pass",false,0.005,"UTILS");
     TCLAP::SwitchArg flipIfPassOrWFirstArg("","flip-if-pass","Try to heuristically find cases where an sgf passes to simulate white<->black");
     TCLAP::SwitchArg allowGameOverArg("","allow-game-over","Allow sampling game over positions in sgf");
@@ -936,6 +949,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     cmd.add(turnWeightLambdaArg);
     cmd.add(maxPosesPerOutFileArg);
     cmd.add(utilityThresholdArg);
+    cmd.add(utilitySoftThresholdArg);
     cmd.add(gameModeFastThresholdArg);
     cmd.add(flipIfPassOrWFirstArg);
     cmd.add(allowGameOverArg);
@@ -974,6 +988,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     turnWeightLambda = turnWeightLambdaArg.getValue();
     maxPosesPerOutFile = maxPosesPerOutFileArg.getValue();
     utilityThreshold = utilityThresholdArg.getValue();
+    utilitySoftThreshold = utilitySoftThresholdArg.getValue();
     gameModeFastThreshold = gameModeFastThresholdArg.getValue();
     flipIfPassOrWFirst = flipIfPassOrWFirstArg.getValue();
     allowGameOver = allowGameOverArg.getValue();
@@ -1109,7 +1124,7 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
     return true;
   };
 
-  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight,moreUtilityWeight,utilityThreshold,minTurn](
+  auto expensiveEvaluateMove = [&posWriter,&turnWeightLambda,&maxAutoKomi,&maxHandicap,&numFilteredIndivdualPoses,&surpriseMode,&minHintWeight,&hintScale,&logger,trainingWeight,moreUtilityWeight,utilityThreshold,utilitySoftThreshold,minTurn](
     Search* search, Loc missedLoc,
     Player nextPla, const Board& board, const BoardHistory& hist,
     const Sgf::PositionSample& sample, bool markedAsHintPos, bool markedAsHintPosLight
@@ -1283,6 +1298,13 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
       }
     }
 
+    //Soft utility threshold: hints whose move gains less than utilitySoftThreshold over the best alternative
+    //get proportionally less weight, so that small gains need a more surprising move to be written at all.
+    const bool useSoftThreshold = utilitySoftThreshold > 0.0 && !markedAsHintPos && !markedAsHintPosLight;
+    auto softThresholdFactor = [&](const ReportedSearchValues& hintValues, const ReportedSearchValues& otherValues) {
+      double gain = (nextPla == P_WHITE ? hintValues.utility - otherValues.utility : otherValues.utility - hintValues.utility);
+      return std::min(1.0, std::max(0.0, gain / utilitySoftThreshold));
+    };
     //Bot DOES see the move?
     if(moveLoc == missedLoc) {
       if(moreUtilityWeight > 0.0 && selfUtilityOfHintMove > NULL_UTILITY && selfUtilityOfBestOtherMove > NULL_UTILITY) {
@@ -1293,6 +1315,25 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
       if(veryQuickMoveLoc == moveLoc)
         sampleToWrite.weight = sampleToWrite.weight * 0.75 - 0.1;
+
+      //The alternative to compare against is the move the bot picks when the hint move is forbidden.
+      //The root's second choice would be unreliable, since an equally good move may have barely been explored
+      //once the search settled on the hint move. The extra searches are skipped when the hint would be dropped anyway.
+      if(useSoftThreshold && sampleToWrite.weight * exp(-sampleToWrite.initialTurnNumber * turnWeightLambda) > 0.1) {
+        ReportedSearchValues avoidingValues;
+        if(!maybeGetValuesAfterMove(search,Board::NULL_LOC,nextPla,board,hist,1.0,avoidingValues,missedLoc))
+          return 0.0;
+        Loc bestOtherLoc = search->getChosenMoveLoc();
+        if(bestOtherLoc != Board::NULL_LOC && bestOtherLoc != missedLoc) {
+          ReportedSearchValues hintValues;
+          ReportedSearchValues otherValues;
+          if(!maybeGetValuesAfterMove(search,missedLoc,nextPla,board,hist,1.0,hintValues))
+            return 0.0;
+          if(!maybeGetValuesAfterMove(search,bestOtherLoc,nextPla,board,hist,1.0,otherValues))
+            return 0.0;
+          sampleToWrite.weight *= softThresholdFactor(hintValues,otherValues);
+        }
+      }
 
       sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
 
@@ -1362,6 +1403,8 @@ int MainCmds::dataminesgfs(const vector<string>& args) {
         if(moreUtilityWeight > 0.0 && selfUtilityOfHintMove > NULL_UTILITY && selfUtilityOfBestOtherMove > NULL_UTILITY) {
           sampleToWrite.weight += moreUtilityWeight * (-0.3 + sqrt(0.09 + std::max(0.0, selfUtilityOfHintMove - selfUtilityOfBestOtherMove)));
         }
+        if(useSoftThreshold)
+          sampleToWrite.weight *= softThresholdFactor(missedValues,moveValues);
 
         sampleToWrite.weight *= exp(-sampleToWrite.initialTurnNumber * turnWeightLambda);
         if(markedAsHintPos)
