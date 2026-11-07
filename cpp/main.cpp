@@ -263,6 +263,8 @@ string Version::getKataGoVersionFullInfo() {
 #endif
 #elif defined(USE_TENSORRT_BACKEND)
   out << "Using TensorRT backend" << endl;
+#elif defined(USE_MIGRAPHX_BACKEND)
+  out << "Using MIGraphX(ROCm) backend" << endl;
 #elif defined(USE_METAL_BACKEND)
   out << "Using Metal backend" << endl;
 #elif defined(USE_OPENCL_BACKEND)
@@ -308,6 +310,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-trt";
 #elif defined(USE_ROCM_BACKEND)
   s += "-rocm";
+#elif defined(USE_MIGRAPHX_BACKEND)
+  s += "-migraphx";
 #elif defined(USE_METAL_BACKEND)
   s += "-metal";
 #elif defined(USE_OPENCL_BACKEND)
