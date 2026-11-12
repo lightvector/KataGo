@@ -22,11 +22,14 @@ namespace NNPos {
 
   inline int xyToPos(int x, int y, int nnXLen) { return y * nnXLen + x; }
   inline int locToPos(Loc loc, int boardXSize, int nnXLen, int nnYLen) {
-    if(loc == Board::PASS_LOC)
+	switch(loc) {
+	case Board::PASS_LOC:
       return nnXLen * nnYLen;
-    else if(loc == Board::NULL_LOC)
+	case Board::NULL_LOC:
       return nnXLen * (nnYLen + 1);
-    return Location::getY(loc,boardXSize) * nnXLen + Location::getX(loc,boardXSize);
+	default:
+	  return Location::getY(loc,boardXSize) * nnXLen + Location::getX(loc,boardXSize);
+	}
   }
   inline Loc posToLoc(int pos, int boardXSize, int boardYSize, int nnXLen, int nnYLen) {
     if(pos == nnXLen * nnYLen)
