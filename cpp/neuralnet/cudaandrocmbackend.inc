@@ -4952,11 +4952,31 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 //------------------------------------------------------------------------------
 
+#ifdef KATAGO_GPU_CUDA
+// Per-batch-size CUDA graphs of the device side of a forward pass (FP16 input conversion plus
+// Model::apply). A batch size is captured on its second non-warmup use: by then warmup has
+// autotuned every GEMM shape and sized every workspace, and the scratch allocator (LIFO, scoped)
+// hands out the same buffers on every forward, so the captured pointers stay valid.
+struct ForwardGraphCache {
+  std::vector<cudaGraphExec_t> execs;
+  std::vector<int> calls;
+  std::vector<char> failed;
+  bool loggedCapture = false;
+  ~ForwardGraphCache() {
+    for(cudaGraphExec_t e: execs)
+      if(e != nullptr) (void)cudaGraphExecDestroy(e);
+  }
+};
+#endif
+
 struct ComputeHandle {
   std::unique_ptr<CudaHandles> cudaHandles;
   std::unique_ptr<Model> model;
   std::unique_ptr<ScratchBuffers> scratch;
   std::unique_ptr<Buffers> buffers;
+#ifdef KATAGO_GPU_CUDA
+  ForwardGraphCache graphCache;
+#endif
   const bool usingFP16;
   const int nnXLen;
   const int nnYLen;
@@ -5503,6 +5523,71 @@ void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
 //---------------------------------------------------------------------------------------
 
 
+#ifdef KATAGO_GPU_CUDA
+template<class F>
+static void runForwardMaybeGraph(ComputeHandle* gpuHandle, int batchSize, cudaStream_t stream, F&& runDeviceForward) {
+  // KATAGO_CUDA_DISABLE_CUDA_GRAPHS=1 always runs uncaptured, for A/B testing.
+  static const bool graphsEnabled = [] { const char* e = getenv("KATAGO_CUDA_DISABLE_CUDA_GRAPHS"); return e == NULL || atoi(e) == 0; }();
+  CudaHandles* cudaHandles = gpuHandle->cudaHandles.get();
+  ForwardGraphCache& gc = gpuHandle->graphCache;
+  if(!graphsEnabled || cudaHandles->isWarmup || !gpuHandle->usingFP16) {
+    runDeviceForward();
+    return;
+  }
+  if((int)gc.execs.size() <= batchSize) {
+    gc.execs.resize(batchSize + 1, nullptr);
+    gc.calls.resize(batchSize + 1, 0);
+    gc.failed.resize(batchSize + 1, 0);
+  }
+  if(gc.execs[batchSize] != nullptr) {
+    CUDA_ERR("getOutput graph launch", cudaGraphLaunch(gc.execs[batchSize], stream));
+    return;
+  }
+  if(gc.failed[batchSize] || ++gc.calls[batchSize] < 2) {
+    runDeviceForward();
+    return;
+  }
+  auto giveUp = [&](const string& why) {
+    (void)cudaGetLastError();
+    gc.failed[batchSize] = 1;
+    if(cudaHandles->logger != NULL)
+      cudaHandles->logger->write("Cuda backend: CUDA graph capture failed for batch size " + Global::intToString(batchSize) + " (" + why + "), running uncaptured");
+    runDeviceForward();
+  };
+  if(cudaStreamBeginCapture(stream, cudaStreamCaptureModeRelaxed) != cudaSuccess) {
+    giveUp("begin capture");
+    return;
+  }
+  bool threw = false;
+  try {
+    runDeviceForward();
+  }
+  catch(const std::exception&) {
+    threw = true;
+  }
+  cudaGraph_t graph = nullptr;
+  cudaError_t endErr = cudaStreamEndCapture(stream, &graph);
+  if(threw || endErr != cudaSuccess || graph == nullptr) {
+    if(graph != nullptr) (void)cudaGraphDestroy(graph);
+    giveUp(threw ? "exception during capture" : cudaGetErrorString(endErr));
+    return;
+  }
+  cudaGraphExec_t exec = nullptr;
+  cudaError_t instErr = cudaGraphInstantiate(&exec, graph, 0);
+  (void)cudaGraphDestroy(graph);
+  if(instErr != cudaSuccess || exec == nullptr) {
+    giveUp(string("instantiate: ") + cudaGetErrorString(instErr));
+    return;
+  }
+  gc.execs[batchSize] = exec;
+  if(!gc.loggedCapture && cudaHandles->logger != NULL) {
+    gc.loggedCapture = true;
+    cudaHandles->logger->write("Cuda backend: using CUDA graphs for forward passes");
+  }
+  CUDA_ERR("getOutput graph launch", cudaGraphLaunch(exec, stream));
+}
+#endif
+
 void NeuralNet::getOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
@@ -5607,6 +5692,10 @@ void NeuralNet::getOutput(
       CUDA_ERR("getOutput",cudaMemcpyAsync(buffers->inputMetaBufFloat, inputBuffers->userInputMetaBuffer, inputBuffers->singleInputMetaBytes*batchSize, cudaMemcpyHostToDevice, stream));
     }
 
+  }
+
+  auto runDeviceForward = [&]() {
+  if(gpuHandle->usingFP16) {
     customCudaCopyToHalf((const float*)buffers->inputBufFloat,(half*)buffers->inputBuf,inputBuffers->singleInputElts*batchSize,cudaHandles->stream);
     CUDA_ERR("getOutput",cudaPeekAtLastError());
     customCudaCopyToHalf((const float*)buffers->inputGlobalBufFloat,(half*)buffers->inputGlobalBuf,inputBuffers->singleInputGlobalElts*batchSize,cudaHandles->stream);
@@ -5637,6 +5726,13 @@ void NeuralNet::getOutput(
     buffers->workspaceBuf,
     buffers->workspaceBytes
   );
+  };
+
+#ifdef KATAGO_GPU_CUDA
+  runForwardMaybeGraph(gpuHandle, batchSize, stream, runDeviceForward);
+#else
+  runDeviceForward();
+#endif
 
   CUDA_ERR("getOutput",cudaMemcpyAsync(inputBuffers->policyPassResults, buffers->policyPassBuf, inputBuffers->singlePolicyPassResultBytes*batchSize, cudaMemcpyDeviceToHost, stream));
   CUDA_ERR("getOutput",cudaMemcpyAsync(inputBuffers->policyResults, buffers->policyBuf, inputBuffers->singlePolicyResultBytes*batchSize, cudaMemcpyDeviceToHost, stream));
