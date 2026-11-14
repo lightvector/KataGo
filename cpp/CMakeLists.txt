@@ -738,11 +738,11 @@ if(USE_BACKEND STREQUAL "CUDA")
      AND NOT NO_CUTLASS_FUSED_FFN)
     message(STATUS "Found vendored CUTLASS at external/cutlass, enabling the fused FFN kernel.")
     set(KATAGO_USE_CUTLASS_FUSED_FFN 1)
-    set(NEURALNET_BACKEND_SOURCES ${NEURALNET_BACKEND_SOURCES} neuralnet/cudafusedffn.cu)
+    set(NEURALNET_BACKEND_SOURCES ${NEURALNET_BACKEND_SOURCES} neuralnet/cudafusedffn.cu neuralnet/cudafastgemm.cu)
     # CUTLASS requires C++17. CUDA_STANDARD is a target property that is silently ignored when
     # set per-source, and nvcc before CUDA 12 defaults to C++14, so pass -std explicitly (no
     # conflict: CMAKE_CUDA_STANDARD is unset, so CMake adds no -std flag of its own).
-    set_source_files_properties(neuralnet/cudafusedffn.cu PROPERTIES
+    set_source_files_properties(neuralnet/cudafusedffn.cu neuralnet/cudafastgemm.cu PROPERTIES
       COMPILE_OPTIONS "-std=c++17;--expt-relaxed-constexpr")
   else()
     message(STATUS "Vendored CUTLASS not found, not usable with this toolchain, or disabled via NO_CUTLASS_FUSED_FFN; building without the fused FFN kernel.")

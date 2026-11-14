@@ -555,6 +555,9 @@ struct CudaHandles {
   // FP16, and sm_80+. Must be set before Model construction: TransformerFFNBlock commits to a
   // weight layout based on it.
   bool fusedFFNEnabled;
+  // Autotuned CUTLASS GEMMs (cudafastgemm.cu) for FP16 matmuls and 1x1 convs. Same build, FP16
+  // and sm_80+ requirements as the fused FFN, whose probe it shares.
+  bool fastGemmEnabled;
   bool loggedUsingFusedFFN;
   bool loggedFusedFFNRejected;
   bool loggedMmaAttentionRejectedShape;
@@ -585,6 +588,7 @@ struct CudaHandles {
       fuseResidualNorm(true),
       combineQKV(true),
       fusedFFNEnabled(false),
+      fastGemmEnabled(false),
       loggedUsingFusedFFN(false),
       loggedFusedFFNRejected(false),
       loggedMmaAttentionRejectedShape(false),
@@ -1173,6 +1177,13 @@ struct ConvLayer {
           &beta, (float*)outputBuf, outChannels));
       }
       else {
+#ifdef KATAGO_HAS_FAST_GEMM
+        if(cudaHandles->fastGemmEnabled) {
+          CudaFastGemm::hgemm(cudaHandles->cublas, cudaHandles->stream, outChannels, tokens, inChannels,
+            (const half*)matmulWeightBuf.buf, (const half*)inputBuf, (half*)outputBuf, accumulate);
+          return;
+        }
+#endif
         const half alpha = __float2half(1.0f);
         const half beta = __float2half(accumulate ? 1.0f : 0.0f);
         CUBLAS_ERR(name.c_str(),cublasHgemm(
@@ -1867,6 +1878,13 @@ struct MatMulLayer {
       //CUDA, or hipBLAS older than 2.0 (below ROCm 6.0, itself below the minimum Compiling.md
       //documents). There hipblasGemmEx has no spelling that takes hipblasComputeType_t at all, so
       //keep the FP16-compute path: correct, just less accurate and slower.
+#ifdef KATAGO_HAS_FAST_GEMM
+      if(cudaHandles->fastGemmEnabled) {
+        CudaFastGemm::hgemm(cudaHandles->cublas, cudaHandles->stream, outChannels, batchSize, inChannels,
+          (const half*)matBuf.buf, (const half*)inputBuf, (half*)outputBuf, accumulate);
+        return;
+      }
+#endif
       const cublas_half_t* alpha = (const cublas_half_t*)scratch->oneBuf;
       const cublas_half_t* beta = (const cublas_half_t*)(accumulate ? scratch->oneBuf : scratch->zeroBuf);
       CUBLAS_ERR(name.c_str(),cublasHgemm(
@@ -1950,6 +1968,13 @@ static void applySharedInputStridedMatMuls(
       HIPBLAS_GEMM_DEFAULT
     ));
 #else
+#ifdef KATAGO_HAS_FAST_GEMM
+    if(count == 1 && cudaHandles->fastGemmEnabled) {
+      CudaFastGemm::hgemm(cudaHandles->cublas, cudaHandles->stream, outChannels, batchSize, inChannels,
+        (const half*)packedWeights, (const half*)inputBuf, (half*)outputBuf, false);
+      return;
+    }
+#endif
     const cublas_half_t* alpha = (const cublas_half_t*)scratch->oneBuf;
     const cublas_half_t* beta = (const cublas_half_t*)scratch->zeroBuf;
     CUBLAS_ERR(name.c_str(),cublasHgemmStridedBatched(
@@ -4997,8 +5022,13 @@ struct ComputeHandle {
       bool wantFusedFFN =
         context->useFusedFFNMode == enabled_t::True ||
         (context->useFusedFFNMode == enabled_t::Auto && majorComputeCapability >= 8);
-      bool fusedFFNProbeOk = wantFusedFFN && useFP16 && CudaFusedFFN::supportedOnCurrentDevice();
+      bool wantFastGemm = useFP16 && majorComputeCapability >= 8 && CudaFastGemm::enabled();
+      bool cutlassProbeOk = (wantFusedFFN || wantFastGemm) && useFP16 && CudaFusedFFN::supportedOnCurrentDevice();
+      bool fusedFFNProbeOk = wantFusedFFN && cutlassProbeOk;
       cudaHandles->fusedFFNEnabled = fusedFFNProbeOk;
+      cudaHandles->fastGemmEnabled = wantFastGemm && cutlassProbeOk;
+      if(cudaHandles->fastGemmEnabled && logger != NULL)
+        logger->write("Cuda backend: using autotuned CUTLASS GEMMs for FP16 matmuls");
       if(context->useFusedFFNMode == enabled_t::True && !cudaHandles->fusedFFNEnabled)
         throw StringError(
           "Cuda backend: cudaUseFusedFFN=true but the fused FFN kernel is not usable here (requires FP16 and a functional sm_80+ build)");
