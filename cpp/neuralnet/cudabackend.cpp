@@ -27,6 +27,8 @@
 
 #ifdef USE_CUTLASS_FUSED_FFN
 #include "../neuralnet/cudafusedffn.h"
+#include "../neuralnet/cudafastgemm.h"
+#define KATAGO_HAS_FAST_GEMM 1
 #endif
 
 // Backend selector for the shared implementation file included below. See the comment at the
