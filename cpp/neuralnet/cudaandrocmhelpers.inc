@@ -2131,6 +2131,158 @@ void applyCScaleBiasNHWCSiluMaskHalfKernel(const half* in, half* out, const half
 #endif
 }
 
+//==============================================================================================
+// Vectorized elementwise kernels (CUDA only). Same per-element math as the scalar kernels they
+// replace, but each thread moves 8 halfs per memory op and RMSNorm uses one warp per position
+// with shuffle-only reductions instead of one block per position. These ops are memory/latency
+// bound, and on a mid-size GPU running two NN server threads they take a large share of SM time.
+// KATAGO_CUDA_DISABLE_VEC_KERNELS=1 falls back to the scalar kernels, for A/B testing.
+//==============================================================================================
+#ifdef KATAGO_GPU_CUDA
+static bool fastElementwiseEnabled() {
+  static const bool on = [] { const char* e = getenv("KATAGO_CUDA_DISABLE_VEC_KERNELS"); return e == NULL || atoi(e) == 0; }();
+  return on;
+}
+
+// out = act(in*scale + bias) [* mask], NHWC, cSize % 8 == 0. ACT: 0 identity, 1 silu.
+template<int ACT, bool MASK>
+__global__ void applyCScaleBiasNHWCHalfVec8Kernel(
+  const half* __restrict__ in, half* __restrict__ out, const half* __restrict__ scale, const half* __restrict__ biases,
+  const half* __restrict__ mask, int cSize, int totalVec8
+) {
+#ifdef KATAGO_GPU_SUPPORTS_FP16
+  for(int v = blockIdx.x * blockDim.x + threadIdx.x; v < totalVec8; v += gridDim.x * blockDim.x) {
+    const int e0 = v * 8;
+    const int c0 = e0 % cSize;
+    uint4 x = reinterpret_cast<const uint4*>(in)[v];
+    uint4 sc = *reinterpret_cast<const uint4*>(scale + c0);
+    uint4 bi = *reinterpret_cast<const uint4*>(biases + c0);
+    const half* xh = reinterpret_cast<const half*>(&x);
+    const half* sh = reinterpret_cast<const half*>(&sc);
+    const half* bh = reinterpret_cast<const half*>(&bi);
+    half m = MASK ? mask[e0 / cSize] : __float2half(1.0f);
+    uint4 o;
+    half* oh = reinterpret_cast<half*>(&o);
+    #pragma unroll
+    for(int j = 0; j < 8; j++) {
+      half a = __hfma(xh[j], sh[j], bh[j]);
+      if(MASK) a = __hmul(a, m);
+      oh[j] = (ACT == 1) ? siluh(a) : a;
+    }
+    reinterpret_cast<uint4*>(out)[v] = o;
+  }
+#endif
+}
+
+// RMSNorm over C channels, one warp per (n, xy) position. Same math as
+// rmsNormGammaBetaNHWCHalfVecKernel: v = in*mask, rms = rsqrt(mean(v^2) + eps),
+// o = act(v*rms*gamma + beta) * mask.
+template<int C>
+__global__ void __launch_bounds__(256) rmsNormWarpNHWCHalfKernel(
+  const half* __restrict__ in, half* __restrict__ out, const half* __restrict__ gamma, const half* __restrict__ beta,
+  const half* __restrict__ mask, int totalPositions, float epsilon, int activation
+) {
+#ifdef KATAGO_GPU_SUPPORTS_FP16
+  constexpr int PER = C / 128;  // uint2 (4 halfs) per lane
+  const int pos = blockIdx.x * (blockDim.x / 32) + (threadIdx.x >> 5);
+  const int lane = threadIdx.x & 31;
+  if(pos >= totalPositions)
+    return;
+  const float maskVal = (mask != NULL) ? __half2float(mask[pos]) : 1.0f;
+  const uint2* row = reinterpret_cast<const uint2*>(in + (size_t)pos * C);
+  float v[PER * 4];
+  float acc = 0.0f;
+  #pragma unroll
+  for(int j = 0; j < PER; j++) {
+    uint2 u = row[j * 32 + lane];
+    float2 a = __half22float2(*reinterpret_cast<const half2*>(&u.x));
+    float2 b = __half22float2(*reinterpret_cast<const half2*>(&u.y));
+    v[4*j+0] = a.x * maskVal; v[4*j+1] = a.y * maskVal; v[4*j+2] = b.x * maskVal; v[4*j+3] = b.y * maskVal;
+    acc += v[4*j+0] * v[4*j+0] + v[4*j+1] * v[4*j+1];
+    acc += v[4*j+2] * v[4*j+2] + v[4*j+3] * v[4*j+3];
+  }
+  #pragma unroll
+  for(int off = 16; off > 0; off >>= 1)
+    acc += __shfl_xor_sync(0xffffffffu, acc, off);
+  const float rms = rsqrtf(acc / (float)C + epsilon);
+  uint2* orow = reinterpret_cast<uint2*>(out + (size_t)pos * C);
+  #pragma unroll
+  for(int j = 0; j < PER; j++) {
+    const int idx = j * 32 + lane;
+    uint2 g = reinterpret_cast<const uint2*>(gamma)[idx];
+    uint2 bb = reinterpret_cast<const uint2*>(beta)[idx];
+    float2 g01 = __half22float2(*reinterpret_cast<const half2*>(&g.x));
+    float2 g23 = __half22float2(*reinterpret_cast<const half2*>(&g.y));
+    float2 b01 = __half22float2(*reinterpret_cast<const half2*>(&bb.x));
+    float2 b23 = __half22float2(*reinterpret_cast<const half2*>(&bb.y));
+    float o[4] = {v[4*j+0] * rms * g01.x + b01.x, v[4*j+1] * rms * g01.y + b01.y,
+                  v[4*j+2] * rms * g23.x + b23.x, v[4*j+3] * rms * g23.y + b23.y};
+    #pragma unroll
+    for(int t = 0; t < 4; t++) {
+      if(activation == ACTIVATION_RELU) o[t] = fmaxf(o[t], 0.0f);
+      else if(activation == ACTIVATION_MISH) o[t] = mishf(o[t]);
+      else if(activation == ACTIVATION_SILU) o[t] = siluf(o[t]);
+      o[t] *= maskVal;
+    }
+    half2 lo = __halves2half2(__float2half(o[0]), __float2half(o[1]));
+    half2 hi = __halves2half2(__float2half(o[2]), __float2half(o[3]));
+    uint2 w;
+    w.x = *reinterpret_cast<uint32_t*>(&lo);
+    w.y = *reinterpret_cast<uint32_t*>(&hi);
+    orow[idx] = w;
+  }
+#endif
+}
+
+// Learnable 2D RoPE on Q and K, one thread per (token, kv head, group of 4 pairs). Same math as
+// applyRoPEQKLearnableRecomputeHalfKernel, with each cos/sin computed once and applied to K and
+// to every query head sharing that kv head. Requires numPairs % 4 == 0 and 16-byte aligned rows.
+__global__ void applyRoPEQKLearnableRecomputeHalfVecKernel(
+  half* qBuf, half* kBuf, const float* __restrict__ freqs,
+  int totalTokens, int seqLen, int numHeads, int numKVHeads, int qHeadDim, int qTotalDim, int kTotalDim, int numPairs, int nnXLen
+) {
+#ifdef KATAGO_GPU_SUPPORTS_FP16
+  const int groupsPerHead = numPairs / 4;
+  const int perToken = numKVHeads * groupsPerHead;
+  const int t = blockIdx.x * blockDim.x + threadIdx.x;
+  if(t >= totalTokens * perToken)
+    return;
+  const int tok = t / perToken;
+  const int r = t % perToken;
+  const int kvh = r / groupsPerHead;
+  const int p0 = (r % groupsPerHead) * 4;
+  const int xy = tok % seqLen;
+  const int x = xy % nnXLen;
+  const int y = xy / nnXLen;
+  float cs[4], sn[4];
+  #pragma unroll
+  for(int j = 0; j < 4; j++) {
+    float freqX = freqs[(kvh * numPairs + p0 + j) * 2 + 0];
+    float freqY = freqs[(kvh * numPairs + p0 + j) * 2 + 1];
+    float angle = (float)x * freqX + (float)y * freqY;
+    __sincosf(angle, &sn[j], &cs[j]);
+  }
+  auto rot = [&](half* p) {
+    uint4 u = *reinterpret_cast<uint4*>(p);
+    half2* h = reinterpret_cast<half2*>(&u);
+    #pragma unroll
+    for(int j = 0; j < 4; j++) {
+      float q0 = __low2float(h[j]);
+      float q1 = __high2float(h[j]);
+      h[j] = __halves2half2(__float2half(q0 * cs[j] - q1 * sn[j]), __float2half(q0 * sn[j] + q1 * cs[j]));
+    }
+    *reinterpret_cast<uint4*>(p) = u;
+  };
+  rot(kBuf + (size_t)tok * kTotalDim + kvh * qHeadDim + 2 * p0);
+  const int qPerKV = numHeads / numKVHeads;
+  for(int i = 0; i < qPerKV; i++) {
+    int h = kvh * qPerKV + i;
+    rot(qBuf + (size_t)tok * qTotalDim + h * qHeadDim + 2 * p0);
+  }
+#endif
+}
+#endif  // KATAGO_GPU_CUDA
+
 static void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* scale, const void* biases, const void* mask, int nSize, int xySize, int cSize, bool isHalf, int activation, cudaStream_t stream) {
   if(nSize > 65535)
     throw std::runtime_error("customCudaApplyCScaleBiasNHWC: nSize too large");
@@ -2147,6 +2299,26 @@ static void sharedApplyCScaleBiasNHWC(const void* in, void* out, const void* sca
 
   dim3 grid(cBlocks,sBlocks,nSize);
   dim3 threads(cThreads,sThreads,1);
+#ifdef KATAGO_GPU_CUDA
+  if(isHalf && fastElementwiseEnabled() && cSize % 8 == 0 &&
+     (activation == ACTIVATION_IDENTITY || activation == ACTIVATION_SILU) &&
+     ((((uintptr_t)in) | ((uintptr_t)out) | ((uintptr_t)scale) | ((uintptr_t)biases)) & 15) == 0) {
+    int totalVec8 = nSize * xySize * cSize / 8;
+    int nThreads = 256;
+    int nBlocks = std::min((totalVec8 + nThreads - 1) / nThreads, 65535);
+    const half* h_in = (const half*)in; half* h_out = (half*)out;
+    const half* h_sc = (const half*)scale; const half* h_bi = (const half*)biases; const half* h_m = (const half*)mask;
+    if(activation == ACTIVATION_SILU) {
+      if(mask == NULL) applyCScaleBiasNHWCHalfVec8Kernel<1, false><<<nBlocks, nThreads, 0, stream>>>(h_in, h_out, h_sc, h_bi, h_m, cSize, totalVec8);
+      else applyCScaleBiasNHWCHalfVec8Kernel<1, true><<<nBlocks, nThreads, 0, stream>>>(h_in, h_out, h_sc, h_bi, h_m, cSize, totalVec8);
+    }
+    else {
+      if(mask == NULL) applyCScaleBiasNHWCHalfVec8Kernel<0, false><<<nBlocks, nThreads, 0, stream>>>(h_in, h_out, h_sc, h_bi, h_m, cSize, totalVec8);
+      else applyCScaleBiasNHWCHalfVec8Kernel<0, true><<<nBlocks, nThreads, 0, stream>>>(h_in, h_out, h_sc, h_bi, h_m, cSize, totalVec8);
+    }
+    return;
+  }
+#endif
   if(mask == NULL) {
     if(activation == ACTIVATION_IDENTITY) {
       if(isHalf)
@@ -2728,6 +2900,17 @@ void customCudaApplyRoPEQKLearnableRecompute(
   int totalHP = numHeads * numPairs;
   if(totalHP > 1024)
     throw std::runtime_error("customCudaApplyRoPEQKLearnableRecompute: numHeads*numPairs (" + std::to_string(totalHP) + ") exceeds the 1024 threads/block limit");
+#ifdef KATAGO_GPU_CUDA
+  if(fastElementwiseEnabled() && numPairs % 4 == 0 && qHeadDim % 8 == 0 && qTotalDim % 8 == 0 && kTotalDim % 8 == 0 &&
+     ((((uintptr_t)qBuf) | ((uintptr_t)kBuf)) & 15) == 0) {
+    int totalTokens = batchSize * seqLen;
+    int totalThreads = totalTokens * numKVHeads * (numPairs / 4);
+    int nThreads = 256;
+    applyRoPEQKLearnableRecomputeHalfVecKernel<<<(totalThreads + nThreads - 1) / nThreads, nThreads, 0, stream>>>(
+      qBuf, kBuf, freqs, totalTokens, seqLen, numHeads, numKVHeads, qHeadDim, qTotalDim, kTotalDim, numPairs, nnXLen);
+    return;
+  }
+#endif
   int threads = ((totalHP + 31) / 32) * 32;
   dim3 blocks(seqLen, batchSize, 1);
   applyRoPEQKLearnableRecomputeHalfKernel<<<blocks, threads, 0, stream>>>(
@@ -3716,6 +3899,18 @@ void customCudaRMSNormGammaBetaNHWC(
   int totalPositions = nSize * xySize;
   if(totalPositions <= 0)
     return;
+#ifdef KATAGO_GPU_CUDA
+  if(fastElementwiseEnabled() && (cSize == 384 || cSize == 768) &&
+     ((((uintptr_t)in) | ((uintptr_t)out) | ((uintptr_t)gamma) | ((uintptr_t)beta)) & 7) == 0) {
+    const int warpsPerBlock = 8;
+    const int blocks = (totalPositions + warpsPerBlock - 1) / warpsPerBlock;
+    if(cSize == 384)
+      rmsNormWarpNHWCHalfKernel<384><<<blocks, warpsPerBlock * 32, 0, stream>>>(in, out, gamma, beta, mask, totalPositions, epsilon, activation);
+    else
+      rmsNormWarpNHWCHalfKernel<768><<<blocks, warpsPerBlock * 32, 0, stream>>>(in, out, gamma, beta, mask, totalPositions, epsilon, activation);
+    return;
+  }
+#endif
   // Vectorized path: cSize must be even (use half2). Pick ELTS_PER_THREAD so we end up with a
   // thread count that is a whole number of warps and <= 512.
   // For cSize=384 -> 192 half2 pairs -> 192 threads, 1 elt/thread.
