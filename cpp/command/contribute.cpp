@@ -1,3 +1,4 @@
+#include "../program/batchvalidatorgate.h"
 #include "../core/global.h"
 #include "../core/commandloop.h"
 #include "../core/config_parser.h"
@@ -68,6 +69,7 @@ static void signalHandler(int signal)
 {
   if(signal == SIGINT || signal == SIGTERM) {
     sigReceived.store(true);
+    BatchValidatorGate::requestShutdown();
     //First signal, stop gracefully
     if(!shouldStopGracefully.load())
       shouldStopGracefully.store(true);
@@ -557,6 +559,7 @@ int MainCmds::contribute(const vector<string>& args) {
   else {
     maxSimultaneousGames = userCfg->getInt("maxSimultaneousGames", 1, 16000);
   }
+  const bool batchModelValidation = userCfg->contains("batchModelValidation") ? userCfg->getBool("batchModelValidation") : true;
   bool onlyPlayRatingMatches = false;
   if(userCfg->contains("onlyPlayRatingMatches")) {
     onlyPlayRatingMatches = userCfg->getBool("onlyPlayRatingMatches");
@@ -747,6 +750,38 @@ int MainCmds::contribute(const vector<string>& args) {
     int repIdx,
     Rand& taskRand
   ) {
+    
+    BatchValidatorGate::GateConfig gateCfg;
+    gateCfg.enabled = batchModelValidation;
+    gateCfg.targetGames = maxSimultaneousGames;
+    BatchValidatorGate::gateBeforeLoadModels(
+      gateCfg,
+      {
+        {
+          std::to_string(reinterpret_cast<std::uintptr_t>(&(*blackManager))) + ":" + task.modelBlack.name,
+          task.modelBlack.name,
+          [mgr = &(*blackManager), mName = task.modelBlack.name]() { return mgr->hasModel(mName); },
+          [mgr = &(*blackManager), mName = task.modelBlack.name]() {
+            NNEvaluator* tmpEval = mgr->acquireModel(mName);
+            if(tmpEval != nullptr) mgr->release(tmpEval);
+          }
+        },
+        {
+          std::to_string(reinterpret_cast<std::uintptr_t>(&(*whiteManager))) + ":" + task.modelWhite.name,
+          task.modelWhite.name,
+          [mgr = &(*whiteManager), mName = task.modelWhite.name]() { return mgr->hasModel(mName); },
+          [mgr = &(*whiteManager), mName = task.modelWhite.name]() {
+            NNEvaluator* tmpEval = mgr->acquireModel(mName);
+            if(tmpEval != nullptr) mgr->release(tmpEval);
+          }
+        }
+      },
+      [&logger](const std::string& msg) { logger.write(msg); }
+    );
+    struct ScopedGameCounter {
+      ScopedGameCounter() { BatchValidatorGate::notifyGameStarted(); }
+      ~ScopedGameCounter() { BatchValidatorGate::notifyGameFinished(); }
+    } scopedGameCounter;
     NNEvaluator* nnEvalBlack = blackManager->acquireModel(task.modelBlack.name);
     NNEvaluator* nnEvalWhite = whiteManager->acquireModel(task.modelWhite.name);
 
@@ -850,7 +885,7 @@ int MainCmds::contribute(const vector<string>& args) {
   std::mutex invalidModelErrorMutex;
 
   auto loadNeuralNetIntoManager =
-    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGamesPossible,&userCfgWarnedYet,
+    [&runParams,&tdataDir,&sgfsDir,&logger,&userCfg,maxSimultaneousGames,maxSimultaneousRatingGamesPossible,&userCfgWarnedYet,batchModelValidation,
      &invalidModelErrorTimer,&invalidModelErrorEwms,&lastInvalidModelErrorTime,&invalidModelErrorMutex,&shouldPause](
       SelfplayManager* manager, const Client::ModelInfo modelInfo, const string& modelFile, bool isRatingManager,
       double backendRefLenienceFactor
