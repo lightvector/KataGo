@@ -43,6 +43,7 @@ std::vector<std::string> Setup::getBackendPrefixes() {
   prefixes.push_back("opencl");
   prefixes.push_back("rocm");
   prefixes.push_back("eigen");
+  prefixes.push_back("dist");
   prefixes.push_back("onnx");
   prefixes.push_back("dummybackend");
   return prefixes;
@@ -114,6 +115,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   string backendPrefix = "rocm";
   #elif defined(USE_EIGEN_BACKEND)
   string backendPrefix = "eigen";
+  #elif defined(USE_DISTRIBUTED_BACKEND)
+  string backendPrefix = "dist";
   #elif defined(USE_ONNX_BACKEND)
   string backendPrefix = "onnx";
   #else

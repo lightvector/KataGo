@@ -5,6 +5,7 @@ namespace MainCmds {
   int benchmark(const std::vector<std::string>& args);
   int benchmarknn(const std::vector<std::string>& args);
   int contribute(const std::vector<std::string>& args);
+  int distserver(const std::vector<std::string>& args);
   int evalsgf(const std::vector<std::string>& args);
   int gatekeeper(const std::vector<std::string>& args);
   int genconfig(const std::vector<std::string>& args, const std::string& firstCommand);

@@ -39,6 +39,7 @@ benchmark : Test speed with different numbers of search threads.
 genconfig : User-friendly interface to generate a config with rules and automatic performance tuning.
 
 contribute : Connect to online distributed KataGo training and run perpetually contributing selfplay games.
+distserver : (For engines built with a normal backend) serve neural net evals over TCP to engines built with -DUSE_BACKEND=DISTRIBUTED.
 
 match : Run self-play match games based on a config, more efficient than gtp due to batching.
 version : Print version and exit.
@@ -98,6 +99,8 @@ static int handleSubcommand(const string& subcommand, const vector<string>& args
     return MainCmds::genconfig(subArgs,args[0]);
   else if(subcommand == "gtp")
     return MainCmds::gtp(subArgs);
+  else if(subcommand == "distserver")
+    return MainCmds::distserver(subArgs);
   else if(subcommand == "tuner")
     return MainCmds::tuner(subArgs);
   else if(subcommand == "match")
@@ -276,6 +279,8 @@ string Version::getKataGoVersionFullInfo() {
   out << "Using Eigen(CPU) backend" << endl;
 #elif defined(USE_ONNX_BACKEND)
   out << "Using ONNX Runtime backend" << endl;
+#elif defined(USE_DISTRIBUTED_BACKEND)
+  out << "Using distributed inference client backend (no local NN; evals are served by remote katago distserver processes)" << endl;
 #else
   out << "Using dummy backend" << endl;
 #endif
@@ -316,6 +321,8 @@ string Version::getGitRevisionWithBackend() {
   s += "-eigen";
 #elif defined(USE_ONNX_BACKEND)
   s += "-onnx";
+#elif defined(USE_DISTRIBUTED_BACKEND)
+  s += "-distributed";
 #else
   s += "-dummy";
 #endif
