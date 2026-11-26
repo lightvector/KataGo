@@ -1171,6 +1171,56 @@ xoox..xo.
 
   //============================================================================
   {
+    //The white chain at the bottom left has two liberties. In the attacker-first search, the defender's lone liberty
+    //at a deeper node is also a capture, which the released search mishandled for one of the two stones.
+    const char* name = "Ladders 2 Libs, lone liberty is also a capture deeper in the search";
+    vector<Loc> buf;
+    vector<Loc> buf2;
+    Board board = Board::parseBoard(9,9,R"%%(
+xo..x.o..
+......x.x
+.....x...
+..xx.x.oo
+.xoxxoo..
+o.o....o.
+..x......
+o.x...o..
+oxo......
+)%%");
+
+    out << endl;
+    Board startBoard = board;
+    for(int y = 0; y<board.y_size; y++) {
+      for(int x = 0; x<board.x_size; x++) {
+        Loc loc = Location::getLoc(x,y,board.x_size);
+        if(board.colors[loc] != C_EMPTY)
+          out << (int)board.searchIsLadderCapturedAttackerFirst2Libs(loc,buf,buf2);
+        else
+          out << ".";
+      }
+      out << endl;
+    }
+    out << endl;
+    board.checkConsistency();
+    testAssert(boardsSeemEqual(board,startBoard));
+
+    string expected = R"%%(
+01..0.1..
+......0.0
+.....0...
+..00.0.00
+.010000..
+0.1....0.
+..0......
+1.0...0..
+100......
+
+)%%";
+    expect(name,out,expected);
+  }
+
+  //============================================================================
+  {
     const char* name = "LaddersKo-1";
     vector<Loc> buf;
     vector<Loc> buf2;
