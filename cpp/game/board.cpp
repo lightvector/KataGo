@@ -1711,12 +1711,23 @@ bool Board::searchIsLadderCaptured(Loc loc, bool defenderFirst, vector<Loc>& buf
       int moveListLen = 0;
       if(isDefender) {
         moveListLen = findLibertyGainingCaptures(loc,buf,start,start);
-        moveListLen += findLiberties(loc,buf,start,start+moveListLen);
+        int numLibsAdded = findLiberties(loc,buf,start,start+moveListLen);
+        moveListLen += numLibsAdded;
+
+        //The defender group has exactly one liberty. findLiberties skips points already in the list, so the lone
+        //liberty is the last element unless it is also one of the capturing moves. In that case, find it again
+        //in the scratch space past the end of the list.
+        Loc loneLiberty;
+        if(numLibsAdded > 0)
+          loneLiberty = buf[start+moveListLen-1];
+        else {
+          findLiberties(loc,buf,start+moveListLen,start+moveListLen);
+          loneLiberty = buf[start+moveListLen];
+        }
 
         int lowerBoundLibs;
         int upperBoundLibs;
-        //List is always nonempty, and the last element always is the lone liberty of the defender group
-        getBoundNumLibertiesAfterPlay(buf[start+moveListLen-1], pla, lowerBoundLibs, upperBoundLibs);
+        getBoundNumLibertiesAfterPlay(loneLiberty, pla, lowerBoundLibs, upperBoundLibs);
         //Defender immediately wins if there are provably enough libs
         if(lowerBoundLibs >= 3)
         { returnValue = false; returnedFromDeeper = true; stackIdx--; continue; }
