@@ -628,8 +628,19 @@ struct ComputeHandleInternal {
 
     const InitializedDevice* device = computeContext->devicesContext->findGpuExn(gpuIdx);
     clContext = device->context;
-    commandQueue = device->commandQueue;
     deviceId = device->info.deviceId;
+    // Give each handle (one per NN server thread) its own in-order command queue.
+    // Sharing the device's single queue across server threads serializes all of
+    // their batches and blocking reads, which leaves the GPU partly idle. Each
+    // handle already owns its weights, scratch, buffers, and kernel objects, so a
+    // separate queue on the shared context needs no further synchronization.
+    {
+      cl_int queueErr;
+      cl_command_queue_properties queueProps =
+        ComputeContext::liveProfilingKernels ? CL_QUEUE_PROFILING_ENABLE : 0;
+      commandQueue = clCreateCommandQueue(clContext, deviceId, queueProps, &queueErr);
+      CHECK_ERR(queueErr);
+    }
     CompiledPrograms* progs = computeContext->compiledProgramsByDeviceId[device->info.deviceId];
     testAssert(progs != NULL);
     tuneParams = progs->tuneParams;
@@ -2432,6 +2443,8 @@ ComputeHandleInternal::~ComputeHandleInternal() {
     if(profileEvents[i] != NULL)
       clReleaseEvent(profileEvents[i]);
   }
+  clFinish(commandQueue);
+  clReleaseCommandQueue(commandQueue);
 }
 
 const TransformerAttentionKernelSet* ComputeHandleInternal::getOrCreateAttnKernels(int qHeadDim, int vHeadDim) {
