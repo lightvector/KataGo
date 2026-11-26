@@ -126,8 +126,63 @@ stream loses ~40% of its throughput; at batch 8 the same RTT costs only a few pe
 
 Keep the engine and the GPU machines on the same LAN if possible.
 
+## Validation status and limitations
+
+**Validated** on two rented single-GPU instances (NVIDIA RTX 4080 SUPER 32 GB, CUDA 13.0,
+cuDNN 9), one `distserver` and one SakuraLink SSH tunnel per machine:
+
+* from-scratch CUDA build on both machines: 2 m 28 s each (`-j48`);
+* client configured with `distServers = 127.0.0.1:<tunnel A>,127.0.0.1:<tunnel B>`;
+  both servers logged real `eval batch` work (48 / 37 batches); the remote evaluation is
+  **bit-identical** to same-machine direct inference (whiteWin 0.440201, whiteLead 0.550);
+* throughput, batch 8: GPU-direct 3127 evals/s, one node over the tunnel 56 evals/s,
+  two nodes 62 (2 connections) / 113 (4 connections) evals/s.
+
+Video (2 min, from clean build to benchmark): [media/kata-distributed-verify.mp4](media/kata-distributed-verify.mp4).
+
+**Known limitations**
+
+* Network-bound: one round trip per batch plus 32.6 KB per eval upstream. On a 24 ms RTT
+  link with ~10 MB/s upload this caps a two-machine fleet at ~100–350 evals/s, while the
+  GPUs themselves can do thousands. Same-host or 10 GbE deployment is required to use the
+  GPUs fully.
+* Protocol v2 is not backward compatible: client and server must be rebuilt together.
+* The server has no config file, so backend options (`cudaShareModelWeights`,
+  `openclTunerFile`, FP16 overrides, …) cannot be set on the server side.
+* Each connection owns its own model copy on the GPU; many connections per GPU can
+  exhaust VRAM.
+* No reconnect or failover: a server dying aborts the engine.
+* No authentication or TLS on the wire; keep the server bound to loopback behind SSH.
+* A same-LAN pair and a multi-machine run with a realistic model are still missing; all
+  cross-machine measurements were across the public internet.
+
 ## Security
 
 There is no authentication and no encryption. Anyone who can reach a `distserver` port can
 submit evaluations and read the results, i.e. consume the GPUs. Bind it to a private
 interface, firewall the port, or run it over SSH/WireGuard.
+
+### Single-host two-GPU validation (2 x RTX 4080 SUPER)
+
+With a realistic model (`kata1-tf3-b11c768`, 70.4 M parameter transformer) on a single
+machine holding both GPUs, the transport cost becomes small next to the forward pass:
+
+| configuration | batch 8 (evals/s) | batch 32 (evals/s) |
+|---|---|---|
+| direct, 2 threads (1 per GPU) | 658 | 708 |
+| direct, 4 threads (2 per GPU) | 742 | 733 |
+| one `distserver -gpus 0,1`, 2 connections | 637 | 695 |
+| one `distserver -gpus 0,1`, 4 connections | 734 | 730 |
+| two `distserver`s (one GPU each), 2 connections | 642 | 694 |
+| two `distserver`s (one GPU each), 4 connections | 737 | 729 |
+
+Distributed reaches **98.8-99.6 % of same-machine direct throughput** at four
+connections; the GPU utilisation is the same as for direct inference (~60-70 % at this
+model and batch size). Per-batch transport is ~0.3 ms against a 43-174 ms forward pass.
+The same run on the small b12c192 convnet (2.5-6 ms per batch) shows 84-91 % instead,
+which is the per-batch serialisation cost showing through.
+
+**Precision caveat:** the server has no config file, so it uses backend defaults (FP16 on
+this GPU). A client configured with `useFP16 = false` still gets FP16 numbers back
+(0.423235 vs 0.423887 win probability on this transformer). This needs a `-config` or
+`-useFP16` option on the server, or the precision carried in the handshake.
