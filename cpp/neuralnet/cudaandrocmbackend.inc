@@ -4993,7 +4993,6 @@ struct ForwardGraphCache {
   std::vector<cudaGraphExec_t> execs;
   std::vector<int> calls;
   std::vector<int> failedCaptures;
-  bool loggedCapture = false;
   ~ForwardGraphCache() {
     for(cudaGraphExec_t e: execs)
       if(e != nullptr) (void)cudaGraphExecDestroy(e);
@@ -5255,6 +5254,10 @@ ComputeHandle* NeuralNet::createComputeHandle(
   ComputeHandle* gpuHandle = new ComputeHandle(
     context,loadedModel,logger,prop.major,prop.minor,maxBatchSize,requireExactNNLen,inputsUseNHWC,useFP16,useNHWC
   );
+  // Graphs are captured lazily, one batch size at a time, so this is logged here at startup and
+  // not at the first capture. Only capture failures are logged later.
+  if(logger != NULL && gpuHandle->graphCache.enabled)
+    logger->write("Cuda backend thread " + Global::intToString(serverThreadIdx) + ": using CUDA graphs for forward passes");
   return gpuHandle;
 }
 #else  // KATAGO_GPU_HIP
@@ -5645,10 +5648,6 @@ static void runForwardMaybeGraph(ComputeHandle* gpuHandle, int batchSize, cudaSt
     return;
   }
   gc.execs[batchSize] = exec;
-  if(!gc.loggedCapture && cudaHandles->logger != NULL) {
-    gc.loggedCapture = true;
-    cudaHandles->logger->write("Cuda backend: using CUDA graphs for forward passes");
-  }
   CUDA_ERR("getOutput graph launch", cudaGraphLaunch(exec, stream));
 }
 #endif

@@ -4,16 +4,19 @@ Running search tests introduced after v8 nets
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 : Initializing neural net buffer to be size 9 * 9 allowing smaller boards
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 : Initializing neural net buffer to be size 9 * 9 exactly
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 TEST EXACT (NO MASKING) VS MASKED 9x9 ==========================================================================
 BASIC
 MoveNum: 3 HASH: 51A2E952B6FF793C9B33F3C9C4FAA3F6
@@ -121,11 +124,13 @@ F7  : T -30.98c W -27.07c S  -3.91c ( -1.8 L  -1.7) LCB -380.98c P  2.32% WF   0
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 : Initializing neural net buffer to be size 19 * 19 exactly
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 TEST EXACT (NO MASKING) VS MASKED ==========================================================================
 BASIC
 MoveNum: 11 HASH: 2C25470E65B6D05041FBAA25100A43F4
@@ -241,11 +246,13 @@ TEST SYMMETRY AVGING ===========================================================
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 : GPU 0 finishing, processed 196 rows 196 batches
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 BASIC
 MoveNum: 8 HASH: CD3FB5DC05D00B0870968B214E383553
    A B C D E F G H J K L M N O P Q R S T
@@ -343,11 +350,13 @@ Q15 : T   4.13c W   3.11c S   1.02c ( +1.0 L  +1.7) LCB  354.13c P  1.22% WF   1
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 : GPU 0 finishing, processed 202 rows 202 batches
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 TEST NN TEMPERATURE ==========================================================================
 BASELINE
 : GPU 0 finishing, processed 0 rows 0 batches
@@ -355,11 +364,13 @@ BASELINE
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 : GPU 0 finishing, processed 0 rows 0 batches
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -452,11 +463,13 @@ TEMP 1.5
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 : GPU 0 finishing, processed 182 rows 182 batches
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -555,11 +568,13 @@ TEMP 0.5
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 : GPU 0 finishing, processed 192 rows 192 batches
 : Cuda backend thread 0: Found GPU NVIDIA RTX A5000 memory 25285623808 compute capability major 8 minor 6
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 MoveNum: 8 HASH: EB3485F1C1921D5CD4B08C09B7E45930
    A B C D E F G H J K L M N O P Q R S T
 19 . . . . . . . . . . . . . . . . . . .
@@ -641,6 +656,7 @@ O18 N18 : T  -1.80c W  -1.66c S  -0.13c ( -0.4 L  -0.5) LCB   -6.20c P 88.68% WF
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 ===================================================================
 Testing PDA + pondering, p200 v400
 ===================================================================
@@ -1816,6 +1832,7 @@ F3  : T -48.81c W -47.85c S  -0.96c ( -6.4 L  -7.0) LCB  301.19c P  0.72% WF   0
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 ===================================================================
 Test real hintloc T16 (with symmetry sampling)
 ===================================================================
@@ -1932,6 +1949,7 @@ L15 : T 111.37c W  95.70c S  15.66c (+40.5 L +41.6) LCB  461.37c P  0.73% WF   1
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 AntiMirror white ==========================================================================
 MoveNum: 24 HASH: DE09B9F4C165FF4C2FC0A51126B73011
    A B C D E F G H J K L M N O P Q R S T
@@ -2182,6 +2200,7 @@ H10 : T -35.94c W -31.74c S  -4.20c ( -3.0 L  -2.6) LCB -385.94c P  0.01% WF   1
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 TEST VALUE BIAS ==========================================================================
 BASE
 Just after begun
@@ -3856,6 +3875,7 @@ TEST Hintlocs ==================================================================
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 ===================================================================
 Test hintloc C1
 ===================================================================
@@ -4427,6 +4447,7 @@ C1  : T  43.82c W  36.44c S   7.38c ( +9.2 L  +9.6) LCB   49.61c P  2.01% WF  32
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 Mix pruning, subtracting, dirichlet noise, value weight exponent =========================================
 ===================================================================
 Base
@@ -7149,6 +7170,7 @@ L4  : T -84.22c W -77.02c S  -7.20c (-23.5 L -21.9) LCB -434.22c P  0.31% WF   1
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 TEST ownership endgame ==========================================================================
 MoveNum: 0 HASH: 1C3E2CFF3462D0A28CEC88C4DAA5C529
    A B C D E F G
@@ -7206,6 +7228,7 @@ B9  : T -45.00c W -35.69c S  -9.30c ( -2.0 L  -1.9) LCB -395.00c P  2.59% WF   0
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 TEST sampled symmetries ==========================================================================
 ===================================================================
 Repeatedly run bot with 8 root symmetries sampled, should be deterministic (except for scoreUtility due to dynamic score centering)
@@ -7415,6 +7438,7 @@ WL samples
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: b6c96-s175395328-d26788732 (convnet, 1027911 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 Multithreaded search test =========================================
 Chosen move: E2
 Winloss near 0.05: 1

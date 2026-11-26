@@ -76,9 +76,10 @@ QKV_COMBINED="using combined QKV projection"
 FUSED_RESNORM="using fused residual add and pre-norm"
 # Fires once per handle, from the first 1x1 conv that takes the GEMM instead of a cuDNN conv.
 MATMUL_1X1="running 1x1 NHWC convolutions as a GEMM"
-# Logged once per handle when the first batch size is captured. run_case checks for this line in
-# every case. It must appear in FP16 runs unless cudaUseCudaGraphs=false, and it must not appear
-# in any other run. A failed capture must not appear in any run.
+# Logged once per handle at handle creation when the handle will use CUDA graphs. Graphs are
+# captured later, during queries, and only failed captures are logged then. run_case checks for
+# this line in every case. It must appear in FP16 runs unless cudaUseCudaGraphs=false, and it must
+# not appear in any other run. A failed capture must not appear in any run.
 GRAPHS_USED="using CUDA graphs for forward passes"
 GRAPHS_FAILED="CUDA graph capture failed"
 

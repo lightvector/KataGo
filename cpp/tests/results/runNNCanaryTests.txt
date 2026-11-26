@@ -24,6 +24,7 @@ searchFactorWhenWinningThreshold = 0.95
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: g170-b10c128-s1141046784-d204142634 (convnet, 2994503 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 nnEval->getTrunkSpatialConvDepth() 22
 internalModelName g170-b10c128-s1141046784-d204142634
 HASH: 347B080B63C3360420F01BB370600F09
@@ -479,6 +480,7 @@ searchFactorWhenWinningThreshold = 0.95
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: g170-b10c128-s1141046784-d204142634 (convnet, 2994503 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 nnEval->getTrunkSpatialConvDepth() 22
 internalModelName g170-b10c128-s1141046784-d204142634
 HASH: 347B080B63C3360420F01BB370600F09
@@ -934,6 +936,7 @@ searchFactorWhenWinningThreshold = 0.95
 : Cuda backend thread 0: Model version 8 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: g170-b10c128-s1141046784-d204142634 (convnet, 2994503 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 nnEval->getTrunkSpatialConvDepth() 22
 internalModelName g170-b10c128-s1141046784-d204142634
 HASH: 347B080B63C3360420F01BB370600F09

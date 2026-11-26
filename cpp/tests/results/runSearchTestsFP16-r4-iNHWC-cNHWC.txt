@@ -4,6 +4,7 @@ Running search tests
 : Cuda backend thread 0: Model version 3 useFP16 = true useNHWC = true
 : Cuda backend thread 0: Model name: s67105280-d24430742-b6c96 (convnet, 1112612 params)
 : CUDA backend: running 1x1 NHWC convolutions as a GEMM
+: Cuda backend thread 0: using CUDA graphs for forward passes
 GAME 1 ==========================================================================
 (An ordinary pro game)
 
