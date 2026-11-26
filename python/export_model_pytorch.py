@@ -189,7 +189,7 @@ parser.add_argument('-filename-prefix', help='filename prefix to save to within 
 parser.add_argument('-use-swa', help='Use SWA model', action="store_true", required=False)
 parser.add_argument('-export-14-as-15', help='Export model version 14 as 15', action="store_true", required=False)
 parser.add_argument('-export-15-or-16-as-17', help='Export model version 15 or 16 as 17', action="store_true", required=False)
-parser.add_argument('-attn-logit-bound-limit', help='Refuse to export if the data-free attention logit bound of any layer exceeds this (inference backends mask off-board keys with -3e4 in fp16, so genuine logits must stay well below that)', type=float, default=2.5e4, required=False)
+parser.add_argument('-attn-logit-bound-limit', help='Refuse to export if the data-free attention logit bound of any layer is above this. In fp16 inference backends attention logits overflow at 65504/sqrt(q head dim), which is about 11600 for head dim 32 and 8200 for head dim 64. The default leaves some room below that.', type=float, default=7500.0, required=False)
 parser.add_argument('-ignore-attn-logit-bound', help='Export anyway when the attention logit bound limit is exceeded', action="store_true", required=False)
 parser.add_argument('-prune-dead-ffn-channels', help='Leave out transformer FFN hidden channels whose weights are all zero, to improve performance', action="store_true", required=False)
 parser.add_argument('-prune-ffn-scratch-factor', help='With -prune-dead-ffn-channels, the sum of the distinct FFN widths in use may be at most this multiple of the original width. Inference backends keep scratch memory for each distinct width, so this bounds the growth of that memory (default 2.0)', type=float, default=2.0, required=False)
@@ -243,8 +243,11 @@ def main(args):
     model_config = model.config
 
     # ATTN LOGIT BOUND GUARD -------------------------------------------------------
-    # Data-free certification that attention logits can never approach the additive mask
-    # constants the inference backends use for off-board keys (-3e4 in fp16 backends).
+    # Check from the weights alone that attention logits stay within what fp16 inference backends
+    # can handle, for any input. Some backends compute the q.k dot product in fp16, for example the
+    # CUDA backend's default tensor-core attention. These overflow when a logit reaches
+    # 65504/sqrt(q head dim), which is about 11600 for head dim 32 and 8200 for head dim 64.
+    # Other backends mask off-board keys by adding -3e4, so logits must also stay well below 3e4.
     # See compute_attn_logit_dataless_bounds for the derivation and its tightness.
     model_to_export = swa_model if swa_model is not None else model
 
@@ -262,10 +265,13 @@ def main(args):
         if worst > args["attn_logit_bound_limit"]:
             msg = (
                 f"Attention logit bound of layer {worst_name} is {worst:.0f}, exceeding the export limit "
-                f"{args['attn_logit_bound_limit']:.0f}. Logits of this magnitude threaten the correctness of the "
-                f"additive off-board masking constants in fp16 inference backends (-3e4). The bound is data-free "
-                f"and usually several times above actual logit magnitudes - measure the actual logits and/or "
-                f"consider train.py -attn-logit-penalty-cap. Use -ignore-attn-logit-bound to export anyway."
+                f"{args['attn_logit_bound_limit']:.0f}. FP16 inference backends overflow when an attention logit "
+                f"reaches 65504/sqrt(q head dim), which is about 11600 for head dim 32 and 8200 for head dim 64. "
+                f"They also mask off-board keys by adding -3e4, which needs logits well below 3e4. "
+                f"This bound is computed from the weights alone and is usually several times larger than the "
+                f"logits that occur in practice. train.py -attn-logit-penalty-cap penalizes the logits that "
+                f"occur in practice, so it lowers this bound only indirectly. "
+                f"Use -ignore-attn-logit-bound to export anyway."
             )
             if args["ignore_attn_logit_bound"]:
                 logging.warning("WARNING (-ignore-attn-logit-bound): " + msg)

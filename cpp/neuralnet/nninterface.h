@@ -127,8 +127,28 @@ namespace NeuralNet {
   // Set whether the handle is currently being used in a warmup mode, returning the previous value.
   // Currently only used during maybeWarmupComputeHandle to indicate for the CUDA backend that failures should
   // be a bit more lenient: during warmup a failed cudnn SDPA execution falls back to the custom kernel and
-  // disables SDPA going forward, whereas outside of warmup such a failure is fatal.
+  // disables SDPA going forward, whereas outside of warmup such a failure is fatal. The CUDA backend
+  // also never captures a CUDA graph during a warmup-mode query.
   bool setIsWarmup(const ComputeHandle* computeHandle, bool isWarmup);
+
+  // The startup warmup that a compute handle needs before it serves queries. A "pass" means one
+  // query at each batch size from 1 to the max batch size. The single query or the first pass runs
+  // with the handle in warmup mode (see setIsWarmup). A second pass runs with warmup mode off.
+  // The backend only reports what it needs. NNEvaluator decides whether to run the normal variant
+  // or the timing variant (see NNEvaluator::setWarmupForTiming).
+  enum class WarmupMode {
+    // One query at batch size 1.
+    ONE_QUERY,
+    // One pass.
+    ONE_PASS,
+    // One query at batch size 1 for normal use. Two passes when the caller wants accurate timing.
+    // The two passes finish the one-time work that the backend would otherwise do the first few
+    // times it sees each batch size.
+    ONE_QUERY_OR_TWO_PASSES_FOR_TIMING,
+    // One pass for normal use. Two passes when the caller wants accurate timing.
+    ONE_PASS_OR_TWO_PASSES_FOR_TIMING,
+  };
+  WarmupMode getWarmupMode(const ComputeHandle* computeHandle);
 
   //Input Buffers ---------------------------------------------------------------
 

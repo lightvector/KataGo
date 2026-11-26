@@ -83,7 +83,9 @@ namespace Setup {
     MaxBatchSizeRequest maxBatchSizeRequest,
     bool defaultRequireExactNNLen,
     bool disableFP16,
-    setup_for_t setupFor
+    setup_for_t setupFor,
+    // See NNEvaluator::setWarmupForTiming.
+    bool warmupForTiming = false
   );
 
   std::vector<NNEvaluator*> initializeNNEvaluators(
@@ -99,7 +101,9 @@ namespace Setup {
     MaxBatchSizeRequest maxBatchSizeRequest,
     bool defaultRequireExactNNLen,
     bool disableFP16,
-    setup_for_t setupFor
+    setup_for_t setupFor,
+    // See NNEvaluator::setWarmupForTiming.
+    bool warmupForTiming = false
   );
 
   constexpr int MAX_BOT_PARAMS_FROM_CFG = 4096;

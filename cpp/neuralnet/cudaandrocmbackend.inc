@@ -554,6 +554,8 @@ struct CudaHandles {
   enabled_t use1x1MatmulMode;
   // Whether attention blocks try the tensor-core mma flash kernel first (requires sm_80+).
   bool mmaAttentionEnabled;
+  // Whether the mma attention kernel's matrix multiplies accumulate in FP16 instead of FP32.
+  bool mmaAttentionFP16Accum;
   // Fuse each transformer block's masked residual add into the next block's pre-norm kernel.
   // Numerically identical to the unfused path, kept as an escape hatch for debugging and
   // benchmarking.
@@ -593,6 +595,7 @@ struct CudaHandles {
       loggedGraphSDPADisabled(false),
       use1x1MatmulMode(enabled_t::Auto),
       mmaAttentionEnabled(false),
+      mmaAttentionFP16Accum(true),
       fuseResidualNorm(true),
       combineQKV(true),
       fusedFFNEnabled(false),
@@ -1119,7 +1122,6 @@ struct ConvLayer {
         name,
         [&](void*& b){ CudaUtils::mallocAndCopyToDevice(name,weightsTransposed,b,useFP16); },
         desc, SharedWeightsKind::CONV_FILTER, useFP16, cudaHandles->shareModelWeights);
-      (void)cudaDeviceSynchronize();
     }
     else
       filterBuf = mallocAndCopyToDeviceMaybeShared(
@@ -2986,13 +2988,15 @@ struct TransformerAttentionBlock {
       usedSDPA = customCudaFlashAttentionMma(
         (const half*)qPtr, (const half*)kPtr, (const half*)vPtr, (const half*)maskBuf, (half*)attnOutBuf.buf,
         batchSize, seqLen, numHeads, numKVHeads, qHeadDim, vHeadDim,
-        qStrideElts, kvStrideElts, cudaHandles->stream);
+        qStrideElts, kvStrideElts, cudaHandles->mmaAttentionFP16Accum, cudaHandles->stream);
       if(usedSDPA) {
         CUDA_ERR(name.c_str(), cudaPeekAtLastError());
         if(!cudaHandles->loggedUsingMmaAttention) {
           cudaHandles->loggedUsingMmaAttention = true;
           if(cudaHandles->logger != NULL)
-            cudaHandles->logger->write("Cuda backend: using tensor-core mma flash attention kernel");
+            cudaHandles->logger->write(
+              string("Cuda backend: using tensor-core mma flash attention kernel") +
+              (cudaHandles->mmaAttentionFP16Accum ? "" : " with FP32 accumulation"));
         }
       }
       else if(!cudaHandles->loggedMmaAttentionRejectedShape) {
@@ -4838,6 +4842,15 @@ struct ComputeContext {
   // CUTLASS fused FFN (dual GEMM + SwiGLU epilogue). Auto = on when the build has CUTLASS and
   // the GPU and model are eligible (FP16, sm_80+).
   enabled_t useFusedFFNMode;
+  // Whether the mma attention kernel accumulates in FP16. This is slightly faster on consumer
+  // GPUs and slightly less accurate. On by default. Turn it off to use FP32 accumulation, for
+  // debugging and benchmarking, or for a model whose attention logits come near the FP16 limit
+  // described in cudaflashmma.cuh.
+  bool mmaAttentionFP16Accum;
+  // Whether FP16 forward passes are replayed as captured CUDA graphs (see ForwardGraphCache).
+  // On by default. Turn it off to save the GPU memory that the graphs hold, or for debugging and
+  // benchmarking.
+  bool useCudaGraphs;
 };
 #else  // KATAGO_GPU_HIP
 struct ComputeContext {
@@ -4893,6 +4906,10 @@ ComputeContext* NeuralNet::createComputeContext(
     cfg.contains("cudaCombineQKV") ? cfg.getBool("cudaCombineQKV") : true;
   context->useFusedFFNMode =
     cfg.contains("cudaUseFusedFFN") ? cfg.getEnabled("cudaUseFusedFFN") : enabled_t::Auto;
+  context->useCudaGraphs =
+    cfg.contains("cudaUseCudaGraphs") ? cfg.getBool("cudaUseCudaGraphs") : true;
+  context->mmaAttentionFP16Accum =
+    cfg.contains("cudaMmaAttentionFP16Accum") ? cfg.getBool("cudaMmaAttentionFP16Accum") : true;
   return context;
 }
 #else  // KATAGO_GPU_HIP
@@ -4944,17 +4961,61 @@ void NeuralNet::freeComputeContext(ComputeContext* computeContext) {
 
 //------------------------------------------------------------------------------
 
+#ifdef KATAGO_GPU_CUDA
+// Per-batch-size CUDA graphs of the device side of a forward pass (FP16 input conversion plus
+// Model::apply).
+//
+// The graph for a batch size is captured the second time that batch size is used. The first use
+// does one-time setup for that batch size, such as scratch allocation and lazy initialization
+// inside the GPU libraries, and that setup must not be recorded. A warmup pass counts as a use.
+// A warmup pass is never captured itself, because in warmup mode a pass can still change which
+// kernels the handle uses.
+//
+// A graph replays the captured kernels with the captured arguments. So the forward pass must
+// not branch on anything that can differ between two calls with the same batch size. The
+// captured pointers into the handle's buffers and scratch pool stay valid because the scratch
+// allocator never frees a buffer before the handle is destroyed.
+//
+// If any thread calls cudaDeviceSynchronize on a GPU while a stream on that GPU is capturing,
+// the capture is invalidated and the process can crash. One handle cannot know when another
+// handle is capturing. So code that can run while another handle is serving queries, such as
+// handle creation, must not synchronize the whole device.
+//
+// cublasDestroy synchronizes the device internally. This does no harm to its caller, but
+// destroying one handle can invalidate a capture in progress on another handle. Such a capture
+// fails cleanly, and the batch size gets a few more capture attempts before it is left
+// uncaptured.
+struct ForwardGraphCache {
+  // Set once at handle creation. Only FP16 handles use graphs. Graphs were also tried for FP32
+  // and gave no speedup on the GPUs that normally run FP32, so FP32 was left without them.
+  bool enabled = false;
+  static constexpr int MAX_CAPTURE_ATTEMPTS = 3;
+  std::vector<cudaGraphExec_t> execs;
+  std::vector<int> calls;
+  std::vector<int> failedCaptures;
+  bool loggedCapture = false;
+  ~ForwardGraphCache() {
+    for(cudaGraphExec_t e: execs)
+      if(e != nullptr) (void)cudaGraphExecDestroy(e);
+  }
+};
+#endif
+
 struct ComputeHandle {
   std::unique_ptr<CudaHandles> cudaHandles;
   std::unique_ptr<Model> model;
   std::unique_ptr<ScratchBuffers> scratch;
   std::unique_ptr<Buffers> buffers;
+#ifdef KATAGO_GPU_CUDA
+  ForwardGraphCache graphCache;
+#endif
   const bool usingFP16;
   const int nnXLen;
   const int nnYLen;
   const bool requireExactNNLen;
   const bool inputsUseNHWC;
   const bool usingNHWC;
+  const bool hasTransformerBlocks;
 
 #ifdef KATAGO_GPU_CUDA
   ComputeHandle(
@@ -4974,7 +5035,8 @@ struct ComputeHandle {
     nnYLen(context->nnYLen),
     requireExactNNLen(requireExactNNLen_),
     inputsUseNHWC(inputsUseNHWC_),
-    usingNHWC(useNHWC)
+    usingNHWC(useNHWC),
+    hasTransformerBlocks(loadedModel->modelDesc.hasAnyTransformerBlocks())
   {
     cudaHandles = std::make_unique<CudaHandles>(majorComputeCapability,minorComputeCapability);
     // Must be set before building the model: ConvLayer reads it at construction to pick the 1x1 conv path,
@@ -4985,6 +5047,8 @@ struct ComputeHandle {
     cudaHandles->shareModelWeights = context->shareModelWeights;
     cudaHandles->fuseResidualNorm = context->fuseResidualNorm;
     cudaHandles->combineQKV = context->combineQKV;
+    graphCache.enabled = context->useCudaGraphs && useFP16;
+    cudaHandles->mmaAttentionFP16Accum = context->mmaAttentionFP16Accum;
     // Decided before Model construction: TransformerAttentionBlock commits to the combined
     // QKV weight layout at construction when the mma attention path will handle its shapes.
     {
@@ -5036,8 +5100,12 @@ struct ComputeHandle {
     scratch = std::make_unique<ScratchBuffers>(maxBatchSize, nnXLen, nnYLen, useFP16);
     buffers = std::make_unique<Buffers>(cudaHandles.get(), *model, *scratch);
 
-    //Synchronize after creating buffers and copying all the weights, just in case
-    CUDA_ERR("ComputeHandle", cudaDeviceSynchronize());
+    //Synchronize after creating buffers and copying all the weights, just in case. Only this
+    //handle's stream and the default stream are synchronized, not the whole device. A device-wide
+    //synchronize can crash the process if another handle on this GPU is capturing a CUDA graph at
+    //the time (see ForwardGraphCache).
+    CUDA_ERR("ComputeHandle", cudaStreamSynchronize(cudaHandles->stream));
+    CUDA_ERR("ComputeHandle", cudaStreamSynchronize(0));
   }
 #else  // KATAGO_GPU_HIP
   ComputeHandle(
@@ -5059,7 +5127,8 @@ struct ComputeHandle {
     nnYLen(context->nnYLen),
     requireExactNNLen(requireExactNNLen_),
     inputsUseNHWC(inputsUseNHWC_),
-    usingNHWC(useNHWC)
+    usingNHWC(useNHWC),
+    hasTransformerBlocks(loadedModel->modelDesc.hasAnyTransformerBlocks())
   {
     cudaHandles = std::make_unique<CudaHandles>(
       majorComputeCapability,minorComputeCapability,logger,ckFmhaArchSupported,context->disableFusedAttention);
@@ -5297,6 +5366,23 @@ bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
 }
 #endif
 
+#ifdef KATAGO_GPU_CUDA
+NeuralNet::WarmupMode NeuralNet::getWarmupMode(const ComputeHandle* handle) {
+  // Transformers always need one pass, because cuDNN compiles an SDPA execution plan for each
+  // batch size the first time that batch size is used. Handles that use CUDA graphs capture the
+  // graph for a batch size the second time it is used (see ForwardGraphCache). A second pass
+  // gets every graph captured before the first real query.
+  if(handle->graphCache.enabled)
+    return handle->hasTransformerBlocks ? WarmupMode::ONE_PASS_OR_TWO_PASSES_FOR_TIMING : WarmupMode::ONE_QUERY_OR_TWO_PASSES_FOR_TIMING;
+  return handle->hasTransformerBlocks ? WarmupMode::ONE_PASS : WarmupMode::ONE_QUERY;
+}
+#else  // KATAGO_GPU_HIP
+NeuralNet::WarmupMode NeuralNet::getWarmupMode(const ComputeHandle* handle) {
+  (void)handle;
+  return WarmupMode::ONE_QUERY;
+}
+#endif
+
 //------------------------------------------------------------------------------
 
 void NeuralNet::printDevices() {
@@ -5490,6 +5576,83 @@ void NeuralNet::freeInputBuffers(InputBuffers* inputBuffers) {
 //---------------------------------------------------------------------------------------
 
 
+#ifdef KATAGO_GPU_CUDA
+template<class F>
+static void runForwardMaybeGraph(ComputeHandle* gpuHandle, int batchSize, cudaStream_t stream, F&& runDeviceForward) {
+  CudaHandles* cudaHandles = gpuHandle->cudaHandles.get();
+  ForwardGraphCache& gc = gpuHandle->graphCache;
+  if(!gc.enabled) {
+    runDeviceForward();
+    return;
+  }
+  if((int)gc.execs.size() <= batchSize) {
+    gc.execs.resize(batchSize + 1, nullptr);
+    gc.calls.resize(batchSize + 1, 0);
+    gc.failedCaptures.resize(batchSize + 1, 0);
+  }
+  if(cudaHandles->isWarmup) {
+    if(gc.calls[batchSize] < 1)
+      gc.calls[batchSize] = 1;
+    runDeviceForward();
+    return;
+  }
+  if(gc.execs[batchSize] != nullptr) {
+    CUDA_ERR("getOutput graph launch", cudaGraphLaunch(gc.execs[batchSize], stream));
+    return;
+  }
+  if(gc.failedCaptures[batchSize] >= ForwardGraphCache::MAX_CAPTURE_ATTEMPTS || ++gc.calls[batchSize] < 2) {
+    runDeviceForward();
+    return;
+  }
+  auto giveUp = [&](const string& why) {
+    (void)cudaGetLastError();
+    gc.failedCaptures[batchSize]++;
+    if(cudaHandles->logger != NULL)
+      cudaHandles->logger->write(
+        "Cuda backend: CUDA graph capture failed for batch size " + Global::intToString(batchSize) + " (" + why + "), " +
+        (gc.failedCaptures[batchSize] >= ForwardGraphCache::MAX_CAPTURE_ATTEMPTS ?
+         "this batch size will run uncaptured from now on" : "running this batch uncaptured and retrying the capture later"));
+    runDeviceForward();
+  };
+  if(cudaStreamBeginCapture(stream, cudaStreamCaptureModeRelaxed) != cudaSuccess) {
+    giveUp("begin capture");
+    return;
+  }
+  bool threw = false;
+  try {
+    runDeviceForward();
+  }
+  catch(const std::exception&) {
+    threw = true;
+  }
+  cudaGraph_t graph = nullptr;
+  cudaError_t endErr = cudaStreamEndCapture(stream, &graph);
+  if(threw || endErr != cudaSuccess || graph == nullptr) {
+    if(graph != nullptr) (void)cudaGraphDestroy(graph);
+    giveUp(threw ? "exception during capture" : cudaGetErrorString(endErr));
+    return;
+  }
+  cudaGraphExec_t exec = nullptr;
+  // CUDA 12 replaced the error-node and log-buffer arguments with a flags argument.
+#if CUDART_VERSION >= 12000
+  cudaError_t instErr = cudaGraphInstantiate(&exec, graph, 0);
+#else
+  cudaError_t instErr = cudaGraphInstantiate(&exec, graph, NULL, NULL, 0);
+#endif
+  (void)cudaGraphDestroy(graph);
+  if(instErr != cudaSuccess || exec == nullptr) {
+    giveUp(string("instantiate: ") + cudaGetErrorString(instErr));
+    return;
+  }
+  gc.execs[batchSize] = exec;
+  if(!gc.loggedCapture && cudaHandles->logger != NULL) {
+    gc.loggedCapture = true;
+    cudaHandles->logger->write("Cuda backend: using CUDA graphs for forward passes");
+  }
+  CUDA_ERR("getOutput graph launch", cudaGraphLaunch(exec, stream));
+}
+#endif
+
 void NeuralNet::getOutput(
   ComputeHandle* gpuHandle,
   InputBuffers* inputBuffers,
@@ -5594,6 +5757,10 @@ void NeuralNet::getOutput(
       CUDA_ERR("getOutput",cudaMemcpyAsync(buffers->inputMetaBufFloat, inputBuffers->userInputMetaBuffer, inputBuffers->singleInputMetaBytes*batchSize, cudaMemcpyHostToDevice, stream));
     }
 
+  }
+
+  auto runDeviceForward = [&]() {
+  if(gpuHandle->usingFP16) {
     customCudaCopyToHalf((const float*)buffers->inputBufFloat,(half*)buffers->inputBuf,inputBuffers->singleInputElts*batchSize,cudaHandles->stream);
     CUDA_ERR("getOutput",cudaPeekAtLastError());
     customCudaCopyToHalf((const float*)buffers->inputGlobalBufFloat,(half*)buffers->inputGlobalBuf,inputBuffers->singleInputGlobalElts*batchSize,cudaHandles->stream);
@@ -5624,6 +5791,13 @@ void NeuralNet::getOutput(
     buffers->workspaceBuf,
     buffers->workspaceBytes
   );
+  };
+
+#ifdef KATAGO_GPU_CUDA
+  runForwardMaybeGraph(gpuHandle, batchSize, stream, runDeviceForward);
+#else
+  runDeviceForward();
+#endif
 
   CUDA_ERR("getOutput",cudaMemcpyAsync(inputBuffers->policyPassResults, buffers->policyPassBuf, inputBuffers->singlePolicyPassResultBytes*batchSize, cudaMemcpyDeviceToHost, stream));
   CUDA_ERR("getOutput",cudaMemcpyAsync(inputBuffers->policyResults, buffers->policyBuf, inputBuffers->singlePolicyResultBytes*batchSize, cudaMemcpyDeviceToHost, stream));

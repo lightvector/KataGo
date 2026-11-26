@@ -7,7 +7,8 @@
 # numerical error thresholds AND the backend's one-time path-selection log lines confirm that the
 # expected code paths were engaged (and that disabled ones were not) - guarding against a knob
 # silently failing to switch paths. Negative cases assert that invalid option combinations fail
-# at startup with a clear error instead of running with a wrong configuration.
+# at startup with a clear error instead of running with a wrong configuration. A few cases run a
+# short benchmarknn instead, for startup and threading scenarios that testgpuerror does not reach.
 #
 # Each testgpuerror run internally covers both the configured (usually FP16) evaluator and an
 # FP32 evaluator with the same knobs, and both unbatched and randomly-batched evaluation, so
@@ -57,6 +58,9 @@ CMODELBASE=$(basename "$CMODEL")
 # which any one suffices.
 MMA_USED="using tensor-core mma flash attention kernel"
 MMA_REJECTED="mma flash attention kernel rejected this launch"
+# Suffix on the MMA_USED line when cudaMmaAttentionFP16Accum=false. run_case forbids it in every
+# other case. This checks that only that config key can turn on FP32 accumulation.
+MMA_FP32_ACCUM="mma flash attention kernel with FP32 accumulation"
 SDPA_USED="using cudnn graph SDPA attention"
 # Older cuDNN (e.g. 8.9.x) rejects some attention shapes that newer cuDNN accepts, in which case
 # the backend logs this graceful per-handle disable and uses the custom kernel instead. Cases
@@ -72,6 +76,11 @@ QKV_COMBINED="using combined QKV projection"
 FUSED_RESNORM="using fused residual add and pre-norm"
 # Fires once per handle, from the first 1x1 conv that takes the GEMM instead of a cuDNN conv.
 MATMUL_1X1="running 1x1 NHWC convolutions as a GEMM"
+# Logged once per handle when the first batch size is captured. run_case checks for this line in
+# every case. It must appear in FP16 runs unless cudaUseCudaGraphs=false, and it must not appear
+# in any other run. A failed capture must not appear in any run.
+GRAPHS_USED="using CUDA graphs for forward passes"
+GRAPHS_FAILED="CUDA graph capture failed"
 
 NUM_PASS=0
 NUM_FAIL=0
@@ -132,6 +141,15 @@ run_case() {
     expects=$(filter_out "$expects" "$SDPA_USED" "$SDPA_KNOB_OFF")
     forbids="$forbids@$SDPA_USED"
   fi
+  case "$overrides" in
+    *useFP16=false*|*cudaUseCudaGraphs=false*) forbids="$forbids@$GRAPHS_USED" ;;
+    *) expects="$expects@$GRAPHS_USED" ;;
+  esac
+  forbids="$forbids@$GRAPHS_FAILED"
+  case "$overrides" in
+    *cudaMmaAttentionFP16Accum=false*) ;;
+    *) forbids="$forbids@$MMA_FP32_ACCUM" ;;
+  esac
   local outfile="$RESULTSDIR/$name.txt"
   local qflag=()
   if [ "$quick" = "quick" ]; then
@@ -176,6 +194,42 @@ run_case() {
   local margin
   margin=$(grep "closest margin" "$outfile" | tail -1 | sed 's/^.*closest margin: */margin /' || true)
   record_result "$name" "$ok" "${margin:-"(no margin line)"}"
+}
+
+# run_benchmarknn_case <name> <model> <batch-size> <overrides> <expects> <forbids>
+# Runs a short benchmarknn instead of testgpuerror, for startup and threading scenarios that
+# testgpuerror does not reach. Passes if the command succeeds and the log markers match.
+run_benchmarknn_case() {
+  local name="$1" model="$2" batchsize="$3" overrides="$4" expects="$5" forbids="$6"
+  matches_filter "$name" || return 0
+  local outfile="$RESULTSDIR/$name.txt"
+  echo "=== $name ==="
+  local ok=1
+  if ! "$KATAGO_BIN" benchmarknn -model "$model" -config "$CONFIG" -batch-size "$batchsize" -iterations 20 -warmup 5 \
+      -boardsize 19 -require-exact-nnlen -override-config "$overrides" > "$outfile" 2>&1; then
+    echo "  benchmarknn FAILED (see $outfile)"
+    tail -5 "$outfile" | sed 's/^/    /'
+    ok=0
+  fi
+  local pat
+  local oldifs="$IFS"
+  IFS='@'
+  for pat in $expects; do
+    [ -z "$pat" ] && continue
+    if ! grep -qF "$pat" "$outfile"; then
+      echo "  expected log line missing: '$pat'"
+      ok=0
+    fi
+  done
+  for pat in $forbids; do
+    [ -z "$pat" ] && continue
+    if grep -qF "$pat" "$outfile"; then
+      echo "  forbidden log line present: '$pat'"
+      ok=0
+    fi
+  done
+  IFS="$oldifs"
+  record_result "$name" "$ok" "(benchmarknn case)"
 }
 
 # run_fail_case <name> <model> <boardsize> <overrides> <expected-error-substring>
@@ -295,6 +349,23 @@ run_case t_fuseresnorm_off_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect
   "$MMA_USED@$QKV_COMBINED@$FFN_USED" \
   "$FUSED_RESNORM"
 
+# FP32 instead of FP16 accumulation inside the mma attention kernel, masked and exact-size paths.
+run_case t_attn_fp32_accum_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect_quick.txt \
+  "requireMaxBoardSize=False,cudaMmaAttentionFP16Accum=false" \
+  "$MMA_USED@$MMA_FP32_ACCUM@$QKV_COMBINED@$FUSED_RESNORM@$FFN_USED" \
+  "$SDPA_USED"
+
+run_case t_attn_fp32_accum_exact19 "$TMODEL" 19 quick "$TMODELBASE"_size19_quick.txt \
+  "requireMaxBoardSize=True,cudaMmaAttentionFP16Accum=false" \
+  "$MMA_USED@$MMA_FP32_ACCUM@$QKV_COMBINED@$FFN_USED" \
+  "$SDPA_USED@$FUSED_RESNORM"
+
+# CUDA graphs off: every forward pass launches its kernels directly.
+run_case t_graphs_off_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect_quick.txt \
+  "requireMaxBoardSize=False,cudaUseCudaGraphs=false" \
+  "$MMA_USED@$QKV_COMBINED@$FUSED_RESNORM@$FFN_USED" \
+  "$SDPA_USED"
+
 # Pure FP32: none of the FP16-only paths may engage.
 run_case t_fp32_rect "$TMODEL" rectangle quick "$TMODELBASE"_sizerect_quick.txt \
   "requireMaxBoardSize=False,useFP16=false" \
@@ -393,6 +464,28 @@ run_case c_nchw_share_weights_rect "$CMODEL" rectangle full "$CMODELBASE"_sizere
   "requireMaxBoardSize=False,cudaUseNHWC=false,numNNServerThreadsPerModel=2,cudaShareModelWeights=true" \
   "" \
   "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM@$MATMUL_1X1"
+
+run_case c_graphs_off_rect "$CMODEL" rectangle full "$CMODELBASE"_sizerect.txt \
+  "requireMaxBoardSize=False,cudaUseCudaGraphs=false" \
+  "$MATMUL_1X1" \
+  "$MMA_USED@$SDPA_USED@$FFN_USED@$QKV_COMBINED@$FUSED_RESNORM"
+
+#--------------------------------------------------------------------------------------------
+# One handle captures CUDA graphs while another handle on the same GPU is still being created.
+# In benchmarknn the first server thread starts running forward passes while the second thread
+# is still building its handle. With a small batch size, the first thread captures its graphs
+# during that time. If handle creation synchronizes the whole device, the process aborts. The
+# convnet case is the most sensitive because a convnet uploads the most weights.
+
+run_benchmarknn_case c_graphs_two_thread_startup "$CMODEL" 2 \
+  "numNNServerThreadsPerModel=2" \
+  "$GRAPHS_USED" \
+  "$GRAPHS_FAILED"
+
+run_benchmarknn_case t_graphs_two_thread_startup "$TMODEL" 2 \
+  "numNNServerThreadsPerModel=2" \
+  "$GRAPHS_USED" \
+  "$GRAPHS_FAILED"
 
 #--------------------------------------------------------------------------------------------
 # Invalid combinations must fail loudly at startup.

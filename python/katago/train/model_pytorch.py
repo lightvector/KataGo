@@ -3117,7 +3117,10 @@ def compute_attn_logit_dataless_bounds(model) -> Dict[str, float]:
 
     Inference backends mask off-board keys with large negative additive constants (-3e4 in fp16;
     see cpp/neuralnet/cudaandrocmhelpers.inc and onnxmodelbuilder.cpp), which is correct as long as
-    genuine logit magnitudes stay well below that scale - this bound certifies it from weights alone.
+    genuine logit magnitudes stay well below that scale. Backends that compute the q.k dot product
+    in fp16 (see cpp/neuralnet/cudaflashmma.cuh) overflow when a logit reaches
+    65504/sqrt(q head dim). That limit is the lower of the two. This bound guarantees both limits
+    from the weights alone.
     """
     bounds = {}
     with torch.no_grad():

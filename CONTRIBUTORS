@@ -58,6 +58,7 @@ Suqin Zhang ("zsqdx") - Testing and optimizations to TensorRT and other gpu perf
 "seniorfish" - For implementing the ONNX backend, including OpenVINO and DirectML support
 "Looong01" - For implementing the ROCm backend for AMD GPUs.
 NaLan ZeYu ("nalanzeyu") - For cuda optimizations on older GPUs.
+Yong Jer Chuang ("yongjer") - For CUDA backend optimizations, including CUDA graphs and faster FP16 kernels.
 
 Separately from the authors of the content in this repo, additional special thanks to:
 Junyan Xu ("alreadydone") - for much testing and troubleshooting for Windows support

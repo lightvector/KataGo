@@ -19,7 +19,7 @@
 
 using namespace std;
 
-static NNEvaluator* createNNEval(int maxNumThreads, Setup::MaxBatchSizeRequest maxBatchSizeRequest, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params);
+static NNEvaluator* createNNEval(int maxNumThreads, Setup::MaxBatchSizeRequest maxBatchSizeRequest, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params, bool warmupForTiming);
 
 static void respawnEigenServerThreadsForNumThreads(NNEvaluator* nnEval, Logger& logger, const SearchParams& params, const CompactSgf& sgf, NeuralNet::BatchPolicy backendPolicy, int numThreads);
 
@@ -187,6 +187,10 @@ int MainCmds::benchmark(const vector<string>& args) {
   bool useHalfBatchSize;
   bool noServerThreadTest;
   bool noHalfBatchSizeTest;
+  //A backend may do one-time work the first few times it sees a batch size. For example, the CUDA
+  //backend builds a CUDA graph for each batch size. Having that work done at startup keeps it out of
+  //the timings.
+  bool warmupForTiming;
   double secondsPerGameMove;
   try {
     KataGoCommandLine cmd("Benchmark with gtp config to test speed with different numbers of threads.");
@@ -209,6 +213,7 @@ int MainCmds::benchmark(const vector<string>& args) {
     TCLAP::SwitchArg halfBatchSizeArg("","half-batch-size","Set max batch size to half of the number of threads");
     TCLAP::SwitchArg noServerThreadTestArg("","no-server-thread-test","Skip the extra test of 2 NN server threads per GPU at the recommended number of threads");
     TCLAP::SwitchArg noHalfBatchSizeTestArg("","no-half-batch-size-test","Skip the extra test of half batch size at the recommended number of threads");
+    TCLAP::SwitchArg noTimingWarmupArg("","no-timing-warmup","Skip the extra neural net warmup at startup that makes the timings more accurate on some backends");
     TCLAP::ValueArg<double> secondsPerGameMoveArg(
       "i","time",
       "Typical amount of time per move spent while playing, in seconds (default " +
@@ -230,6 +235,7 @@ int MainCmds::benchmark(const vector<string>& args) {
     cmd.add(halfBatchSizeArg);
     cmd.add(noServerThreadTestArg);
     cmd.add(noHalfBatchSizeTestArg);
+    cmd.add(noTimingWarmupArg);
     cmd.add(secondsPerGameMoveArg);
     cmd.parseArgs(args);
 
@@ -244,6 +250,7 @@ int MainCmds::benchmark(const vector<string>& args) {
     useHalfBatchSize = halfBatchSizeArg.getValue();
     noServerThreadTest = noServerThreadTestArg.getValue();
     noHalfBatchSizeTest = noHalfBatchSizeTestArg.getValue();
+    warmupForTiming = !noTimingWarmupArg.getValue();
     secondsPerGameMove = secondsPerGameMoveArg.getValue();
 
     if(boardSize != -1 && sgfFile != "")
@@ -348,7 +355,7 @@ int MainCmds::benchmark(const vector<string>& args) {
       batchSizeScheme == BatchSizeScheme::EXACT ? Setup::MaxBatchSizeRequest::explicitSize(fixedBatchSize) :
       batchSizeScheme == BatchSizeScheme::HALF_THREADS ? Setup::MaxBatchSizeRequest::explicitSize(computeHalfBatchSize(backendPolicy, maxNumThreads)) :
       Setup::MaxBatchSizeRequest::fromConcurrency();
-    nnEval = createNNEval(maxNumThreads, request, *sgf, modelFile, logger, cfg, params);
+    nnEval = createNNEval(maxNumThreads, request, *sgf, modelFile, logger, cfg, params, warmupForTiming);
   };
   auto getDesiredBatchSize = [&](int currentNumThreads) {
     testAssert(nnEval != NULL);
@@ -372,7 +379,7 @@ int MainCmds::benchmark(const vector<string>& args) {
         Setup::MaxBatchSizeRequest::explicitSize(desiredBatchSize);
       delete nnEval;
       nnEval = NULL;
-      nnEval = createNNEval(numThreads, request, *sgf, modelFile, logger, cfg, params);
+      nnEval = createNNEval(numThreads, request, *sgf, modelFile, logger, cfg, params, warmupForTiming);
     }
     respawnEigenServerThreadsForNumThreads(nnEval,logger,params,*sgf,backendPolicy,numThreads);
     nnEval->setMaxRowsToSendPerBatch(desiredBatchSize);
@@ -503,7 +510,7 @@ static void warmStartNNEval(const CompactSgf& sgf, Logger& logger, const SearchP
   delete bot;
 }
 
-static NNEvaluator* createNNEval(int maxNumThreads, Setup::MaxBatchSizeRequest maxBatchSizeRequest, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params) {
+static NNEvaluator* createNNEval(int maxNumThreads, Setup::MaxBatchSizeRequest maxBatchSizeRequest, const CompactSgf& sgf, const string& modelFile, Logger& logger, ConfigParser& cfg, const SearchParams& params, bool warmupForTiming) {
   int expectedConcurrentEvals = maxNumThreads;
 
   Rand seedRand;
@@ -520,7 +527,8 @@ static NNEvaluator* createNNEval(int maxNumThreads, Setup::MaxBatchSizeRequest m
   NNEvaluator* nnEval = Setup::initializeNNEvaluator(
     modelFile,modelFile,expectedSha256,cfg,logger,seedRand,expectedConcurrentEvals,
     sgf.xSize,sgf.ySize,maxBatchSizeRequest,defaultRequireExactNNLen,disableFP16,
-    Setup::SETUP_FOR_BENCHMARK
+    Setup::SETUP_FOR_BENCHMARK,
+    warmupForTiming
   );
 
   //Run on a sample position just to get any initialization and logs out of the way
@@ -1310,6 +1318,8 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
 
     int maxNumThreadsForCurrentNNEval = -1;
     NNEvaluator* nnEval = NULL;
+    //Same as in MainCmds::benchmark, keeps one-time backend work out of the timings.
+    const bool warmupForTiming = true;
     auto reallocateNNEvalWithEnoughBatchSize = [&](int maxNumThreads) {
       // See the note in MainCmds::benchmark: fixed-shape evaluators get rebuilt per tested thread
       // count anyway, so only the initial build is needed here.
@@ -1319,7 +1329,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
         return;
       if(nnEval != NULL)
         delete nnEval;
-      nnEval = createNNEval(maxNumThreads, Setup::MaxBatchSizeRequest::fromConcurrency(), *sgf, modelFile, logger, cfg, params);
+      nnEval = createNNEval(maxNumThreads, Setup::MaxBatchSizeRequest::fromConcurrency(), *sgf, modelFile, logger, cfg, params, warmupForTiming);
       maxNumThreadsForCurrentNNEval = maxNumThreads;
     };
     auto getDesiredBatchSize = [&](int currentNumThreads) {
@@ -1335,7 +1345,7 @@ int MainCmds::genconfig(const vector<string>& args, const string& firstCommand) 
         cout << "(Rebuilding neural net evaluator for " << numThreads << " threads, batch size " << desiredBatchSize << ")" << endl;
         delete nnEval;
         nnEval = NULL;
-        nnEval = createNNEval(numThreads, Setup::MaxBatchSizeRequest::fromConcurrency(), *sgf, modelFile, logger, cfg, params);
+        nnEval = createNNEval(numThreads, Setup::MaxBatchSizeRequest::fromConcurrency(), *sgf, modelFile, logger, cfg, params, warmupForTiming);
         maxNumThreadsForCurrentNNEval = numThreads;
       }
       respawnEigenServerThreadsForNumThreads(nnEval,logger,params,*sgf,backendPolicy,numThreads);

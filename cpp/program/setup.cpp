@@ -61,7 +61,8 @@ NNEvaluator* Setup::initializeNNEvaluator(
   MaxBatchSizeRequest maxBatchSizeRequest,
   bool defaultRequireExactNNLen,
   bool disableFP16,
-  setup_for_t setupFor
+  setup_for_t setupFor,
+  bool warmupForTiming
 ) {
   vector<NNEvaluator*> nnEvals =
     initializeNNEvaluators(
@@ -77,7 +78,8 @@ NNEvaluator* Setup::initializeNNEvaluator(
       maxBatchSizeRequest,
       defaultRequireExactNNLen,
       disableFP16,
-      setupFor
+      setupFor,
+      warmupForTiming
     );
   testAssert(nnEvals.size() == 1);
   return nnEvals[0];
@@ -96,7 +98,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
   MaxBatchSizeRequest maxBatchSizeRequest,
   bool defaultRequireExactNNLen,
   bool disableFP16,
-  setup_for_t setupFor
+  setup_for_t setupFor,
+  bool warmupForTiming
 ) {
   vector<NNEvaluator*> nnEvals;
   testAssert(nnModelNames.size() == nnModelFiles.size());
@@ -382,6 +385,8 @@ vector<NNEvaluator*> Setup::initializeNNEvaluators(
       defaultSymmetry,
       cfg
     );
+
+    nnEval->setWarmupForTiming(warmupForTiming);
 
     // benchmarkPureForward drives compute handles itself, without server threads.
     if(setupFor != SETUP_FOR_BENCHMARKNN)

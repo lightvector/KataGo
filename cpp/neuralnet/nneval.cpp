@@ -142,6 +142,7 @@ NNEvaluator::NNEvaluator(
    gpuIdxByServerThread(gpuIdxByServerThr),
    randSeed(rSeed),
    debugSkipNeuralNet(skipNeuralNet),
+   warmupForTiming(false),
    computeContext(NULL),
    loadedModel(NULL),
    nnCacheTable(NULL),
@@ -480,6 +481,12 @@ void NNEvaluator::setNumThreads(const vector<int>& gpuIdxByServerThr) {
   gpuIdxByServerThread = gpuIdxByServerThr;
 }
 
+void NNEvaluator::setWarmupForTiming(bool b) {
+  if(serverThreads.size() != 0)
+    throw StringError("NNEvaluator::setWarmupForTiming called when threads were already running!");
+  warmupForTiming = b;
+}
+
 void NNEvaluator::spawnServerThreads() {
   if(serverThreads.size() != 0)
     throw StringError("NNEvaluator::spawnServerThreads called when threads were already running!");
@@ -588,24 +595,35 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
   if(gpuHandle == NULL || debugSkipNeuralNet || loadedModel == NULL)
     return;
 
-  // Every backend gets one forward pass at batch size 1, so that libraries finish any one-time
-  // setup they defer to the first run while this thread still holds its ComputeHandleStartupLatch
-  // turn. On CUDA, transformer models also go through every batch size, since cuDNN lazily
-  // compiles an SDPA execution plan per batch size on first use.
-  int warmupMaxBatchSize = 1;
-#if defined(USE_CUDA_BACKEND)
-  if(NeuralNet::getModelDesc(loadedModel).hasAnyTransformerBlocks()) {
-    warmupMaxBatchSize = maxBatchSize;
-    if(logger != NULL) {
-      logger->write(
-        "Cuda backend thread " + Global::intToString(serverThreadIdx) +
-        ": warming up transformer graphs for batch sizes 1.." + Global::intToString(maxBatchSize)
-      );
-    }
+  // The backend reports which warmup it needs. Every backend gets at least one forward pass at
+  // batch size 1. GPU libraries defer some one-time setup to the first run, and this pass makes
+  // that setup happen while this thread still holds its ComputeHandleStartupLatch turn.
+  const NeuralNet::WarmupMode warmupMode = NeuralNet::getWarmupMode(gpuHandle);
+  bool warmupEveryBatchSize = false;
+  bool secondPassOutsideWarmup = false;
+  switch(warmupMode) {
+  case NeuralNet::WarmupMode::ONE_QUERY:
+    break;
+  case NeuralNet::WarmupMode::ONE_PASS:
+    warmupEveryBatchSize = true;
+    break;
+  case NeuralNet::WarmupMode::ONE_QUERY_OR_TWO_PASSES_FOR_TIMING:
+    warmupEveryBatchSize = warmupForTiming;
+    secondPassOutsideWarmup = warmupForTiming;
+    break;
+  case NeuralNet::WarmupMode::ONE_PASS_OR_TWO_PASSES_FOR_TIMING:
+    warmupEveryBatchSize = true;
+    secondPassOutsideWarmup = warmupForTiming;
+    break;
   }
-#else
-  (void)serverThreadIdx;
-#endif
+  const int warmupMaxBatchSize = warmupEveryBatchSize ? maxBatchSize : 1;
+  if(warmupEveryBatchSize && logger != NULL) {
+    logger->write(
+      "NN server thread " + Global::intToString(serverThreadIdx) +
+      ": warming up batch sizes 1.." + Global::intToString(maxBatchSize) +
+      (secondPassOutsideWarmup ? ", two passes" : "")
+    );
+  }
 
   // Empty board of the configured size, default rules/params. Outputs are discarded, only the
   // forward passes matter.
@@ -644,7 +662,7 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
     resultBufs.push_back(buf);
   }
 
-  for(int batchSize = 1; batchSize <= warmupMaxBatchSize; batchSize++) {
+  auto runBatch = [&](int batchSize) {
     std::vector<NNOutput*> outputs;
     outputs.reserve(batchSize);
     for(int row = 0; row < batchSize; row++) {
@@ -657,10 +675,19 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
     NeuralNet::getOutput(gpuHandle, inputBuffers, batchSize, resultBufs.data(), outputs);
     for(NNOutput* out : outputs)
       delete out;
+  };
+
+  for(int batchSize = 1; batchSize <= warmupMaxBatchSize; batchSize++)
+    runBatch(batchSize);
+
+  NeuralNet::setIsWarmup(gpuHandle, prevIsWarmup);
+
+  if(secondPassOutsideWarmup) {
+    for(int batchSize = 1; batchSize <= maxBatchSize; batchSize++)
+      runBatch(batchSize);
   }
 
   NeuralNet::freeInputBuffers(inputBuffers);
-  NeuralNet::setIsWarmup(gpuHandle, prevIsWarmup);
 }
 
 NNEvalBenchmarkResult NNEvaluator::benchmarkPureForward(

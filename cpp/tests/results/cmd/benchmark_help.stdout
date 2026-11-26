@@ -58,6 +58,10 @@ Where:
      Skip the extra test of half batch size at the recommended number of
      threads
 
+   -no-timing-warmup
+     Skip the extra neural net warmup at startup that makes the timings
+     more accurate on some backends
+
    -i <SECONDS>,  -time <SECONDS>
      Typical amount of time per move spent while playing, in seconds
      (default 5)

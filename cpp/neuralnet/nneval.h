@@ -232,6 +232,14 @@ class NNEvaluator {
   // Set the number of threads and what gpus they use. Only call this if threads are not spawned yet, or have been killed.
   void setNumThreads(const std::vector<int>& gpuIdxByServerThr);
 
+  // If true, each server thread runs the fuller startup warmup that its backend asks for when
+  // accurate timing is wanted (see NeuralNet::WarmupMode). One-time backend work for each batch
+  // size is then done at startup and not during later queries. On the CUDA backend this captures
+  // the CUDA graph of every batch size up front. That costs startup time and GPU memory, and both
+  // grow with the max batch size. Backends with no such work ignore this setting.
+  // Only call this if threads are not spawned yet, or have been killed.
+  void setWarmupForTiming(bool b);
+
   // After spawnServerThreads has returned, check if is was using FP16.
   bool isAnyThreadUsingFP16() const;
 
@@ -277,6 +285,7 @@ class NNEvaluator {
   std::vector<int> gpuIdxByServerThread;
   const std::string randSeed;
   const bool debugSkipNeuralNet;
+  bool warmupForTiming;
 
   ComputeContext* computeContext;
   LoadedModel* loadedModel;

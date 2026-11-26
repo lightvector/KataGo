@@ -135,11 +135,12 @@ void customCudaFlashAttention(
 //customCudaFlashAttention except that Q and K/V take explicit per-token row strides (in
 //halfs), allowing them to be interior slices of a combined projection output. Returns false
 //without launching anything if the build, shape, strides, or alignment do not support it -
-//the caller must check the device architecture and fall back.
+//the caller must check the device architecture and fall back. fp16Accum selects FP16 instead of
+//FP32 accumulation inside the QK^T and PV matrix multiplies.
 bool customCudaFlashAttentionMma(
   const half* Q, const half* K, const half* V, const half* mask, half* output,
   int batchSize, int seqLen, int numHeads, int numKVHeads, int qHeadDim, int vHeadDim,
-  int qStride, int kvStride, cudaStream_t stream
+  int qStride, int kvStride, bool fp16Accum, cudaStream_t stream
 );
 //Whether the mma kernels support this attention shape at all (head dims, GQA divisibility).
 //Static shape check only - the device probe below is a separate condition.

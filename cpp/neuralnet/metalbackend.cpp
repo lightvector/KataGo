@@ -761,6 +761,11 @@ bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
   return false;
 }
 
+NeuralNet::WarmupMode NeuralNet::getWarmupMode(const ComputeHandle* handle) {
+  (void)handle;
+  return WarmupMode::ONE_QUERY;
+}
+
 //------------------------------------------------------------------------------
 // Device information
 //------------------------------------------------------------------------------

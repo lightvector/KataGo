@@ -1863,6 +1863,11 @@ bool NeuralNet::setIsWarmup(const ComputeHandle* gpuHandle, bool isWarmup) {
   return false;
 }
 
+NeuralNet::WarmupMode NeuralNet::getWarmupMode(const ComputeHandle* gpuHandle) {
+  (void)gpuHandle;
+  return WarmupMode::ONE_QUERY;
+}
+
 void NeuralNet::printDevices() {
   int numDevices = 0;
   CUDA_ERR("printDevices", cudaGetDeviceCount(&numDevices));

@@ -10,18 +10,15 @@
 //     keys are all masked, outputs zeros.
 //
 // FlashAttention-2 style: online softmax in FP32, K/V tiled through shared memory,
-// Q fragments held in registers, one warp per 16 query rows. FP32 accumulation for both
-// QK^T and PV, with P (the softmax numerator) rounded to FP16 for the PV mma, as in standard
-// FlashAttention implementations.
+// Q fragments held in registers, one warp per 16 query rows. P (the softmax numerator) is
+// rounded to FP16 for the PV mma, as in standard FlashAttention implementations. The QK^T and
+// PV mmas accumulate in FP16 (2x issue rate on consumer GeForce GPUs) or in FP32, selected per
+// launch through the kernel's F16ACC template parameter. FP16 accumulation overflows when a raw
+// QK^T sum exceeds the FP16 range, which bounds attention logits at about 65504/sqrt(head dim).
 //
-// FP16-accumulate variants of the QK^T and PV mmas (2x issue rate on consumer GPUs) were
-// implemented and benchmarked, then removed (see git history): accuracy was fine but the
-// whole-net effect was neutral to slightly negative everywhere except H100 at +1-4%, not
-// worth the extra code paths and config surface.
-//
-// Requires sm_75+ at runtime. sm_80+ uses mma.sync.aligned.m16n8k16 f32.f16.f16.f32 with
-// cp.async prefetch. sm_75 uses pairs of mma.sync.aligned.m16n8k8 and synchronous copies
-// instead. For older archs the kernels compile to empty stubs, so the caller must check
+// Requires sm_75+ at runtime. sm_80+ uses mma.sync.aligned.m16n8k16 with cp.async prefetch.
+// sm_75 uses pairs of mma.sync.aligned.m16n8k8 and synchronous copies instead. For older archs
+// the kernels compile to empty stubs, so the caller must check
 // flashAttentionMmaSupportedOnCurrentDevice() before dispatching here.
 
 #pragma once
@@ -58,6 +55,34 @@ __device__ __forceinline__ void fmmaMma16816(float c[4], const uint32_t a[4], co
     : "+f"(c[0]), "+f"(c[1]), "+f"(c[2]), "+f"(c[3])
     : "r"(a[2]), "r"(a[3]), "r"(b[1]));
 #endif
+}
+
+// Same as fmmaMma16816 but with FP16 accumulation: c is two f16x2 registers holding the same
+// elements as the four floats of the f32 form. On GeForce Turing/Ampere/Ada tensor cores this
+// issues at twice the rate of the f32-accumulate form.
+__device__ __forceinline__ void fmmaMma16816F16(uint32_t c[2], const uint32_t a[4], const uint32_t b[2]) {
+#if __CUDA_ARCH__ >= 800
+  asm volatile(
+    "mma.sync.aligned.m16n8k16.row.col.f16.f16.f16.f16 "
+    "{%0,%1}, {%2,%3,%4,%5}, {%6,%7}, {%0,%1};\n"
+    : "+r"(c[0]), "+r"(c[1])
+    : "r"(a[0]), "r"(a[1]), "r"(a[2]), "r"(a[3]), "r"(b[0]), "r"(b[1]));
+#elif __CUDA_ARCH__ >= 750
+  asm volatile(
+    "mma.sync.aligned.m16n8k8.row.col.f16.f16.f16.f16 "
+    "{%0,%1}, {%2,%3}, {%4}, {%0,%1};\n"
+    : "+r"(c[0]), "+r"(c[1])
+    : "r"(a[0]), "r"(a[1]), "r"(b[0]));
+  asm volatile(
+    "mma.sync.aligned.m16n8k8.row.col.f16.f16.f16.f16 "
+    "{%0,%1}, {%2,%3}, {%4}, {%0,%1};\n"
+    : "+r"(c[0]), "+r"(c[1])
+    : "r"(a[2]), "r"(a[3]), "r"(b[1]));
+#endif
+}
+
+__device__ __forceinline__ float2 fmmaUnpackHalf2(uint32_t v) {
+  return __half22float2(*reinterpret_cast<const __half2*>(&v));
 }
 
 __device__ __forceinline__ uint32_t fmmaPackHalf2(float lo, float hi) {
@@ -130,7 +155,11 @@ __device__ __forceinline__ void fmmaCpAsyncWaitAll() {
 #define FMMA_NEG_BIG (-1e30f)
 
 // D = qHeadDim = vHeadDim; 32 or 64.
-template<int D>
+// F16ACC: QK^T accumulates in FP16 (its k = D is short), and PV accumulates each kv tile in FP16
+// before being added into the FP32 running output, so FP16 rounding never compounds across kv
+// tiles. Softmax statistics stay FP32. This matches the FP16-accumulate precision the FP16 path
+// already uses for its GEMMs (cublasHgemm), and doubles tensor core throughput on GeForce cards.
+template<int D, bool F16ACC>
 __global__ void __launch_bounds__(FMMA_NWARPS * 32)
 flashAttentionMmaKernel(
   const half* __restrict__ Q, const half* __restrict__ K, const half* __restrict__ V,
@@ -286,20 +315,45 @@ flashAttentionMmaKernel(
     // S = Q K^T for this warp's 16 rows x BKV cols. B fragments via ldmatrix: per
     // (kt, ntp) one x4 covers score n-tiles 2*ntp and 2*ntp+1 (kv rows ntp*16..+15,
     // head-dim cols kt*16..+15).
-    #pragma unroll
-    for(int nt = 0; nt < NT_S; nt++) {
-      sFrag[nt][0] = 0.0f; sFrag[nt][1] = 0.0f; sFrag[nt][2] = 0.0f; sFrag[nt][3] = 0.0f;
-    }
-    #pragma unroll
-    for(int kt = 0; kt < KT; kt++) {
+    if constexpr(F16ACC) {
+      uint32_t sH[NT_S][2];
       #pragma unroll
-      for(int ntp = 0; ntp < NT_S / 2; ntp++) {
-        uint32_t b[4];
-        const half* rp = &kTile[(ntp * 16 + ((lane >> 4) & 1) * 8 + (lane & 7)) * ST
-                                + kt * 16 + ((lane >> 3) & 1) * 8];
-        fmmaLdmatrixX4(b[0], b[1], b[2], b[3], rp);
-        fmmaMma16816(sFrag[2 * ntp], qA[kt], b);
-        fmmaMma16816(sFrag[2 * ntp + 1], qA[kt], b + 2);
+      for(int nt = 0; nt < NT_S; nt++) { sH[nt][0] = 0u; sH[nt][1] = 0u; }
+      #pragma unroll
+      for(int kt = 0; kt < KT; kt++) {
+        #pragma unroll
+        for(int ntp = 0; ntp < NT_S / 2; ntp++) {
+          uint32_t b[4];
+          const half* rp = &kTile[(ntp * 16 + ((lane >> 4) & 1) * 8 + (lane & 7)) * ST
+                                  + kt * 16 + ((lane >> 3) & 1) * 8];
+          fmmaLdmatrixX4(b[0], b[1], b[2], b[3], rp);
+          fmmaMma16816F16(sH[2 * ntp], qA[kt], b);
+          fmmaMma16816F16(sH[2 * ntp + 1], qA[kt], b + 2);
+        }
+      }
+      #pragma unroll
+      for(int nt = 0; nt < NT_S; nt++) {
+        float2 lo = fmmaUnpackHalf2(sH[nt][0]);
+        float2 hi = fmmaUnpackHalf2(sH[nt][1]);
+        sFrag[nt][0] = lo.x; sFrag[nt][1] = lo.y; sFrag[nt][2] = hi.x; sFrag[nt][3] = hi.y;
+      }
+    }
+    else {
+      #pragma unroll
+      for(int nt = 0; nt < NT_S; nt++) {
+        sFrag[nt][0] = 0.0f; sFrag[nt][1] = 0.0f; sFrag[nt][2] = 0.0f; sFrag[nt][3] = 0.0f;
+      }
+      #pragma unroll
+      for(int kt = 0; kt < KT; kt++) {
+        #pragma unroll
+        for(int ntp = 0; ntp < NT_S / 2; ntp++) {
+          uint32_t b[4];
+          const half* rp = &kTile[(ntp * 16 + ((lane >> 4) & 1) * 8 + (lane & 7)) * ST
+                                  + kt * 16 + ((lane >> 3) & 1) * 8];
+          fmmaLdmatrixX4(b[0], b[1], b[2], b[3], rp);
+          fmmaMma16816(sFrag[2 * ntp], qA[kt], b);
+          fmmaMma16816(sFrag[2 * ntp + 1], qA[kt], b + 2);
+        }
       }
     }
 
@@ -397,15 +451,39 @@ flashAttentionMmaKernel(
 
     // O += P V. B fragments via transposed ldmatrix: per (c, nt) one x4 covers PV
     // k-tiles 2*c and 2*c+1 (kv rows c*32 + lane, output cols nt*8..+7).
-    #pragma unroll
-    for(int c = 0; c < KT_PV / 2; c++) {
+    if constexpr(F16ACC) {
+      uint32_t oH[NT_O][2];
+      #pragma unroll
+      for(int nt = 0; nt < NT_O; nt++) { oH[nt][0] = 0u; oH[nt][1] = 0u; }
+      #pragma unroll
+      for(int c = 0; c < KT_PV / 2; c++) {
+        #pragma unroll
+        for(int nt = 0; nt < NT_O; nt++) {
+          uint32_t b[4];
+          const half* rp = &vTile[(c * 32 + lane) * ST + nt * 8];
+          fmmaLdmatrixX4Trans(b[0], b[1], b[2], b[3], rp);
+          fmmaMma16816F16(oH[nt], pA[2 * c], b);
+          fmmaMma16816F16(oH[nt], pA[2 * c + 1], b + 2);
+        }
+      }
       #pragma unroll
       for(int nt = 0; nt < NT_O; nt++) {
-        uint32_t b[4];
-        const half* rp = &vTile[(c * 32 + lane) * ST + nt * 8];
-        fmmaLdmatrixX4Trans(b[0], b[1], b[2], b[3], rp);
-        fmmaMma16816(oFrag[nt], pA[2 * c], b);
-        fmmaMma16816(oFrag[nt], pA[2 * c + 1], b + 2);
+        float2 lo = fmmaUnpackHalf2(oH[nt][0]);
+        float2 hi = fmmaUnpackHalf2(oH[nt][1]);
+        oFrag[nt][0] += lo.x; oFrag[nt][1] += lo.y; oFrag[nt][2] += hi.x; oFrag[nt][3] += hi.y;
+      }
+    }
+    else {
+      #pragma unroll
+      for(int c = 0; c < KT_PV / 2; c++) {
+        #pragma unroll
+        for(int nt = 0; nt < NT_O; nt++) {
+          uint32_t b[4];
+          const half* rp = &vTile[(c * 32 + lane) * ST + nt * 8];
+          fmmaLdmatrixX4Trans(b[0], b[1], b[2], b[3], rp);
+          fmmaMma16816(oFrag[nt], pA[2 * c], b);
+          fmmaMma16816(oFrag[nt], pA[2 * c + 1], b + 2);
+        }
       }
     }
   }
@@ -482,11 +560,14 @@ template<int D>
 inline void launchFlashAttentionMmaForDim(
   const half* Q, const half* K, const half* V, const half* mask, half* out,
   int batchSize, int seqLen, int numHeads, int numKVHeads, float scale,
-  int qStride, int kvStride, cudaStream_t stream
+  int qStride, int kvStride, bool fp16Accum, cudaStream_t stream
 ) {
   dim3 grid((seqLen + FMMA_BLOCK_Q - 1) / FMMA_BLOCK_Q, numHeads, batchSize);
   dim3 block(FMMA_NWARPS * 32);
-  flashAttentionMmaKernel<D><<<grid, block, 0, stream>>>(Q, K, V, mask, out, seqLen, numHeads, numKVHeads, scale, qStride, kvStride);
+  if(fp16Accum)
+    flashAttentionMmaKernel<D, true><<<grid, block, 0, stream>>>(Q, K, V, mask, out, seqLen, numHeads, numKVHeads, scale, qStride, kvStride);
+  else
+    flashAttentionMmaKernel<D, false><<<grid, block, 0, stream>>>(Q, K, V, mask, out, seqLen, numHeads, numKVHeads, scale, qStride, kvStride);
 }
 }  // namespace flashmma
 
@@ -518,7 +599,7 @@ inline bool flashAttentionMmaSupportsShape(int numHeads, int numKVHeads, int qHe
 inline bool launchFlashAttentionMma(
   const half* Q, const half* K, const half* V, const half* mask, half* out,
   int batchSize, int seqLen, int numHeads, int numKVHeads, int qHeadDim, int vHeadDim,
-  int qStride, int kvStride, cudaStream_t stream
+  int qStride, int kvStride, bool fp16Accum, cudaStream_t stream
 ) {
   using namespace flashmma;
   if(!flashAttentionMmaSupportsShape(numHeads, numKVHeads, qHeadDim, vHeadDim))
@@ -536,8 +617,8 @@ inline bool launchFlashAttentionMma(
 
   float scale = 1.0f / sqrtf((float)qHeadDim);
   if(qHeadDim == 32)
-    launchFlashAttentionMmaForDim<32>(Q, K, V, mask, out, batchSize, seqLen, numHeads, numKVHeads, scale, qStride, kvStride, stream);
+    launchFlashAttentionMmaForDim<32>(Q, K, V, mask, out, batchSize, seqLen, numHeads, numKVHeads, scale, qStride, kvStride, fp16Accum, stream);
   else
-    launchFlashAttentionMmaForDim<64>(Q, K, V, mask, out, batchSize, seqLen, numHeads, numKVHeads, scale, qStride, kvStride, stream);
+    launchFlashAttentionMmaForDim<64>(Q, K, V, mask, out, batchSize, seqLen, numHeads, numKVHeads, scale, qStride, kvStride, fp16Accum, stream);
   return true;
 }
