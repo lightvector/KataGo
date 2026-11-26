@@ -1,4 +1,6 @@
 kata-list-params
+known_command kata-get-params
+known_command kata-set-params
 
 komi 50.5
 get_komi

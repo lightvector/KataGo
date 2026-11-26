@@ -49,7 +49,9 @@ static const vector<string> knownCommands = {
   //Get or change a few limited params dynamically
   "kata-get-models",
   "kata-get-param",
+  "kata-get-params",
   "kata-set-param",
+  "kata-set-params",
   "kata-list-params",
   "kgs-rules",
 
