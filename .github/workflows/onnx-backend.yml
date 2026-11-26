@@ -22,6 +22,11 @@
 # its ORT, and extending the release-staging step in onnx-build-katago if it ships extra
 # runtimes.
 
+# TEMPORARILY DISABLED: every job below has an `if: false` guard. In November 2026 Microsoft made
+# github.com/microsoft/onnxruntime private while investigating malicious content in some of its
+# repositories. Re-enable once the repository is public again and Microsoft has said which
+# versions and release assets were affected. To re-enable, remove `false` from each job's `if:`.
+
 name: ONNX backend build & test
 
 on:
@@ -56,6 +61,7 @@ env:
 
 jobs:
   build-fast:
+    if: false
     name: ${{ matrix.ep }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -104,7 +110,7 @@ jobs:
 
   build-slow:
     # from-source ORT builds (1-3h) only on manual dispatch.
-    if: github.event_name == 'workflow_dispatch'
+    if: false && github.event_name == 'workflow_dispatch'
     name: ${{ matrix.ep }} (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 300
@@ -158,7 +164,7 @@ jobs:
     # combo ORT is built/tested against), so the CUDA/cuDNN/TensorRT SDKs are preinstalled
     # and no SDK install step is needed. github-hosted runners have no GPU, so this job
     # verifies build + EP wiring only; real GPU inference is validated on a GPU machine.
-    if: github.event_name == 'workflow_dispatch'
+    if: false && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     container:
