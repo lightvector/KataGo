@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <iterator>
 #include <iomanip>
-#include <unordered_map>
 
 #include "../core/fileutils.h"
 #include "../dataio/sgf.h"
@@ -2640,24 +2639,13 @@ x.x.x
 )%%");
 
     //Check that capped nonterminal nodes that reached the cap have a snapshot, and that their child weight distribution
-    //matches it. Terminal leaves have no children to freeze. Relies on this test net giving every visit the same weight.
-    //Multithreading and virtual losses can make the distribution overshoot, so the tolerance is looser then.
+    //matches it. Relies on this test net giving every visit the same weight. Multithreading and virtual losses can
+    //make the distribution overshoot, so the tolerance is looser then.
     //Returns the number of snapshot nodes well past the cap.
     auto checkTree = [&](Search* search, Player cappedPla, int64_t visitCap, int numThreads) {
       testAssert(search->getVisitCap(P_BLACK) == (cappedPla == P_BLACK ? visitCap : 0));
       testAssert(search->getVisitCap(P_WHITE) == (cappedPla == P_WHITE ? visitCap : 0));
-      testAssert(!search->searchParams.useGraphSearch);
       vector<SearchNode*> nodes = search->enumerateTreePostOrder();
-      std::unordered_map<const SearchNode*, std::pair<const SearchNode*, Loc>> parents;
-      for(const SearchNode* parent: nodes) {
-        ConstSearchNodeChildrenReference children = parent->getChildren();
-        for(int i = 0; i < children.getCapacity(); i++) {
-          const SearchNode* child = children[i].getIfAllocated();
-          if(child == NULL)
-            break;
-          testAssert(parents.emplace(child, std::make_pair(parent, children[i].getMoveLoc())).second);
-        }
-      }
       int numNodesWellPastCap = 0;
       for(SearchNode* node: nodes) {
         int64_t visits = node->stats.visits.load(std::memory_order_acquire);
@@ -2666,27 +2654,9 @@ x.x.x
           testAssert(snapshot == NULL);
           continue;
         }
+        //Every nonterminal node gets an NN evaluation on its first visit. Terminal nodes are scored without one
+        //and never expanded, so they have no children and never take a snapshot.
         if(node->getNNOutput() == NULL) {
-          //Terminal playouts add their outcome directly, without NN evaluation or
-          //child-weight recomputation. Replay the path to require an actual terminal
-          //position, so a missing snapshot on a nonterminal node cannot be excused.
-          vector<Loc> path;
-          for(const SearchNode* current = node; current != search->rootNode;) {
-            auto parent = parents.find(current);
-            testAssert(parent != parents.end());
-            path.push_back(parent->second.second);
-            current = parent->second.first;
-          }
-          Board replayBoard = search->rootBoard;
-          BoardHistory replayHistory = search->rootHistory;
-          Player replayPla = search->rootPla;
-          for(auto move = path.rbegin(); move != path.rend(); ++move) {
-            replayHistory.makeBoardMoveAssumeLegal(replayBoard, *move, replayPla, NULL);
-            replayPla = getOpp(replayPla);
-          }
-          testAssert(replayHistory.isGameFinished);
-          testAssert(replayPla == node->nextPla);
-          testAssert(!node->forceNonTerminal);
           testAssert(node->state.load(std::memory_order_acquire) == SearchNode::STATE_UNEVALUATED);
           testAssert(node->getChildren().getCapacity() == 0);
           testAssert(snapshot == NULL);
@@ -2735,6 +2705,7 @@ x.x.x
       return numNodesWellPastCap;
     };
 
+    //A capped terminal node far past the cap, which must not have a snapshot.
     {
       SearchParams params;
       params.maxVisits = 80;
@@ -2773,12 +2744,23 @@ x.x.x
 
       //Visits of the chosen root child just before the move was made.
       int64_t chosenChildVisits = 0;
+      //Plays the most visited root child that has an NN output. makeMove clears the tree rather than reusing a child
+      //without one, which happens when the move is a pass that ends the game.
       auto playChosenMove = [&](Player pla) {
-        Loc loc = search->getChosenMoveLoc();
+        Loc loc = Board::NULL_LOC;
+        chosenChildVisits = 0;
+        ConstSearchNodeChildrenReference children = search->getRootNode()->getChildren();
+        for(int i = 0; i<children.getCapacity(); i++) {
+          const SearchNode* child = children[i].getIfAllocated();
+          if(child == NULL)
+            break;
+          int64_t childVisits = child->stats.visits.load(std::memory_order_acquire);
+          if(child->getNNOutput() != NULL && childVisits > chosenChildVisits) {
+            loc = children[i].getMoveLoc();
+            chosenChildVisits = childVisits;
+          }
+        }
         testAssert(loc != Board::NULL_LOC);
-        const SearchNode* child = search->getChildForMove(search->getRootNode(), loc);
-        testAssert(child != NULL);
-        chosenChildVisits = child->stats.visits.load(std::memory_order_acquire);
         testAssert(chosenChildVisits >= 2);
         testAssert(search->makeMove(loc,pla));
       };

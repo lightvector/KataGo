@@ -629,11 +629,8 @@ struct ComputeHandleInternal {
     const InitializedDevice* device = computeContext->devicesContext->findGpuExn(gpuIdx);
     clContext = device->context;
     deviceId = device->info.deviceId;
-    // Give each handle (one per NN server thread) its own in-order command queue.
-    // Sharing the device's single queue across server threads serializes all of
-    // their batches and blocking reads, which leaves the GPU partly idle. Each
-    // handle already owns its weights, scratch, buffers, and kernel objects, so a
-    // separate queue on the shared context needs no further synchronization.
+    // Each handle gets its own queue so that multiple server threads on one device do not serialize each other.
+    // Handles share no buffers or kernels, so no other synchronization is needed.
     {
       cl_int queueErr;
       cl_command_queue_properties queueProps =
