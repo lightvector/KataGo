@@ -86,6 +86,7 @@ namespace Tests {
 
   //testownership.cpp
   void runOwnershipTests(const std::string& configFile, const std::string& modelFile);
+  void runNearEndByOwnershipTests();
 
   //testnnevalcanary.cpp
   void runCanaryTests(NNEvaluator* nnEval, int symmetry, bool print);

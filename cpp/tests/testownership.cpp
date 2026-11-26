@@ -194,3 +194,32 @@ o.xx.ox..........
   delete bot;
   delete nnEval;
 }
+
+void Tests::runNearEndByOwnershipTests() {
+  cout << "Running near end by ownership tests" << endl;
+
+  //Checks the largest count of affected locations that is still accepted, for each kind of count.
+  auto testBoard = [&](int xSize, int ySize, int nnXLen, int nnYLen, int maxAccepted) {
+    Board board(xSize,ySize);
+    for(int count = maxAccepted; count <= maxAccepted+1; count++) {
+      for(int kind = 0; kind < 3; kind++) {
+        //Locations off the board are left unsettled to check that they are ignored.
+        vector<double> ownershipIfBlackFirst(nnXLen*nnYLen, 0.0);
+        vector<double> ownershipIfWhiteFirst(nnXLen*nnYLen, 0.0);
+        for(int y = 0; y<ySize; y++) {
+          for(int x = 0; x<xSize; x++) {
+            int pos = NNPos::xyToPos(x,y,nnXLen);
+            bool affected = y * xSize + x < count;
+            ownershipIfBlackFirst[pos] = (affected && kind == 0) ? 0.5 : 1.0;
+            ownershipIfWhiteFirst[pos] = (affected && kind == 1) ? 0.5 : (affected && kind == 2) ? -1.0 : 1.0;
+          }
+        }
+        bool expected = count <= maxAccepted;
+        testAssert(PlayUtils::isGameNearEndByOwnership(board,ownershipIfBlackFirst,ownershipIfWhiteFirst,nnXLen) == expected);
+      }
+    }
+  };
+  testBoard(19,19,19,19,42);
+  testBoard(9,9,19,19,14);
+  testBoard(13,7,19,19,15);
+}

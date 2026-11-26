@@ -11,6 +11,7 @@
 #include "../neuralnet/modelversion.h"
 #include "../program/setup.h"
 #include "../program/play.h"
+#include "../program/playutils.h"
 #include "../command/commandline.h"
 #include "../core/test.h"
 #include "../main.h"
@@ -1583,7 +1584,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       else if(s == "w+") {
         sgfGameEnded = true;
         sgfGameEndedButRecordIncomplete = true;
-        sgfGameWinner = P_BLACK;
+        sgfGameWinner = P_WHITE;
       }
       else {
         logger.write("Game ended with unknown result " + fileName + " result " + sgfResult);
@@ -2006,10 +2007,12 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       // that was basically finished.
       bool gameIsNearEnd = false;
       {
+        // Search with each player to move. The history only allows moves by hist.presumedNextMovePla, so for the other
+        // player, runWholeSearchAndGetMove keeps the board but clears the history.
         ReportedSearchValues valuesIfBlackFirst;
         vector<double> ownershipIfBlackFirst;
         {
-          search->setPosition(P_BLACK,board,hist);
+          search->setPosition(hist.presumedNextMovePla,board,hist);
           search->runWholeSearchAndGetMove(P_BLACK);
           valuesIfBlackFirst = search->getRootValuesRequireSuccess();
           ownershipIfBlackFirst = search->getAverageTreeOwnership();
@@ -2017,7 +2020,7 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         ReportedSearchValues valuesIfWhiteFirst;
         vector<double> ownershipIfWhiteFirst;
         {
-          search->setPosition(P_WHITE,board,hist);
+          search->setPosition(hist.presumedNextMovePla,board,hist);
           search->runWholeSearchAndGetMove(P_WHITE);
           valuesIfWhiteFirst = search->getRootValuesRequireSuccess();
           ownershipIfWhiteFirst = search->getAverageTreeOwnership();
@@ -2028,28 +2031,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
         double winlossDiff = abs(valuesIfBlackFirst.winLossValue - valuesIfWhiteFirst.winLossValue);
         // Remaining difference between side to move is less than 4 pointsish, and the winrate is close
         if(leadDiff < 3.5 + 0.05 * absAvgLead && winlossDiff < 0.2) {
-          const double maxFractionOfBoardUnsettled = 0.10 + 6.0 / boardArea;
-          int blackCountUnsettled = 0;
-          int whiteCountUnsettled = 0;
-          int blackWhiteVeryDifferent = 0;
-          for(int y = 0; y<board.y_size; y++) {
-            for(int x = 0; x<board.x_size; x++) {
-              int pos = NNPos::xyToPos(x,y,nnEval->getNNXLen());
-              if(abs(ownershipIfBlackFirst[pos]) < 0.9)
-                blackCountUnsettled += 1;
-              if(abs(ownershipIfWhiteFirst[pos]) < 0.9)
-                whiteCountUnsettled += 1;
-              if(abs(ownershipIfBlackFirst[pos] - ownershipIfWhiteFirst[pos]) > 1.0)
-                blackWhiteVeryDifferent += 1;
-            }
-          }
-          if(
-            blackWhiteVeryDifferent / boardArea < maxFractionOfBoardUnsettled
-            && blackCountUnsettled / boardArea < maxFractionOfBoardUnsettled
-            && whiteCountUnsettled / boardArea < maxFractionOfBoardUnsettled
-          ) {
-            gameIsNearEnd = true;
-          }
+          gameIsNearEnd = PlayUtils::isGameNearEndByOwnership(
+            board, ownershipIfBlackFirst, ownershipIfWhiteFirst, nnEval->getNNXLen()
+          );
         }
       }
 
@@ -2316,6 +2300,9 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       }
     }
 
+    // No q value targets for sgf data, but the data writer expects an entry for every turn.
+    const std::vector<QValueTargets> whiteQValueTargets(whiteValueTargets.size());
+
     for(size_t m = 0; m<policyTargets.size(); m++) {
       int turnIdx = (int)m;
       int64_t unreducedNumVisits = 0;
@@ -2344,7 +2331,6 @@ int MainCmds::writetrainingdata(const vector<string>& args) {
       const std::vector<ChangedNeuralNet*> changedNeuralNets;
       const bool hitTurnLimit = false;
       const int mode = 0;
-      const std::vector<QValueTargets> whiteQValueTargets;
 
       if(
         trainingWeights[m] > 1e-8

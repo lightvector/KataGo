@@ -107,6 +107,16 @@ namespace PlayUtils {
     int64_t numVisits
   );
 
+  //Whether the ownership predictions for a position say that the game is basically finished.
+  //Takes ownership from searching the position with each player to move, indexed by NNPos with the given nnXLen.
+  //Requires that few locations are unsettled in either prediction, and that few differ greatly between them.
+  bool isGameNearEndByOwnership(
+    const Board& board,
+    const std::vector<double>& ownershipIfBlackFirst,
+    const std::vector<double>& ownershipIfWhiteFirst,
+    int nnXLen
+  );
+
   //Determine all living and dead stones, if the game were terminated right now and
   //the rules were interpreted naively and directly.
   //Returns a vector indexed by board Loc (length Board::MAX_ARR_SIZE).

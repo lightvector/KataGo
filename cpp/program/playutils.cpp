@@ -726,6 +726,34 @@ vector<double> PlayUtils::computeOwnership(
   return ownerships;
 }
 
+bool PlayUtils::isGameNearEndByOwnership(
+  const Board& board,
+  const vector<double>& ownershipIfBlackFirst,
+  const vector<double>& ownershipIfWhiteFirst,
+  int nnXLen
+) {
+  int blackCountUnsettled = 0;
+  int whiteCountUnsettled = 0;
+  int blackWhiteVeryDifferent = 0;
+  for(int y = 0; y<board.y_size; y++) {
+    for(int x = 0; x<board.x_size; x++) {
+      int pos = NNPos::xyToPos(x,y,nnXLen);
+      if(std::fabs(ownershipIfBlackFirst[pos]) < 0.9)
+        blackCountUnsettled += 1;
+      if(std::fabs(ownershipIfWhiteFirst[pos]) < 0.9)
+        whiteCountUnsettled += 1;
+      if(std::fabs(ownershipIfBlackFirst[pos] - ownershipIfWhiteFirst[pos]) > 1.0)
+        blackWhiteVeryDifferent += 1;
+    }
+  }
+  //Each count must be less than 10% of the board plus 6 locations
+  const double maxCount = 0.10 * (board.x_size * board.y_size) + 6.0;
+  return
+    blackCountUnsettled < maxCount &&
+    whiteCountUnsettled < maxCount &&
+    blackWhiteVeryDifferent < maxCount;
+}
+
 //Tromp-taylor-like scoring, except recognizes pass-dead stones.
 vector<bool> PlayUtils::computeAnticipatedStatusesSimple(
   const Board& board,
