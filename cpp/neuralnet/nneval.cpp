@@ -615,6 +615,9 @@ void NNEvaluator::maybeWarmupComputeHandle(ComputeHandle* gpuHandle, int serverT
     warmupEveryBatchSize = true;
     secondPassOutsideWarmup = warmupForTiming;
     break;
+  default:
+    ASSERT_UNREACHABLE;
+    break;
   }
   const int warmupMaxBatchSize = warmupEveryBatchSize ? maxBatchSize : 1;
   if(warmupEveryBatchSize && logger != NULL) {
