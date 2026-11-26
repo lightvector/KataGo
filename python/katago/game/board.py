@@ -731,7 +731,7 @@ class Board:
 
             #Zero out all the stuff
             self.board[loc] = Board.EMPTY
-            self.zobrist ^= Board.ZOBRIST_STONE[opp][loc]
+            self.zobrist ^= Board.ZOBRIST_STONE[pla][loc]
             self.group_head[loc] = 0
             self.group_next[loc] = 0
             self.group_prev[loc] = 0
