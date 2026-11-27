@@ -1,3 +1,4 @@
+#include "../program/batchvalidatorgate.h"
 
 //-------------------------------------------------------------------------------------
 //This file contains the main core logic of the search.
@@ -1251,6 +1252,7 @@ void Search::computeRootValues() {
 
 
 bool Search::runSinglePlayout(SearchThread& thread, double upperBoundVisitsLeft) {
+  BatchValidatorGate::waitIfSearchPaused();
   //Store this value, used for futile-visit pruning this thread's root children selections.
   thread.upperBoundVisitsLeft = upperBoundVisitsLeft;
 
