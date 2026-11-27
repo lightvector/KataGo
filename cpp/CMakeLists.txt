@@ -582,7 +582,7 @@ endif()
 set(BUILD_DISTRIBUTED 0 CACHE BOOL "Build with http support for contributing to distributed training")
 set(USE_BACKEND CACHE STRING "Neural net backend")
 string(TOUPPER "${USE_BACKEND}" USE_BACKEND)
-set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL ONNX ROCM)
+set_property(CACHE USE_BACKEND PROPERTY STRINGS "" CUDA TENSORRT OPENCL EIGEN METAL ONNX ROCM DISTRIBUTED)
 
 set(USE_TCMALLOC 0 CACHE BOOL "Use TCMalloc")
 set(NO_GIT_REVISION 0 CACHE BOOL "Disable embedding the git revision into the compiled exe")
@@ -843,6 +843,11 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
   set(NEURALNET_BACKEND_SOURCES
     neuralnet/eigenbackend.cpp
     )
+elseif(USE_BACKEND STREQUAL "DISTRIBUTED")
+  message(STATUS "-DUSE_BACKEND=DISTRIBUTED, using distributed inference client backend (remote katago distserver processes do the actual computation).")
+  set(NEURALNET_BACKEND_SOURCES
+    neuralnet/distributedbackend.cpp
+    )
 elseif(USE_BACKEND STREQUAL "ONNX")
   message(STATUS "-DUSE_BACKEND=ONNX, using ONNX Runtime backend.")
   set(NEURALNET_BACKEND_SOURCES
@@ -1032,6 +1037,7 @@ add_executable(katago
   neuralnet/nneval.cpp
   neuralnet/desc.cpp
   neuralnet/debugprint.cpp
+  neuralnet/distprotocol.cpp
   ${NEURALNET_BACKEND_SOURCES}
   book/book.cpp
   book/bookcssjs.cpp
@@ -1100,6 +1106,7 @@ add_executable(katago
   command/benchmark.cpp
   command/benchmarknn.cpp
   command/contribute.cpp
+  command/distserver.cpp
   command/dumponnx.cpp
   command/evalsgf.cpp
   command/gatekeeper.cpp
@@ -1664,6 +1671,8 @@ elseif(USE_BACKEND STREQUAL "EIGEN")
       message(STATUS "Found Eigen3 at ${EIGEN3_INCLUDE_DIRS}")
     endif()
   endif()
+elseif(USE_BACKEND STREQUAL "DISTRIBUTED")
+  target_compile_definitions(katago PRIVATE USE_DISTRIBUTED_BACKEND)
 elseif(USE_BACKEND STREQUAL "ONNX")
   target_compile_definitions(katago PRIVATE USE_ONNX_BACKEND)
 

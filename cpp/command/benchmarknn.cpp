@@ -95,6 +95,10 @@ int MainCmds::benchmarknn(const vector<string>& args) {
     requireExactNNLen = requireExactNNLenArg.getValue();
     jsonOut = jsonArg.getValue();
     cmd.getConfig(cfg);
+    // Backends that need one-time process-wide setup (notably the distributed backend's
+    // Winsock startup, and GPU device initialization) expect this call, exactly as the
+    // other commands that drive NNEvaluator do.
+    Setup::initializeSession(cfg);
 
     if(numIterations <= 0)
       throw StringError("benchmarknn: iterations must be positive");
