@@ -29,6 +29,8 @@ struct DeviceInfo {
 
   int defaultDesirability;
   bool supportsFP16Compute;
+  //True if the vendor string, the vendor id, or the extension list indicates an NVIDIA device.
+  bool isNvidia;
 
   static constexpr int MAX_PLATFORMS = 32;
   static constexpr int MAX_DEVICES = 512;

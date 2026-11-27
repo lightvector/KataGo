@@ -386,6 +386,12 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     CHECK_ERR(err);
     string vendor = string(buf.data());
 
+    cl_uint vendorId;
+    err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_VENDOR_ID, sizeof(cl_uint), &vendorId, &sizeRet);
+    if(sizeRet > sizeof(cl_uint))
+      throw StringError("OpenCL: device vendor id info returned unexpected size " + Global::uint64ToString(sizeRet));
+    CHECK_ERR(err);
+
     cl_device_type deviceType;
     err = clGetDeviceInfo(deviceIds[gpuIdx], CL_DEVICE_TYPE, sizeof(cl_device_type), &deviceType, &sizeRet);
     if(sizeRet > sizeof(cl_device_type))
@@ -456,6 +462,12 @@ vector<DeviceInfo> DeviceInfo::getAllDeviceInfosOnSystem(Logger* logger) {
     info.extensions = extensions;
     info.defaultDesirability = defaultDesirability;
     info.supportsFP16Compute = (extensions.find("cl_khr_fp16") != string::npos);
+    //Accept any one of these signs, so that an unusual vendor string alone does not hide an NVIDIA device.
+    static constexpr cl_uint NVIDIA_PCI_VENDOR_ID = 0x10DE;
+    info.isNvidia =
+      Global::toLower(vendor).find("nvidia") != string::npos
+      || vendorId == NVIDIA_PCI_VENDOR_ID
+      || extensions.find("cl_nv_") != string::npos;
     allDeviceInfos.push_back(info);
   }
 

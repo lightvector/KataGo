@@ -4542,7 +4542,11 @@ void OpenCLTuner::tune(
       static constexpr double FP16_TENSORCORE_REQUIRED_SPEEDUP = 0.9;
       bool foundGoodFP16 = false;
 
-      bool shouldTestFP16TensorCores = testFP16TensorCoresMode == enabled_t::True || (testFP16TensorCoresMode == enabled_t::Auto && !foundGoodFP16);
+      //The tensor core kernels are NVIDIA PTX inline assembly, so no other vendor's compiler can build them.
+      //Some compilers crash the whole process on them instead of reporting a build failure.
+      bool shouldTestFP16TensorCores = testFP16TensorCoresMode == enabled_t::True || (testFP16TensorCoresMode == enabled_t::Auto && !foundGoodFP16 && device->info.isNvidia);
+      if(testFP16TensorCoresMode == enabled_t::Auto && !device->info.isNvidia)
+        out << "Skipping FP16 tensor core tuning since this is not an NVIDIA device" << endl;
       if(shouldTestFP16TensorCores) {
         {
           OpenCLTuneParams result16;
