@@ -4542,7 +4542,8 @@ void OpenCLTuner::tune(
       static constexpr double FP16_TENSORCORE_REQUIRED_SPEEDUP = 0.9;
       bool foundGoodFP16 = false;
 
-      bool shouldTestFP16TensorCores = testFP16TensorCoresMode == enabled_t::True || (testFP16TensorCoresMode == enabled_t::Auto && !foundGoodFP16);
+      //Mali's compiler aborts the whole process on the wmma kernels instead of failing the build
+      bool shouldTestFP16TensorCores = testFP16TensorCoresMode == enabled_t::True || (testFP16TensorCoresMode == enabled_t::Auto && !foundGoodFP16 && device->info.name.find("Mali") == string::npos);
       if(shouldTestFP16TensorCores) {
         {
           OpenCLTuneParams result16;
