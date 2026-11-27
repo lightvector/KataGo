@@ -100,7 +100,7 @@ struct PlaySettings {
   //Resign conditions
   bool allowResignation;
   double resignThreshold; //Require that mcts win value is less than this
-  double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns
+  double resignConsecTurns; //Require that both players have agreed on it continuously for this many turns, counting both players' turns
 
   //Enable full data recording and a variety of other minor tweaks applying only for self-play training.
   bool forSelfPlay;

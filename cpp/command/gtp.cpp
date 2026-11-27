@@ -274,6 +274,7 @@ static bool shouldResign(
   const BoardHistory& hist,
   Player pla,
   const vector<double>& recentWinLossValues,
+  const vector<Player>& recentWinLossValuePlas,
   double lead,
   const double resignThreshold,
   const int resignConsecTurns,
@@ -318,8 +319,14 @@ static bool shouldResign(
   if((pla == P_WHITE && lead > -resignMinScoreDifference) || (pla == P_BLACK && lead < resignMinScoreDifference))
     return false;
 
-  for(int i = 0; i<resignConsecTurns; i++) {
-    double winLossValue = recentWinLossValues[recentWinLossValues.size()-1-i];
+  //The most recent resignConsecTurns searches that were done for pla must all agree that pla should resign.
+  //Searches for the opponent are skipped, since settings like playoutDoublingAdvantage can bias a search
+  //towards the side that it is for.
+  int numTurnsOfPla = 0;
+  for(size_t i = recentWinLossValues.size(); i > 0 && numTurnsOfPla < resignConsecTurns; i--) {
+    if(recentWinLossValuePlas[i-1] != pla)
+      continue;
+    double winLossValue = recentWinLossValues[i-1];
     Player resignPlayerThisTurn = C_EMPTY;
     if(winLossValue < resignThreshold)
       resignPlayerThisTurn = P_WHITE;
@@ -328,9 +335,10 @@ static bool shouldResign(
 
     if(resignPlayerThisTurn != pla)
       return false;
+    numTurnsOfPla++;
   }
 
-  return true;
+  return numTurnsOfPla >= resignConsecTurns;
 }
 
 struct GTPEngine {
@@ -368,7 +376,12 @@ struct GTPEngine {
   Player initialPla;
   vector<Move> moveHistory;
 
+  //Root winLoss values from white's perspective of the genmove-style searches done since the position was last set,
+  //and the player that each search was for. There is at most one entry per position.
   vector<double> recentWinLossValues;
+  vector<Player> recentWinLossValuePlas;
+  //Number of moves in the history at the time of the search for the last entry of recentWinLossValues.
+  size_t recentWinLossValuesLastTurnIdx;
   double lastSearchFactor;
   double desiredDynamicPDAForWhite;
   std::unique_ptr<PatternBonusTable> patternBonusTable;
@@ -421,6 +434,8 @@ struct GTPEngine {
      initialPla(P_BLACK),
      moveHistory(),
      recentWinLossValues(),
+     recentWinLossValuePlas(),
+     recentWinLossValuesLastTurnIdx(0),
      lastSearchFactor(1.0),
      desiredDynamicPDAForWhite(0.0),
      patternBonusTable(std::move(pbTable)),
@@ -581,6 +596,7 @@ struct GTPEngine {
     initialPla = newInitialPla;
     moveHistory = newMoveHistory;
     recentWinLossValues.clear();
+    recentWinLossValuePlas.clear();
     updateDynamicPDA();
   }
 
@@ -621,6 +637,12 @@ struct GTPEngine {
   }
 
   void updateKomiIfNew(float newKomi) {
+    //Values from searches under a different komi do not count towards resignation. Controllers that resend
+    //the same komi every move must not lose the values.
+    if(newKomi != currentRules.komi) {
+      recentWinLossValues.clear();
+      recentWinLossValuePlas.clear();
+    }
     bot->setKomiIfNew(newKomi);
     currentRules.komi = newKomi;
   }
@@ -1239,11 +1261,21 @@ struct GTPEngine {
     }
 
     //Record data for resignation or adjusting handicap behavior ------------------------
+    //Searching the same position again, which can happen with the commands that search without playing the move,
+    //replaces the earlier value so that it does not count as another turn.
+    //Uses our own moveHistory since the one in search restarts upon consecutive moves by the same side.
+    size_t turnIdx = moveHistory.size();
+    if(!recentWinLossValues.empty() && recentWinLossValuesLastTurnIdx == turnIdx) {
+      recentWinLossValues.pop_back();
+      recentWinLossValuePlas.pop_back();
+    }
     recentWinLossValues.push_back(winLossValue);
+    recentWinLossValuePlas.push_back(pla);
+    recentWinLossValuesLastTurnIdx = turnIdx;
 
     //Decide whether we should resign---------------------
     bool resigned = gargs.allowResignation && shouldResign(
-      search->getRootBoard(),search->getRootHist(),pla,recentWinLossValues,lead,
+      search->getRootBoard(),search->getRootHist(),pla,recentWinLossValues,recentWinLossValuePlas,lead,
       gargs.resignThreshold,gargs.resignConsecTurns,gargs.resignMinScoreDifference,gargs.resignMinMovesPerBoardArea
     );
 

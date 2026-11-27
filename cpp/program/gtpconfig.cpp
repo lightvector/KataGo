@@ -106,8 +106,8 @@ $$FRIENDLY_PASS_OK
 # Resignation
 # ------------------------------
 
-# Resignation occurs if for at least resignConsecTurns in a row, the
-# winLossUtility (on a [-1,1] scale) is below resignThreshold.
+# Resignation occurs if the winLossUtility (on a [-1,1] scale) is below
+# resignThreshold for at least resignConsecTurns of KataGo's own turns in a row.
 allowResignation = true
 resignThreshold = -0.90
 resignConsecTurns = 3
