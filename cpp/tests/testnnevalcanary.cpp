@@ -690,8 +690,11 @@ bool Tests::runBackendErrorTest(
   if(verbose)
     logger.write("Beginning evaluations! These may take a long time on pure CPU, or on a weak GPU, but on a decent GPU shouldn't take too long.");
 
+  // Without a separate fp32 evaluator the "reference" pass is the candidate itself, which happens
+  // on fp32-only backends and on FP16-only devices such as an OpenVINO NPU. Say so in the logs.
+  const string refEvalName = (nnEval32 != nnEval) ? "fp32" : "candidate";
   if(verbose)
-    logger.write("Running evaluations in fp32");
+    logger.write("Running evaluations in " + refEvalName);
   fp32.reserve(hists.size());
   for(const BoardHistory& hist: hists)
     fp32.push_back(evalBoard(nnEval32,hist));
@@ -702,7 +705,7 @@ bool Tests::runBackendErrorTest(
     fp32Batched = fp32;
   else {
     if(verbose)
-      logger.write("Running batched evaluations in fp32");
+      logger.write("Running batched evaluations in " + refEvalName);
     auto runThread = [&](int threadIdx) {
       for(size_t i = threadIdx; i<hists.size(); i += maxBatchSize)
         fp32Batched[i] = evalBoard(nnEval32,hists[i]);
@@ -744,14 +747,20 @@ bool Tests::runBackendErrorTest(
     }
   }
 
+  // Whether the reference is this backend's own outputs rather than an independent source. Decided
+  // here, alongside the assignment it describes, so the labels further down cannot disagree with
+  // what was actually compared. An Eigen build never loads the file (it writes it), so it takes the
+  // self branch below automatically and needs no separate compile-time test.
+  bool referenceIsSelf = true;
   if(loadedReferenceValuesFromFile) {
     if(referenceValues.size() != fp32.size())
       throw StringError(
         "Number of reference values loaded from file does not match number of positions "
         + Global::uint64ToString(referenceValues.size()) + " " + Global::uint64ToString(fp32.size()));
+    referenceIsSelf = false;
   }
   else {
-    logger.write("Using unbatched fp32 as the reference values");
+    logger.write("Using unbatched " + refEvalName + " as the reference values");
     referenceValues = fp32;
   }
 
@@ -777,27 +786,38 @@ bool Tests::runBackendErrorTest(
       stats.reportStats(name, logger);
   };
 
+  // In the self case the two comparisons below are self-checks: the first is zero by construction,
+  // and the second measures batch-vs-serial consistency. Label them as such so a zero result is not
+  // mistaken for a passed precision check.
+  const string refEvaluatorDesc = (nnEval32 != nnEval) ? "fp32 evaluator" : "candidate evaluator";
+  const string fp32Label = referenceIsSelf
+    ? (refEvaluatorDesc + " vs itself (no external reference)")
+    : (refEvaluatorDesc + " vs reference file");
+  const string batchedFp32Label = referenceIsSelf
+    ? ("batch consistency (" + refEvaluatorDesc + ")")
+    : ("batched " + refEvaluatorDesc + " vs reference file");
+
   fp32BatchSuccessBuf = true;
   bool success = true;
 
   {
     GpuErrorStats stats;
-    computeStats("fp32 error vs reference", fp32, stats);
+    computeStats(fp32Label, fp32, stats);
     // 99% score limit is looser than max/4 would give: leadError/scoreMeanError run a touch noisier on
     // some backends (notably TensorRT, whose "fp32" uses TF32/fused tensor-core GEMMs) on rectangle boards.
     fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.34, 0.45, 0.0006);
     fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStatsMax(1.35, 0.900, 1.35, 0.0012);
     if(verbose)
-      stats.reportClosestMargin("fp32 error vs reference", logger, 0.45, 0.34, 0.45, 0.0006, 1.35, 0.900, 1.35, 0.0012);
+      stats.reportClosestMargin(fp32Label, logger, 0.45, 0.34, 0.45, 0.0006, 1.35, 0.900, 1.35, 0.0012);
   }
 
   {
     GpuErrorStats stats;
-    computeStats("batched fp32 error vs reference", fp32Batched, stats);
+    computeStats(batchedFp32Label, fp32Batched, stats);
     fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStats99( 0.45, 0.34, 0.45, 0.0006);
     fp32BatchSuccessBuf = fp32BatchSuccessBuf && stats.checkStatsMax(1.35, 0.900, 1.35, 0.0012);
     if(verbose)
-      stats.reportClosestMargin("batched fp32 error vs reference", logger, 0.45, 0.34, 0.45, 0.0006, 1.35, 0.900, 1.35, 0.0012);
+      stats.reportClosestMargin(batchedFp32Label, logger, 0.45, 0.34, 0.45, 0.0006, 1.35, 0.900, 1.35, 0.0012);
   }
 
   if(nnEval32 != nnEval) {

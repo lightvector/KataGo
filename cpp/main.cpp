@@ -57,7 +57,7 @@ searchentropyanalysis : Analyze search entropy across test datasets.
 selfplaysurprisedump : Run selfplay games with a fixed model and dump per-position policy/value surprise stats to csv.
 
 benchmarknn : Benchmark raw neural net forward throughput, without search.
-testgpuerror : Print the average error of the neural net between current config and fp32 config.
+testgpuerror : Measure the backend's numerical error against an FP32 reference evaluator and check batch consistency (relative test; pass -reference-file for an absolute Eigen-based check).
 testbackendreference : Test backend absolute outputs against compiled-in blended reference data.
 dumponnx : (TensorRT/ONNX only) Write out the ONNX graph KataGo builds for a model.
 
