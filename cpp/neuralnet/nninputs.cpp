@@ -50,8 +50,8 @@ double ScoreValue::whiteScoreValueOfScoreSmooth(
   double scale,
   double drawEquivalentWinsForWhite,
   double sqrtBoardArea,
-  const BoardHistory& hist)
-{
+  const BoardHistory& hist
+) {
   double adjustedScore = finalWhiteMinusBlackScore + hist.whiteKomiAdjustmentForDraws(drawEquivalentWinsForWhite) - center;
   return atan(adjustedScore / (scale * sqrtBoardArea)) * twoOverPi;
 }
@@ -141,6 +141,7 @@ void ScoreValue::initTables() {
     for(int stdevIdx = 0; stdevIdx < svTableStdevLen; stdevIdx++) {
       double wSum = 0.0;
       double wsvSum = 0.0;
+
       for(int i = minStdevSteps; i <= maxStdevSteps; i++) {
         int xSteps = meanSteps + stdevIdx * i;
         double w = normalPDF[i-minStdevSteps];
@@ -170,8 +171,8 @@ double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteSc
   double stdevFloored = floor(stdevScaled);
   int meanIdx0 = (int)meanRounded + svTableMeanRadius;
   int stdevIdx0 = (int)stdevFloored;
-  int meanIdx1 = meanIdx0+1;
-  int stdevIdx1 = stdevIdx0+1;
+  int meanIdx1 = meanIdx0 + 1;
+  int stdevIdx1 = stdevIdx0 + 1;
 
   if(meanIdx0 < 0) { meanIdx0 = 0; meanIdx1 = 0; }
   if(meanIdx1 >= svTableMeanLen) { meanIdx0 = svTableMeanLen-1; meanIdx1 = svTableMeanLen-1; }
@@ -193,9 +194,7 @@ double ScoreValue::expectedWhiteScoreValue(double whiteScoreMean, double whiteSc
 
 double ScoreValue::getScoreStdev(double scoreMean, double scoreMeanSq) {
   double variance = scoreMeanSq - scoreMean * scoreMean;
-  if(variance <= 0.0)
-    return 0.0;
-  return sqrt(variance);
+  return (variance <= 0.0) ? 0.0 : sqrt(variance);
 }
 
 //-----------------------------------------------------------------------------------------------------------
@@ -212,15 +211,17 @@ void NNInputs::fillScoring(
     for(int y = 0; y<board.y_size; y++) {
       for(int x = 0; x<board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
+
         Color areaColor = area[loc];
-        if(areaColor == P_BLACK)
-          scoring[loc] = -1.0f;
-        else if(areaColor == P_WHITE)
-          scoring[loc] = 1.0f;
-        else {
-          assert(areaColor == C_EMPTY);
-          scoring[loc] = 0;
-        }
+		switch(areaColor) {
+		  case P_BLACK:
+			scoring[loc] = -1.0f; break;
+		  case P_WHITE:
+			scoring[loc] = 1.0f; break;
+		  default:
+			assert(areaColor == C_EMPTY);
+			scoring[loc] = 0;  break;
+		}
       }
     }
   }
@@ -230,14 +231,14 @@ void NNInputs::fillScoring(
 
     std::fill(visited, visited + Board::MAX_ARR_SIZE, false);
     std::fill(scoring, scoring + Board::MAX_ARR_SIZE, 0.0f);
-    for(int y = 0; y<board.y_size; y++) {
-      for(int x = 0; x<board.x_size; x++) {
+    for(int y = 0; y < board.y_size; y++) {
+      for(int x = 0; x < board.x_size; x++) {
         Loc loc = Location::getLoc(x,y,board.x_size);
         if(visited[loc])
           continue;
         Color areaColor = area[loc];
         if(areaColor == P_BLACK || areaColor == P_WHITE) {
-          float fullValue = areaColor == P_WHITE ? 1.0f : -1.0f;
+          float fullValue = (areaColor == P_WHITE) ? 1.0f : -1.0f;
           int queueHead = 0;
           int queueTail = 1;
           queue[0] = loc;
@@ -251,7 +252,7 @@ void NNInputs::fillScoring(
             if(board.colors[next] != areaColor)
               territoryCount++;
             //Push adjacent locations on to queue
-            for(int i = 0; i<4; i++) {
+            for(int i = 0; i < 4; i++) {
               Loc adj = next + board.adj_offsets[i];
               if(area[adj] == areaColor && !visited[adj]) {
                 queue[queueTail] = adj;
@@ -262,14 +263,11 @@ void NNInputs::fillScoring(
           }
 
           //Then, actually fill values
-          float territoryValue = territoryCount <= 2 ? 0.0f : fullValue * (territoryCount - 2.0f) / territoryCount;
-          for(int j = 0; j<queueTail; j++) {
+          float territoryValue = (territoryCount <= 2) ? 0.0f : fullValue * (territoryCount - 2.0f) / territoryCount;
+          for(int j = 0; j < queueTail; j++) {
             Loc next = queue[j];
             queueHead++;
-            if(board.colors[next] != areaColor)
-              scoring[next] = territoryValue;
-            else
-              scoring[next] = fullValue;
+			scoring[next] = (board.colors[next] == areaColor) ? fullValue : territoryValue;
           }
         }
         else {
@@ -326,9 +324,8 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
   int len = (int)others.size();
   float floatLen = (float)len;
   testAssert(len > 0);
-  for(int i = 1; i<len; i++) {
+  for(int i = 1; i < len; i++)
     testAssert(others[i]->nnHash == others[0]->nnHash);
-  }
   nnHash = others[0]->nnHash;
 
   whiteWinProb = 0.0f;
@@ -340,7 +337,7 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
   varTimeLeft = 0.0f;
   shorttermWinlossError = 0.0f;
   shorttermScoreError = 0.0f;
-  for(int i = 0; i<len; i++) {
+  for(int i = 0; i < len; i++) {
     const NNOutput& other = *(others[i]);
     whiteWinProb += other.whiteWinProb;
     whiteLossProb += other.whiteLossProb;
@@ -368,7 +365,7 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
   {
     float whiteOwnerMapCount = 0.0f;
     whiteOwnerMap = NULL;
-    for(int i = 0; i<len; i++) {
+    for(int i = 0; i < len; i++) {
       const NNOutput& other = *(others[i]);
       if(other.whiteOwnerMap != NULL) {
         if(whiteOwnerMap == NULL) {
@@ -376,13 +373,13 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
           std::fill(whiteOwnerMap, whiteOwnerMap + nnXLen * nnYLen, 0.0f);
         }
         whiteOwnerMapCount += 1.0f;
-        for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+        for(int pos = 0; pos < nnXLen*nnYLen; pos++)
           whiteOwnerMap[pos] += other.whiteOwnerMap[pos];
       }
     }
     if(whiteOwnerMap != NULL) {
       testAssert(whiteOwnerMapCount > 0);
-      for(int pos = 0; pos<nnXLen*nnYLen; pos++)
+      for(int pos = 0; pos < nnXLen*nnYLen; pos++)
         whiteOwnerMap[pos] /= whiteOwnerMapCount;
     }
   }
@@ -409,13 +406,13 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
       std::copy(other.policyProbs, other.policyProbs + NNPos::MAX_NN_POLICY_SIZE, policyProbs);
     }
     else {
-      for(int pos = 0; pos<NNPos::MAX_NN_POLICY_SIZE; pos++)
+      for(int pos = 0; pos < NNPos::MAX_NN_POLICY_SIZE; pos++)
         policyProbs[pos] /= floatLen;
     }
   }
   {
     bool allOptimismsMatch = true;
-    for(int i = 1; i<len; i++) {
+    for(int i = 1; i < len; i++) {
       if(others[i]->policyOptimismUsed != others[0]->policyOptimismUsed) {
         allOptimismsMatch = false;
         break;
@@ -426,7 +423,7 @@ NNOutput::NNOutput(const vector<shared_ptr<NNOutput>>& others) {
     }
     else {
       policyOptimismUsed = 0.0;
-      for(int i = 0; i<len; i++) {
+      for(int i = 0; i < len; i++) {
         policyOptimismUsed += others[i]->policyOptimismUsed / (float)len;
       }
     }
@@ -2327,8 +2324,8 @@ void NNInputs::fillRowV7(
     posStride = 1;
   }
 
-  for(int y = 0; y<ySize; y++) {
-    for(int x = 0; x<xSize; x++) {
+  for(int y = 0; y < ySize; y++) {
+    for(int x = 0; x < xSize; x++) {
       int pos = NNPos::xyToPos(x,y,nnXLen);
       Loc loc = Location::getLoc(x,y,xSize);
 
@@ -2359,8 +2356,8 @@ void NNInputs::fillRowV7(
       int pos = NNPos::locToPos(board.ko_loc,xSize,nnXLen,nnYLen);
       setRowBin(rowBin,pos,6, 1.0f, posStride, featureStride);
     }
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
+    for(int y = 0; y < ySize; y++) {
+      for(int x = 0; x < xSize; x++) {
         Loc loc = Location::getLoc(x,y,xSize);
         if(hist.superKoBanned[loc] && loc != board.ko_loc) {
           int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
@@ -2371,8 +2368,8 @@ void NNInputs::fillRowV7(
   }
   else {
     //Feature 6,7,8 - in the encore, no-second-ko-capture locations, encore ko prohibitions where we have to pass for ko
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
+    for(int y = 0; y < ySize; y++) {
+      for(int x = 0; x < xSize; x++) {
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(hist.superKoBanned[loc])
@@ -2393,7 +2390,13 @@ void NNInputs::fillRowV7(
     bool nonPassAliveStones = true;
     bool safeBigTerritories = true;
     bool unsafeBigTerritories = true;
-    board.calculateArea(area,nonPassAliveStones,safeBigTerritories,unsafeBigTerritories,nnInputParams.getSuicideLegalForPassAlive(hist));
+    board.calculateArea(
+	  area,
+	  nonPassAliveStones,
+	  safeBigTerritories,
+	  unsafeBigTerritories,
+	  nnInputParams.getSuicideLegalForPassAlive(hist)
+	);
   }
   else {
     bool keepTerritories = false;
@@ -2441,8 +2444,8 @@ void NNInputs::fillRowV7(
   bool finalPhaseAndGameEndWouldNotBeWin = false;
   if(hasAreaFeature) {
     int boardScoreForPla = groupTaxAdjustmentForPla;
-    for(int y = 0; y<ySize; y++) {
-      for(int x = 0; x<xSize; x++) {
+    for(int y = 0; y < ySize; y++) {
+      for(int x = 0; x < xSize; x++) {
         Loc loc = Location::getLoc(x,y,xSize);
         int pos = NNPos::locToPos(loc,xSize,nnXLen,nnYLen);
         if(area[loc] == pla) {

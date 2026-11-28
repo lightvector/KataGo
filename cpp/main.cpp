@@ -25,10 +25,7 @@
 
 static void printHelp(const vector<string>& args) {
   cout << endl;
-  if(args.size() >= 1)
-    cout << "Usage: " << args[0] << " SUBCOMMAND ";
-  else
-    cout << "Usage: " << "./katago" << " SUBCOMMAND ";
+  cout << "Usage: " << (args.size() >= 1 ? args[0] : "./katago") << " SUBCOMMAND ";
   cout << endl;
 
   cout << R"%%(
@@ -222,10 +219,7 @@ int main(int argc, const char* const* argv) {
 #if defined(OS_IS_WINDOWS)
   //On windows, uncaught exceptions reaching toplevel don't normally get printed out,
   //so explicitly catch everything and print
-  int result;
-  try {
-    result = handleSubcommand(cmdArg, args);
-  }
+  try { return handleSubcommand(cmdArg, args); }
   catch(std::exception& e) {
     cerr << "Uncaught exception: " << e.what() << endl;
     return 1;
@@ -234,7 +228,6 @@ int main(int argc, const char* const* argv) {
     cerr << "Uncaught exception that is not a std::exception... exiting due to unknown error" << endl;
     return 1;
   }
-  return result;
 #else
   return handleSubcommand(cmdArg, args);
 #endif
