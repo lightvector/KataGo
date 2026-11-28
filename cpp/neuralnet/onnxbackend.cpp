@@ -206,6 +206,11 @@ ComputeContext* NeuralNet::createComputeContext(
 ) {
   (void)gpuIdxs;
   (void)homeDataDirOverride;
+  // Log the runtime version before any config check can throw: several behaviors here depend on
+  // it (the input-ordering workaround, the deprecated provider option set, load_config), so it is
+  // the first thing to pin down when a session fails to build.
+  if(logger != NULL)
+    logger->write("ONNX backend: ONNX Runtime version " + Ort::GetVersionString());
   // The emitted ONNX graph is fp32, and inference precision is chosen internally by the
   // execution provider (e.g. OpenVINO downcasts to FP16 per onnxOpenVINOPrecision). KataGo's
   // global useFP16 flag therefore cannot force FP16 here, so fail loudly instead of silently
