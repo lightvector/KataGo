@@ -230,14 +230,22 @@ ComputeContext* NeuralNet::createComputeContext(
   ctx->openvinoNumStreams = cfg.contains("onnxOpenVINONumStreams") ? cfg.getString("onnxOpenVINONumStreams") : "";
   ctx->padBatchMode = cfg.contains("onnxPadBatch") ? cfg.getEnabled("onnxPadBatch") : enabled_t::Auto;
 
-  // useFP16 = false is an explicit request for full FP32 on every other backend. The only
-  // provider here that downcasts an fp32 graph by default is OpenVINO (GPU/NPU run FP16
-  // unless told otherwise), so honor the request by forcing its precision option to FP32
-  // when the user has not explicitly set onnxOpenVINOPrecision themselves.
-  if(useFP16Mode == enabled_t::False && ctx->providerName == "openvino" && ctx->openvinoPrecision.empty()) {
+  // useFP16 = false is an explicit request for full FP32 on every other backend, and
+  // gtp_example.cfg documents it as forcing full FP32. The only provider here that downcasts an
+  // fp32 graph is OpenVINO, so honor the request by forcing its precision option to FP32. An
+  // explicitly-set non-FP32 onnxOpenVINOPrecision is overridden too: testgpuerror and contribute
+  // build their reference evaluator through this path, and leaving it at FP16 would silently
+  // compare an evaluator against a copy of itself instead of against FP32.
+  if(useFP16Mode == enabled_t::False && ctx->providerName == "openvino" &&
+     Global::toUpper(Global::trim(ctx->openvinoPrecision)) != "FP32") {
+    if(logger != NULL) {
+      if(ctx->openvinoPrecision.empty())
+        logger->write("ONNX backend: useFP16 = false, forcing OpenVINO precision = FP32");
+      else
+        logger->write("ONNX backend: useFP16 = false, overriding onnxOpenVINOPrecision = " +
+                      ctx->openvinoPrecision + " with FP32");
+    }
     ctx->openvinoPrecision = "FP32";
-    if(logger != NULL)
-      logger->write("ONNX backend: useFP16 = false, forcing OpenVINO precision = FP32");
   }
 
   // Trunk layout for transformer models. Default NHWC (channel-last), matching the TensorRT
@@ -418,6 +426,40 @@ static bool shouldPadBatch(const ComputeContext* ctx, int serverThreadIdx) {
 }
 
 //--------------------------------------------------------------
+// Helper: does this server thread run the emitted fp32 graph at reduced precision inside its
+// execution provider, and can a distinct FP32 evaluator be built for it?
+//
+// The ONNX graph is always fp32; only the OpenVINO provider downcasts it. An NPU-only thread is
+// the one device where FP32 cannot be requested at all (createComputeContext throws), so it must
+// report false: testgpuerror and contribute use this to decide whether to build an FP32 reference
+// evaluator, and there is none to build on an FP16-only device.
+//--------------------------------------------------------------
+static bool threadUsesReducedPrecision(const ComputeContext* ctx, int serverThreadIdx) {
+  if(ctx->providerName != "openvino")
+    return false;
+
+  string threadDeviceType = ctx->openvinoDeviceType;
+  if(serverThreadIdx >= 0 && serverThreadIdx < (int)ctx->perThreadDeviceType.size())
+    threadDeviceType = ctx->perThreadDeviceType[serverThreadIdx];
+
+  // Mirror the NPU-only test in createComputeContext: if every device on this thread is an NPU,
+  // an FP32 evaluator cannot be built, so there is nothing to compare against.
+  vector<string> deviceNames = parseDeviceNames(threadDeviceType);
+  bool allNpu = !deviceNames.empty();
+  for(const string& name : deviceNames) {
+    if(name != "NPU")
+      allNpu = false;
+  }
+  if(allNpu)
+    return false;
+
+  // Empty means the provider default, which is FP16 on an OpenVINO GPU. FP32 (including the
+  // useFP16 = false override above) is the only setting with no reduced-precision path.
+  string precision = Global::toUpper(Global::trim(ctx->openvinoPrecision));
+  return precision != "FP32";
+}
+
+//--------------------------------------------------------------
 
 struct ComputeHandle {
   ComputeContext* ctx;
@@ -439,6 +481,8 @@ struct ComputeHandle {
 
   // Pad short batches out to a constant number of rows, see shouldPadBatch().
   bool padBatch;
+  // Effective reduced-precision status of this thread, see threadUsesReducedPrecision().
+  bool usingFP16;
 
   ComputeHandle(ComputeContext* context, const LoadedModel& loadedModel, Logger* logger, int deviceIdxForThread, int serverThreadIdx, bool requireExactNNLen)
     : ctx(context),
@@ -450,7 +494,8 @@ struct ComputeHandle {
       numValueChannels(loadedModel.modelDesc.numValueChannels),
       numScoreValueChannels(loadedModel.modelDesc.numScoreValueChannels),
       numOwnershipChannels(loadedModel.modelDesc.numOwnershipChannels),
-      padBatch(shouldPadBatch(context, serverThreadIdx))
+      padBatch(shouldPadBatch(context, serverThreadIdx)),
+      usingFP16(threadUsesReducedPrecision(context, serverThreadIdx))
   {
     // The graph either comes verbatim from a .onnx file, or is emitted here from the .bin.gz weights
     // by the same emitter the TensorRT backend uses. Either way Ort::Session parses it directly. The
@@ -818,10 +863,7 @@ void NeuralNet::freeComputeHandle(ComputeHandle* computeHandle) {
 }
 
 bool NeuralNet::isUsingFP16(const ComputeHandle* handle) {
-  (void)handle;
-  // The emitted ONNX graph is fp32, and precision is delegated to the execution provider,
-  // which may downcast internally, so from KataGo's perspective this is fp32.
-  return false;
+  return handle->usingFP16;
 }
 
 bool NeuralNet::setIsWarmup(const ComputeHandle* handle, bool isWarmup) {
