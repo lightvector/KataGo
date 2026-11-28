@@ -164,7 +164,9 @@ struct ComputeContext {
   string openvinoDeviceType;
   string openvinoCacheDir;
   // Optional OpenVINO provider options (empty = not passed to ORT)
-  string openvinoPrecision;   // FP16 / FP32 / ACCURACY (GPU only; the NPU is FP16-only)
+  // Precision for the OpenVINO provider: "FP16", "FP32", or empty to let the provider choose.
+  // Validated in createComputeContext rather than passed through, see there for why.
+  string openvinoPrecision;
   string openvinoNumStreams;  // 1-8
   bool transformerNHWC;         // run the trunk block stack channel-last (NHWC)
   bool skipScale8;              // skip the scale8 FP16-range workaround (see createComputeContext)
@@ -220,7 +222,7 @@ ComputeContext* NeuralNet::createComputeContext(
     throw StringError(
       "ONNX backend: useFP16 = true is not supported and cannot be honored. "
       "Precision is controlled by the execution provider; for the OpenVINO provider set "
-      "onnxOpenVINOPrecision (e.g. FP16/FP32/ACCURACY). Leave useFP16 unset/auto, or set it "
+      "onnxOpenVINOPrecision (FP16 or FP32). Leave useFP16 unset/auto, or set it "
       "to false to force full FP32.");
 
   ComputeContext* ctx = new ComputeContext(nnXLen, nnYLen);
@@ -251,6 +253,26 @@ ComputeContext* NeuralNet::createComputeContext(
                       ctx->openvinoPrecision + " with FP32");
     }
     ctx->openvinoPrecision = "FP32";
+  }
+
+  // Unlike cache_dir and num_streams, the precision option is not passed through unvalidated: this
+  // backend exposes exactly two settings, the same choice useFP16 offers on the other backends,
+  // with empty meaning the provider default. Anything else is rejected here rather than at session
+  // creation. The OpenVINO provider also accepts ACCURACY, which is not a precision but an
+  // execution-mode hint that keeps whatever precision the graph already has, so the effective
+  // precision would depend on the .onnx file instead of on this setting. Canonicalizing the case
+  // also means the provider, which is case-sensitive, always gets the spelling it expects. This
+  // runs after the useFP16 = false override above, so a config demanding full FP32 that way is
+  // satisfied rather than rejected.
+  if(ctx->providerName == "openvino") {
+    const string requestedPrecision = ctx->openvinoPrecision;
+    ctx->openvinoPrecision = Global::toUpper(Global::trim(ctx->openvinoPrecision));
+    if(ctx->openvinoPrecision != "" && ctx->openvinoPrecision != "FP16" && ctx->openvinoPrecision != "FP32")
+      throw StringError(
+        "ONNX backend: unsupported onnxOpenVINOPrecision '" + requestedPrecision +
+        "'. Use FP16 or FP32, or leave it unset for the default (FP16 on an OpenVINO GPU). ACCURACY "
+        "is not accepted: it keeps whatever precision the model graph already has, so the effective "
+        "precision would depend on the .onnx file rather than on this setting.");
   }
 
   // Trunk layout for transformer models. Default NHWC (channel-last), matching the TensorRT
@@ -458,8 +480,9 @@ static bool threadUsesReducedPrecision(const ComputeContext* ctx, int serverThre
   if(allNpu)
     return false;
 
-  // Empty means the provider default, which is FP16 on an OpenVINO GPU. FP32 (including the
-  // useFP16 = false override above) is the only setting with no reduced-precision path.
+  // Empty means the provider default, which is FP16 on an OpenVINO GPU, and FP16 is the only other
+  // value that can reach here: createComputeContext accepts that and FP32 and rejects the rest, so
+  // anything that is not FP32 keeps a reduced-precision path.
   string precision = Global::toUpper(Global::trim(ctx->openvinoPrecision));
   return precision != "FP32";
 }
