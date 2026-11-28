@@ -401,6 +401,10 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
         scalar launches.
       KATAGO_AUX_ADAM_FOREACH (default 1): use torch._foreach multi-tensor
         kernels for the auxiliary Adam parameter groups.
+      KATAGO_MUON_STACKED_WD (default 1): apply floored weight decay per stacked
+        run of same-shaped updates (one row-norm and one multiply-add launch per
+        run instead of one per parameter), on both the single-device batched path
+        and the distributed bf16-gather apply path. Same elementwise arithmetic.
       KATAGO_MUON_GATHER_BF16_UPDATES (default 1, distributed only): after the
         sharded Newton-Schulz, all-gather the bf16 orthogonalized updates (the
         precision Newton-Schulz already produces) and apply the fp32 scale /
@@ -427,6 +431,8 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
         self.use_batched_muon_ns = _env_flag("KATAGO_MUON_BATCHED_NS", default=True)
         self.use_foreach_aux_adam = _env_flag("KATAGO_AUX_ADAM_FOREACH", default=True)
         self.gather_bf16_updates_requested = _env_flag("KATAGO_MUON_GATHER_BF16_UPDATES", default=True)
+        self.use_stacked_weight_decay = _env_flag("KATAGO_MUON_STACKED_WD", default=True)
+        self._stacked_floor_cache = {}
         self.muon_ns_batch_size = int(os.environ.get("KATAGO_MUON_NS_BATCH_SIZE", "32"))
         if self.muon_ns_batch_size <= 0:
             raise ValueError(f"KATAGO_MUON_NS_BATCH_SIZE must be positive, got {self.muon_ns_batch_size}")
@@ -505,6 +511,28 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
             if p not in params:
                 raise ValueError("Weight decay floor given for a tensor that is not an optimizer parameter")
         self.weight_decay_floor_norms = {p: float(f) for p, f in floor_norms.items() if float(f) > 0.0}
+        self._stacked_floor_cache = {}
+
+    def _decay_stacked_run_(self, params, stacked_update, weight_decay):
+        """Add the floored weight decay term of `params` to their stacked update, in place.
+
+        params: same-shaped parameters, each with a registered weight decay floor. stacked_update:
+        (len(params), out, in) fp32 tensor (possibly a non-contiguous view), row i being the update
+        of params[i] viewed as (out, in). Same elementwise arithmetic as the floored branch of
+        _apply_updates_with_weight_decay, using one row-norm and one multiply-add launch per run.
+        """
+        key = (params[0].device, *(id(p) for p in params))
+        floors = self._stacked_floor_cache.get(key)
+        if floors is None:
+            floors = torch.tensor(
+                [self.weight_decay_floor_norms[p] for p in params], dtype=torch.float32, device=params[0].device
+            ).view(-1, 1)
+            self._stacked_floor_cache[key] = floors
+        stacked_params = torch.stack([p.view(p.shape[0], -1) for p in params], dim=0)
+        norms = torch.linalg.vector_norm(stacked_params, dim=2, dtype=torch.float32)
+        fractions = (norms - floors).clamp_(min=0.0)
+        fractions.div_(torch.maximum(norms, floors)).mul_(weight_decay)
+        stacked_update.addcmul_(stacked_params, fractions.to(stacked_params.dtype).unsqueeze(-1))
 
     def _apply_updates_with_weight_decay(self, params, updates, lr, weight_decay):
         """Apply p -= lr * (update + d * p) to each parameter, where d is weight_decay for a plain
@@ -610,6 +638,36 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
         The parameters are processed in chunks so that the fp32 scaled updates of only one chunk are
         alive at a time (the same elementwise ops in the same order, so the result is unchanged).
         """
+        if self.use_stacked_weight_decay and group["weight_decay"] != 0.0:
+            # Same elementwise arithmetic, batched over runs of adjacent same-shaped floored params
+            # (groups are sorted by size, so same-shaped params are adjacent).
+            run_begin = 0
+            while run_begin < len(params):
+                first = params[run_begin]
+                run_end = run_begin + 1
+                while run_end < len(params) and run_end - run_begin < chunk_size and params[run_end].shape == first.shape:
+                    run_end += 1
+                run_params = params[run_begin:run_end]
+                run_updates = updates[run_begin:run_end]
+                stackable = (
+                    len(run_params) > 1
+                    and first.ndim >= 2
+                    and all(p.dtype == torch.float32 and p in self.weight_decay_floor_norms for p in run_params)
+                    and all(u.shape == first.shape and u.dtype == run_updates[0].dtype for u in run_updates)
+                )
+                if stackable:
+                    matrix_shape = (len(first), first.numel() // len(first))
+                    scaled = torch.stack([u.view(matrix_shape) for u in run_updates], dim=0).to(first.dtype) * self._update_scale(matrix_shape)
+                    self._decay_stacked_run_(run_params, scaled, group["weight_decay"])
+                    torch._foreach_add_(run_params, [u.view(p.shape) for p, u in zip(run_params, scaled.unbind(dim=0))], alpha=-group["lr"])
+                else:
+                    scaled = []
+                    for p, update in zip(run_params, run_updates):
+                        matrix_shape = (len(p), p.numel() // len(p)) if p.ndim == 4 else tuple(p.shape)
+                        scaled.append(update.to(p.dtype) * self._update_scale(matrix_shape))
+                    self._apply_updates_with_weight_decay(run_params, scaled, group["lr"], group["weight_decay"])
+                run_begin = run_end
+            return
         for start in range(0, len(params), chunk_size):
             chunk_params = params[start:start + chunk_size]
             scaled = []
@@ -663,6 +721,8 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
 
         apply_params = []
         apply_updates = []
+        decayed_params = []
+        decayed_updates = []
         for entries in entries_by_shape.values():
             for chunk_begin in range(0, len(entries), self.muon_ns_batch_size):
                 chunk = entries[chunk_begin:chunk_begin + self.muon_ns_batch_size]
@@ -692,6 +752,31 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                     # in parameter dtype for the foreach apply below.
                     scale = self._update_scale((orthogonalized.shape[-2], orthogonalized.shape[-1]))
                     scaled = orthogonalized.to(chunk[0][0].dtype) * scale
+                    if self.use_stacked_weight_decay and group["weight_decay"] != 0.0 and scaled.dtype == torch.float32:
+                        run_begin = 0
+                        while run_begin < len(chunk):
+                            run_end = run_begin + 1
+                            while (
+                                run_end < len(chunk)
+                                and chunk[run_end][0].shape == chunk[run_begin][0].shape
+                                and chunk[run_end][2] == chunk[run_begin][2]
+                            ):
+                                run_end += 1
+                            run_params = [entry[0] for entry in chunk[run_begin:run_end]]
+                            run_updates = scaled[run_begin:run_end]
+                            if chunk[run_begin][2]:
+                                run_updates = run_updates.mT
+                            if len(run_params) > 1 and all(p.dtype == torch.float32 and p in self.weight_decay_floor_norms for p in run_params):
+                                self._decay_stacked_run_(run_params, run_updates, group["weight_decay"])
+                                for p, update in zip(run_params, run_updates.unbind(dim=0)):
+                                    decayed_params.append(p)
+                                    decayed_updates.append(update.reshape(p.shape))
+                            else:
+                                for p, update in zip(run_params, run_updates.unbind(dim=0)):
+                                    apply_params.append(p)
+                                    apply_updates.append(update.reshape(p.shape))
+                            run_begin = run_end
+                        continue
                     for (p, _, was_transposed, state), update in zip(chunk, scaled.unbind(dim=0)):
                         if was_transposed:
                             update = update.mT
@@ -722,6 +807,8 @@ class _MuonWithAuxAdamBase(torch.optim.Optimizer):
                     apply_params.append(p)
                     apply_updates.append(update.reshape(p.shape).to(p.dtype))
 
+        if len(decayed_params) > 0:
+            torch._foreach_add_(decayed_params, decayed_updates, alpha=-group["lr"])
         self._apply_updates_with_weight_decay(apply_params, apply_updates, group["lr"], group["weight_decay"])
 
     def _step_muon_group(self, group, param_indices):

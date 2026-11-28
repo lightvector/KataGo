@@ -249,3 +249,68 @@ def test_optimizer_without_floors_is_plain_decay_and_rejects_foreign_tensors():
 
     with pytest.raises(ValueError):
         opt.set_weight_decay_floor_norms({torch.nn.Parameter(torch.randn(2, 2)): 1.0})
+
+
+@pytest.mark.parametrize("shape,transposed", [
+    ((16, 8), True),
+    ((8, 16), False),
+    ((12, 6, 1, 1), True),
+    ((6, 12, 1, 1), False),
+    ((8, 8), False),
+])
+def test_stacked_floored_weight_decay_matches_per_parameter(shape, transposed):
+    """_decay_stacked_run_ + foreach add matches _apply_updates_with_weight_decay across both
+    orientations, 1x1 conv shapes, rows below floor, and all-zero rows."""
+    torch.manual_seed(6)
+    n = 5
+    base = [torch.randn(shape) * 0.05 for _ in range(n)]
+    base[1][2:4].mul_(0.01)  # rows below floor
+    base[2][0].zero_()       # all-zero row
+    rows = shape[0]
+    cols = base[0].numel() // rows
+    stack = torch.randn((n, cols, rows) if transposed else (n, rows, cols)) * 0.3
+
+    results = []
+    for mode in ("stacked", "per_param"):
+        params = [torch.nn.Parameter(t.clone()) for t in base]
+        opt = SingleDeviceMuonWithAuxAdam([dict(params=params, use_muon=True, lr=0.02, weight_decay=0.013)], use_aurora=True)
+        params = opt.param_groups[0]["params"]
+        opt.set_weight_decay_floor_norms({p: 0.05 * (cols ** 0.5) * 0.05 for p in params})
+        scaled = stack.clone()
+        views = scaled.mT if transposed else scaled
+        with torch.no_grad():
+            if mode == "stacked":
+                opt._decay_stacked_run_(params, views, 0.013)
+                torch._foreach_add_(params, [u.reshape(p.shape) for p, u in zip(params, views.unbind(0))], alpha=-0.02)
+            else:
+                opt._apply_updates_with_weight_decay(params, [u.reshape(p.shape) for p, u in zip(params, views.unbind(0))], 0.02, 0.013)
+        results.append([p.detach().clone() for p in params])
+
+    for a, b in zip(results[0], results[1]):
+        assert torch.allclose(a, b, rtol=1e-6, atol=1e-7)
+
+
+def test_apply_muon_updates_stacked_matches_per_parameter():
+    """_apply_muon_updates (DDP bf16-gather apply path) with stacked floored weight decay matches
+    the per-parameter path, including mixed floored/unfloored runs and 1x1 conv weights."""
+    shapes = [(16, 8)] * 6 + [(12, 6, 1, 1)] * 3 + [(8, 16)] * 4 + [(8, 8)] * 3
+    torch.manual_seed(7)
+    base = [torch.randn(s) * 0.05 for s in shapes]
+    base_updates = [(torch.randn(s) * 0.03).to(torch.bfloat16) for s in shapes]
+
+    results = []
+    for stacked in (True, False):
+        params = [torch.nn.Parameter(t.clone()) for t in base]
+        opt = SingleDeviceMuonWithAuxAdam([dict(params=params, use_muon=True, lr=0.02, weight_decay=0.013)], use_aurora=True)
+        opt.use_stacked_weight_decay = stacked
+        group = opt.param_groups[0]
+        ordered = list(group["params"])
+        index_of = {id(p): i for i, p in enumerate(params)}
+        # Leave one parameter without a floor to exercise the fallback path alongside stacked runs.
+        opt.set_weight_decay_floor_norms({p: 0.05 * 0.05 * (p[0].numel() ** 0.5) for p in ordered[:-1]})
+        with torch.no_grad():
+            opt._apply_muon_updates(group, ordered, [base_updates[index_of[id(p)]].clone() for p in ordered])
+        results.append([p.detach().clone() for p in params])
+
+    for a, b in zip(results[0], results[1]):
+        assert torch.allclose(a, b, rtol=1e-6, atol=1e-7)
