@@ -203,6 +203,68 @@ def test_fused_rope_backward_matches_autograd(dtype, batch, pos_len, heads, head
     assert _rel(gf_f, gf_r) < tol
 
 
+@pytest.mark.parametrize("dtype,batch,pos_len,heads,head_dim,v_head_dim", [
+    (torch.float32, 6, 19, 12, 32, 32),
+    (torch.float16, 6, 19, 12, 32, 32),
+    (torch.float16, 5, 19, 6, 32, 32),
+    (torch.bfloat16, 3, 9, 6, 32, 16),
+])
+def test_fused_rope_qkn_matches_autograd(dtype, batch, pos_len, heads, head_dim, v_head_dim):
+    from katago.train.fused_rope import learnable_rope_qkn
+    from katago.train.model_pytorch import compute_learnable_rope_cos_sin, apply_learnable_rotary_emb
+
+    torch.manual_seed(0)
+    dev = torch.device("cuda")
+    seq = pos_len * pos_len
+    eps = 1e-6
+
+    def reference(qkv, freqs, qw, kw):
+        hd = heads * head_dim
+        q = qkv[..., :hd].view(batch, seq, heads, head_dim)
+        k = qkv[..., hd:2 * hd].view(batch, seq, heads, head_dim)
+        v = qkv[..., 2 * hd:].view(batch, seq, heads, v_head_dim)
+        s_idx = torch.arange(seq, device=dev)
+        cos, sin = compute_learnable_rope_cos_sin((s_idx % pos_len).float(), (s_idx // pos_len).float(), freqs)
+        q, k = apply_learnable_rotary_emb(q, k, cos, sin, cos, sin)
+        with torch.amp.autocast("cuda", dtype=dtype, enabled=(dtype != torch.float32)):
+            q = torch.nn.functional.rms_norm(q, (head_dim,), qw, eps)
+            k = torch.nn.functional.rms_norm(k, (head_dim,), kw, eps)
+        return q, k, v.permute(0, 2, 1, 3)
+
+    qkv0 = torch.randn(batch, seq, 2 * heads * head_dim + heads * v_head_dim, device=dev, dtype=dtype)
+    freqs0 = torch.randn(heads, head_dim // 2, 2, device=dev) * 0.3
+    qw0 = 1.0 + 0.2 * torch.randn(head_dim, device=dev)
+    kw0 = 1.0 + 0.2 * torch.randn(head_dim, device=dev)
+    gq = torch.randn(batch, heads, seq, head_dim, device=dev, dtype=dtype)
+    gk = torch.randn_like(gq)
+    gv = torch.randn(batch, heads, seq, v_head_dim, device=dev, dtype=dtype)
+
+    def run(fn):
+        qkv = qkv0.clone().requires_grad_(True)
+        freqs = freqs0.clone().requires_grad_(True)
+        qw = qw0.clone().requires_grad_(True)
+        kw = kw0.clone().requires_grad_(True)
+        q, k, v = fn(qkv, freqs, qw, kw)
+        loss = (q.permute(0, 2, 1, 3).float() * gq.float()).sum() + (k.permute(0, 2, 1, 3).float() * gk.float()).sum() + (v.float() * gv.float()).sum()
+        loss.backward()
+        return [q.detach(), k.detach(), v.detach()], qkv.grad.clone(), freqs.grad.clone(), qw.grad.clone(), kw.grad.clone()
+
+    outs_r, gqkv_r, gf_r, gqw_r, gkw_r = run(reference)
+
+    def fused(a, b, qw, kw):
+        q, k, v = learnable_rope_qkn(a, b, qw, kw, eps, pos_len, heads, head_dim, v_head_dim)
+        return q.permute(0, 2, 1, 3), k.permute(0, 2, 1, 3), v
+
+    outs_f, gqkv_f, gf_f, gqw_f, gkw_f = run(fused)
+    tol = {torch.float32: 1e-5, torch.float16: 3e-3, torch.bfloat16: 2e-2}[dtype]
+    for a, b in zip(outs_f, outs_r):
+        assert _rel(a, b) < tol
+    assert _rel(gqkv_f, gqkv_r) < tol
+    assert _rel(gf_f, gf_r) < tol
+    assert _rel(gqw_f, gqw_r) < tol
+    assert _rel(gkw_f, gkw_r) < tol
+
+
 @pytest.mark.parametrize("model_kind,batch,per_block", [
     ("b10c384h6nbttflrs-fson-silu", 128, True),
     ("b10c384h6nbttflrs-fson-silu", 128, False),
