@@ -39,6 +39,9 @@ FUSED_SWIGLU_KERNEL = env_flag("KATAGO_FUSED_SWIGLU_KERNEL", default=True)
 # trainloop_helpers.configure_model_for_compile turns it (and the fused Q/K/V projection) off when the
 # model is compiled as a single graph.
 FUSED_ROPE_BACKWARD = env_flag("KATAGO_FUSED_ROPE_BACKWARD", default=True)
+# With attention_qk_norm and the fused RoPE kernels above, also apply the query-key RMSNorm inside
+# the RoPE forward/backward kernels (katago.train.fused_rope.learnable_rope_qkn).
+FUSED_QK_NORM = env_flag("KATAGO_FUSED_QK_NORM", default=True)
 
 EXTRA_SCORE_DISTR_RADIUS = 60
 
@@ -2356,10 +2359,19 @@ class TransformerAttentionBlock(torch.nn.Module):
             and not (self.inline_registers and self.num_rw_registers > 0)
         )
         qkv_is_bhsd = False
+        qk_norm_done = False
         if self.fused_qkv_proj:
             qkv_weight = torch.cat([self.q_proj.weight, self.k_proj.weight, self.v_proj.weight], dim=0)
             qkv = torch.nn.functional.linear(x_norm, qkv_weight)
-            if use_fused_rope:
+            if use_fused_rope and self.use_qk_norm and FUSED_QK_NORM:
+                from .fused_rope import learnable_rope_qkn
+                q, k, v = learnable_rope_qkn(
+                    qkv, self.rope_freqs, self.q_norm.weight, self.k_norm.weight, self.q_norm.eps,
+                    self.pos_len, self.num_heads, self.q_head_dim, self.v_head_dim,
+                )  # q, k rotated and normalized and v, each (B, H, S, head dim)
+                qkv_is_bhsd = True
+                qk_norm_done = True
+            elif use_fused_rope:
                 from .fused_rope import learnable_rope_qkv
                 q, k, v = learnable_rope_qkv(
                     qkv, self.rope_freqs, self.pos_len, self.num_heads, self.q_head_dim, self.v_head_dim,
@@ -2419,7 +2431,7 @@ class TransformerAttentionBlock(torch.nn.Module):
             v = v.unsqueeze(2).expand(batch_size, self.num_kv_heads, self.n_rep, seq_len, self.v_head_dim)
             v = v.reshape(batch_size, self.num_heads, seq_len, self.v_head_dim)
 
-        if self.use_qk_norm:
+        if self.use_qk_norm and not qk_norm_done:
             q = self.q_norm(q)
             k = self.k_norm(k)
 

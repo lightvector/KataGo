@@ -17,6 +17,10 @@ KATAGO_FUSED_ROPE_BACKWARD (default 1):
   katago/train/fused_rope.py: one forward kernel writing Q/K/V in attention layout, and one backward
   kernel writing the packed Q/K/V gradient directly. Only safe under torch.compile when the trunk is
   compiled per block (KATAGO_COMPILE_PER_BLOCK). See configure_model_for_compile.
+KATAGO_FUSED_QK_NORM (default 1):
+  With attention_qk_norm and KATAGO_FUSED_ROPE_BACKWARD, fold the per-head Q/K RMSNorm into the
+  fused RoPE Triton kernels (katago/train/fused_rope.py:learnable_rope_qkn), avoiding extra passes
+  and saved Q/K activations.
 
 KATAGO_COMPILE_MODE (default "default"):
   torch.compile mode for the model and compiled loss.
